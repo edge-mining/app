@@ -1,0 +1,36 @@
+@import "tailwindcss";
+@plugin "daisyui";
+@plugin "daisyui/theme" {
+  name: "edge-mining";
+  default: true;
+  prefersdark: true;
+  color-scheme: "light";
+  --color-base-100: oklch(0.1543 0 0);
+  --color-base-200: oklch(0.1957 0 0);
+  --color-base-300: oklch(0.3012 0 0);
+  --color-base-content: oklch(0.931 0 0);
+  --color-primary: #BEFFA3;
+  --color-primary-content: oklch(25% 0.09 281.288);
+  --color-secondary: oklch(70% 0.01 56.259);
+  --color-secondary-content: oklch(14% 0.004 49.25);
+  --color-accent: oklch(76% 0.177 163.223);
+  --color-accent-content: oklch(26% 0.051 172.552);
+  --color-neutral: oklch(14% 0.004 49.25);
+  --color-neutral-content: oklch(98% 0.001 106.423);
+  --color-info: oklch(78% 0.154 211.53);
+  --color-info-content: oklch(30% 0.056 229.695);
+  --color-success: oklch(76% 0.177 163.223);
+  --color-success-content: oklch(26% 0.051 172.552);
+  --color-warning: #C46A36;
+  --color-warning-content: oklch(27% 0.077 45.635);
+  --color-error: oklch(70% 0.191 22.216);
+  --color-error-content: oklch(25% 0.092 26.042);
+  --radius-selector: 2rem;
+  --radius-field: 0.25rem;
+  --radius-box: 0.5rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
