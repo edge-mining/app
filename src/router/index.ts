@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import DashboardView from "../views/DashboardView.vue";
-import SettingsView from "../views/SettingsView.vue";
+import MinersSettingsView from "../views/settings/MinersSettingsView.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -12,13 +12,16 @@ const router = createRouter({
       component: DashboardView,
     },
     {
-      path: "/settings",
+      path: "/settings/",
       name: "settings",
-      // This is the default route, it will be replaced by the setHomeRoute function
-      component: SettingsView,
-      meta: {
-        title: "Settings",
-      },
+      redirect: "/settings/miners",
+      children: [
+        {
+          path: "miners",
+          name: "settings.miners",
+          component: MinersSettingsView,
+        },
+      ],
     },
   ],
 });
