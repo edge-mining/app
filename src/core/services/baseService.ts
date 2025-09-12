@@ -1,5 +1,6 @@
 import axios, { type AxiosRequestConfig, type AxiosResponse } from "axios";
 import { useAppStore } from "../stores/appStore";
+// @ts-ignore // this line is needed to import the PromiseExtensions
 import * as PromiseExtensions from "../extensions/promise";
 
 /**
