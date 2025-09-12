@@ -12,7 +12,7 @@ export const useAppStore = defineStore("app", () => {
   const loader = useLoader();
 
   // GETTERS
-  const rootUrl = computed(() => window.location.origin);
+  const rootUrl = computed(() => "http://localhost:8001"); // Hardcoded for now, should be configurable
   const apiUrl = computed(() => rootUrl.value + "/api/v1");
 
   // ACTIONS
