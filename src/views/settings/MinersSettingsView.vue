@@ -10,37 +10,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <h1 class="text-3xl font-bold underline">Miners settings!</h1>
-
-  <!-- <div>
-    <span v-for="value in minerStore.miners" :key="value.id">{{
-      value.name
-    }}</span>
-  </div> -->
-
-  <!-- <div class="stats shadow" v-for="miner in minerStore.miners" :key="miner.id">
-    <div class="stat">
-      <div class="stat-title">{{ miner.name }}</div>
-      <div class="stat-value">
-        {{ miner.hash_rate?.value }} {{ miner.hash_rate?.unit }}
-      </div>
-      <div class="stat-desc">{{ miner.status }}</div>
-      <div class="stat-desc">{{ miner.power_consumption }} Watts</div>
-    </div>
-  </div> -->
-
-  <!-- <div
-    class="card bg-base-100 card-border border-base-300 card-sm w-96 shadow-sm"
-    v-for="miner in minerStore.miners"
-    :key="miner.id"
-  >
-    <div class="card-body">
-      <h2 class="card-title">{{ miner.name }}</h2>
-      <p><span>{{ miner.hash_rate?.value }} {{ miner.hash_rate?.unit }}</span></p>
-      <p>{{ miner.status }}</p>
-      <p>{{ miner.power_consumption }} Watts</p>
-    </div>
-  </div> -->
+  <h1 class="text-3xl font-bold">Miners settings</h1>
 
   <div class="overflow-x-auto">
     <table class="table">
@@ -110,14 +80,19 @@ onMounted(() => {
         </tr>
 
         <tr>
-          <th></th>
-          <td></td>
-          <td></td>
-          <td></td>
-          <td></td>
-          <th>
+          <th colspan="5" class="text-center">
             <button class="btn btn-primary">Add Miner</button>
           </th>
+          <!-- {
+          Example of required data to create a miner
+            "name": "",
+            "hash_rate_max": {
+              "value": 0,
+              "unit": "TH/s"
+            },
+            "power_consumption_max": 0,
+            "controller_id": "string"
+          } -->
         </tr>
       </tbody>
       <!-- foot -->
