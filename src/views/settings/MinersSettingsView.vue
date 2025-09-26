@@ -1,12 +1,33 @@
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { onMounted, ref } from "vue";
 import { useMinerStore } from "../../core/stores/minerStore";
+import MinerRow from "../../components/miners/MinerRow.vue";
+import type { Miner } from "../../core/models/miner";
+import MinerRowEdit from "../../components/miners/MinerRowEdit.vue";
 
 const minerStore = useMinerStore();
+const newMiner = ref<Miner | undefined>(undefined);
 
 onMounted(() => {
   minerStore.loadMiners();
 });
+
+function addMiner() {
+  newMiner.value = {
+    name: "",
+    status: "",
+    active: false,
+    hash_rate_max: { value: 100, unit: "TH/s" },
+    power_consumption_max: 3000,
+  };
+}
+
+function confirmAdd() {
+  minerStore.addMiner(newMiner.value!).then(() => {
+    minerStore.loadMiners();
+    newMiner.value = undefined;
+  });
+}
 </script>
 
 <template>
@@ -30,69 +51,26 @@ onMounted(() => {
         </tr>
       </thead>
       <tbody>
-        <tr v-for="miner in minerStore.miners" :key="miner.id">
-          <th>
-            <label>
-              <input type="checkbox" class="checkbox" />
-            </label>
-          </th>
-          <td>
-            <div class="flex items-center gap-3">
-              <div class="avatar">
-                <div class="mask mask-squircle h-12 w-12">
-                  <!-- <img
-                    src="https://img.daisyui.com/images/profile/demo/2@94.webp"
-                    alt="Avatar Tailwind CSS Component"
-                  /> -->
-                </div>
-              </div>
-              <div>
-                <div class="text-xl">{{ miner.name }}</div>
-                <div class="text-sm opacity-50">{{ miner.active }}</div>
-              </div>
-            </div>
-          </td>
-          <td>
-            <div
-              class="text-xl"
-              :class="
-                miner.status === 'active' ? 'text-green-500' : 'text-red-500'
-              "
-            >
-              {{ miner.status }}
-            </div>
-          </td>
-          <td>
-            <div class="text-xl">
-              {{ miner.hash_rate?.value }} {{ miner.hash_rate?.unit }}
-            </div>
-            <div class="text-sm opacity-50">
-              ({{ miner.hash_rate_max?.value }} {{ miner.hash_rate_max?.unit }})
-            </div>
-          </td>
-          <td>
-            <div class="text-xl">{{ miner.power_consumption }} Watts</div>
-            <div class="text-sm opacity-50">
-              ({{ miner.power_consumption_max }} Watts)
-            </div>
-          </td>
-          <th></th>
-        </tr>
+        <template v-for="(miner, i) in minerStore.miners" :key="miner.id">
+          <MinerRow v-model="minerStore.miners[i]" />
+        </template>
+
+        <MinerRowEdit v-if="newMiner" v-model="newMiner" edit />
 
         <tr>
           <th colspan="5" class="text-center">
-            <button class="btn btn-primary">Add Miner</button>
+            <button v-if="!newMiner" class="btn btn-primary" @click="addMiner">
+              Add Miner
+            </button>
+            <template v-else>
+              <button class="btn btn-primary mr-4" @click="confirmAdd">
+                OK
+              </button>
+              <button class="btn btn-secondary" @click="newMiner = undefined">
+                Cancel
+              </button>
+            </template>
           </th>
-          <!-- {
-          Example of required data to create a miner
-            "name": "",
-            "hash_rate_max": {
-              "value": 0,
-              "unit": "TH/s"
-            },
-            "power_consumption_max": 0,
-            "controller_id": "string"
-          } -->
         </tr>
       </tbody>
       <!-- foot -->

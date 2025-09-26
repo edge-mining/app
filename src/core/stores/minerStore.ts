@@ -16,9 +16,14 @@ export const useMinerStore = defineStore("miner", () => {
     });
   }
 
+  function addMiner(miner: Miner) {
+    return service.addMiner(miner);
+  }
+
   return {
     //STATE
     miners,
+    addMiner,
     // ACTIONS
     loadMiners,
   };
