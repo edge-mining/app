@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 import DashboardView from "../views/DashboardView.vue";
 import MinersSettingsView from "../views/settings/MinersSettingsView.vue";
+import EnergySourcesSettingsView from "../views/settings/EnergySourcesSettingsView.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -20,6 +21,11 @@ const router = createRouter({
           path: "miners",
           name: "settings.miners",
           component: MinersSettingsView,
+        },
+        {
+          path: "energy-sources",
+          name: "settings.energySources",
+          component: EnergySourcesSettingsView,
         },
       ],
     },

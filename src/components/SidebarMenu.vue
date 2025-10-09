@@ -15,6 +15,11 @@
                   Miners
                 </RouterLink>
               </li>
+              <li>
+                <RouterLink to="/settings/energy-sources" class="flenter">
+                  Energy Sources
+                </RouterLink>
+              </li>
             </ul>
           </details>
         </li>
