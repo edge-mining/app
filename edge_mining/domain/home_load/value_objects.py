@@ -76,8 +76,28 @@ class HomeLoadEnergyInterval(ValueObject):
 
 @dataclass(frozen=True)
 class ConsumptionForecast(ValueObject):
-    """Value Object for a consumption forecast."""
+    """
+    Value Object for a consumption forecast.
+    In most cases intervals can be understood as a list of of 1 hour time ranges.
+    """
 
-    # Predicted consumption for a future period
-    predicted_watts: Dict[Timestamp, Watts] = field(default_factory=dict)
-    generated_at: Timestamp = field(default_factory=Timestamp(datetime.now()))
+    timestamp: Timestamp = field(default_factory=Timestamp(datetime.now()))
+    intervals: List[HomeLoadEnergyInterval] = field(default_factory=list)
+
+    @property
+    def avg_energy(self) -> WattHours:
+        """Calculate the average energy over all intervals."""
+        if not self.intervals:
+            return WattHours(0.0)
+
+        total_energy = sum(interval.energy for interval in self.intervals if interval.energy)
+        return WattHours(total_energy / len(self.intervals)) if total_energy else WattHours(0.0)
+
+    @property
+    def avg_power(self) -> Watts:
+        """Calculate the average power over all intervals."""
+        if not self.intervals:
+            return Watts(0.0)
+
+        total_power = sum(interval.avg_power for interval in self.intervals)
+        return Watts(total_power / len(self.intervals)) if total_power else Watts(0.0)
