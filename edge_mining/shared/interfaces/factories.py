@@ -62,3 +62,7 @@ class ForecastAdapterFactory(AdapterFactory):
     def from_energy_source(self, energy_source: EnergySource) -> None:
         """Set the reference energy source"""
         pass
+
+
+class EnergyLoadHistoryAdapterFactory(AdapterFactory):
+    """Abstract factory for energy load history adapters"""
