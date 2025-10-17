@@ -12,6 +12,8 @@ from edge_mining.domain.energy.value_objects import Battery, Grid
 from edge_mining.domain.forecast.common import ForecastProviderAdapter
 from edge_mining.domain.forecast.entities import ForecastProvider
 from edge_mining.domain.forecast.ports import ForecastProviderPort
+from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
+from edge_mining.domain.home_load.entities import LoadDevice
 from edge_mining.domain.home_load.ports import HomeForecastProviderPort
 from edge_mining.domain.miner.common import MinerControllerAdapter, MinerStatus
 from edge_mining.domain.miner.entities import Miner, MinerController
@@ -673,6 +675,44 @@ class ConfigurationServiceInterface(ABC):
     @abstractmethod
     def check_forecast_provider(self, provider: ForecastProvider) -> bool:
         """Check if a forecast provider is valid and can be used."""
+
+    # --- Home loads Management ---
+    @abstractmethod
+    def add_home_loads_profile(self, name: str) -> HomeLoadsProfile:
+        """Add a home loads profile to the system."""
+
+    @abstractmethod
+    def get_home_loads_profile(self, profile_id: EntityId) -> Optional[HomeLoadsProfile]:
+        """Get a home loads profile by its ID."""
+
+    @abstractmethod
+    def list_home_loads_profiles(self) -> List[HomeLoadsProfile]:
+        """List all home loads profiles in the system."""
+
+    @abstractmethod
+    def remove_home_loads_profile(self, profile_id: EntityId) -> Optional[HomeLoadsProfile]:
+        """Remove a home loads profile from the system."""
+
+    @abstractmethod
+    def update_home_loads_profile(self, profile_id: EntityId, name: str) -> Optional[HomeLoadsProfile]:
+        """Update a home loads profile in the system."""
+
+    @abstractmethod
+    def add_load_device_to_profile(
+        self,
+        profile_id: EntityId,
+        name: str,
+        type: str,
+    ) -> Optional[LoadDevice]:
+        """Add a load device to a home loads profile."""
+
+    @abstractmethod
+    def remove_load_device_from_profile(
+        self,
+        profile_id: EntityId,
+        device_id: EntityId,
+    ) -> Optional[LoadDevice]:
+        """Remove a load device from a home loads profile."""
 
     # --- Settings Management ---
     @abstractmethod
