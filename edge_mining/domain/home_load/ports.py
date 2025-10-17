@@ -3,11 +3,24 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from edge_mining.domain.common import EntityId
-from edge_mining.domain.home_load.common import HomeForecastProviderAdapter
+from edge_mining.domain.common import EntityId, Timestamp
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
+from edge_mining.domain.home_load.common import EnergyLoadHistoryProviderAdapter, HomeForecastProviderAdapter
 from edge_mining.domain.home_load.entities import HomeForecastProvider
-from edge_mining.domain.home_load.value_objects import ConsumptionForecast
+from edge_mining.domain.home_load.value_objects import ConsumptionForecast, HomeLoadEnergyInterval
+
+
+class EnergyLoadHistoryProviderPort(ABC):
+    """Port for retrieving historical energy load consumption data."""
+
+    def __init__(self, provider_type: EnergyLoadHistoryProviderAdapter):
+        """Initialize the EnergyLoadHistory Provider."""
+        self.provider_type = provider_type
+
+    @abstractmethod
+    def get_history(self, start: Timestamp, end: Timestamp) -> List[HomeLoadEnergyInterval]:
+        """Retrieves a list of consumption intervals from a data source."""
+        raise NotImplementedError
 
 
 class HomeForecastProviderPort(ABC):
