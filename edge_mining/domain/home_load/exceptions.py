@@ -37,3 +37,15 @@ class HomeForecastProviderConfigurationError(HomeForecastProviderError):
     """Error with the configuration."""
 
     pass
+
+
+class EnergyLoadHistoryProviderError(HomeForecastError):
+    """Errors related to energy load history provider."""
+
+    pass
+
+
+class EnergyLoadHistoryProviderConfigurationError(EnergyLoadHistoryProviderError):
+    """Error with the configuration."""
+
+    pass
