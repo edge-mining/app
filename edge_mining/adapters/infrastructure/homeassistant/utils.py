@@ -19,6 +19,15 @@ class TurnService(Enum):
     TURN_OFF = "turn_off"
 
 
+class EntityState(Enum):
+    """Enum for the different states of an entity."""
+
+    ON = "on"
+    OFF = "off"
+    UNAVAILABLE = "unavailable"
+    UNKNOWN = "unknown"
+
+
 STATE_SERVICE_MAP: Dict[str, TurnService] = {
     "on": TurnService.TURN_ON,
     "true": TurnService.TURN_ON,
