@@ -13,17 +13,18 @@ https://github.com/home-assistant/developers.home-assistant/pull/2150
 
 import math  # For isnan
 import time
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
-from homeassistant_api import Client, Domain, Entity, Service
+from homeassistant_api import Client, Domain, Entity, History, Service
 
+from edge_mining.adapters.infrastructure.homeassistant.models import EntityHistory, HistoryDataPoint
 from edge_mining.adapters.infrastructure.homeassistant.utils import (
     STATE_SERVICE_MAP,
     SWITCH_STATE_MAP,
     SwitchDomain,
     TurnService,
 )
-from edge_mining.domain.common import Percentage, WattHours, Watts
+from edge_mining.domain.common import Percentage, Timestamp, WattHours, Watts
 from edge_mining.shared.adapter_configs.external_services import (
     ExternalServiceHomeAssistantConfig,
 )
@@ -197,6 +198,78 @@ class ServiceHomeAssistantAPI(ExternalServicePort):
             if self.logger:
                 self.logger.error(f"Unexpected error setting Home Assistant entity '{entity_id}': {e}")
             return False
+
+    def get_entity_history(self, entity_id: str, start: Timestamp, end: Timestamp) -> Optional[EntityHistory]:
+        """Retrieves the history of a Home Assistant entity."""
+        if self.logger:
+            self.logger.debug(f"Fetching history for entity '{entity_id}' from {start} to {end}...")
+
+        if not entity_id:
+            if self.logger:
+                self.logger.debug("No entity_id provided for history fetch.")
+            return None
+
+        if not self.client:
+            if self.logger:
+                self.logger.error("Home Assistant client is not initialized.")
+            return None
+
+        try:
+            entity: Optional[Entity] = self.client.get_entity(entity_id=entity_id)
+
+            if not entity:
+                if self.logger:
+                    self.logger.warning(f"Home Assistant entity '{entity_id}' not found.")
+                return None
+
+            history_generator = self.client.get_entity_histories((entity,), start, end)
+            try:
+                history_for_entity: Optional[History] = next(history_generator, None)
+            except StopIteration:
+                history_for_entity = None
+
+            if not history_for_entity:
+                if self.logger:
+                    self.logger.debug(f"No history found for entity '{entity_id}'.")
+                return None
+
+            if self.logger:
+                self.logger.debug(
+                    f"Retrieved history for entity '{entity_id}' with {len(history_for_entity.states)} entries."
+                )
+
+            # history_for_entity.states is a tuple of State objects.
+            # We iterate over it to create a list of HistoryDataPoint objects.
+            data_points: List[HistoryDataPoint] = []
+            for state in history_for_entity.states:
+                if state.last_updated is None:
+                    if self.logger:
+                        self.logger.warning(
+                            f"State entry for entity '{entity_id}' has no 'last_updated' timestamp. Skipping entry."
+                        )
+                    continue
+
+                data_points.append(
+                    HistoryDataPoint(
+                        timestamp=Timestamp(state.last_updated),
+                        value=state.state,
+                        unit=state.attributes.get("unit_of_measurement", ""),
+                    )
+                )
+
+            if self.logger:
+                self.logger.debug(
+                    f"Retrieved and processed {len(data_points)} history entries for entity '{entity_id}'."
+                )
+
+            entity_history = EntityHistory(entity_id=entity_id, history=data_points)
+            entity_history.sort_by_timestamp()
+
+            return entity_history
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error fetching history for entity '{entity_id}': {e}")
+            return None
 
     def parse_power(
         self,
