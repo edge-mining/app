@@ -8,7 +8,7 @@ It is responsible for:
 """
 
 import asyncio
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from edge_mining.application.interfaces import (
     AdapterServiceInterface,
@@ -21,7 +21,8 @@ from edge_mining.domain.energy.ports import EnergyMonitorPort, EnergySourceRepos
 from edge_mining.domain.energy.value_objects import EnergyStateSnapshot
 from edge_mining.domain.forecast.aggregate_root import Forecast
 from edge_mining.domain.forecast.ports import ForecastProviderPort
-from edge_mining.domain.home_load.ports import HomeForecastProviderPort
+from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
+from edge_mining.domain.home_load.ports import HomeForecastProviderPort, HomeLoadsProfileRepository
 from edge_mining.domain.home_load.value_objects import ConsumptionForecast
 from edge_mining.domain.miner.common import MinerStatus
 from edge_mining.domain.miner.entities import Miner
@@ -51,6 +52,7 @@ class OptimizationService(OptimizationServiceInterface):
         energy_source_repo: EnergySourceRepository,
         policy_repo: OptimizationPolicyRepository,
         miner_repo: MinerRepository,
+        home_loads_repo: HomeLoadsProfileRepository,
         adapter_service: AdapterServiceInterface,
         sun_factory: SunFactoryInterface,
         logger: Optional[LoggerPort] = None,
@@ -62,6 +64,7 @@ class OptimizationService(OptimizationServiceInterface):
         self.energy_source_repo = energy_source_repo
         self.policy_repo = policy_repo
         self.miner_repo = miner_repo
+        self.home_loads_repo = home_loads_repo
 
         # Infrastructure
         self.sun_factory = sun_factory
@@ -155,22 +158,35 @@ class OptimizationService(OptimizationServiceInterface):
                         f"Skipping optimization unit."
                     )
 
-        # --- Home Forecast Provider ---
-        home_forecast_provider: Optional[HomeForecastProviderPort] = None
-        if optimization_unit.home_forecast_provider_id:
-            home_forecast_provider = self.adapter_service.get_home_load_forecast_provider(
-                optimization_unit.home_forecast_provider_id
-            )
-        # Home forecast provider is optional, so log a warning if it's missing but
-        # continue
-        if not home_forecast_provider:
-            if self.logger:
-                self.logger.warning(
-                    f"Home forecast provider for "
-                    f"optimization unit '{optimization_unit.name}' "
-                    f"(Config ID: {optimization_unit.home_forecast_provider_id}) "
-                    "not found. Skipping forecast provider."
-                )
+        # --- Home Loads ---
+        home_loads_profile: Optional[HomeLoadsProfile] = None
+        if optimization_unit.home_loads_profile:
+            profile = self.home_loads_repo.get_by_id(optimization_unit.home_loads_profile)
+            if profile:
+                home_loads_profile = profile
+
+        # --- Home Loads Forecast Provider ---
+        home_forecast_providers: Dict[EntityId, HomeForecastProviderPort] = {}
+        if home_loads_profile and home_loads_profile.devices:
+            for load_device in home_loads_profile.devices:
+                if load_device.home_forecast_provider_id:
+                    home_forecast_provider = self.adapter_service.get_home_load_forecast_provider(
+                        load_device.home_forecast_provider_id
+                    )
+                    # Home forecast provider is optional, so log a warning if it's missing but
+                    # continue
+                    if not home_forecast_provider:
+                        if self.logger:
+                            self.logger.warning(
+                                f"Home forecast provider for "
+                                f"load device '{load_device.name}' of"
+                                f"optimization unit '{optimization_unit.name}' "
+                                f"(Config ID: {optimization_unit.home_forecast_provider_id}) "
+                                "not found. Skipping forecast provider."
+                            )
+
+                    if home_forecast_provider:
+                        home_forecast_providers[load_device.id] = home_forecast_provider
 
         # --- Mining Performance Tracker ---
         mining_performance_tracker: Optional[MiningPerformanceTrackerPort] = None
