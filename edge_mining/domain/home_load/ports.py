@@ -26,18 +26,13 @@ class EnergyLoadHistoryProviderPort(ABC):
 class HomeForecastProviderPort(ABC):
     """Port for the Home Forecast Provider."""
 
-    def __init__(self, home_forecast_provider_type: HomeForecastProviderAdapter):
+    def __init__(self, provider_type: HomeForecastProviderAdapter):
         """Initialize the HomeForecast Provider."""
-        self.home_forecast_provider_type = home_forecast_provider_type
+        self.provider_type = provider_type
 
     @abstractmethod
     def get_home_consumption_forecast(self, hours_ahead: int = 3) -> Optional[ConsumptionForecast]:
-        """
-        Provides an aggregated forecast of home energy consumption
-        for the specified period. Returns average Watts or a profile?
-        For now, let's return an estimated *average* Watts needed soon.
-        Refine later based on how OptimizationPolicy uses it.
-        """
+        """Provides an aggregated forecast of home energy consumption for the specified period."""
         raise NotImplementedError
 
 
