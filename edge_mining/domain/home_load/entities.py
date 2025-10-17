@@ -16,6 +16,8 @@ class LoadDevice(Entity):
     type: str = ""  # e.g., "Appliance", "Heating"
     # Could store typical consumption patterns here but I'll think about it later
 
+    home_forecast_provider_id: Optional[EntityId] = None  # Home load forecast provider to be used
+
 
 @dataclass
 class HomeForecastProvider(Entity):
