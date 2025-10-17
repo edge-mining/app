@@ -23,9 +23,9 @@ class EnergyOptimizationUnit(AggregateRoot):
     policy_id: Optional[EntityId] = None  # Policy to be used for the optimization
     target_miner_ids: List[EntityId] = field(default_factory=list)  # Miners to be controlled
     energy_source_id: Optional[EntityId] = None  # Energy source to be used
+    home_loads_profile: Optional[EntityId] = None  # Home loads to manage
 
     # References to adapters
-    home_forecast_provider_id: Optional[EntityId] = None  # Home load forecast provider to be used
     performance_tracker_id: Optional[EntityId] = None  # Performance tracker to be used
     notifier_ids: List[EntityId] = field(default_factory=list)  # Notifiers to be used
 
@@ -51,6 +51,10 @@ class EnergyOptimizationUnit(AggregateRoot):
     def assign_energy_source(self, energy_source_id: EntityId):
         """Assign an energy source to the energy optimization unit."""
         self.energy_source_id = energy_source_id
+
+    def assign_home_loads_profile(self, profile_id: EntityId):
+        """Assign a home loads profile to the energy optimization unit."""
+        self.home_loads_profile = profile_id
 
     def assign_home_forecast_provider(self, home_forecast_provider_id: EntityId):
         """Assign a home load forecast provider to the energy optimization unit."""
