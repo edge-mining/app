@@ -40,15 +40,33 @@ class HomeLoadsProfileRepository(ABC):
     """Port for the Home Loads Profile Repository."""
 
     @abstractmethod
-    def get_profile(
-        self,
-    ) -> Optional[HomeLoadsProfile]:  # Assuming single profile for now
-        """Get the home loads profile."""
+    def add(self, profile: HomeLoadsProfile) -> None:
+        """Adds a new home loads profile to the repository."""
         raise NotImplementedError
 
     @abstractmethod
-    def save_profile(self, profile: HomeLoadsProfile) -> None:
-        """Save the home loads profile."""
+    def get_by_id(self, profile_id: EntityId) -> Optional[HomeLoadsProfile]:
+        """Retrieves an home loads profile by its ID."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_all(self) -> List[HomeLoadsProfile]:
+        """Retrieves all home loads profiles in the repository."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def update(self, profile: HomeLoadsProfile) -> None:
+        """Updates the state of an existing home loads profile in the repository."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def remove(self, profile: HomeLoadsProfile) -> None:
+        """Removes an home loads profile from the repository."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_by_provider_id(self, provider_id: EntityId) -> List[HomeLoadsProfile]:
+        """Retrieves a list of home loads profiles by their associated provider ID."""
         raise NotImplementedError
 
 
