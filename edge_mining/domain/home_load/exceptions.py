@@ -9,6 +9,36 @@ class HomeLoadError(DomainError):
     pass
 
 
+class HomeLoadsProfileAlreadyExistsError(HomeLoadError):
+    """Home Loads Profile already exists."""
+
+    pass
+
+
+class HomeLoadsProfileNotFoundError(HomeLoadError):
+    """Home Loads Profile not found."""
+
+    pass
+
+
+class HomeLoadsProfileAddDeviceError(HomeLoadError):
+    """Error adding device to Home Loads Profile."""
+
+    pass
+
+
+class HomeLoadsProfileDeviceNotFoundError(HomeLoadError):
+    """Load Device not found in Home Loads Profile."""
+
+    pass
+
+
+class HomeLoadsProfileRemoveDeviceError(HomeLoadError):
+    """Error removing device from Home Loads Profile."""
+
+    pass
+
+
 class HomeForecastError(HomeLoadError):
     """Base class for home forecast-specific errors."""
 
