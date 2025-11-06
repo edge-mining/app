@@ -698,12 +698,7 @@ class ConfigurationServiceInterface(ABC):
         """Update a home loads profile in the system."""
 
     @abstractmethod
-    def add_load_device_to_profile(
-        self,
-        profile_id: EntityId,
-        name: str,
-        type: str,
-    ) -> Optional[LoadDevice]:
+    def add_load_device_to_profile(self, profile_id: EntityId, load_device: LoadDevice) -> Optional[LoadDevice]:
         """Add a load device to a home loads profile."""
 
     @abstractmethod
