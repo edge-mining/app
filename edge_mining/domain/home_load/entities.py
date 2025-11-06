@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from edge_mining.domain.common import Entity, EntityId
-from edge_mining.domain.home_load.common import HomeForecastProviderAdapter
+from edge_mining.domain.home_load.common import HomeForecastProviderAdapter, LoadDeviceCategory
 from edge_mining.shared.interfaces.config import HomeForecastProviderConfig
 
 
@@ -13,8 +13,8 @@ class LoadDevice(Entity):
     """Entity for a load device."""
 
     name: str = ""  # e.g., "Dishwasher", "EV Charger"
-    type: str = ""  # e.g., "Appliance", "Heating"
-    # Could store typical consumption patterns here but I'll think about it later
+    category: LoadDeviceCategory = LoadDeviceCategory.OCCASIONAL
+    enabled: bool = True  # Whether the device is active in the system
 
     home_forecast_provider_id: Optional[EntityId] = None  # Home load forecast provider to be used
 
