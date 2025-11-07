@@ -109,3 +109,39 @@ class EnergyLoadForecastProviderRepository(ABC):
         Retrieves all energy load forecast providers associated with a specific external service ID.
         """
         raise NotImplementedError
+
+
+class EnergyLoadHistoryProviderRepository(ABC):
+    """Port for the Energy Load History Provider Repository."""
+
+    @abstractmethod
+    def add(self, energy_load_history_provider: EnergyLoadHistoryProviderPort) -> None:
+        """Adds a new energy load history provider to the repository."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_by_id(self, energy_load_history_provider_id: EntityId) -> Optional[EnergyLoadHistoryProviderPort]:
+        """Retrieves an energy load history provider by its ID."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_all(self) -> List[EnergyLoadHistoryProviderPort]:
+        """Retrieves all energy load history providers in the repository."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def update(self, energy_load_history_provider: EnergyLoadHistoryProviderPort) -> None:
+        """Updates the state of an existing energy load history provider in the repository."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def remove(self, energy_load_history_provider_id: EntityId) -> None:
+        """Removes an energy load history provider from the repository."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_by_external_service_id(self, external_service_id: EntityId) -> List[EnergyLoadHistoryProviderPort]:
+        """
+        Retrieves all energy load history providers associated with a specific external service ID.
+        """
+        raise NotImplementedError

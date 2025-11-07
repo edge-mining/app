@@ -24,8 +24,7 @@ class DummyHomeForecastProvider(HomeForecastProviderPort):
         logger: Optional[LoggerPort] = None,
     ):
         """Initializes the DummyHomeForecastProvider."""
-        super().__init__(provider_type=HomeForecastProviderAdapter.DUMMY)
-        self._history_provider = history_provider
+        super().__init__(provider_type=HomeForecastProviderAdapter.DUMMY, history_provider=history_provider)
         self._logger = logger
 
         self.load_power_max = load_power_max
@@ -38,7 +37,7 @@ class DummyHomeForecastProvider(HomeForecastProviderPort):
                 f"DummyHomeForecastProvider: "
                 f"Generating home load forecast for {hours_ahead} hours ahead "
                 f"with max load {self.load_power_max} Wp"
-                f"using history data provider: ${type(self._history_provider).__name__ if self._history_provider else None}"
+                f"using history data provider: ${type(self.history_provider).__name__ if self.history_provider else None}"
             )
 
         # Historical period needed for the prediction
@@ -47,8 +46,8 @@ class DummyHomeForecastProvider(HomeForecastProviderPort):
         history_start = now - timedelta(hours=hours_back)
 
         # Get history data from history provider, if any
-        if self._history_provider:
-            historical_intervals = self._history_provider.get_history(start=history_start, end=history_end)
+        if self.history_provider:
+            historical_intervals = self.history_provider.get_history(start=history_start, end=history_end)
 
             # Pass historical_intervals to the ML/DL model.
             # For now, we simulate the prediction.
