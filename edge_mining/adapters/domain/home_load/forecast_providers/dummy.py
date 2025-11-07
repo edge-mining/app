@@ -8,13 +8,13 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 
 from edge_mining.domain.common import Timestamp, Watts
-from edge_mining.domain.home_load.common import HomeForecastProviderAdapter
-from edge_mining.domain.home_load.ports import EnergyLoadHistoryProviderPort, HomeForecastProviderPort
+from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter
+from edge_mining.domain.home_load.ports import EnergyLoadForecastProviderPort, EnergyLoadHistoryProviderPort
 from edge_mining.domain.home_load.value_objects import ConsumptionForecast, HomeLoadEnergyInterval, HomeLoadPowerPoint
 from edge_mining.shared.logging.port import LoggerPort
 
 
-class DummyHomeForecastProvider(HomeForecastProviderPort):
+class DummyHomeForecastProvider(EnergyLoadForecastProviderPort):
     """Generates a very basic fake home load forecast."""
 
     def __init__(
@@ -24,7 +24,7 @@ class DummyHomeForecastProvider(HomeForecastProviderPort):
         logger: Optional[LoggerPort] = None,
     ):
         """Initializes the DummyHomeForecastProvider."""
-        super().__init__(provider_type=HomeForecastProviderAdapter.DUMMY, history_provider=history_provider)
+        super().__init__(provider_type=EnergyLoadForecastProviderAdapter.DUMMY, history_provider=history_provider)
         self._logger = logger
 
         self.load_power_max = load_power_max
