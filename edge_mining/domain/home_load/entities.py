@@ -4,7 +4,11 @@ from dataclasses import dataclass
 from typing import Optional
 
 from edge_mining.domain.common import Entity, EntityId
-from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter, LoadDeviceCategory
+from edge_mining.domain.home_load.common import (
+    EnergyLoadForecastProviderAdapter,
+    EnergyLoadHistoryProviderAdapter,
+    LoadDeviceCategory,
+)
 from edge_mining.shared.interfaces.config import HomeForecastProviderConfig
 
 
@@ -25,5 +29,15 @@ class EnergyLoadForecastProvider(Entity):
 
     name: str = ""
     adapter_type: EnergyLoadForecastProviderAdapter = EnergyLoadForecastProviderAdapter.DUMMY
+    config: Optional[HomeForecastProviderConfig] = None
+    external_service_id: Optional[EntityId] = None
+
+
+@dataclass
+class EnergyLoadHistoryProvider(Entity):
+    """Entity for an energy load history provider."""
+
+    name: str = ""
+    adapter_type: EnergyLoadHistoryProviderAdapter = EnergyLoadHistoryProviderAdapter.DUMMY
     config: Optional[HomeForecastProviderConfig] = None
     external_service_id: Optional[EntityId] = None
