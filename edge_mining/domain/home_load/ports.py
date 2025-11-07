@@ -5,8 +5,8 @@ from typing import List, Optional
 
 from edge_mining.domain.common import EntityId, Timestamp
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
-from edge_mining.domain.home_load.common import EnergyLoadHistoryProviderAdapter, HomeForecastProviderAdapter
-from edge_mining.domain.home_load.entities import HomeForecastProvider
+from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter, EnergyLoadHistoryProviderAdapter
+from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider
 from edge_mining.domain.home_load.value_objects import ConsumptionForecast, HomeLoadEnergyInterval
 
 
@@ -23,12 +23,17 @@ class EnergyLoadHistoryProviderPort(ABC):
         raise NotImplementedError
 
 
-class HomeForecastProviderPort(ABC):
-    """Port for the Home Forecast Provider."""
+class EnergyLoadForecastProviderPort(ABC):
+    """Port for the Energy Load Forecast Provider."""
 
-    def __init__(self, provider_type: HomeForecastProviderAdapter):
-        """Initialize the HomeForecast Provider."""
-        self.provider_type = provider_type
+    def __init__(
+        self,
+        forecast_provider_type: EnergyLoadForecastProviderAdapter,
+        history_provider: Optional[EnergyLoadHistoryProviderPort] = None,
+    ):
+        """Initialize the EnergyLoadForecast Provider."""
+        self.forecast_provider_type = forecast_provider_type
+        self.history_provider = history_provider
 
     @abstractmethod
     def get_home_consumption_forecast(self, hours_ahead: int = 3) -> Optional[ConsumptionForecast]:
@@ -70,37 +75,37 @@ class HomeLoadsProfileRepository(ABC):
         raise NotImplementedError
 
 
-class HomeForecastProviderRepository(ABC):
-    """Port for the Home Forecast Provider Repository."""
+class EnergyLoadForecastProviderRepository(ABC):
+    """Port for the Energy Load Forecast Provider Repository."""
 
     @abstractmethod
-    def add(self, home_forecast_provider: HomeForecastProvider) -> None:
-        """Adds a new home forecast provider to the repository."""
+    def add(self, energy_load_forecast_provider: EnergyLoadForecastProvider) -> None:
+        """Adds a new energy load forecast provider to the repository."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_by_id(self, home_forecast_provider_id: EntityId) -> Optional[HomeForecastProvider]:
-        """Retrieves a home forecast provider by its ID."""
+    def get_by_id(self, energy_load_forecast_provider_id: EntityId) -> Optional[EnergyLoadForecastProvider]:
+        """Retrieves an energy load forecast provider by its ID."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_all(self) -> List[HomeForecastProvider]:
-        """Retrieves all home forecast providers in the repository."""
+    def get_all(self) -> List[EnergyLoadForecastProvider]:
+        """Retrieves all energy load forecast providers in the repository."""
         raise NotImplementedError
 
     @abstractmethod
-    def update(self, home_forecast_provider: HomeForecastProvider) -> None:
-        """Updates the state of an existing home forecast provider in the repository."""
+    def update(self, energy_load_forecast_provider: EnergyLoadForecastProvider) -> None:
+        """Updates the state of an existing energy load forecast provider in the repository."""
         raise NotImplementedError
 
     @abstractmethod
-    def remove(self, home_forecast_provider_id: EntityId) -> None:
-        """Removes a home forecast provider from the repository."""
+    def remove(self, energy_load_forecast_provider_id: EntityId) -> None:
+        """Removes an energy load forecast provider from the repository."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_by_external_service_id(self, external_service_id: EntityId) -> List[HomeForecastProvider]:
+    def get_by_external_service_id(self, external_service_id: EntityId) -> List[EnergyLoadForecastProvider]:
         """
-        Retrieves all home forecast providers associated with a specific external service ID.
+        Retrieves all energy load forecast providers associated with a specific external service ID.
         """
         raise NotImplementedError

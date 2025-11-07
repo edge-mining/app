@@ -31,8 +31,8 @@ class LoadDeviceCategory(Enum):
     OCCASIONAL = "occasional"
 
 
-class HomeForecastProviderAdapter(AdapterType):
-    """Types of home forecast provider adapter."""
+class EnergyLoadForecastProviderAdapter(AdapterType):
+    """Types of energy load forecast provider adapter."""
 
     DUMMY = "dummy"
 
