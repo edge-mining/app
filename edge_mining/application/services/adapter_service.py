@@ -8,7 +8,7 @@ from edge_mining.adapters.domain.energy.monitors.dummy_solar import DummySolarEn
 from edge_mining.adapters.domain.energy.monitors.home_assistant_api import HomeAssistantAPIEnergyMonitorFactory
 from edge_mining.adapters.domain.forecast.providers.dummy_solar import DummyForecastProviderFactory
 from edge_mining.adapters.domain.forecast.providers.home_assistant_api import HomeAssistantForecastProviderFactory
-from edge_mining.adapters.domain.home_load.providers.dummy import DummyHomeForecastProvider
+from edge_mining.adapters.domain.home_load.forecast_providers.dummy import DummyHomeForecastProvider
 from edge_mining.adapters.domain.miner.controllers.dummy import DummyMinerController
 from edge_mining.adapters.domain.miner.controllers.generic_socket_home_assistant_api import (
     GenericSocketHomeAssistantAPIMinerControllerAdapterFactory,
