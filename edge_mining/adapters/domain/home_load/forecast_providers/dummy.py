@@ -14,8 +14,8 @@ from edge_mining.domain.home_load.value_objects import ConsumptionForecast, Home
 from edge_mining.shared.logging.port import LoggerPort
 
 
-class DummyHomeForecastProvider(EnergyLoadForecastProviderPort):
-    """Generates a very basic fake home load forecast."""
+class EnergyLoadForecastProvider(EnergyLoadForecastProviderPort):
+    """Generates a very basic fake energy load forecast."""
 
     def __init__(
         self,
