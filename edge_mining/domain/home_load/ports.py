@@ -26,14 +26,9 @@ class EnergyLoadHistoryProviderPort(ABC):
 class EnergyLoadForecastProviderPort(ABC):
     """Port for the Energy Load Forecast Provider."""
 
-    def __init__(
-        self,
-        forecast_provider_type: EnergyLoadForecastProviderAdapter,
-        history_provider: Optional[EnergyLoadHistoryProviderPort] = None,
-    ):
+    def __init__(self, forecast_provider_type: EnergyLoadForecastProviderAdapter):
         """Initialize the EnergyLoadForecast Provider."""
         self.forecast_provider_type = forecast_provider_type
-        self.history_provider = history_provider
 
     @abstractmethod
     def get_home_consumption_forecast(self, hours_ahead: int = 3) -> Optional[ConsumptionForecast]:
