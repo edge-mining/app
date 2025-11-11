@@ -20,7 +20,8 @@ class LoadDevice(Entity):
     category: LoadDeviceCategory = LoadDeviceCategory.OCCASIONAL
     enabled: bool = True  # Whether the device is active in the system
 
-    home_forecast_provider_id: Optional[EntityId] = None  # Home load forecast provider to be used
+    energy_load_forecast_provider_id: Optional[EntityId] = None  # Energy load forecast provider to be used
+    energy_load_history_provider_id: Optional[EntityId] = None  # Energy load history provider to be used
 
 
 @dataclass
