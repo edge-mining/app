@@ -75,10 +75,10 @@ class HomeLoadEnergyInterval(ValueObject):
 
 
 @dataclass(frozen=True)
-class ConsumptionForecast(ValueObject):
+class LoadEnergyConsumption(ValueObject):
     """
     Value Object for a consumption forecast.
-    In most cases intervals can be understood as a list of of 1 hour time ranges.
+    In most cases intervals can be understood as a list of 1 hour time ranges.
     """
 
     timestamp: Timestamp = field(default_factory=Timestamp(datetime.now()))
