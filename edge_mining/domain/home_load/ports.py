@@ -31,8 +31,10 @@ class EnergyLoadForecastProviderPort(ABC):
         self.forecast_provider_type = forecast_provider_type
 
     @abstractmethod
-    def get_home_consumption_forecast(self, hours_ahead: int = 3) -> Optional[ConsumptionForecast]:
-        """Provides an aggregated forecast of home energy consumption for the specified period."""
+    def get_consumption_forecast(
+        self, consumption_history: LoadEnergyConsumption, hours_ahead: int = 3
+    ) -> Optional[LoadEnergyConsumption]:
+        """Provides an aggregated forecast of load energy consumption for the specified period based on historical data."""
         raise NotImplementedError
 
 
