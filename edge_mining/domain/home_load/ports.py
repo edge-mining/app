@@ -10,10 +10,39 @@ from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider
 from edge_mining.domain.home_load.value_objects import HomeLoadEnergyInterval, HomeLoadPowerPoint, LoadEnergyConsumption
 
 
+class EnergyLoadHistoryRepository(ABC):
+    """Port for the Energy Load History Repository that operates on HomeLoadPowerPoint data."""
+
+    @abstractmethod
+    def add_power_point(self, power_point: HomeLoadPowerPoint) -> None:
+        """Adds a single power point to the repository."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def add_power_points(self, power_points: List[HomeLoadPowerPoint]) -> None:
+        """Adds multiple power points to the repository."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_power_points_by_time_range(self, start: Timestamp, end: Timestamp) -> List[HomeLoadPowerPoint]:
+        """Retrieves all power points within a specific time range."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def remove_power_points_before(self, timestamp: Timestamp) -> None:
+        """Removes all power points before the specified timestamp (for data retention)."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def remove_power_points_by_time_range(self, start: Timestamp, end: Timestamp) -> None:
+        """Removes all power points within a specific time range."""
+        raise NotImplementedError
+
+
 class EnergyLoadHistoryProviderPort(ABC):
     """Port for retrieving historical energy load consumption data."""
 
-    def __init__(self, provider_type: EnergyLoadHistoryProviderAdapter, history_repo: EntityId):
+    def __init__(self, provider_type: EnergyLoadHistoryProviderAdapter, history_repo: EnergyLoadHistoryRepository):
         """Initialize the EnergyLoadHistory Provider."""
         self.provider_type = provider_type
         self.history_repo = history_repo
@@ -142,33 +171,4 @@ class EnergyLoadHistoryProviderRepository(ABC):
         """
         Retrieves all energy load history providers associated with a specific external service ID.
         """
-        raise NotImplementedError
-
-
-class EnergyLoadHistoryRepository(ABC):
-    """Port for the Energy Load History Repository that operates on HomeLoadPowerPoint data."""
-
-    @abstractmethod
-    def add_power_point(self, power_point: HomeLoadPowerPoint) -> None:
-        """Adds a single power point to the repository."""
-        raise NotImplementedError
-
-    @abstractmethod
-    def add_power_points(self, power_points: List[HomeLoadPowerPoint]) -> None:
-        """Adds multiple power points to the repository."""
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_power_points_by_time_range(self, start: Timestamp, end: Timestamp) -> List[HomeLoadPowerPoint]:
-        """Retrieves all power points within a specific time range."""
-        raise NotImplementedError
-
-    @abstractmethod
-    def remove_power_points_before(self, timestamp: Timestamp) -> None:
-        """Removes all power points before the specified timestamp (for data retention)."""
-        raise NotImplementedError
-
-    @abstractmethod
-    def remove_power_points_by_time_range(self, start: Timestamp, end: Timestamp) -> None:
-        """Removes all power points within a specific time range."""
         raise NotImplementedError
