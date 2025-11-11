@@ -7,7 +7,7 @@ from edge_mining.domain.common import EntityId, Timestamp
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
 from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter, EnergyLoadHistoryProviderAdapter
 from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider
-from edge_mining.domain.home_load.value_objects import ConsumptionForecast, HomeLoadEnergyInterval
+from edge_mining.domain.home_load.value_objects import HomeLoadEnergyInterval, HomeLoadPowerPoint, LoadEnergyConsumption
 
 
 class EnergyLoadHistoryProviderPort(ABC):
@@ -141,4 +141,33 @@ class EnergyLoadHistoryProviderRepository(ABC):
         """
         Retrieves all energy load history providers associated with a specific external service ID.
         """
+        raise NotImplementedError
+
+
+class EnergyLoadHistoryRepository(ABC):
+    """Port for the Energy Load History Repository that operates on HomeLoadPowerPoint data."""
+
+    @abstractmethod
+    def add_power_point(self, power_point: HomeLoadPowerPoint) -> None:
+        """Adds a single power point to the repository."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def add_power_points(self, power_points: List[HomeLoadPowerPoint]) -> None:
+        """Adds multiple power points to the repository."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_power_points_by_time_range(self, start: Timestamp, end: Timestamp) -> List[HomeLoadPowerPoint]:
+        """Retrieves all power points within a specific time range."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def remove_power_points_before(self, timestamp: Timestamp) -> None:
+        """Removes all power points before the specified timestamp (for data retention)."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def remove_power_points_by_time_range(self, start: Timestamp, end: Timestamp) -> None:
+        """Removes all power points within a specific time range."""
         raise NotImplementedError
