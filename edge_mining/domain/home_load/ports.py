@@ -13,9 +13,10 @@ from edge_mining.domain.home_load.value_objects import HomeLoadEnergyInterval, H
 class EnergyLoadHistoryProviderPort(ABC):
     """Port for retrieving historical energy load consumption data."""
 
-    def __init__(self, provider_type: EnergyLoadHistoryProviderAdapter):
+    def __init__(self, provider_type: EnergyLoadHistoryProviderAdapter, history_repo: EntityId):
         """Initialize the EnergyLoadHistory Provider."""
         self.provider_type = provider_type
+        self.history_repo = history_repo
 
     @abstractmethod
     def get_history(self, start: Timestamp, end: Timestamp) -> List[HomeLoadEnergyInterval]:
