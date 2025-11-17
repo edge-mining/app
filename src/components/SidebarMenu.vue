@@ -20,6 +20,11 @@
                   Energy Sources
                 </RouterLink>
               </li>
+              <li>
+                <RouterLink to="/settings/energy-monitors" class="flenter">
+                  Energy Monitors
+                </RouterLink>
+              </li>
             </ul>
           </details>
         </li>
