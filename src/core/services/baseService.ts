@@ -22,6 +22,14 @@ export class BaseService {
     return axios.post<T>(this.appStore.apiUrl + url, data, request);
   }
 
+  put<T>(
+    url: string,
+    data: any,
+    request?: AxiosRequestConfig
+  ): Promise<AxiosResponse<T>> {
+    return axios.put<T>(this.appStore.apiUrl + url, data, request);
+  }
+
   delete<T>(
     url: string,
     request?: AxiosRequestConfig

@@ -6,21 +6,43 @@ export class MinerService extends BaseService {
     return this.get<Miner[]>("/miners").getData();
   }
 
+  getMiner(minerId: string): Promise<Miner> {
+    return this.get<Miner>(`/miners/${minerId}`).getData();
+  }
+
   addMiner(miner: Miner): Promise<Miner> {
     return this.post<Miner>("/miners", miner).getData();
-  // {
-  //   "id": "b271dea2-7fa6-49ef-9d87-955ba00a243d",
-  //   "name": "123supa",
-  //   "status": "unknown",
-  //   "hash_rate": null,
-  //   "hash_rate_max": {
-  //     "value": 3,
-  //     "unit": "TH/s"
-  //   },
-  //   "power_consumption": null,
-  //   "power_consumption_max": 123,
-  //   "active": true,
-  //   "controller_id": null
-  // }
+  }
+
+  updateMiner(minerId: string, miner: Partial<Miner>): Promise<Miner> {
+    return this.put<Miner>(`/miners/${minerId}`, miner).getData();
+  }
+
+  deleteMiner(minerId: string): Promise<Miner> {
+    return this.delete<Miner>(`/miners/${minerId}`).getData();
+  }
+
+  startMiner(minerId: string): Promise<Miner> {
+    return this.post<Miner>(`/miners/${minerId}/start`, {}).getData();
+  }
+
+  stopMiner(minerId: string): Promise<Miner> {
+    return this.post<Miner>(`/miners/${minerId}/stop`, {}).getData();
+  }
+
+  getMinerStatus(minerId: string): Promise<Miner> {
+    return this.get<Miner>(`/miners/${minerId}/status`).getData();
+  }
+
+  activateMiner(minerId: string): Promise<Miner> {
+    return this.post<Miner>(`/miners/${minerId}/activate`, {}).getData();
+  }
+
+  deactivateMiner(minerId: string): Promise<Miner> {
+    return this.post<Miner>(`/miners/${minerId}/deactivate`, {}).getData();
+  }
+
+  setMinerController(minerId: string, controllerId: string): Promise<Miner> {
+    return this.post<Miner>(`/miners/${minerId}/set-controller`, { controller_id: controllerId }).getData();
   }
 }
