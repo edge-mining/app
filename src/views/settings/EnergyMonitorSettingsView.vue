@@ -7,12 +7,27 @@ import EnergyMonitorConfigForm from "../../components/energyMonitors/EnergyMonit
 
 const energyMonitorStore = useEnergyMonitorStore();
 const newEnergyMonitor = ref<EnergyMonitor | undefined>(undefined);
+const editingEnergyMonitor = ref<EnergyMonitor | undefined>(undefined);
 const showModal = ref(false);
+const isEditing = ref(false);
 
 onMounted(() => {
   energyMonitorStore.loadEnergyMonitors();
   energyMonitorStore.loadAdapterTypes();
 });
+
+function cleanEnergyMonitor(energyMonitor: EnergyMonitor): EnergyMonitor {
+  const cleaned = { ...energyMonitor };
+  // Remove empty string values for external_service_id
+  if (cleaned.external_service_id === "") {
+    delete cleaned.external_service_id;
+  }
+  // Remove empty config object if no properties
+  if (cleaned.config && Object.keys(cleaned.config).length === 0) {
+    delete cleaned.config;
+  }
+  return cleaned;
+}
 
 function addEnergyMonitor() {
   newEnergyMonitor.value = {
@@ -20,34 +35,49 @@ function addEnergyMonitor() {
     adapter_type: energyMonitorStore.adapterTypes[0] || "",
     config: {},
   };
+  isEditing.value = false;
+  showModal.value = true;
+}
+
+function handleEdit(energyMonitor: EnergyMonitor) {
+  editingEnergyMonitor.value = { ...energyMonitor };
+  isEditing.value = true;
   showModal.value = true;
 }
 
 function cancelAdd() {
   newEnergyMonitor.value = undefined;
+  editingEnergyMonitor.value = undefined;
+  isEditing.value = false;
   showModal.value = false;
 }
 
 function confirmAdd() {
   if (!newEnergyMonitor.value) return;
-
-  // Clean up the energy monitor before sending to API
-  const energyMonitorToAdd = { ...newEnergyMonitor.value! };
-
-  // Remove empty string values for external_service_id
-  if (energyMonitorToAdd.external_service_id === "") {
-    delete energyMonitorToAdd.external_service_id;
-  }
-
-  // Remove empty config object if no properties
-  if (energyMonitorToAdd.config && Object.keys(energyMonitorToAdd.config).length === 0) {
-    delete energyMonitorToAdd.config;
-  }
-
+  const energyMonitorToAdd = cleanEnergyMonitor(newEnergyMonitor.value);
   energyMonitorStore.addEnergyMonitor(energyMonitorToAdd).then(() => {
     energyMonitorStore.loadEnergyMonitors();
     newEnergyMonitor.value = undefined;
     showModal.value = false;
+  });
+}
+
+function confirmEdit() {
+  if (!editingEnergyMonitor.value) return;
+  const energyMonitorToUpdate = cleanEnergyMonitor(editingEnergyMonitor.value);
+  energyMonitorStore
+    .updateEnergyMonitor(editingEnergyMonitor.value.id!.toString(), energyMonitorToUpdate)
+    .then(() => {
+      energyMonitorStore.loadEnergyMonitors();
+      editingEnergyMonitor.value = undefined;
+      isEditing.value = false;
+      showModal.value = false;
+    });
+}
+
+function handleDelete(energyMonitor: EnergyMonitor) {
+  energyMonitorStore.deleteEnergyMonitor(energyMonitor.id!.toString()).then(() => {
+    energyMonitorStore.loadEnergyMonitors();
   });
 }
 
@@ -79,7 +109,11 @@ const formatAdapterType = (type: string) => {
           v-for="(energyMonitor, i) in energyMonitorStore.energyMonitors"
           :key="energyMonitor.id"
         >
-          <EnergyMonitorRow v-model="energyMonitorStore.energyMonitors[i]" />
+          <EnergyMonitorRow
+            v-model="energyMonitorStore.energyMonitors[i]"
+            @edit="handleEdit"
+            @delete="handleDelete"
+          />
         </template>
 
         <tr>
@@ -102,76 +136,146 @@ const formatAdapterType = (type: string) => {
     </table>
   </div>
 
-  <!-- Modal for adding energy monitor -->
+  <!-- Modal for adding/editing energy monitor -->
   <dialog :class="['modal', { 'modal-open': showModal }]">
-    <div v-if="newEnergyMonitor" class="modal-box max-w-2xl">
-      <h3 class="font-bold text-lg mb-4">Add Energy Monitor</h3>
+    <div v-if="newEnergyMonitor || editingEnergyMonitor" class="modal-box max-w-2xl">
+      <h3 class="font-bold text-lg mb-4">
+        {{ isEditing ? 'Edit Energy Monitor' : 'Add Energy Monitor' }}
+      </h3>
 
-      <form @submit.prevent="confirmAdd" class="flex flex-col gap-4">
-        <!-- Name field -->
-        <div class="form-control">
-          <label class="label">
-            <span class="label-text">Name <span class="text-error">*</span></span>
-          </label>
-          <input
-            v-model="newEnergyMonitor.name"
-            type="text"
-            placeholder="Energy monitor name"
-            required
-            class="input input-bordered"
-          />
-        </div>
-
-        <!-- Adapter Type dropdown -->
-        <div class="form-control">
-          <label class="label">
-            <span class="label-text">Adapter Type <span class="text-error">*</span></span>
-          </label>
-          <select
-            v-model="newEnergyMonitor.adapter_type"
-            required
-            class="select select-bordered"
-          >
-            <option
-              v-for="adapterType in energyMonitorStore.adapterTypes"
-              :key="adapterType"
-              :value="adapterType"
-            >
-              {{ formatAdapterType(adapterType) }}
-            </option>
-          </select>
-        </div>
-
-        <!-- External Service ID -->
-        <div class="form-control">
-          <label class="label">
-            <span class="label-text">External Service ID</span>
-          </label>
-          <input
-            v-model="newEnergyMonitor.external_service_id"
-            type="text"
-            placeholder="Optional service ID"
-            class="input input-bordered"
-          />
-        </div>
-
-        <!-- Dynamic Config Form -->
-        <div class="form-control">
-          <label class="label">
-            <span class="label-text font-semibold">Configuration</span>
-          </label>
-          <div class="border border-base-300 rounded-lg p-4">
-            <EnergyMonitorConfigForm
-              v-model="newEnergyMonitor.config!"
-              :adapter-type="newEnergyMonitor.adapter_type"
+      <form
+        @submit.prevent="isEditing ? confirmEdit() : confirmAdd()"
+        class="flex flex-col gap-4"
+      >
+        <template v-if="isEditing && editingEnergyMonitor">
+          <!-- Name field -->
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Name <span class="text-error">*</span></span>
+            </label>
+            <input
+              v-model="editingEnergyMonitor.name"
+              type="text"
+              placeholder="Energy monitor name"
+              required
+              class="input input-bordered"
             />
           </div>
-        </div>
+
+          <!-- Adapter Type dropdown -->
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Adapter Type <span class="text-error">*</span></span>
+            </label>
+            <select
+              v-model="editingEnergyMonitor.adapter_type"
+              required
+              class="select select-bordered"
+              disabled
+            >
+              <option
+                v-for="adapterType in energyMonitorStore.adapterTypes"
+                :key="adapterType"
+                :value="adapterType"
+              >
+                {{ formatAdapterType(adapterType) }}
+              </option>
+            </select>
+          </div>
+
+          <!-- External Service ID -->
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">External Service ID</span>
+            </label>
+            <input
+              v-model="editingEnergyMonitor.external_service_id"
+              type="text"
+              placeholder="Optional service ID"
+              class="input input-bordered"
+            />
+          </div>
+
+          <!-- Dynamic Config Form -->
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text font-semibold">Configuration</span>
+            </label>
+            <div class="border border-base-300 rounded-lg p-4">
+              <EnergyMonitorConfigForm
+                v-model="editingEnergyMonitor.config!"
+                :adapter-type="editingEnergyMonitor.adapter_type"
+              />
+            </div>
+          </div>
+        </template>
+
+        <template v-else-if="newEnergyMonitor">
+          <!-- Name field -->
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Name <span class="text-error">*</span></span>
+            </label>
+            <input
+              v-model="newEnergyMonitor.name"
+              type="text"
+              placeholder="Energy monitor name"
+              required
+              class="input input-bordered"
+            />
+          </div>
+
+          <!-- Adapter Type dropdown -->
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Adapter Type <span class="text-error">*</span></span>
+            </label>
+            <select
+              v-model="newEnergyMonitor.adapter_type"
+              required
+              class="select select-bordered"
+            >
+              <option
+                v-for="adapterType in energyMonitorStore.adapterTypes"
+                :key="adapterType"
+                :value="adapterType"
+              >
+                {{ formatAdapterType(adapterType) }}
+              </option>
+            </select>
+          </div>
+
+          <!-- External Service ID -->
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">External Service ID</span>
+            </label>
+            <input
+              v-model="newEnergyMonitor.external_service_id"
+              type="text"
+              placeholder="Optional service ID"
+              class="input input-bordered"
+            />
+          </div>
+
+          <!-- Dynamic Config Form -->
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text font-semibold">Configuration</span>
+            </label>
+            <div class="border border-base-300 rounded-lg p-4">
+              <EnergyMonitorConfigForm
+                v-model="newEnergyMonitor.config!"
+                :adapter-type="newEnergyMonitor.adapter_type"
+              />
+            </div>
+          </div>
+        </template>
 
         <!-- Modal actions -->
         <div class="modal-action">
           <button type="submit" class="btn btn-primary">
-            Add
+            {{ isEditing ? 'Save' : 'Add' }}
           </button>
           <button type="button" class="btn btn-secondary" @click="cancelAdd">
             Cancel

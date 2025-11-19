@@ -8,6 +8,7 @@ import EnergySourceRowEdit from "../../components/energySources/EnergySourceRowE
 
 const energySourceStore = useEnergySourceStore();
 const newEnergySource = ref<EnergySource | undefined>(undefined);
+const editingEnergySource = ref<{ index: number; energySource: EnergySource } | undefined>(undefined);
 
 onMounted(() => {
   energySourceStore.loadEnergySources();
@@ -20,21 +21,49 @@ function addEnergySource() {
   };
 }
 
-function confirmAdd() {
-  // Clean up the energy source before sending to API
-  const energySourceToAdd = { ...newEnergySource.value! };
-
+function cleanEnergySource(energySource: EnergySource): EnergySource {
+  const cleaned = { ...energySource };
   // Remove empty string values for energy_monitor_id and forecast_provider_id
-  if (energySourceToAdd.energy_monitor_id === "") {
-    delete energySourceToAdd.energy_monitor_id;
+  if (cleaned.energy_monitor_id === "") {
+    delete cleaned.energy_monitor_id;
   }
-  if (energySourceToAdd.forecast_provider_id === "") {
-    delete energySourceToAdd.forecast_provider_id;
+  if (cleaned.forecast_provider_id === "") {
+    delete cleaned.forecast_provider_id;
   }
+  return cleaned;
+}
 
+function confirmAdd() {
+  const energySourceToAdd = cleanEnergySource(newEnergySource.value!);
   energySourceStore.addEnergySource(energySourceToAdd).then(() => {
     energySourceStore.loadEnergySources();
     newEnergySource.value = undefined;
+  });
+}
+
+function handleEdit(energySource: EnergySource, index: number) {
+  editingEnergySource.value = { index, energySource: { ...energySource } };
+}
+
+function confirmEdit() {
+  if (editingEnergySource.value) {
+    const energySourceToUpdate = cleanEnergySource(editingEnergySource.value.energySource);
+    energySourceStore
+      .updateEnergySource(editingEnergySource.value.energySource.id!.toString(), energySourceToUpdate)
+      .then(() => {
+        energySourceStore.loadEnergySources();
+        editingEnergySource.value = undefined;
+      });
+  }
+}
+
+function cancelEdit() {
+  editingEnergySource.value = undefined;
+}
+
+function handleDelete(energySource: EnergySource) {
+  energySourceStore.deleteEnergySource(energySource.id!.toString()).then(() => {
+    energySourceStore.loadEnergySources();
   });
 }
 </script>
@@ -61,7 +90,16 @@ function confirmAdd() {
           v-for="(energySource, i) in energySourceStore.energySources"
           :key="energySource.id"
         >
-          <EnergySourceRow v-model="energySourceStore.energySources[i]" />
+          <EnergySourceRowEdit
+            v-if="editingEnergySource && editingEnergySource.index === i"
+            v-model="editingEnergySource.energySource"
+          />
+          <EnergySourceRow
+            v-else
+            v-model="energySourceStore.energySources[i]"
+            @edit="handleEdit(energySource, i)"
+            @delete="handleDelete"
+          />
         </template>
 
         <EnergySourceRowEdit v-if="newEnergySource" v-model="newEnergySource" edit />
@@ -69,13 +107,13 @@ function confirmAdd() {
         <tr>
           <th colspan="7" class="text-center">
             <button
-              v-if="!newEnergySource"
+              v-if="!newEnergySource && !editingEnergySource"
               class="btn btn-primary"
               @click="addEnergySource"
             >
               Add Energy Source
             </button>
-            <template v-else>
+            <template v-else-if="newEnergySource">
               <button class="btn btn-primary mr-4" @click="confirmAdd">
                 OK
               </button>
@@ -83,6 +121,14 @@ function confirmAdd() {
                 class="btn btn-secondary"
                 @click="newEnergySource = undefined"
               >
+                Cancel
+              </button>
+            </template>
+            <template v-else-if="editingEnergySource">
+              <button class="btn btn-primary mr-4" @click="confirmEdit">
+                Save
+              </button>
+              <button class="btn btn-secondary" @click="cancelEdit">
                 Cancel
               </button>
             </template>

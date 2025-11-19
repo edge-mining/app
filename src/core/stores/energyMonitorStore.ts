@@ -27,13 +27,23 @@ export const useEnergyMonitorStore = defineStore("energyMonitor", () => {
     return service.addEnergyMonitor(energyMonitor);
   }
 
+  function updateEnergyMonitor(monitorId: string, energyMonitor: Partial<EnergyMonitor>) {
+    return service.updateEnergyMonitor(monitorId, energyMonitor);
+  }
+
+  function deleteEnergyMonitor(monitorId: string) {
+    return service.deleteEnergyMonitor(monitorId);
+  }
+
   return {
     //STATE
     energyMonitors,
     adapterTypes,
-    addEnergyMonitor,
     // ACTIONS
     loadEnergyMonitors,
     loadAdapterTypes,
+    addEnergyMonitor,
+    updateEnergyMonitor,
+    deleteEnergyMonitor,
   };
 });

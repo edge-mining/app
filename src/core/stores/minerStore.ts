@@ -20,11 +20,41 @@ export const useMinerStore = defineStore("miner", () => {
     return service.addMiner(miner);
   }
 
+  function updateMiner(minerId: string, miner: Partial<Miner>) {
+    return service.updateMiner(minerId, miner);
+  }
+
+  function deleteMiner(minerId: string) {
+    return service.deleteMiner(minerId);
+  }
+
+  function startMiner(minerId: string) {
+    return service.startMiner(minerId);
+  }
+
+  function stopMiner(minerId: string) {
+    return service.stopMiner(minerId);
+  }
+
+  function activateMiner(minerId: string) {
+    return service.activateMiner(minerId);
+  }
+
+  function deactivateMiner(minerId: string) {
+    return service.deactivateMiner(minerId);
+  }
+
   return {
     //STATE
     miners,
-    addMiner,
     // ACTIONS
     loadMiners,
+    addMiner,
+    updateMiner,
+    deleteMiner,
+    startMiner,
+    stopMiner,
+    activateMiner,
+    deactivateMiner,
   };
 });

@@ -2,6 +2,20 @@
 import type { EnergyMonitor } from "../../core/models/energyMonitor";
 
 const model = defineModel<EnergyMonitor>({ required: true });
+const emit = defineEmits<{
+  edit: [energyMonitor: EnergyMonitor];
+  delete: [energyMonitor: EnergyMonitor];
+}>();
+
+function handleEdit() {
+  emit("edit", model.value);
+}
+
+function handleDelete() {
+  if (confirm(`Are you sure you want to delete energy monitor "${model.value.name}"?`)) {
+    emit("delete", model.value);
+  }
+}
 </script>
 <template>
   <tr>
@@ -23,6 +37,15 @@ const model = defineModel<EnergyMonitor>({ required: true });
         {{ model.external_service_id ?? "-" }}
       </div>
     </td>
-    <th></th>
+    <th>
+      <div class="flex gap-2">
+        <button class="btn btn-sm btn-primary" @click="handleEdit" title="Edit energy monitor">
+          ✏️
+        </button>
+        <button class="btn btn-sm btn-error" @click="handleDelete" title="Delete energy monitor">
+          🗑️
+        </button>
+      </div>
+    </th>
   </tr>
 </template>

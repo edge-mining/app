@@ -1,7 +1,46 @@
 <script setup lang="ts">
 import type { Miner } from "../../core/models/miner";
+import { ref } from "vue";
 
 const model = defineModel<Miner>({ required: true });
+const emit = defineEmits<{
+  edit: [miner: Miner];
+  delete: [miner: Miner];
+  start: [miner: Miner];
+  stop: [miner: Miner];
+  activate: [miner: Miner];
+  deactivate: [miner: Miner];
+}>();
+
+const isProcessing = ref(false);
+
+function handleEdit() {
+  emit("edit", model.value);
+}
+
+function handleDelete() {
+  if (confirm(`Are you sure you want to delete miner "${model.value.name}"?`)) {
+    emit("delete", model.value);
+  }
+}
+
+function handleStart() {
+  isProcessing.value = true;
+  emit("start", model.value);
+}
+
+function handleStop() {
+  isProcessing.value = true;
+  emit("stop", model.value);
+}
+
+function handleActivate() {
+  emit("activate", model.value);
+}
+
+function handleDeactivate() {
+  emit("deactivate", model.value);
+}
 </script>
 <template>
   <tr>
@@ -12,17 +51,12 @@ const model = defineModel<Miner>({ required: true });
     </th>
     <td>
       <div class="flex items-center gap-3">
-        <!-- <div class="avatar">
-          <div class="mask mask-squircle h-12 w-12">
-            <img
-                    src="https://img.daisyui.com/images/profile/demo/2@94.webp"
-                    alt="Avatar Tailwind CSS Component"
-                  />
-          </div>
-        </div> -->
         <div>
           <div class="text-xl">{{ model.name }}</div>
-          <div class="text-sm opacity-50">{{ model.active }}</div>
+          <div class="text-sm opacity-50">
+            <span v-if="model.active" class="badge badge-success badge-sm">Active</span>
+            <span v-else class="badge badge-ghost badge-sm">Inactive</span>
+          </div>
         </div>
       </div>
     </td>
@@ -48,6 +82,49 @@ const model = defineModel<Miner>({ required: true });
         ({{ model.power_consumption_max }} Watts)
       </div>
     </td>
-    <th></th>
+    <th>
+      <div class="flex gap-2">
+        <div class="join join-vertical lg:join-horizontal">
+          <button
+            class="btn btn-sm btn-success join-item"
+            @click="handleStart"
+            :disabled="isProcessing || model.status === 'active'"
+            title="Start miner"
+          >
+            ▶
+          </button>
+          <button
+            class="btn btn-sm btn-warning join-item"
+            @click="handleStop"
+            :disabled="isProcessing || model.status !== 'active'"
+            title="Stop miner"
+          >
+            ⏸
+          </button>
+        </div>
+        <button
+          v-if="!model.active"
+          class="btn btn-sm btn-info"
+          @click="handleActivate"
+          title="Activate miner"
+        >
+          Activate
+        </button>
+        <button
+          v-else
+          class="btn btn-sm btn-ghost"
+          @click="handleDeactivate"
+          title="Deactivate miner"
+        >
+          Deactivate
+        </button>
+        <button class="btn btn-sm btn-primary" @click="handleEdit" title="Edit miner">
+          ✏️
+        </button>
+        <button class="btn btn-sm btn-error" @click="handleDelete" title="Delete miner">
+          🗑️
+        </button>
+      </div>
+    </th>
   </tr>
 </template>

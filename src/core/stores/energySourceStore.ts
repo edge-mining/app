@@ -20,11 +20,21 @@ export const useEnergySourceStore = defineStore("energySource", () => {
     return service.addEnergySource(energySource);
   }
 
+  function updateEnergySource(sourceId: string, energySource: Partial<EnergySource>) {
+    return service.updateEnergySource(sourceId, energySource);
+  }
+
+  function deleteEnergySource(sourceId: string) {
+    return service.deleteEnergySource(sourceId);
+  }
+
   return {
     //STATE
     energySources,
-    addEnergySource,
     // ACTIONS
     loadEnergySources,
+    addEnergySource,
+    updateEnergySource,
+    deleteEnergySource,
   };
 });

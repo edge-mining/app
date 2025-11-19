@@ -219,17 +219,17 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 
 ### Views/Pages (in `src/views/`):
 1. ✅ `DashboardView.vue` - Main dashboard
-2. ✅ `settings/MinersSettingsView.vue` - Miners management
-3. ✅ `settings/EnergySourcesSettingsView.vue` - Energy sources management
-4. ✅ `settings/EnergyMonitorSettingsView.vue` - Energy monitors management
+2. ✅ `settings/MinersSettingsView.vue` - **UPDATED** - Full CRUD + control operations (start/stop/activate/deactivate)
+3. ✅ `settings/EnergySourcesSettingsView.vue` - **UPDATED** - Full CRUD operations (create, read, update, delete)
+4. ✅ `settings/EnergyMonitorSettingsView.vue` - **UPDATED** - Full CRUD operations with modal edit support
 
 ### Components (in `src/components/`):
-1. ✅ `miners/MinerRow.vue` - Display miner row
-2. ✅ `miners/MinerRowEdit.vue` - Edit miner row
-3. ✅ `energySources/EnergySourceRow.vue` - Display energy source row
-4. ✅ `energySources/EnergySourceRowEdit.vue` - Edit energy source row
-5. ✅ `energyMonitors/EnergyMonitorRow.vue` - Display energy monitor row
-6. ✅ `energyMonitors/EnergyMonitorRowEdit.vue` - Edit energy monitor row
+1. ✅ `miners/MinerRow.vue` - **UPDATED** - Display miner row with edit/delete/control buttons
+2. ✅ `miners/MinerRowEdit.vue` - Edit miner row inline
+3. ✅ `energySources/EnergySourceRow.vue` - **UPDATED** - Display energy source row with edit/delete buttons
+4. ✅ `energySources/EnergySourceRowEdit.vue` - Edit energy source row inline
+5. ✅ `energyMonitors/EnergyMonitorRow.vue` - **UPDATED** - Display energy monitor row with edit/delete buttons
+6. ✅ `energyMonitors/EnergyMonitorRowEdit.vue` - Edit energy monitor row (used in modal)
 7. ✅ `energyMonitors/EnergyMonitorConfigForm.vue` - Energy monitor config form
 
 ---
@@ -237,6 +237,8 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 ## Priority Implementation Plan
 
 ### Phase 1: Complete CRUD for Existing Entities ✅ **COMPLETED**
+
+**Backend Services (All endpoints implemented):**
 1. ✅ Complete Miners CRUD operations (update, delete, get by ID)
 2. ✅ Complete Energy Sources CRUD operations (update, delete, get by ID)
 3. ✅ Complete Energy Monitors CRUD operations (update, delete, get by ID)
@@ -244,6 +246,17 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 5. ✅ Add BaseService PUT method
 6. ✅ Add Energy Source types endpoint
 7. ✅ Energy Monitor types and config schema endpoints were already implemented
+
+**Frontend UI (All CRUD operations functional):**
+8. ✅ Add edit/delete buttons to MinerRow component with miner control buttons
+9. ✅ Add edit/delete handlers to MinersSettingsView with inline editing
+10. ✅ Update MinerStore with all CRUD and control operations
+11. ✅ Add edit/delete buttons to EnergySourceRow component
+12. ✅ Add edit/delete handlers to EnergySourcesSettingsView with inline editing
+13. ✅ Update EnergySourceStore with update and delete operations
+14. ✅ Add edit/delete buttons to EnergyMonitorRow component
+15. ✅ Add edit/delete handlers to EnergyMonitorSettingsView with modal editing
+16. ✅ Update EnergyMonitorStore with update and delete operations
 
 ### Phase 2: Miner Controllers
 1. Create MinerControllerService

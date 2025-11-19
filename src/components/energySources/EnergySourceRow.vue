@@ -2,6 +2,20 @@
 import type { EnergySource } from "../../core/models/energySource";
 
 const model = defineModel<EnergySource>({ required: true });
+const emit = defineEmits<{
+  edit: [energySource: EnergySource];
+  delete: [energySource: EnergySource];
+}>();
+
+function handleEdit() {
+  emit("edit", model.value);
+}
+
+function handleDelete() {
+  if (confirm(`Are you sure you want to delete energy source "${model.value.name}"?`)) {
+    emit("delete", model.value);
+  }
+}
 </script>
 <template>
   <tr>
@@ -38,6 +52,15 @@ const model = defineModel<EnergySource>({ required: true });
         {{ model.energy_monitor_id ?? "-" }}
       </div>
     </td>
-    <th></th>
+    <th>
+      <div class="flex gap-2">
+        <button class="btn btn-sm btn-primary" @click="handleEdit" title="Edit energy source">
+          ✏️
+        </button>
+        <button class="btn btn-sm btn-error" @click="handleDelete" title="Delete energy source">
+          🗑️
+        </button>
+      </div>
+    </th>
   </tr>
 </template>
