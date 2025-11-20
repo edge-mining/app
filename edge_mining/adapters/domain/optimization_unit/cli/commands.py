@@ -18,9 +18,13 @@ def handle_create_optimization_unit(configuration_service: ConfigurationServiceI
     energy_source_id: str = click.prompt("Energy source ID (optional)", type=str, default="")
     target_miner_ids_str: str = click.prompt("Miner target IDs (comma separated, optional)", type=str, default="")
     policy_id: str = click.prompt("Policy ID (optional)", type=str, default="")
-    home_forecast_provider_id: str = click.prompt("Home forcast provider ID (optional)", type=str, default="")
-    performance_tracker_id: str = click.prompt("Performace tracker ID (optional)", type=str, default="")
+    # home_forecast_provider_id: str = click.prompt("Home forcast provider ID (optional)", type=str, default="")
+    # performance_tracker_id: str = click.prompt("Performace tracker ID (optional)", type=str, default="")
     notifier_ids_str: str = click.prompt("Notifiers IDs (comma separated, optional)", type=str, default="")
+
+    # To implement in the next release
+    home_forecast_provider_id = None
+    performance_tracker_id = None
 
     try:
         target_miner_ids = (
