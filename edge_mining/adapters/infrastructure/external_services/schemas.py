@@ -18,6 +18,7 @@ from edge_mining.domain.common import EntityId
 # from edge_mining.domain.miner.entities import MinerController
 # from edge_mining.domain.notification.entities import Notifier
 from edge_mining.shared.adapter_configs.external_services import ExternalServiceHomeAssistantConfig
+from edge_mining.shared.adapter_maps.external_services import EXTERNAL_SERVICE_CONFIG_TYPE_MAP
 from edge_mining.shared.external_services.common import ExternalServiceAdapter
 from edge_mining.shared.external_services.entities import ExternalService
 
@@ -56,6 +57,15 @@ class ExternalServiceSchema(BaseModel):
             v = ""
         return v
 
+    @field_validator("adapter_type")
+    @classmethod
+    def validate_adapter_type(cls, v: str) -> ExternalServiceAdapter:
+        """Validate that adapter_type is a recognized ExternalServiceAdapter."""
+        adapter_values = [adapter.value for adapter in ExternalServiceAdapter]
+        if v not in adapter_values:
+            raise ValueError(f"adapter_type must be one of {adapter_values}")
+        return ExternalServiceAdapter(v)
+
     @field_serializer("id")
     def serialize_id(self, id_value: EntityId) -> str:
         """Serialize EntityId to string."""
@@ -63,9 +73,12 @@ class ExternalServiceSchema(BaseModel):
 
     def to_model(self) -> ExternalService:
         """Convert ExternalServiceSchema to ExternalService domain entity."""
-        configuration: Optional[ExternalServiceConfig] = cast(
-            ExternalServiceConfig, ExternalServiceConfig.from_dict(self.config) if self.config else {}
-        )
+        configuration: Optional[ExternalServiceConfig] = None
+        if self.config:
+            config_class = EXTERNAL_SERVICE_CONFIG_TYPE_MAP.get(self.adapter_type, None)
+            if config_class:
+                configuration = cast(ExternalServiceConfig, config_class.from_dict(self.config))
+
         return ExternalService(
             id=EntityId(uuid.uuid4()),
             name=self.name,
@@ -113,11 +126,23 @@ class ExternalServiceCreateSchema(BaseModel):
             v = ""
         return v
 
+    @field_validator("adapter_type")
+    @classmethod
+    def validate_adapter_type(cls, v: str) -> ExternalServiceAdapter:
+        """Validate that adapter_type is a recognized ExternalServiceAdapter."""
+        adapter_values = [adapter.value for adapter in ExternalServiceAdapter]
+        if v not in adapter_values:
+            raise ValueError(f"adapter_type must be one of {adapter_values}")
+        return ExternalServiceAdapter(v)
+
     def to_model(self) -> ExternalService:
         """Convert ExternalServiceCreateSchema to ExternalService domain entity."""
-        configuration: Optional[ExternalServiceConfig] = cast(
-            ExternalServiceConfig, ExternalServiceConfig.from_dict(self.config) if self.config else {}
-        )
+        configuration: Optional[ExternalServiceConfig] = None
+        if self.config:
+            config_class = EXTERNAL_SERVICE_CONFIG_TYPE_MAP.get(self.adapter_type, None)
+            if config_class:
+                configuration = cast(ExternalServiceConfig, config_class.from_dict(self.config))
+
         return ExternalService(
             id=EntityId(uuid.uuid4()),
             name=self.name,

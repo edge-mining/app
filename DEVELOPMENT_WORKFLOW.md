@@ -13,16 +13,53 @@ cd core
 
 ### 2. Setup development environment
 
+Create a Python virtual environment (if you have not created it yet, If the virtual environment is already created, skip to the next command).
+
+```bash
+python -m venv .venv
+```
+
+and activate it before running the make commands.
+
+#### On Linux/macOS:
+```bash
+source .venv/bin/activate
+```
+#### On Windows:
+```cmd
+.venv\Scripts\activate
+```
+
+Run the setup command to install the required dependencies.
+
+**NOTE**: Use the `make` command if you are on Linux or you are on WSL. Use `dev-tools.ps1` or `dev-tools.bat` if you are on Windows.
+For more details, see [DEV_TOOLS.md](DEV_TOOLS.md).
+
+#### On Linux/macOS:
 ```bash
 make setup
 ```
 
+#### On Windows:
+PowerShell:
+```powershell
+.\dev-tools.ps1 setup
+```
+or
+
+Command Prompt (Batch):
+```cmd
+.\dev-tools.bat setup
+```
+
 This command:
 
-- Installs development dependencies from `requirements-dev.txt`
-- Configures pre-commit hooks for automatic code quality checking
+- Installs development dependencies from `requirements-dev.txt`.
+- Configures pre-commit hooks for automatic code quality checking.
 
 ### 3. Verify everything works
+
+Run the following command to check code formatting, linting, and tests before starting development. This ensures your environment is set up correctly and all pre-commit checks pass.
 
 ```bash
 make pre-commit
@@ -44,11 +81,15 @@ make install-dev
 
 #### Automatic code formatting
 
+Run the following command to automatically format your code according to the project's style guidelines.
+
 ```bash
 make format
 ```
 
 #### Code quality check
+
+Use this command to check your code for linting issues and ensure it meets quality standards.
 
 ```bash
 make lint
@@ -56,19 +97,15 @@ make lint
 
 #### Running tests
 
+Execute this command to run all tests and verify your changes do not break existing functionality.
+
 ```bash
 make test
 ```
 
-#### Complete check before commit
-
-```bash
-make pre-commit
-```
-
 ### 3. Before committing
 
-Pre-commit hooks run automatically, but you can run them manually:
+Pre-commit hooks run automatically, but you can run them manually.
 
 ```bash
 make pre-commit
@@ -167,7 +204,6 @@ mypy edge_mining/
 ### Formatting conflicts
 
 ```bash
-# If black and flake8 are in conflict:
 make format
 make lint
 

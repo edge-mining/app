@@ -329,6 +329,7 @@ class AdapterService(AdapterServiceInterface):
             return cached_instance
 
         # Retrieve the external service associated to the notifier
+        external_service: Optional[ExternalServicePort] = None
         if notifier.external_service_id:
             external_service = self.get_external_service(notifier.external_service_id)
             if not external_service:
@@ -629,7 +630,7 @@ class AdapterService(AdapterServiceInterface):
 
     def get_notifiers(self, notifier_ids: List[EntityId]) -> List[NotificationPort]:
         """Get a list of specific notifier adapter instances by IDs."""
-        notifier_instances = List[NotificationPort]()
+        notifier_instances: List[NotificationPort] = []
         for notifier_id in notifier_ids:
             notifier = self.notifier_repo.get_by_id(notifier_id)
             if not notifier:

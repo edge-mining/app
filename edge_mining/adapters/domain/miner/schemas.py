@@ -13,6 +13,7 @@ from edge_mining.shared.adapter_configs.miner import (
     MinerControllerDummyConfig,
     MinerControllerGenericSocketHomeAssistantAPIConfig,
 )
+from edge_mining.shared.adapter_maps.miner import MINER_CONTROLLER_CONFIG_TYPE_MAP
 from edge_mining.shared.interfaces.config import MinerControllerConfig
 
 
@@ -276,6 +277,15 @@ class MinerControllerSchema(BaseModel):
             v = ""
         return v
 
+    @field_validator("adapter_type")
+    @classmethod
+    def validate_adapter_type(cls, v: str) -> MinerControllerAdapter:
+        """Validate that adapter_type is a recognized MinerControllerAdapter."""
+        adapter_values = [adapter.value for adapter in MinerControllerAdapter]
+        if v not in adapter_values:
+            raise ValueError(f"adapter_type must be one of {adapter_values}")
+        return MinerControllerAdapter(v)
+
     @field_validator("external_service_id")
     @classmethod
     def validate_external_service_id(cls, v: Optional[str]) -> Optional[str]:
@@ -310,9 +320,11 @@ class MinerControllerSchema(BaseModel):
 
     def to_model(self) -> MinerController:
         """Convert MinerControllerSchema to MinerController domain model instance."""
-        configuration: Optional[MinerControllerConfig] = cast(
-            MinerControllerConfig, MinerControllerConfig.from_dict(self.config) if self.config else {}
-        )
+        configuration: Optional[MinerControllerConfig] = None
+        if self.config:
+            config_class = MINER_CONTROLLER_CONFIG_TYPE_MAP.get(self.adapter_type, None)
+            if config_class:
+                configuration = cast(MinerControllerConfig, config_class.from_dict(self.config))
 
         return MinerController(
             id=EntityId(uuid.UUID(self.id)),
@@ -353,6 +365,15 @@ class MinerControllerCreateSchema(BaseModel):
             v = ""
         return v
 
+    @field_validator("adapter_type")
+    @classmethod
+    def validate_adapter_type(cls, v: str) -> MinerControllerAdapter:
+        """Validate that adapter_type is a recognized MinerControllerAdapter."""
+        adapter_values = [adapter.value for adapter in MinerControllerAdapter]
+        if v not in adapter_values:
+            raise ValueError(f"adapter_type must be one of {adapter_values}")
+        return MinerControllerAdapter(v)
+
     @field_validator("external_service_id")
     @classmethod
     def validate_external_service_id(cls, v: Optional[str]) -> Optional[str]:
@@ -366,9 +387,11 @@ class MinerControllerCreateSchema(BaseModel):
 
     def to_model(self) -> MinerController:
         """Convert MinerControllerCreateSchema to a MinerController domain model instance."""
-        configuration: Optional[MinerControllerConfig] = cast(
-            MinerControllerConfig, MinerControllerConfig.from_dict(self.config) if self.config else None
-        )
+        configuration: Optional[MinerControllerConfig] = None
+        if self.config:
+            config_class = MINER_CONTROLLER_CONFIG_TYPE_MAP.get(self.adapter_type, None)
+            if config_class:
+                configuration = cast(MinerControllerConfig, config_class.from_dict(self.config))
 
         return MinerController(
             id=EntityId(uuid.uuid4()),

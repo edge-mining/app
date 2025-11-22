@@ -65,7 +65,7 @@ from edge_mining.shared.adapter_maps.energy import (
 from edge_mining.shared.adapter_maps.external_services import EXTERNAL_SERVICE_CONFIG_TYPE_MAP
 from edge_mining.shared.adapter_maps.forecast import FORECAST_PROVIDER_TYPE_EXTERNAL_SERVICE_MAP
 from edge_mining.shared.adapter_maps.miner import MINER_CONTROLLER_CONFIG_TYPE_MAP
-from edge_mining.shared.adapter_maps.notification import NOTIFIER_TYPE_EXTERNAL_SERVICE_MAP
+from edge_mining.shared.adapter_maps.notification import NOTIFIER_CONFIG_TYPE_MAP, NOTIFIER_TYPE_EXTERNAL_SERVICE_MAP
 from edge_mining.shared.external_services.common import ExternalServiceAdapter
 from edge_mining.shared.external_services.entities import ExternalService
 from edge_mining.shared.external_services.exceptions import (
@@ -1453,7 +1453,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         self,
         name: str,
         adapter_type: NotificationAdapter,
-        config: NotificationConfig,
+        config: Optional[NotificationConfig],
         external_service_id: Optional[EntityId] = None,
     ) -> Notifier:
         """Add a new notifier."""
@@ -1498,7 +1498,6 @@ class ConfigurationService(ConfigurationServiceInterface):
         self,
         notifier_id: EntityId,
         name: str,
-        adapter_type: NotificationAdapter,
         config: NotificationConfig,
         external_service_id: Optional[EntityId] = None,
     ) -> Notifier:
@@ -1510,7 +1509,6 @@ class ConfigurationService(ConfigurationServiceInterface):
             raise NotifierNotFoundError(f"Notifier with ID {notifier_id} not found.")
 
         notifier.name = name
-        notifier.adapter_type = adapter_type
         notifier.config = config
         notifier.external_service_id = external_service_id
 
@@ -1549,6 +1547,16 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         self.logger.debug(f"Notifier {notifier.id} ({notifier.name}) is valid.")
         return True
+
+    def get_notifier_config_by_type(self, adapter_type: NotificationAdapter) -> Optional[type[NotificationConfig]]:
+        """Get the configuration class for a specific notifier adapter type."""
+        self.logger.debug(f"Getting configuration for notifier adapter {adapter_type}")
+        if adapter_type not in NOTIFIER_CONFIG_TYPE_MAP:
+            raise NotifierConfigurationError(
+                f"Adapter type {adapter_type} is not supported for notifier configuration."
+            )
+
+        return NOTIFIER_CONFIG_TYPE_MAP.get(adapter_type, None)
 
     # --- Policy Management ---
     def create_policy(self, name: str, description: str = "") -> OptimizationPolicy:

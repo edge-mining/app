@@ -220,7 +220,9 @@ class SqliteNotifierRepository(NotifierRepository):
         conn = self._db.get_connection()
         try:
             # Serialize config to JSON for storage
-            config_json = json.dumps(notifier.config)
+            config_json: str = ""
+            if notifier.config:
+                config_json = json.dumps(notifier.config.to_dict())
 
             with conn:
                 cursor = conn.cursor()

@@ -250,7 +250,7 @@ class ConfigurationServiceInterface(ABC):
         self,
         name: str,
         adapter_type: NotificationAdapter,
-        config: NotificationConfig,
+        config: Optional[NotificationConfig],
         external_service_id: Optional[EntityId] = None,
     ) -> Notifier:
         """Add a new notifier."""
@@ -272,7 +272,6 @@ class ConfigurationServiceInterface(ABC):
         self,
         notifier_id: EntityId,
         name: str,
-        adapter_type: NotificationAdapter,
         config: NotificationConfig,
         external_service_id: Optional[EntityId] = None,
     ) -> Notifier:
@@ -281,6 +280,10 @@ class ConfigurationServiceInterface(ABC):
     @abstractmethod
     def check_notifier(self, notifier: Notifier) -> bool:
         """Check if a notifier is valid and can be used."""
+
+    @abstractmethod
+    def get_notifier_config_by_type(self, adapter_type: NotificationAdapter) -> Optional[type[NotificationConfig]]:
+        """Get the configuration class for a specific notifier adapter type."""
 
     # --- Policy Management ---
     @abstractmethod

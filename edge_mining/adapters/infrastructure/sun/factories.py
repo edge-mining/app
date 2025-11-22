@@ -3,7 +3,7 @@
 from datetime import datetime
 
 from astral import LocationInfo
-from astral.sun import sun, daylight, night, twilight, zenith_and_azimuth, elevation
+from astral.sun import sun, daylight, night, twilight, midnight, zenith_and_azimuth, elevation
 
 from edge_mining.application.interfaces import SunFactoryInterface
 from edge_mining.domain.policy.value_objects import Sun
@@ -58,11 +58,14 @@ class AstralSunFactory(SunFactoryInterface):
         # Calculate elevation
         elevation_value = elevation(self._location.observer, dateandtime=for_date)
 
+        # Obtain midnight time
+        midnight_time = midnight(self._location.observer, date=for_date)
+
         return Sun(
             dawn=s["dawn"],
             sunrise=s["sunrise"],
             noon=s["noon"],
-            midnight=s["midnight"],
+            midnight=midnight_time,
             sunset=s["sunset"],
             dusk=s["dusk"],
             daylight=daylight_duration,

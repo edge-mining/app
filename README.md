@@ -31,10 +31,17 @@ The project uses **Hexagonal Architecture (Ports and Adapters)** to clearly sepa
     cd core
     ```
 2.  **Create a virtual environment (recommended):**
+
+    #### On Linux/macOS:
     ```bash
     python -m venv .venv
-    source .venv/bin/activate  # On Linux/macOS
-    # .venv\Scripts\activate    # On Windows
+    source .venv/bin/activate
+    ```
+
+    #### On Windows:
+    ```cmd
+    python -m venv .venv
+    .venv\Scripts\activate
     ```
 3.  **Install dependencies:**
     ```bash

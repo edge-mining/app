@@ -27,7 +27,8 @@ class EnergyMonitorDummySolarConfig(EnergyMonitorConfig):
     @classmethod
     def from_dict(cls, data: dict):
         """Create a configuration object from a dictionary"""
-        return cls(**data)
+        max_consumption_power = Watts(data.get("max_consumption_power", 3200.0))
+        return EnergyMonitorDummySolarConfig(max_consumption_power=max_consumption_power)
 
 
 @dataclass(frozen=True)

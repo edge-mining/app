@@ -1,6 +1,44 @@
 # Development Tools
 
-This project uses various tools to maintain code quality:
+This project uses various tools to maintain code quality and includes a Makefile for common development tasks. The Makefile is cross-platform compatible and works on both Windows and Linux/macOS.
+
+### Prerequisites for Windows users:
+To use the Makefile on Windows, you must run `make` via Windows Subsystem for Linux (WSL).
+- Install [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install)
+- Run the `make` commands from a WSL shell (e.g., Ubuntu)
+
+**Alternative for Windows users:** If you prefer not to use WSL, you can use the provided alternative scripts:
+
+PowerShell:
+```powershell
+.\dev-tools.ps1 help          # Show all available commands
+.\dev-tools.ps1 setup         # Set up development environment
+.\dev-tools.ps1 install       # Install dependencies
+# ... (same commands as make)
+```
+
+Command Prompt (Batch):
+```cmd
+.\dev-tools.bat help           # Show all available commands
+.\dev-tools.bat setup          # Set up development environment
+.\dev-tools.bat install        # Install dependencies
+# ... (same commands as make)
+```
+
+### Available commands:
+```bash
+make help          # Show all available commands
+make setup         # Set up development environment
+make install       # Install dependencies
+make install-dev   # Install development dependencies
+make format        # Format code with ruff
+make lint          # Run all linting checks
+make lint-fix      # Run linting and fix what can be auto-fixed
+make test          # Run tests
+make test-cov      # Run tests with coverage
+make pre-commit    # Run pre-commit hooks on all files
+make clean         # Clean cache and temporary files
+```
 
 ## Quick Setup
 

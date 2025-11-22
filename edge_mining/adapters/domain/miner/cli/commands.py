@@ -1,6 +1,6 @@
 """CLI commands for the Miner domain."""
 
-from typing import List, Optional, Union
+from typing import List, Optional, Union, cast
 
 import click
 
@@ -549,13 +549,23 @@ def select_miner_controller_type() -> Optional[MinerControllerAdapter]:
 
 def handle_miner_controller_dummy_config(
     miner: Optional[Miner],
+    current_config: Optional[MinerControllerConfig] = None,
 ) -> MinerControllerConfig:
     """Handle configuration for the Dummy Miner Controller."""
     click.echo(click.style("\n--- Dummy Miner Controller Configuration ---", fg="yellow"))
 
+    # Defaults from miner if available or hardcoded values
     default_power = miner.power_consumption_max if miner else 3200.0
     default_hash_rate = miner.hash_rate_max.value if miner and miner.hash_rate_max else 90.0
     default_hash_rate_unit = miner.hash_rate_max.unit if miner and miner.hash_rate_max else "TH/s"
+
+    # Try to get defaults from current_config
+    if current_config and current_config.is_valid(MinerControllerAdapter.DUMMY):
+        config: MinerControllerDummyConfig = cast(MinerControllerDummyConfig, current_config)
+
+        default_power = config.power_max
+        default_hash_rate = config.hashrate_max.value
+        default_hash_rate_unit = config.hashrate_max.unit
 
     power_max: float = click.prompt(
         "Max power consumption (Watt, eg. 3200.0)",
@@ -575,24 +585,41 @@ def handle_miner_controller_dummy_config(
     )
 
 
-def handle_miner_controller_generic_socket_home_assistant_api_config(miner: Optional[Miner]) -> MinerControllerConfig:
+def handle_miner_controller_generic_socket_home_assistant_api_config(
+    miner: Optional[Miner],
+    current_config: Optional[MinerControllerConfig] = None,
+) -> MinerControllerConfig:
     """Handle configuration for the Generic Socket Home Assistant API Miner Controller."""
     click.echo(click.style("\n--- Generic Socket Home Assistant API Miner Controller Configuration ---", fg="yellow"))
+
+    # Default values from hardcoded values
+    default_entity_switch = "switch.miner_socket"
+    default_entity_power = "sensor.miner_power"
+    default_unit_power = "W"
+
+    # Try to get defaults from current_config
+    if current_config and current_config.is_valid(MinerControllerAdapter.GENERIC_SOCKET_HOME_ASSISTANT_API):
+        config: MinerControllerGenericSocketHomeAssistantAPIConfig = cast(
+            MinerControllerGenericSocketHomeAssistantAPIConfig, current_config
+        )
+        default_entity_switch = config.entity_switch
+        default_entity_power = config.entity_power
+        default_unit_power = config.unit_power
 
     entity_switch: str = click.prompt(
         "Entity ID for the switch (eg. switch.miner_socket)",
         type=str,
-        default="switch.miner_socket",
+        default=default_entity_switch,
     )
     entity_power: str = click.prompt(
         "Entity ID for the power sensor (eg. sensor.miner_power)",
         type=str,
-        default="sensor.miner_power",
+        default=default_entity_power,
     )
     unit_power: str = click.prompt(
         "Unit of power measurement (eg. W, kW)",
         type=str,
-        default="W",
+        default=default_unit_power,
     )
 
     return MinerControllerGenericSocketHomeAssistantAPIConfig(
@@ -603,14 +630,19 @@ def handle_miner_controller_generic_socket_home_assistant_api_config(miner: Opti
 
 
 def handle_miner_controller_configuration(
-    adapter_type: MinerControllerAdapter, miner: Optional[Miner]
+    adapter_type: MinerControllerAdapter,
+    miner: Optional[Miner],
+    current_config: Optional[MinerControllerConfig] = None,
 ) -> Optional[MinerControllerConfig]:
     """Handle configuration for the selected Miner Controller type."""
     config: Optional[MinerControllerConfig] = None
+
     if adapter_type.value == MinerControllerAdapter.DUMMY.value:
-        config = handle_miner_controller_dummy_config(miner)
+        config = handle_miner_controller_dummy_config(miner=miner, current_config=current_config)
     elif adapter_type.value == MinerControllerAdapter.GENERIC_SOCKET_HOME_ASSISTANT_API.value:
-        config = handle_miner_controller_generic_socket_home_assistant_api_config(miner)
+        config = handle_miner_controller_generic_socket_home_assistant_api_config(
+            miner=miner, current_config=current_config
+        )
     else:
         click.echo(click.style("Unsupported controller type selected. Aborting.", fg="red"))
     return config
@@ -637,7 +669,7 @@ def handle_add_miner_controller(
     new_controller.external_service_id = None
 
     config: Optional[MinerControllerConfig] = handle_miner_controller_configuration(
-        adapter_type=new_controller.adapter_type, miner=miner
+        adapter_type=new_controller.adapter_type, miner=miner, current_config=None
     )
 
     if config is None:
@@ -806,9 +838,16 @@ def update_single_miner_controller(
 ) -> Optional[MinerController]:
     """Menu to update a miner controller"""
     name: str = click.prompt("New name of the controller", type=str, default=controller.name)
+
+    # Get current config to pass as default
+    current_config: Optional[MinerControllerConfig] = controller.config
+    # Get current external service id
+    external_service_id: Optional[EntityId] = controller.external_service_id
+
     config: Optional[MinerControllerConfig] = handle_miner_controller_configuration(
         adapter_type=controller.adapter_type,
         miner=None,  # No miner needed for controller update
+        current_config=current_config,  # Current config values as default
     )
 
     if config is None:
@@ -817,7 +856,7 @@ def update_single_miner_controller(
 
     try:
         updated_controller = configuration_service.update_miner_controller(
-            controller_id=controller.id, name=name, config=config
+            controller_id=controller.id, name=name, config=config, external_service_id=external_service_id
         )
         logger.info(f"Miner Controller '{updated_controller.name}' (ID: {updated_controller.id}) successfully updated.")
     except Exception as e:

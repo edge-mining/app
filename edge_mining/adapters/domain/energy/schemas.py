@@ -10,6 +10,7 @@ from edge_mining.domain.energy.common import EnergyMonitorAdapter, EnergySourceT
 from edge_mining.domain.energy.entities import EnergyMonitor, EnergySource
 from edge_mining.domain.energy.value_objects import Battery, Grid
 from edge_mining.shared.adapter_configs.energy import EnergyMonitorDummySolarConfig, EnergyMonitorHomeAssistantConfig
+from edge_mining.shared.adapter_maps.energy import ENERGY_MONITOR_CONFIG_TYPE_MAP
 from edge_mining.shared.interfaces.config import EnergyMonitorConfig
 
 
@@ -80,6 +81,15 @@ class EnergySourceSchema(BaseModel):
         if not v:
             v = ""
         return v
+
+    @field_validator("type")
+    @classmethod
+    def validate_type(cls, v: str) -> EnergySourceType:
+        """Validate that type is a recognized EnergySourceType."""
+        adapter_values = [adapter.value for adapter in EnergySourceType]
+        if v not in adapter_values:
+            raise ValueError(f"adapter_type must be one of {adapter_values}")
+        return EnergySourceType(v)
 
     @field_validator("energy_monitor_id")
     @classmethod
@@ -203,6 +213,15 @@ class EnergySourceCreateSchema(BaseModel):
         if not v:
             v = ""
         return v
+
+    @field_validator("type")
+    @classmethod
+    def validate_type(cls, v: str) -> EnergySourceType:
+        """Validate that type is a recognized EnergySourceType."""
+        adapter_values = [adapter.value for adapter in EnergySourceType]
+        if v not in adapter_values:
+            raise ValueError(f"adapter_type must be one of {adapter_values}")
+        return EnergySourceType(v)
 
     @field_validator("energy_monitor_id")
     @classmethod
@@ -367,6 +386,15 @@ class EnergyMonitorSchema(BaseModel):
             v = ""
         return v
 
+    @field_validator("adapter_type")
+    @classmethod
+    def validate_adapter_type(cls, v: str) -> EnergyMonitorAdapter:
+        """Validate that adapter_type is a recognized EnergyMonitorAdapter."""
+        adapter_values = [adapter.value for adapter in EnergyMonitorAdapter]
+        if v not in adapter_values:
+            raise ValueError(f"adapter_type must be one of {adapter_values}")
+        return EnergyMonitorAdapter(v)
+
     @field_validator("external_service_id")
     @classmethod
     def validate_external_service_id(cls, v: Optional[str]) -> Optional[str]:
@@ -401,9 +429,12 @@ class EnergyMonitorSchema(BaseModel):
 
     def to_model(self) -> EnergyMonitor:
         """Convert EnergyMonitorSchema to EnergyMonitor domain entity."""
-        configuration: Optional[EnergyMonitorConfig] = cast(
-            EnergyMonitorConfig, EnergyMonitorConfig.from_dict(self.config) if self.config else None
-        )
+        configuration: Optional[EnergyMonitorConfig] = None
+        if self.config:
+            config_class = ENERGY_MONITOR_CONFIG_TYPE_MAP.get(self.adapter_type, None)
+            if config_class:
+                configuration = cast(EnergyMonitorConfig, config_class.from_dict(self.config))
+
         return EnergyMonitor(
             id=EntityId(uuid.UUID(self.id)),
             name=self.name,
@@ -443,6 +474,15 @@ class EnergyMonitorCreateSchema(BaseModel):
             v = ""
         return v
 
+    @field_validator("adapter_type")
+    @classmethod
+    def validate_adapter_type(cls, v: str) -> EnergyMonitorAdapter:
+        """Validate that adapter_type is a recognized EnergyMonitorAdapter."""
+        adapter_values = [adapter.value for adapter in EnergyMonitorAdapter]
+        if v not in adapter_values:
+            raise ValueError(f"adapter_type must be one of {adapter_values}")
+        return EnergyMonitorAdapter(v)
+
     @field_validator("external_service_id")
     @classmethod
     def validate_external_service_id(cls, v: Optional[str]) -> Optional[str]:
@@ -456,9 +496,12 @@ class EnergyMonitorCreateSchema(BaseModel):
 
     def to_model(self) -> EnergyMonitor:
         """Convert EnergyMonitorCreateSchema to EnergyMonitor domain entity."""
-        configuration: Optional[EnergyMonitorConfig] = cast(
-            EnergyMonitorConfig, EnergyMonitorConfig.from_dict(self.config) if self.config else None
-        )
+        configuration: Optional[EnergyMonitorConfig] = None
+        if self.config:
+            config_class = ENERGY_MONITOR_CONFIG_TYPE_MAP.get(self.adapter_type, None)
+            if config_class:
+                configuration = cast(EnergyMonitorConfig, config_class.from_dict(self.config))
+
         return EnergyMonitor(
             id=EntityId(uuid.uuid4()),
             name=self.name,
