@@ -337,7 +337,7 @@ def update_optimization_unit(
             selected_notifiers = [selected_notifiers]
         new_optimization_unit.notifier_ids = [n.id for n in selected_notifiers] if selected_notifiers else []
 
-    # Home forecast provider and performance tracker updates to be implemented in the next release
+    # Home forecast provider and performance tracker updates will be implemented in the next release
 
     try:
         updated = configuration_service.update_optimization_unit(
@@ -519,6 +519,11 @@ def manage_remove_target_miner(
     """Remove a target miner from an optimization unit."""
     click.echo(click.style("\n--- Remove Target Miner from Optimization Unit ---", fg="yellow"))
 
+    if not optimization_unit.target_miner_ids:
+        click.echo(click.style("No target miners assigned to this optimization unit.", fg="red"))
+        click.pause("Press any key to return to the menu...")
+        return
+
     selected_miner: Union[Optional[Miner], List[Miner]] = select_miner(
         configuration_service=configuration_service,
         logger=logger,
@@ -613,6 +618,11 @@ def manage_remove_notifier(
 ) -> None:
     """Remove a notifier from an optimization unit."""
     click.echo(click.style("\n--- Remove Notifier from Optimization Unit ---", fg="yellow"))
+
+    if not optimization_unit.notifier_ids:
+        click.echo(click.style("No notifiers assigned to this optimization unit.", fg="red"))
+        click.pause("Press any key to return to the menu...")
+        return
 
     selected_notifier: Union[Optional[Notifier], List[Notifier]] = select_notifier(
         configuration_service=configuration_service,
