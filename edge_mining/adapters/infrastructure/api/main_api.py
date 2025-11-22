@@ -10,6 +10,7 @@ from edge_mining.adapters.domain.energy.fast_api.router import router as energy_
 from edge_mining.adapters.domain.forecast.fast_api.router import router as forecast_router
 from edge_mining.adapters.domain.miner.fast_api.router import router as miner_router
 from edge_mining.adapters.domain.notification.fast_api.router import router as notification_router
+from edge_mining.adapters.domain.optimization_unit.fast_api.router import router as optimization_unit_router
 from edge_mining.adapters.domain.policy.fast_api.router import router as policy_router
 
 # Import dependency injection setup functions
@@ -72,6 +73,7 @@ app.add_middleware(
 app.include_router(energy_router, prefix="/api/v1", tags=["energy"])
 app.include_router(miner_router, prefix="/api/v1", tags=["mining"])
 app.include_router(policy_router, prefix="/api/v1", tags=["policy"])
+app.include_router(optimization_unit_router, prefix="/api/v1", tags=["optimization_unit"])
 app.include_router(external_services_router, prefix="/api/v1", tags=["external_services"])
 app.include_router(rule_engine_router, prefix="/api/v1", tags=["rule_engine"])
 app.include_router(notification_router, prefix="/api/v1", tags=["notification"])
