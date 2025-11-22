@@ -229,6 +229,7 @@ def handle_activate_optimization_unit(
     """Activate an optimization unit."""
     if optimization_unit.is_enabled:
         click.echo(click.style("The optimization unit is already active.", fg="yellow"))
+        click.pause("Press any key to return to the menu...")
         return
 
     try:
@@ -236,6 +237,8 @@ def handle_activate_optimization_unit(
         click.echo(click.style("Optimization unit activated successfully.", fg="green"))
     except Exception as e:
         click.echo(click.style(f"Error activating optimization unit: {e}", fg="red"))
+
+    click.pause("Press any key to return to the menu...")
 
 
 def handle_deactivate_optimization_unit(
@@ -245,6 +248,7 @@ def handle_deactivate_optimization_unit(
     """Deactivate an optimization unit."""
     if not optimization_unit.is_enabled:
         click.echo(click.style("The optimization unit is already inactive.", fg="yellow"))
+        click.pause("Press any key to return to the menu...")
         return
 
     try:
@@ -252,6 +256,8 @@ def handle_deactivate_optimization_unit(
         click.echo(click.style("Optimization unit deactivated successfully.", fg="green"))
     except Exception as e:
         click.echo(click.style(f"Error deactivating optimization unit: {e}", fg="red"))
+
+    click.pause("Press any key to return to the menu...")
 
 
 def update_optimization_unit(
