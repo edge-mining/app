@@ -426,6 +426,12 @@ class ConfigurationServiceInterface(ABC):
         """Deactivate an optimization unit in the system."""
 
     @abstractmethod
+    def assign_miners_to_optimization_unit(
+        self, unit_id: EntityId, miner_ids: List[EntityId]
+    ) -> EnergyOptimizationUnit:
+        """Assign target miners to an optimization unit."""
+
+    @abstractmethod
     def add_miner_to_optimization_unit(self, unit_id: EntityId, miner_id: EntityId) -> EnergyOptimizationUnit:
         """Add a miner to an optimization unit."""
 
@@ -454,6 +460,12 @@ class ConfigurationServiceInterface(ABC):
         self, unit_id: EntityId, performance_tracker_id: EntityId
     ) -> EnergyOptimizationUnit:
         """Assign a performance tracker to an optimization unit."""
+
+    @abstractmethod
+    def assign_notifiers_to_optimization_unit(
+        self, unit_id: EntityId, notifier_ids: List[EntityId]
+    ) -> EnergyOptimizationUnit:
+        """Assign notifiers to an optimization unit."""
 
     @abstractmethod
     def add_notifier_to_optimization_unit(self, unit_id: EntityId, notifier_id: EntityId) -> EnergyOptimizationUnit:

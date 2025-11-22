@@ -904,6 +904,25 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         return optimization_unit
 
+    def assign_miners_to_optimization_unit(
+        self, unit_id: EntityId, miner_ids: List[EntityId]
+    ) -> EnergyOptimizationUnit:
+        """Assign target miners to an optimization unit."""
+        self.logger.info(f"Assigning miners {miner_ids} to optimization unit {unit_id}")
+
+        optimization_unit = self.optimization_unit_repo.get_by_id(unit_id)
+
+        if not optimization_unit:
+            raise OptimizationUnitNotFoundError(f"Optimization Unit with ID {unit_id} not found.")
+
+        optimization_unit.target_miner_ids = miner_ids
+
+        self.check_optimization_unit(optimization_unit)
+
+        self.optimization_unit_repo.update(optimization_unit)
+
+        return optimization_unit
+
     def add_miner_to_optimization_unit(self, unit_id: EntityId, miner_id: EntityId) -> EnergyOptimizationUnit:
         """Add a miner to an optimization unit."""
         self.logger.info(f"Adding miner {miner_id} to optimization unit {unit_id}")
@@ -1005,6 +1024,25 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         optimization_unit.performance_tracker_id = performance_tracker_id
         self.check_optimization_unit(optimization_unit)
+        self.optimization_unit_repo.update(optimization_unit)
+
+        return optimization_unit
+
+    def assign_notifiers_to_optimization_unit(
+        self, unit_id: EntityId, notifier_ids: List[EntityId]
+    ) -> EnergyOptimizationUnit:
+        """Assign notifiers to an optimization unit."""
+        self.logger.info(f"Assigning notifiers {notifier_ids} to optimization unit {unit_id}")
+
+        optimization_unit = self.optimization_unit_repo.get_by_id(unit_id)
+
+        if not optimization_unit:
+            raise OptimizationUnitNotFoundError(f"Optimization Unit with ID {unit_id} not found.")
+
+        optimization_unit.notifier_ids = notifier_ids
+
+        self.check_optimization_unit(optimization_unit)
+
         self.optimization_unit_repo.update(optimization_unit)
 
         return optimization_unit
