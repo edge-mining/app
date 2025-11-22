@@ -429,8 +429,8 @@ def print_energy_monitor_details(
 def print_energy_source_details(
     energy_source: EnergySource,
     configuration_service: ConfigurationServiceInterface,
-    show_energy_monitor_list: bool = False,
-    show_forecast_provider_list: bool = False,
+    show_energy_monitor_details: bool = False,
+    show_forecast_provider_details: bool = False,
 ) -> None:
     """Print the details of an energy source."""
     click.echo("")
@@ -447,7 +447,7 @@ def print_energy_source_details(
         + ((str(energy_source.external_source) + " W") if energy_source.external_source else "None")
     )
 
-    if show_energy_monitor_list:
+    if show_energy_monitor_details:
         if energy_source.energy_monitor_id:
             try:
                 energy_monitor = configuration_service.get_energy_monitor(energy_source.energy_monitor_id)
@@ -468,7 +468,7 @@ def print_energy_source_details(
                 )
             click.echo("")
 
-    if show_forecast_provider_list:
+    if show_forecast_provider_details:
         if energy_source.forecast_provider_id:
             try:
                 forecast_provider = configuration_service.get_forecast_provider(energy_source.forecast_provider_id)
@@ -735,8 +735,8 @@ def manage_single_energy_source_menu(
         print_energy_source_details(
             energy_source=energy_source,
             configuration_service=configuration_service,
-            show_energy_monitor_list=True,
-            show_forecast_provider_list=True,
+            show_energy_monitor_details=True,
+            show_forecast_provider_details=True,
         )
 
         click.echo("1. Update Energy Source")
