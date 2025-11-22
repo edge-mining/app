@@ -478,7 +478,7 @@ class ConfigurationServiceInterface(ABC):
         """Remove a notifier from an optimization unit."""
 
     @abstractmethod
-    def check_optimization_unit(self, optimization_unit: EnergyOptimizationUnit) -> bool:
+    def check_optimization_unit(self, optimization_unit: EnergyOptimizationUnit, strict: bool = False) -> bool:
         """Check if an optimization unit is valid and can be used."""
 
     # --- External Service Management ---
