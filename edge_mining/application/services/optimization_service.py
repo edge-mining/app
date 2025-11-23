@@ -38,6 +38,7 @@ from edge_mining.domain.policy.common import MiningDecision
 from edge_mining.domain.policy.entities import AutomationRule
 from edge_mining.domain.policy.exceptions import PolicyError, RuleEngineError, RuleEvaluationError, RuleLoadError
 from edge_mining.domain.policy.ports import OptimizationPolicyRepository
+from edge_mining.domain.policy.services import RuleEngine
 from edge_mining.domain.policy.value_objects import DecisionalContext, Sun
 from edge_mining.shared.logging.port import LoggerPort
 
@@ -334,7 +335,11 @@ class OptimizationService(OptimizationServiceInterface):
 
         # --- Notifiers ---
         unit_notifiers: List[NotificationPort] = []
-        unit_notifiers = self.adapter_service.get_notifiers(optimization_unit.notifier_ids)
+        try:
+            unit_notifiers = self.adapter_service.get_notifiers(optimization_unit.notifier_ids)
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error getting notifiers for optimization unit '{optimization_unit.name}': {e}")
 
         # --- Policy ---
         if not optimization_unit.policy_id:
@@ -380,7 +385,11 @@ class OptimizationService(OptimizationServiceInterface):
         # --- Energy Monitor ---
         energy_monitor: Optional[EnergyMonitorPort] = None
         if energy_source.energy_monitor_id:
-            energy_monitor = self.adapter_service.get_energy_monitor(energy_source)
+            try:
+                energy_monitor = self.adapter_service.get_energy_monitor(energy_source)
+            except Exception as e:
+                if self.logger:
+                    self.logger.critical(f"Error getting energy monitor for energy source '{energy_source.name}': {e}")
         if not energy_monitor:
             if self.logger:
                 self.logger.error(
@@ -398,7 +407,11 @@ class OptimizationService(OptimizationServiceInterface):
         # --- Forecast Provider ---
         forecast_provider: Optional[ForecastProviderPort] = None
         if energy_source.forecast_provider_id:
-            forecast_provider = self.adapter_service.get_forecast_provider(energy_source)
+            try:
+                forecast_provider = self.adapter_service.get_forecast_provider(energy_source)
+            except Exception as e:
+                if self.logger:
+                    self.logger.error(f"Error getting forecast provider for energy source '{energy_source.name}': {e}")
         # Forecast is optional, so log a warning if it's missing but continue
         if not forecast_provider:
             if self.logger:
@@ -411,9 +424,15 @@ class OptimizationService(OptimizationServiceInterface):
         # --- Home Forecast Provider ---
         home_forecast_provider: Optional[HomeForecastProviderPort] = None
         if optimization_unit.home_forecast_provider_id:
-            home_forecast_provider = self.adapter_service.get_home_load_forecast_provider(
-                optimization_unit.home_forecast_provider_id
-            )
+            try:
+                home_forecast_provider = self.adapter_service.get_home_load_forecast_provider(
+                    optimization_unit.home_forecast_provider_id
+                )
+            except Exception as e:
+                if self.logger:
+                    self.logger.error(
+                        f"Error getting home forecast provider for optimization unit '{optimization_unit.name}': {e}"
+                    )
         # Home forecast provider is optional, so log a warning if it's missing but
         # continue
         if not home_forecast_provider:
@@ -428,9 +447,15 @@ class OptimizationService(OptimizationServiceInterface):
         # --- Mining Performance Tracker ---
         mining_performance_tracker: Optional[MiningPerformanceTrackerPort] = None
         if optimization_unit.performance_tracker_id:
-            mining_performance_tracker = self.adapter_service.get_mining_performance_tracker(
-                optimization_unit.performance_tracker_id
-            )
+            try:
+                mining_performance_tracker = self.adapter_service.get_mining_performance_tracker(
+                    optimization_unit.performance_tracker_id
+                )
+            except Exception as e:
+                if self.logger:
+                    self.logger.error(
+                        f"Error getting mining performance tracker for optimization unit '{optimization_unit.name}': {e}"
+                    )
         # Mining performance tracker is optional, so log a warning if it's missing
         # but continue
         if not mining_performance_tracker:
@@ -595,7 +620,11 @@ class OptimizationService(OptimizationServiceInterface):
         # --- Miner Controller ---
         miner_controller: Optional[MinerControlPort] = None
         if miner.controller_id:
-            miner_controller = self.adapter_service.get_miner_controller(miner)
+            try:
+                miner_controller = self.adapter_service.get_miner_controller(miner)
+            except Exception as e:
+                if self.logger:
+                    self.logger.critical(f"Error getting controller for miner {miner_id}: {e}")
             if not miner_controller:
                 if self.logger:
                     self.logger.error(
@@ -656,7 +685,12 @@ class OptimizationService(OptimizationServiceInterface):
             )
 
             # Create the rule engine instance
-            rule_engine = self.adapter_service.get_rule_engine()
+            rule_engine: Optional[RuleEngine] = None
+            try:
+                rule_engine = self.adapter_service.get_rule_engine()
+            except Exception as e:
+                if self.logger:
+                    self.logger.critical(f"Error getting rule engine: {e}")
             if not rule_engine:
                 if self.logger:
                     self.logger.error(
