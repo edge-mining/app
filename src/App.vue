@@ -31,7 +31,9 @@ const showDrawer = ref(true);
           <PhCaretRight v-else />
         </div>
       </label>
-      <RouterView />
+      <div class="mt-8">
+        <RouterView />
+      </div>
     </div>
   </div>
 </template>
