@@ -6,9 +6,9 @@
   default: true;
   prefersdark: true;
   color-scheme: "dark";
-  --color-base-100: oklch(20% 0 0);
-  --color-base-200: oklch(20% 0 0);
-  --color-base-300: oklch(43% 0 0);
+  --color-base-100: oklch(25% 0 0);
+  --color-base-200: oklch(35% 0 0);
+  --color-base-300: oklch(50% 0 0);
   --color-base-content: #e8e8e8;
   /* previously was fffaff */
   --color-primary: #beffa3;
@@ -35,4 +35,10 @@
   --border: 0.5px;
   --depth: 0;
   --noise: 0;
+}
+
+.flenter {
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }

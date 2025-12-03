@@ -101,6 +101,7 @@ const isRequired = (fieldName: string) => {
         v-else-if="property.type === 'number'"
         v-model.number="config[fieldName]"
         type="number"
+        step="any"
         :placeholder="property.description || property.title"
         :required="isRequired(String(fieldName))"
         class="input input-bordered input-sm"

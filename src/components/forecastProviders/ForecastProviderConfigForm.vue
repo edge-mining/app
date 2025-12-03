@@ -2,17 +2,17 @@
 import { ref, watch } from "vue";
 import type {
   ConfigSchema,
-  MinerControllerConfig,
-} from "../../core/models/minerController";
-import { MinerControllerService } from "../../core/services/minerControllerService";
+  ForecastProviderConfig,
+} from "../../core/models/forecastProvider";
+import { ForecastProviderService } from "../../core/services/forecastProviderService";
 
 const props = defineProps<{
   adapterType: string;
 }>();
 
-const config = defineModel<MinerControllerConfig>({ required: true });
+const config = defineModel<ForecastProviderConfig>({ required: true });
 
-const service = new MinerControllerService();
+const service = new ForecastProviderService();
 const schema = ref<ConfigSchema | null>(null);
 const loading = ref(false);
 
@@ -31,7 +31,7 @@ watch(
 
       // Initialize config with default values
       if (schema.value?.properties) {
-        const newConfig: MinerControllerConfig = {};
+        const newConfig: ForecastProviderConfig = {};
         Object.entries(schema.value.properties).forEach(([key, property]) => {
           if (property.default !== undefined) {
             newConfig[key] = property.default;

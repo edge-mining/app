@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute } from "vue-router";
-import { PhPulse, PhLightning, PhCpu } from "@phosphor-icons/vue";
+import { PhPulse, PhLightning, PhCpu, PhCloudSun } from "@phosphor-icons/vue";
 import VectorIcon from "./VectorIcon.vue";
 
 const route = useRoute();
@@ -11,7 +11,8 @@ const isDashboardActive = computed(() => route.path === "/");
 const isEnergyOpen = computed(() => {
   return (
     route.path.startsWith("/settings/energy-sources") ||
-    route.path.startsWith("/settings/energy-monitors")
+    route.path.startsWith("/settings/energy-monitors") ||
+    route.path.startsWith("/settings/forecast-providers")
   );
 });
 
@@ -23,13 +24,13 @@ const isMiningOpen = computed(() => {
 });
 </script>
 <template>
-  <div class="navbar bg-base-200 p-4">
-    <div class="flex-none">
-      <div class="flex flex-row">
-        <VectorIcon name="logo" class="inline-block size-8 mr-2" />
+  <div class="navbar p-4 h-full">
+    <div class="flex-none h-full">
+      <div class="flex flex-row !py-6">
+        <VectorIcon name="logo" class="inline-block size-10 mr-2" />
         <div class="flex flex-col">
-          <span class="text-xs">EDGE MINING</span>
-          <span>Jean Claude</span>
+          <span class="text-xs text-base-300">EDGE MINING</span>
+          <span>Satoshi Nakamoto</span>
         </div>
       </div>
 
@@ -38,7 +39,7 @@ const isMiningOpen = computed(() => {
         <li class="w-full">
           <RouterLink
             to="/"
-            class="flenter w-full text-lg"
+            class="w-full text-lg"
             active-class="active text-primary"
             exact
           >
@@ -57,11 +58,11 @@ const isMiningOpen = computed(() => {
               <PhLightning :weight="isEnergyOpen ? 'fill' : 'regular'" />
               Energy
             </summary>
-            <ul class="bg-base-100 rounded-t-none p-2 w-full submenu-curved">
+            <ul class="rounded-t-none p-2 w-full submenu-curved">
               <li class="w-full submenu-item">
                 <RouterLink
                   to="/settings/energy-sources"
-                  class="flenter w-full"
+                  class="w-full"
                   active-class="active text-primary"
                 >
                   Energy Sources
@@ -70,10 +71,19 @@ const isMiningOpen = computed(() => {
               <li class="w-full submenu-item">
                 <RouterLink
                   to="/settings/energy-monitors"
-                  class="flenter w-full"
+                  class="w-full"
                   active-class="active text-primary "
                 >
                   Energy Monitors
+                </RouterLink>
+              </li>
+              <li class="w-full submenu-item">
+                <RouterLink
+                  to="/settings/forecast-providers"
+                  class="w-full"
+                  active-class="active text-primary"
+                >
+                  Forecast Providers
                 </RouterLink>
               </li>
             </ul>
@@ -90,11 +100,11 @@ const isMiningOpen = computed(() => {
               <PhCpu :weight="isMiningOpen ? 'fill' : 'regular'" />
               Mining
             </summary>
-            <ul class="bg-base-100 rounded-t-none p-2 w-full submenu-curved">
+            <ul class="rounded-t-none p-2 w-full submenu-curved">
               <li class="w-full submenu-item">
                 <RouterLink
                   to="/settings/miners"
-                  class="flenter w-full"
+                  class="w-full"
                   active-class="active text-primary"
                 >
                   Miners
@@ -103,7 +113,7 @@ const isMiningOpen = computed(() => {
               <li class="w-full submenu-item">
                 <RouterLink
                   to="/settings/miner-controllers"
-                  class="flenter w-full"
+                  class="w-full"
                   active-class="active text-primary"
                 >
                   Miner Controllers

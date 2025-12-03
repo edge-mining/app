@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import SidebarMenu from "./components/SidebarMenu.vue";
+import { PhCaretLeft, PhCaretRight } from "@phosphor-icons/vue";
 
 const showDrawer = ref(true);
 </script>
@@ -14,10 +15,7 @@ const showDrawer = ref(true);
       v-model="showDrawer"
     />
 
-    <div
-      class="drawer-side relative border-r"
-      :class="showDrawer ? 'w-60' : 'w-0'"
-    >
+    <div class="drawer-side relative" :class="showDrawer ? 'w-60' : 'w-0'">
       <label for="my-drawer" aria-label="close sidebar"></label>
       <SidebarMenu />
     </div>
@@ -26,9 +24,13 @@ const showDrawer = ref(true);
       <!-- Page content here -->
       <label
         for="my-drawer"
-        class="absolute top-2 -left-2 btn btn-sm btn-neutral drawer-button z-10"
-        >{{ showDrawer ? "<" : ">" }}</label
+        class="absolute top-12 -left-2 rounded border border-base-300 text-base-300 size-6 z-10 flenter"
       >
+        <div>
+          <PhCaretLeft v-if="showDrawer" />
+          <PhCaretRight v-else />
+        </div>
+      </label>
       <RouterView />
     </div>
   </div>
