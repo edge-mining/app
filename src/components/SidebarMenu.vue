@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute } from "vue-router";
-import { PhPulse, PhLightning, PhCpu, PhCloudSun } from "@phosphor-icons/vue";
+import { PhPulse, PhLightning, PhCpu } from "@phosphor-icons/vue";
 import VectorIcon from "./VectorIcon.vue";
 
 const route = useRoute();
