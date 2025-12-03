@@ -1,12 +1,25 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute } from "vue-router";
+import { PhPulse, PhLightning, PhCpu } from "@phosphor-icons/vue";
 import VectorIcon from "./VectorIcon.vue";
 
 const route = useRoute();
 
-const isSettingsOpen = computed(() => {
-  return route.path.startsWith("/settings");
+const isDashboardActive = computed(() => route.path === "/");
+
+const isEnergyOpen = computed(() => {
+  return (
+    route.path.startsWith("/settings/energy-sources") ||
+    route.path.startsWith("/settings/energy-monitors")
+  );
+});
+
+const isMiningOpen = computed(() => {
+  return (
+    route.path.startsWith("/settings/miners") ||
+    route.path.startsWith("/settings/miner-controllers")
+  );
 });
 </script>
 <template>
@@ -21,34 +34,35 @@ const isSettingsOpen = computed(() => {
       </div>
 
       <ul class="menu px-1 w-full">
+        <!-- Dashboard -->
         <li class="w-full">
           <RouterLink
             to="/"
-            class="flenter w-full"
-            active-class="active bg-primary text-primary-content font-semibold"
+            class="flenter w-full text-lg"
+            active-class="active text-primary"
             exact
           >
+            <PhPulse :weight="isDashboardActive ? 'fill' : 'regular'" />
             Dashboard
           </RouterLink>
         </li>
+
+        <!-- Energy -->
         <li class="w-full">
-          <details :open="isSettingsOpen">
-            <summary>Settings</summary>
+          <details :open="isEnergyOpen">
+            <summary
+              class="text-lg"
+              :class="{ 'text-primary font-semibold': isEnergyOpen }"
+            >
+              <PhLightning :weight="isEnergyOpen ? 'fill' : 'regular'" />
+              Energy
+            </summary>
             <ul class="bg-base-100 rounded-t-none p-2 w-full submenu-curved">
-              <li class="w-full submenu-item">
-                <RouterLink
-                  to="/settings/miners"
-                  class="flenter w-full"
-                  active-class="active bg-primary text-primary-content font-semibold"
-                >
-                  Miners
-                </RouterLink>
-              </li>
               <li class="w-full submenu-item">
                 <RouterLink
                   to="/settings/energy-sources"
                   class="flenter w-full"
-                  active-class="active bg-primary text-primary-content font-semibold"
+                  active-class="active text-primary"
                 >
                   Energy Sources
                 </RouterLink>
@@ -57,9 +71,42 @@ const isSettingsOpen = computed(() => {
                 <RouterLink
                   to="/settings/energy-monitors"
                   class="flenter w-full"
-                  active-class="active bg-primary text-primary-content font-semibold"
+                  active-class="active text-primary "
                 >
                   Energy Monitors
+                </RouterLink>
+              </li>
+            </ul>
+          </details>
+        </li>
+
+        <!-- Mining -->
+        <li class="w-full">
+          <details :open="isMiningOpen">
+            <summary
+              class="text-lg"
+              :class="{ 'text-primary font-semibold': isMiningOpen }"
+            >
+              <PhCpu :weight="isMiningOpen ? 'fill' : 'regular'" />
+              Mining
+            </summary>
+            <ul class="bg-base-100 rounded-t-none p-2 w-full submenu-curved">
+              <li class="w-full submenu-item">
+                <RouterLink
+                  to="/settings/miners"
+                  class="flenter w-full"
+                  active-class="active text-primary"
+                >
+                  Miners
+                </RouterLink>
+              </li>
+              <li class="w-full submenu-item">
+                <RouterLink
+                  to="/settings/miner-controllers"
+                  class="flenter w-full"
+                  active-class="active text-primary"
+                >
+                  Miner Controllers
                 </RouterLink>
               </li>
             </ul>

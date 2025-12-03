@@ -70,13 +70,13 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 
 | Method | Endpoint | Description | Frontend Service | Frontend Page | Status |
 |--------|----------|-------------|------------------|---------------|---------|
-| GET | `/miner-controllers` | Get list of all miner controllers | ❌ Not implemented | - | ⚠️ TODO |
-| POST | `/miner-controllers` | Create a new miner controller | ❌ Not implemented | - | ⚠️ TODO |
-| GET | `/miner-controllers/types` | Get available controller types | ❌ Not implemented | - | ⚠️ TODO |
-| GET | `/miner-controllers/types/{adapter_type}/config-schema` | Get config schema for controller type | ❌ Not implemented | - | ⚠️ TODO |
-| GET | `/miner-controllers/{controller_id}` | Get specific controller | ❌ Not implemented | - | ⚠️ TODO |
-| PUT | `/miner-controllers/{controller_id}` | Update a controller | ❌ Not implemented | - | ⚠️ TODO |
-| DELETE | `/miner-controllers/{controller_id}` | Delete a controller | ❌ Not implemented | - | ⚠️ TODO |
+| GET | `/miner-controllers` | Get list of all miner controllers | `MinerControllerService.getMinerControllers()` | `MinerControllersSettingsView.vue` | ✅ Implemented |
+| POST | `/miner-controllers` | Create a new miner controller | `MinerControllerService.addMinerController()` | `MinerControllersSettingsView.vue` | ✅ Implemented |
+| GET | `/miner-controllers/types` | Get available controller types | `MinerControllerService.getAdapterTypes()` | `MinerControllersSettingsView.vue` | ✅ Implemented |
+| GET | `/miner-controllers/types/{adapter_type}/config-schema` | Get config schema for controller type | `MinerControllerService.getConfigSchema()` | `MinerControllersSettingsView.vue` | ✅ Implemented |
+| GET | `/miner-controllers/{controller_id}` | Get specific controller | `MinerControllerService.getMinerController()` | - | ✅ Implemented |
+| PUT | `/miner-controllers/{controller_id}` | Update a controller | `MinerControllerService.updateMinerController()` | `MinerControllersSettingsView.vue` | ✅ Implemented |
+| DELETE | `/miner-controllers/{controller_id}` | Delete a controller | `MinerControllerService.deleteMinerController()` | `MinerControllersSettingsView.vue` | ✅ Implemented |
 
 **Location in backend:** `core/edge_mining/adapters/domain/miner/fast_api/router.py`
 
@@ -194,7 +194,7 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 - **Energy Sources**: 6/6 endpoints implemented (100%) ✅ **PHASE 1 COMPLETE**
 - **Energy Monitors**: 7/7 endpoints implemented (100%) ✅ **PHASE 1 COMPLETE**
 - **Miners**: 11/11 endpoints implemented (100%) ✅ **PHASE 1 COMPLETE**
-- **Miner Controllers**: 0/7 endpoints implemented (0%)
+- **Miner Controllers**: 7/7 endpoints implemented (100%) ✅ **PHASE 2 COMPLETE**
 - **Policies**: 0/6 endpoints implemented (0%)
 - **Policy Rules**: 0/7 endpoints implemented (0%)
 - **Forecast Providers**: 0/7 endpoints implemented (0%)
@@ -204,8 +204,8 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 
 ### Overall Progress:
 - **Total Endpoints**: 70
-- **Implemented**: 24 (34%)
-- **To Implement**: 46 (66%)
+- **Implemented**: 31 (44%)
+- **To Implement**: 39 (56%)
 
 ---
 
@@ -215,13 +215,15 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 1. ✅ `MinerService.ts` - **COMPLETE** - Full CRUD + control operations (11/11 endpoints)
 2. ✅ `EnergySourceService.ts` - **COMPLETE** - Full CRUD + types (6/6 endpoints)
 3. ✅ `EnergyMonitorService.ts` - **COMPLETE** - Full CRUD + types + config schema (7/7 endpoints)
-4. ✅ `BaseService.ts` - Base HTTP service class with GET, POST, PUT, DELETE methods
+4. ✅ `MinerControllerService.ts` - **COMPLETE** - Full CRUD + types + config schema (7/7 endpoints)
+5. ✅ `BaseService.ts` - Base HTTP service class with GET, POST, PUT, DELETE methods
 
 ### Views/Pages (in `src/views/`):
 1. ✅ `DashboardView.vue` - Main dashboard
 2. ✅ `settings/MinersSettingsView.vue` - **UPDATED** - Full CRUD + control operations (start/stop/activate/deactivate)
 3. ✅ `settings/EnergySourcesSettingsView.vue` - **UPDATED** - Full CRUD operations (create, read, update, delete)
 4. ✅ `settings/EnergyMonitorSettingsView.vue` - **UPDATED** - Full CRUD operations with modal edit support
+5. ✅ `settings/MinerControllersSettingsView.vue` - **NEW** - Full CRUD operations with modal edit support
 
 ### Components (in `src/components/`):
 1. ✅ `miners/MinerRow.vue` - **UPDATED** - Display miner row with edit/delete/control buttons
@@ -231,6 +233,8 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 5. ✅ `energyMonitors/EnergyMonitorRow.vue` - **UPDATED** - Display energy monitor row with edit/delete buttons
 6. ✅ `energyMonitors/EnergyMonitorRowEdit.vue` - Edit energy monitor row (used in modal)
 7. ✅ `energyMonitors/EnergyMonitorConfigForm.vue` - Energy monitor config form
+8. ✅ `minerControllers/MinerControllerRow.vue` - **NEW** - Display miner controller row with edit/delete buttons
+9. ✅ `minerControllers/MinerControllerConfigForm.vue` - **NEW** - Miner controller config form
 
 ---
 
@@ -258,10 +262,10 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 15. ✅ Add edit/delete handlers to EnergyMonitorSettingsView with modal editing
 16. ✅ Update EnergyMonitorStore with update and delete operations
 
-### Phase 2: Miner Controllers
-1. Create MinerControllerService
-2. Create MinerController views and components
-3. Implement all CRUD operations
+### Phase 2: Miner Controllers ✅ **COMPLETED**
+1. ✅ Create MinerControllerService
+2. ✅ Create MinerController views and components
+3. ✅ Implement all CRUD operations
 
 ### Phase 3: Policies and Rules
 1. Create PolicyService
