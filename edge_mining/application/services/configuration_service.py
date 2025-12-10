@@ -860,7 +860,12 @@ class ConfigurationService(ConfigurationServiceInterface):
         if notifier_ids is not None:
             optimization_unit.notifier_ids = notifier_ids
 
-        self.check_optimization_unit(optimization_unit)
+        # On update, perform a strict checks if the optimization unit is enabled
+        try:
+            self.check_optimization_unit(optimization_unit=optimization_unit, strict=optimization_unit.is_enabled)
+        except Exception as e:
+            self.logger.error(f"Optimization unit configuration error: {e}")
+            optimization_unit.disable()
 
         self.optimization_unit_repo.update(optimization_unit)
 
@@ -875,7 +880,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         if not optimization_unit:
             raise OptimizationUnitNotFoundError(f"Optimization Unit with ID {unit_id} not found.")
 
-        self.check_optimization_unit(optimization_unit)
+        self.check_optimization_unit(optimization_unit=optimization_unit, strict=True)
 
         if optimization_unit.policy_id is None:
             raise OptimizationUnitConfigurationError(
@@ -899,6 +904,25 @@ class ConfigurationService(ConfigurationServiceInterface):
             raise OptimizationUnitNotFoundError(f"Optimization Unit with ID {unit_id} not found.")
 
         optimization_unit.disable()
+
+        self.optimization_unit_repo.update(optimization_unit)
+
+        return optimization_unit
+
+    def assign_miners_to_optimization_unit(
+        self, unit_id: EntityId, miner_ids: List[EntityId]
+    ) -> EnergyOptimizationUnit:
+        """Assign target miners to an optimization unit."""
+        self.logger.info(f"Assigning miners {miner_ids} to optimization unit {unit_id}")
+
+        optimization_unit = self.optimization_unit_repo.get_by_id(unit_id)
+
+        if not optimization_unit:
+            raise OptimizationUnitNotFoundError(f"Optimization Unit with ID {unit_id} not found.")
+
+        optimization_unit.target_miner_ids = miner_ids
+
+        self.check_optimization_unit(optimization_unit)
 
         self.optimization_unit_repo.update(optimization_unit)
 
@@ -1009,6 +1033,25 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         return optimization_unit
 
+    def assign_notifiers_to_optimization_unit(
+        self, unit_id: EntityId, notifier_ids: List[EntityId]
+    ) -> EnergyOptimizationUnit:
+        """Assign notifiers to an optimization unit."""
+        self.logger.info(f"Assigning notifiers {notifier_ids} to optimization unit {unit_id}")
+
+        optimization_unit = self.optimization_unit_repo.get_by_id(unit_id)
+
+        if not optimization_unit:
+            raise OptimizationUnitNotFoundError(f"Optimization Unit with ID {unit_id} not found.")
+
+        optimization_unit.notifier_ids = notifier_ids
+
+        self.check_optimization_unit(optimization_unit)
+
+        self.optimization_unit_repo.update(optimization_unit)
+
+        return optimization_unit
+
     def add_notifier_to_optimization_unit(self, unit_id: EntityId, notifier_id: EntityId) -> EnergyOptimizationUnit:
         """Add a notifier to an optimization unit."""
         self.logger.info(f"Adding notifier {notifier_id} to optimization unit {unit_id}")
@@ -1049,7 +1092,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         return optimization_unit
 
-    def check_optimization_unit(self, optimization_unit: EnergyOptimizationUnit) -> bool:
+    def check_optimization_unit(self, optimization_unit: EnergyOptimizationUnit, strict: bool = False) -> bool:
         """Check if an optimization unit is valid and can be used."""
         self.logger.debug(f"Checking optimization unit {optimization_unit.id} ({optimization_unit.name})")
 
@@ -1061,6 +1104,11 @@ class ConfigurationService(ConfigurationServiceInterface):
             policy = self.policy_repo.get_by_id(optimization_unit.policy_id)
             if not policy:
                 raise PolicyNotFoundError(f"Optimization Policy with ID {optimization_unit.policy_id} not found.")
+        else:
+            if strict:
+                raise OptimizationUnitConfigurationError(
+                    f"Optimization Unit {optimization_unit.id} must have a policy assigned."
+                )
 
         # Check if the miners are valid
         if optimization_unit.target_miner_ids:
@@ -1068,6 +1116,11 @@ class ConfigurationService(ConfigurationServiceInterface):
                 miner = self.miner_repo.get_by_id(miner_id)
                 if not miner:
                     raise MinerNotFoundError(f"Miner with ID {miner_id} not found.")
+        else:
+            if strict:
+                raise OptimizationUnitConfigurationError(
+                    f"Optimization Unit {optimization_unit.id} must have at least one target miner assigned."
+                )
 
         # Check if the energy source is valid
         if optimization_unit.energy_source_id:
@@ -1075,6 +1128,11 @@ class ConfigurationService(ConfigurationServiceInterface):
             if not energy_source:
                 raise EnergySourceNotFoundError(
                     f"Energy Source with ID {optimization_unit.energy_source_id} not found."
+                )
+        else:
+            if strict:
+                raise OptimizationUnitConfigurationError(
+                    f"Optimization Unit {optimization_unit.id} must have an energy source assigned."
                 )
 
         # Check if the home forecast provider is valid
