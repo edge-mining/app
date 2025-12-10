@@ -6,6 +6,8 @@ import EnergyMonitorSettingsView from "../views/settings/EnergyMonitorSettingsVi
 import MinerControllersSettingsView from "../views/settings/MinerControllersSettingsView.vue";
 import ForecastProvidersSettingsView from "../views/settings/ForecastProvidersSettingsView.vue";
 import PoliciesSettingsView from "../views/settings/PoliciesSettingsView.vue";
+import NotifiersSettingsView from "../views/settings/NotifiersSettingsView.vue";
+import ExternalServicesSettingsView from "../views/settings/ExternalServicesSettingsView.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -50,6 +52,16 @@ const router = createRouter({
           path: "policies",
           name: "settings.policies",
           component: PoliciesSettingsView,
+        },
+        {
+          path: "notifiers",
+          name: "settings.notifiers",
+          component: NotifiersSettingsView,
+        },
+        {
+          path: "external-services",
+          name: "settings.externalServices",
+          component: ExternalServicesSettingsView,
         },
       ],
     },

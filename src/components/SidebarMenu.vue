@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute } from "vue-router";
-import { PhPulse, PhLightning, PhCpu, PhStrategy } from "@phosphor-icons/vue";
+import {
+  PhPulse,
+  PhLightning,
+  PhCpu,
+  PhStrategy,
+  PhPlug,
+  PhBell,
+} from "@phosphor-icons/vue";
 import VectorIcon from "./VectorIcon.vue";
 
 const route = useRoute();
@@ -25,6 +32,14 @@ const isMiningOpen = computed(() => {
 
 const isAutomationOpen = computed(() => {
   return route.path.startsWith("/settings/policies");
+});
+
+const isIntegrationsOpen = computed(() => {
+  return route.path.startsWith("/settings/external-services");
+});
+
+const isNotifiersOpen = computed(() => {
+  return route.path.startsWith("/settings/notifiers");
 });
 </script>
 <template>
@@ -60,7 +75,7 @@ const isAutomationOpen = computed(() => {
               :class="{ 'text-primary font-semibold': isAutomationOpen }"
             >
               <PhStrategy :weight="isAutomationOpen ? 'fill' : 'regular'" />
-              Optimization Policies
+              Optimization
             </summary>
             <ul class="rounded-t-none p-2 w-full submenu-curved">
               <li class="w-full submenu-item">
@@ -150,6 +165,44 @@ const isAutomationOpen = computed(() => {
             </ul>
           </details>
         </li>
+
+        <!-- Integrations -->
+        <RouterLink
+          to="/settings/external-services"
+          class="w-full"
+          active-class="active text-primary"
+        >
+          <li class="w-full">
+            <!-- <details :open="isIntegrationsOpen"> -->
+            <summary
+              class="text-lg"
+              :class="{ 'text-primary font-semibold': isIntegrationsOpen }"
+            >
+              <PhPlug :weight="isIntegrationsOpen ? 'fill' : 'regular'" />
+              External Services
+            </summary>
+            <!-- </details> -->
+          </li>
+        </RouterLink>
+
+        <!-- Notifiers -->
+        <RouterLink
+          to="/settings/notifiers"
+          class="w-full"
+          active-class="active text-primary"
+        >
+          <li class="w-full">
+            <!-- <details :open="isNotifiersOpen"> -->
+            <summary
+              class="text-lg"
+              :class="{ 'text-primary font-semibold': isNotifiersOpen }"
+            >
+              <PhBell :weight="isNotifiersOpen ? 'fill' : 'regular'" />
+              Notifiers
+            </summary>
+            <!-- </details> -->
+          </li>
+        </RouterLink>
       </ul>
     </div>
   </div>
