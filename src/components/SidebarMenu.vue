@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute } from "vue-router";
-import { PhPulse, PhLightning, PhCpu } from "@phosphor-icons/vue";
+import { PhPulse, PhLightning, PhCpu, PhStrategy } from "@phosphor-icons/vue";
 import VectorIcon from "./VectorIcon.vue";
 
 const route = useRoute();
@@ -21,6 +21,10 @@ const isMiningOpen = computed(() => {
     route.path.startsWith("/settings/miners") ||
     route.path.startsWith("/settings/miner-controllers")
   );
+});
+
+const isAutomationOpen = computed(() => {
+  return route.path.startsWith("/settings/policies");
 });
 </script>
 <template>
@@ -46,6 +50,30 @@ const isMiningOpen = computed(() => {
             <PhPulse :weight="isDashboardActive ? 'fill' : 'regular'" />
             Dashboard
           </RouterLink>
+        </li>
+
+        <!-- Optimization -->
+        <li class="w-full">
+          <details :open="isAutomationOpen">
+            <summary
+              class="text-lg"
+              :class="{ 'text-primary font-semibold': isAutomationOpen }"
+            >
+              <PhStrategy :weight="isAutomationOpen ? 'fill' : 'regular'" />
+              Optimization Policies
+            </summary>
+            <ul class="rounded-t-none p-2 w-full submenu-curved">
+              <li class="w-full submenu-item">
+                <RouterLink
+                  to="/settings/policies"
+                  class="w-full"
+                  active-class="active text-primary"
+                >
+                  Policies
+                </RouterLink>
+              </li>
+            </ul>
+          </details>
         </li>
 
         <!-- Energy -->

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { EnergyMonitor } from "../../core/models/energyMonitor";
 import { useEnergyMonitorStore } from "../../core/stores/energyMonitorStore";
-import { computed } from "vue";
 
 const model = defineModel<EnergyMonitor>({ required: true });
 const energyMonitorStore = useEnergyMonitorStore();

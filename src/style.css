@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @plugin "daisyui";
 
+@theme {
+  --font-sans: "Plus Jakarta Sans", sans-serif;
+}
+
 @plugin "daisyui/theme" {
   name: "edge";
   default: true;

@@ -5,6 +5,7 @@ import EnergySourcesSettingsView from "../views/settings/EnergySourcesSettingsVi
 import EnergyMonitorSettingsView from "../views/settings/EnergyMonitorSettingsView.vue";
 import MinerControllersSettingsView from "../views/settings/MinerControllersSettingsView.vue";
 import ForecastProvidersSettingsView from "../views/settings/ForecastProvidersSettingsView.vue";
+import PoliciesSettingsView from "../views/settings/PoliciesSettingsView.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -44,6 +45,11 @@ const router = createRouter({
           path: "forecast-providers",
           name: "settings.forecastProviders",
           component: ForecastProvidersSettingsView,
+        },
+        {
+          path: "policies",
+          name: "settings.policies",
+          component: PoliciesSettingsView,
         },
       ],
     },

@@ -88,12 +88,12 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 
 | Method | Endpoint | Description | Frontend Service | Frontend Page | Status |
 |--------|----------|-------------|------------------|---------------|---------|
-| GET | `/policies` | Get list of all optimization policies | ❌ Not implemented | - | ⚠️ TODO |
-| POST | `/policies` | Create a new policy | ❌ Not implemented | - | ⚠️ TODO |
-| GET | `/policies/{policy_id}` | Get specific policy | ❌ Not implemented | - | ⚠️ TODO |
-| PUT | `/policies/{policy_id}` | Update a policy | ❌ Not implemented | - | ⚠️ TODO |
-| DELETE | `/policies/{policy_id}` | Delete a policy | ❌ Not implemented | - | ⚠️ TODO |
-| GET | `/policies/{policy_id}/check` | Check if policy is valid | ❌ Not implemented | - | ⚠️ TODO |
+| GET | `/policies` | Get list of all optimization policies | `PolicyService.getPolicies()` | `PoliciesSettingsView.vue` | ✅ Implemented |
+| POST | `/policies` | Create a new policy | `PolicyService.addPolicy()` | `PoliciesSettingsView.vue` | ✅ Implemented |
+| GET | `/policies/{policy_id}` | Get specific policy | `PolicyService.getPolicy()` | `PoliciesSettingsView.vue` | ✅ Implemented |
+| PUT | `/policies/{policy_id}` | Update a policy | `PolicyService.updatePolicy()` | `PoliciesSettingsView.vue` | ✅ Implemented |
+| DELETE | `/policies/{policy_id}` | Delete a policy | `PolicyService.deletePolicy()` | `PoliciesSettingsView.vue` | ✅ Implemented |
+| GET | `/policies/{policy_id}/check` | Check if policy is valid | `PolicyService.checkPolicy()` | `PoliciesSettingsView.vue` | ✅ Implemented |
 
 **Location in backend:** `core/edge_mining/adapters/domain/policy/fast_api/router.py`
 
@@ -105,13 +105,13 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 
 | Method | Endpoint | Description | Frontend Service | Frontend Page | Status |
 |--------|----------|-------------|------------------|---------------|---------|
-| POST | `/policies/{policy_id}/rules` | Add rule to policy | ❌ Not implemented | - | ⚠️ TODO |
-| GET | `/policies/{policy_id}/types/{rule_type}` | Get rules by type | ❌ Not implemented | - | ⚠️ TODO |
-| GET | `/policies/{policy_id}/rules/{rule_id}` | Get specific rule | ❌ Not implemented | - | ⚠️ TODO |
-| PUT | `/policies/{policy_id}/rules/{rule_id}` | Update a rule | ❌ Not implemented | - | ⚠️ TODO |
-| DELETE | `/policies/{policy_id}/rules/{rule_id}` | Delete a rule | ❌ Not implemented | - | ⚠️ TODO |
-| GET | `/policies/{policy_id}/rules/{rule_id}/enable` | Enable a rule | ❌ Not implemented | - | ⚠️ TODO |
-| GET | `/policies/{policy_id}/rules/{rule_id}/disable` | Disable a rule | ❌ Not implemented | - | ⚠️ TODO |
+| POST | `/policies/{policy_id}/rules` | Add rule to policy | `PolicyService.addRule()` | `PoliciesSettingsView.vue` | ✅ Implemented |
+| GET | `/policies/{policy_id}/types/{rule_type}` | Get rules by type | `PolicyService.getRulesByType()` | - | ✅ Implemented |
+| GET | `/policies/{policy_id}/rules/{rule_id}` | Get specific rule | `PolicyService.getRule()` | - | ✅ Implemented |
+| PUT | `/policies/{policy_id}/rules/{rule_id}` | Update a rule | `PolicyService.updateRule()` | `PoliciesSettingsView.vue` | ✅ Implemented |
+| DELETE | `/policies/{policy_id}/rules/{rule_id}` | Delete a rule | `PolicyService.deleteRule()` | `PoliciesSettingsView.vue` | ✅ Implemented |
+| GET | `/policies/{policy_id}/rules/{rule_id}/enable` | Enable a rule | `PolicyService.enableRule()` | `PoliciesSettingsView.vue` | ✅ Implemented |
+| GET | `/policies/{policy_id}/rules/{rule_id}/disable` | Disable a rule | `PolicyService.disableRule()` | `PoliciesSettingsView.vue` | ✅ Implemented |
 
 **Location in backend:** `core/edge_mining/adapters/domain/policy/fast_api/router.py`
 
@@ -195,8 +195,8 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 - **Energy Monitors**: 7/7 endpoints implemented (100%) ✅ **PHASE 1 COMPLETE**
 - **Miners**: 11/11 endpoints implemented (100%) ✅ **PHASE 1 COMPLETE**
 - **Miner Controllers**: 7/7 endpoints implemented (100%) ✅ **PHASE 2 COMPLETE**
-- **Policies**: 0/6 endpoints implemented (0%)
-- **Policy Rules**: 0/7 endpoints implemented (0%)
+- **Policies**: 6/6 endpoints implemented (100%) ✅ **PHASE 3 COMPLETE**
+- **Policy Rules**: 7/7 endpoints implemented (100%) ✅ **PHASE 3 COMPLETE**
 - **Forecast Providers**: 7/7 endpoints implemented (100%) ✅ **PHASE 4 COMPLETE**
 - **Notifiers**: 0/8 endpoints implemented (0%)
 - **External Services**: 0/7 endpoints implemented (0%)
@@ -204,8 +204,8 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 
 ### Overall Progress:
 - **Total Endpoints**: 70
-- **Implemented**: 38 (54%)
-- **To Implement**: 32 (46%)
+- **Implemented**: 51 (73%)
+- **To Implement**: 19 (27%)
 
 ---
 
@@ -217,7 +217,8 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 3. ✅ `EnergyMonitorService.ts` - **COMPLETE** - Full CRUD + types + config schema (7/7 endpoints)
 4. ✅ `MinerControllerService.ts` - **COMPLETE** - Full CRUD + types + config schema (7/7 endpoints)
 5. ✅ `ForecastProviderService.ts` - **COMPLETE** - Full CRUD + types + config schema (7/7 endpoints)
-6. ✅ `BaseService.ts` - Base HTTP service class with GET, POST, PUT, DELETE methods
+6. ✅ `PolicyService.ts` - **COMPLETE** - Full CRUD + rules management + check (13/13 endpoints)
+7. ✅ `BaseService.ts` - Base HTTP service class with GET, POST, PUT, DELETE methods
 
 ### Views/Pages (in `src/views/`):
 1. ✅ `DashboardView.vue` - Main dashboard
@@ -226,6 +227,7 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 4. ✅ `settings/EnergyMonitorSettingsView.vue` - **UPDATED** - Full CRUD operations with modal edit support
 5. ✅ `settings/MinerControllersSettingsView.vue` - **NEW** - Full CRUD operations with modal edit support
 6. ✅ `settings/ForecastProvidersSettingsView.vue` - **NEW** - Full CRUD operations with modal edit support
+7. ✅ `settings/PoliciesSettingsView.vue` - **NEW** - Full CRUD operations with rules management modal
 
 ### Components (in `src/components/`):
 1. ✅ `miners/MinerRow.vue` - **UPDATED** - Display miner row with edit/delete/control buttons
@@ -239,6 +241,8 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 9. ✅ `minerControllers/MinerControllerConfigForm.vue` - **NEW** - Miner controller config form
 10. ✅ `forecastProviders/ForecastProviderRow.vue` - **NEW** - Display forecast provider row with edit/delete buttons
 11. ✅ `forecastProviders/ForecastProviderConfigForm.vue` - **NEW** - Forecast provider config form
+12. ✅ `policies/PolicyRow.vue` - **NEW** - Display policy row with edit/delete/rules/check buttons
+13. ✅ `policies/PolicyRuleRow.vue` - **NEW** - Display policy rule row with edit/delete/toggle enabled
 
 ---
 
@@ -271,11 +275,11 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 2. ✅ Create MinerController views and components
 3. ✅ Implement all CRUD operations
 
-### Phase 3: Policies and Rules
-1. Create PolicyService
-2. Create Policy views and components
-3. Implement rule management UI
-4. Integrate with Rule Engine validation API
+### Phase 3: Policies and Rules ✅ **COMPLETED**
+1. ✅ Create PolicyService
+2. ✅ Create Policy views and components
+3. ✅ Implement rule management UI
+4. ✅ Integrate with Rule Engine validation API (via checkPolicy endpoint)
 
 ### Phase 4: Forecast Providers ✅ **COMPLETED**
 1. ✅ Create ForecastProviderService
