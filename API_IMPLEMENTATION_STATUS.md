@@ -187,6 +187,32 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 
 ---
 
+## 11. Optimization Units API (`/optimization-units`)
+
+### Endpoints:
+
+| Method | Endpoint | Description | Frontend Service | Frontend Page | Status |
+|--------|----------|-------------|------------------|---------------|---------|
+| GET | `/optimization-units` | Get list of all optimization units | `OptimizationUnitService.getOptimizationUnits()` | `OptimizationUnitsSettingsView.vue` | ✅ Implemented |
+| POST | `/optimization-units` | Create a new optimization unit | `OptimizationUnitService.addOptimizationUnit()` | `OptimizationUnitsSettingsView.vue` | ✅ Implemented |
+| GET | `/optimization-units/{unit_id}` | Get specific optimization unit | `OptimizationUnitService.getOptimizationUnit()` | - | ✅ Implemented |
+| PUT | `/optimization-units/{unit_id}` | Update an optimization unit | `OptimizationUnitService.updateOptimizationUnit()` | `OptimizationUnitsSettingsView.vue` | ✅ Implemented |
+| DELETE | `/optimization-units/{unit_id}` | Delete an optimization unit | `OptimizationUnitService.deleteOptimizationUnit()` | `OptimizationUnitsSettingsView.vue` | ✅ Implemented |
+| POST | `/optimization-units/{unit_id}/enable` | Enable an optimization unit | `OptimizationUnitService.enableOptimizationUnit()` | `OptimizationUnitsSettingsView.vue` | ✅ Implemented |
+| POST | `/optimization-units/{unit_id}/disable` | Disable an optimization unit | `OptimizationUnitService.disableOptimizationUnit()` | `OptimizationUnitsSettingsView.vue` | ✅ Implemented |
+| POST | `/optimization-units/{unit_id}/energy-source` | Assign energy source to unit | `OptimizationUnitService.assignEnergySource()` | - | ✅ Implemented |
+| POST | `/optimization-units/{unit_id}/policy` | Assign policy to unit | `OptimizationUnitService.assignPolicy()` | - | ✅ Implemented |
+| POST | `/optimization-units/{unit_id}/miners` | Assign miners to unit | `OptimizationUnitService.assignMiners()` | - | ✅ Implemented |
+| POST | `/optimization-units/{unit_id}/miners/single` | Add single miner to unit | `OptimizationUnitService.addMiner()` | - | ✅ Implemented |
+| DELETE | `/optimization-units/{unit_id}/miners/{miner_id}` | Remove miner from unit | `OptimizationUnitService.removeMiner()` | - | ✅ Implemented |
+| POST | `/optimization-units/{unit_id}/notifiers` | Assign notifiers to unit | `OptimizationUnitService.assignNotifiers()` | - | ✅ Implemented |
+| POST | `/optimization-units/{unit_id}/notifiers/single` | Add single notifier to unit | `OptimizationUnitService.addNotifier()` | - | ✅ Implemented |
+| DELETE | `/optimization-units/{unit_id}/notifiers/{notifier_id}` | Remove notifier from unit | `OptimizationUnitService.removeNotifier()` | - | ✅ Implemented |
+
+**Location in backend:** `core/edge_mining/adapters/domain/optimization_unit/fast_api/router.py`
+
+---
+
 ## Summary Statistics
 
 ### By Domain:
@@ -201,10 +227,11 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 - **Notifiers**: 8/8 endpoints implemented (100%) ✅ **PHASE 5 COMPLETE**
 - **External Services**: 7/7 endpoints implemented (100%) ✅ **PHASE 6 COMPLETE**
 - **Rule Engine**: 4/4 endpoints implemented (100%) ✅ **COMPLETE**
+- **Optimization Units**: 15/15 endpoints implemented (100%) ✅ **PHASE 7 COMPLETE**
 
 ### Overall Progress:
-- **Total Endpoints**: 70
-- **Implemented**: 70 (100%) ✅ **ALL COMPLETE**
+- **Total Endpoints**: 85
+- **Implemented**: 85 (100%)
 - **To Implement**: 0 (0%)
 
 ---
@@ -221,7 +248,8 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 7. ✅ `NotifierService.ts` - **COMPLETE** - Full CRUD + types + config schema + test (8/8 endpoints)
 8. ✅ `ExternalServiceService.ts` - **COMPLETE** - Full CRUD + types + config schema (7/7 endpoints)
 9. ✅ `RuleEngineService.ts` - **COMPLETE** - Config, info, evaluate, validate (4/4 endpoints)
-10. ✅ `BaseService.ts` - Base HTTP service class with GET, POST, PUT, DELETE methods
+10. ✅ `OptimizationUnitService.ts` - **COMPLETE** - Full CRUD + enable/disable + assignments (15/15 endpoints)
+11. ✅ `BaseService.ts` - Base HTTP service class with GET, POST, PUT, DELETE methods
 
 ### Views/Pages (in `src/views/`):
 1. ✅ `DashboardView.vue` - Main dashboard
@@ -233,6 +261,7 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 7. ✅ `settings/PoliciesSettingsView.vue` - **NEW** - Full CRUD operations with rules management modal
 8. ✅ `settings/NotifiersSettingsView.vue` - **NEW** - Full CRUD operations with test notification feature
 9. ✅ `settings/ExternalServicesSettingsView.vue` - **NEW** - Full CRUD operations with modal edit support
+10. ✅ `settings/OptimizationUnitsSettingsView.vue` - **NEW** - Full CRUD + enable/disable + multi-select assignments
 
 ### Components (in `src/components/`):
 1. ✅ `miners/MinerRow.vue` - **UPDATED** - Display miner row with edit/delete/control buttons
@@ -252,6 +281,7 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 15. ✅ `notifiers/NotifierConfigForm.vue` - **NEW** - Notifier config form with dynamic schema
 16. ✅ `externalServices/ExternalServiceRow.vue` - **NEW** - Display external service row with edit/delete buttons
 17. ✅ `externalServices/ExternalServiceConfigForm.vue` - **NEW** - External service config form with dynamic schema
+18. ✅ `optimizationUnits/OptimizationUnitRow.vue` - **NEW** - Display optimization unit row with edit/delete/toggle enabled
 
 ---
 
@@ -306,8 +336,11 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 2. ✅ Create ExternalService views and components
 3. ✅ Implement all CRUD operations
 
-### Phase 7: Optimization Units (Not yet discovered in API)
-- Need to check if optimization units have API endpoints
+### Phase 7: Optimization Units ✅ **COMPLETED**
+1. ✅ Create OptimizationUnitService
+2. ✅ Create OptimizationUnit views and components
+3. ✅ Implement all CRUD operations
+4. ✅ Implement assignment operations (miners, notifiers, energy source, policy)
 
 ---
 

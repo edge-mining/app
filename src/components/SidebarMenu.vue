@@ -5,9 +5,9 @@ import {
   PhPulse,
   PhLightning,
   PhCpu,
-  PhStrategy,
   PhPlug,
   PhBell,
+  PhGraph,
 } from "@phosphor-icons/vue";
 import VectorIcon from "./VectorIcon.vue";
 
@@ -31,7 +31,10 @@ const isMiningOpen = computed(() => {
 });
 
 const isAutomationOpen = computed(() => {
-  return route.path.startsWith("/settings/policies");
+  return (
+    route.path.startsWith("/settings/policies") ||
+    route.path.startsWith("/settings/optimization-units")
+  );
 });
 
 const isIntegrationsOpen = computed(() => {
@@ -74,10 +77,19 @@ const isNotifiersOpen = computed(() => {
               class="text-lg"
               :class="{ 'text-primary font-semibold': isAutomationOpen }"
             >
-              <PhStrategy :weight="isAutomationOpen ? 'fill' : 'regular'" />
+              <PhGraph :weight="isAutomationOpen ? 'fill' : 'regular'" />
               Optimization
             </summary>
             <ul class="rounded-t-none p-2 w-full submenu-curved">
+              <li class="w-full submenu-item">
+                <RouterLink
+                  to="/settings/optimization-units"
+                  class="w-full"
+                  active-class="active text-primary"
+                >
+                  Units
+                </RouterLink>
+              </li>
               <li class="w-full submenu-item">
                 <RouterLink
                   to="/settings/policies"

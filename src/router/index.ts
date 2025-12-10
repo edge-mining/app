@@ -8,6 +8,7 @@ import ForecastProvidersSettingsView from "../views/settings/ForecastProvidersSe
 import PoliciesSettingsView from "../views/settings/PoliciesSettingsView.vue";
 import NotifiersSettingsView from "../views/settings/NotifiersSettingsView.vue";
 import ExternalServicesSettingsView from "../views/settings/ExternalServicesSettingsView.vue";
+import OptimizationUnitsSettingsView from "../views/settings/OptimizationUnitsSettingsView.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -52,6 +53,11 @@ const router = createRouter({
           path: "policies",
           name: "settings.policies",
           component: PoliciesSettingsView,
+        },
+        {
+          path: "optimization-units",
+          name: "settings.optimizationUnits",
+          component: OptimizationUnitsSettingsView,
         },
         {
           path: "notifiers",
