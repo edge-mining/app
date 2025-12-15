@@ -1,6 +1,6 @@
 """CLI commands for the Miner domain."""
 
-from typing import List, Optional, cast
+from typing import List, Optional, Union, cast
 
 import click
 
@@ -146,14 +146,31 @@ def select_miner(
     configuration_service: ConfigurationServiceInterface,
     logger: LoggerPort,
     default_id: Optional[EntityId] = None,
-) -> Optional[Miner]:
-    """Select a miner from the list."""
-    click.echo(click.style("\n--- Select Miner ---", fg="yellow"))
+    allow_multiple: bool = False,
+    only_ids: Optional[List[EntityId]] = None,
+    exclude_ids: Optional[List[EntityId]] = None,
+) -> Union[Optional[Miner], List[Miner]]:
+    """Select one ore more miners from the list."""
 
     miners = configuration_service.list_miners()
     if not miners:
         click.echo(click.style("No miner configured.", fg="yellow"))
         return None
+    else:
+        if only_ids:
+            miners = [m for m in miners if m.id in only_ids]
+        if exclude_ids:
+            miners = [m for m in miners if m.id not in exclude_ids]
+        if not miners:
+            click.echo(click.style("No miner available after applying filters.", fg="yellow"))
+            return None
+        elif len(miners) == 1:
+            allow_multiple = False
+
+    if allow_multiple:
+        click.echo(click.style("\n--- Select Miners ---", fg="yellow"))
+    else:
+        click.echo(click.style("\n--- Select Miner ---", fg="yellow"))
 
     default_idx = ""
     for idx, m in enumerate(miners):
@@ -167,8 +184,8 @@ def select_miner(
             + "Max Power: "
             + click.style(f"{m.power_consumption_max}W, ", fg="cyan")
             + "Max HashRate: "
-            + click.style(f"{hashrate_str}", fg="magenta")
-            + "Active:"
+            + click.style(f"{hashrate_str}, ", fg="magenta")
+            + "Active: "
             + click.style(f"{m.active}", fg="green" if m.active else "red")
         )
 
@@ -178,17 +195,51 @@ def select_miner(
 
     click.echo("\nb. Back to menu\n")
 
-    miner_idx: str = click.prompt("Choose a Miner index", type=str, default=default_idx)
-    miner_idx = miner_idx.strip().lower()
-    if miner_idx == "b":
-        return None
+    if allow_multiple:
+        miner_indices: str = click.prompt(
+            "Choose Miner indices (comma-separated, e.g., 0,2,3)", type=str, default=default_idx
+        )
+        miner_indices = miner_indices.strip().lower()
+        if miner_indices == "b":
+            return None
 
-    if not miner_idx.isdigit() or int(miner_idx) < 0 or int(miner_idx) >= len(miners):
-        click.echo(click.style("Invalid index. Aborting selection.", fg="red"))
-        return None
+        # Parse comma-separated indices
+        selected_miners = []
+        try:
+            indices = [idx.strip() for idx in miner_indices.split(",")]
+            for idx_str in indices:
+                if not idx_str.isdigit():
+                    click.echo(click.style(f"Invalid index '{idx_str}'. Skipping.", fg="yellow"))
+                    continue
 
-    selected_miner = miners[int(miner_idx)]
-    return selected_miner
+                idx = int(idx_str)
+                if idx < 0 or idx >= len(miners):
+                    click.echo(click.style(f"Index {idx} out of range. Skipping.", fg="yellow"))
+                    continue
+
+                selected_miners.append(miners[idx])
+
+            if not selected_miners:
+                click.echo(click.style("No valid miners selected. Aborting selection.", fg="red"))
+                return None
+
+            return selected_miners
+
+        except Exception as e:
+            click.echo(click.style(f"Error parsing indices: {e}. Aborting selection.", fg="red"))
+            return None
+    else:
+        miner_idx: str = click.prompt("Choose a Miner index", type=str, default=default_idx)
+        miner_idx = miner_idx.strip().lower()
+        if miner_idx == "b":
+            return None
+
+        if not miner_idx.isdigit() or int(miner_idx) < 0 or int(miner_idx) >= len(miners):
+            click.echo(click.style("Invalid index. Aborting selection.", fg="red"))
+            return None
+
+        selected_miner = miners[int(miner_idx)]
+        return selected_miner
 
 
 def update_single_miner(
@@ -333,6 +384,9 @@ def handle_manage_miner(configuration_service: ConfigurationServiceInterface, lo
         click.echo(click.style("No miner selected. Aborting.", fg="red"))
         return "b"
 
+    if isinstance(selected_miner, list):
+        selected_miner = selected_miner[0]  # Just pick the first one for management
+
     choice = manage_single_miner_menu(
         miner=selected_miner,
         configuration_service=configuration_service,
@@ -345,6 +399,8 @@ def handle_manage_miner(configuration_service: ConfigurationServiceInterface, lo
 def print_miner_details(
     miner: Miner,
     configuration_service: ConfigurationServiceInterface,
+    show_controller_details: bool = True,
+    show_external_service: bool = True,
 ) -> None:
     """Print details of a selected miner."""
     click.echo("")
@@ -368,14 +424,20 @@ def print_miner_details(
     click.echo("| Active: " + click.style(miner.active, fg="green" if miner.active else "red"))
     click.echo("| Controller ID: " + (str(miner.controller_id) if miner.controller_id else "None"))
 
-    if miner.controller_id:
-        controller = configuration_service.get_miner_controller(miner.controller_id)
-        if controller:
-            click.echo("\nCONTROLLER DETAILS:")
-            print_miner_controller_details(controller, configuration_service, False, True)
-        else:
-            # If the controller is not found, we can still show the ID
-            click.echo("| Controller ID: " + click.style(str(miner.controller_id), fg="red") + " (not found)")
+    if show_controller_details:
+        if miner.controller_id:
+            controller = configuration_service.get_miner_controller(miner.controller_id)
+            if controller:
+                click.echo("\nCONTROLLER DETAILS:")
+                print_miner_controller_details(
+                    controller=controller,
+                    configuration_service=configuration_service,
+                    show_miner_list=False,
+                    show_external_service=show_external_service,
+                )
+            else:
+                # If the controller is not found, we can still show the ID
+                click.echo("| Controller ID: " + click.style(str(miner.controller_id), fg="red") + " (not found)")
 
     click.echo("")
 

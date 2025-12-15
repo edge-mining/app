@@ -261,7 +261,7 @@ def select_optimization_policy(
     return selected_policy
 
 
-def print_optimization_policy_details(policy: OptimizationPolicy) -> None:
+def print_optimization_policy_details(policy: OptimizationPolicy, show_rule_details: bool = True) -> None:
     """Print the details of an optimization policy."""
     click.echo("")
     click.echo("| ID: " + click.style(str(policy.id), fg="yellow"))
@@ -269,21 +269,22 @@ def print_optimization_policy_details(policy: OptimizationPolicy) -> None:
     if policy.description:
         click.echo("| Description: " + click.style(policy.description, fg="cyan"))
 
-    click.echo(f"| Start Rules: {click.style(str(len(policy.start_rules)), fg='green')}")
-    if policy.start_rules:
-        for rule in policy.start_rules:
-            print_rule_details(rule)
-    else:
-        click.echo("|- No start rules defined")
+    if show_rule_details:
+        click.echo(f"| Start Rules: {click.style(str(len(policy.start_rules)), fg='green')}")
+        if policy.start_rules:
+            for rule in policy.start_rules:
+                print_rule_details(rule)
+        else:
+            click.echo("|- No start rules defined")
 
-    click.echo("|------------------------------------------------------------------------")
+        click.echo("|------------------------------------------------------------------------")
 
-    click.echo(f"| Stop Rules: {click.style(str(len(policy.stop_rules)), fg='red')}")
-    if policy.stop_rules:
-        for rule in policy.stop_rules:
-            print_rule_details(rule)
-    else:
-        click.echo("|- No stop rules defined")
+        click.echo(f"| Stop Rules: {click.style(str(len(policy.stop_rules)), fg='red')}")
+        if policy.stop_rules:
+            for rule in policy.stop_rules:
+                print_rule_details(rule)
+        else:
+            click.echo("|- No stop rules defined")
 
 
 def print_rule_details(rule: AutomationRule) -> None:

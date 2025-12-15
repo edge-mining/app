@@ -166,6 +166,7 @@ class AdapterService(AdapterServiceInterface):
             return cached_instance
 
         # Retrieve the external service associated to the energy monitor
+        external_service: Optional[ExternalServicePort] = None
         if energy_monitor.external_service_id:
             external_service = self.get_external_service(energy_monitor.external_service_id)
             if not external_service:
