@@ -1,0 +1,44 @@
+services:
+  core:
+    container_name: edge-mining-core
+    build:
+      context: ./core
+    volumes:
+      - ./user_data/optimization_policies:/app/optimization_policies
+      - ./user_data/edgemining.db:/app/edgemining.db
+    expose:
+      - "8001"
+    # ports:
+    #   - "8001:8001" # Uncomment for direct access during development
+    networks:
+      - edge-mining-net
+
+  frontend:
+    container_name: edge-mining-frontend
+    build:
+      context: ./frontend
+    expose:
+      - "5173"
+    # ports:
+    #   - "5173:5173" # Uncomment for direct access during development
+    depends_on:
+      - core
+    networks:
+      - edge-mining-net
+
+  nginx:
+    image: nginx:alpine
+    container_name: edge-mining-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - core
+      - frontend
+    networks:
+      - edge-mining-net
+
+networks:
+  edge-mining-net:
+    name: edge-mining-net
