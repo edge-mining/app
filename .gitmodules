@@ -1,0 +1,8 @@
+[submodule "core"]
+	path = core
+	url = git@github.com:edge-mining/core.git
+    branch = dev
+[submodule "frontend"]
+	path = frontend
+	url = git@github.com:edge-mining/frontend.
+    branch = develop
