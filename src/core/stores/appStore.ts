@@ -12,7 +12,9 @@ export const useAppStore = defineStore("app", () => {
   const loader = useLoader();
 
   // GETTERS
-  const rootUrl = computed(() => "http://localhost:8001"); // Hardcoded for now, should be configurable
+  const rootUrl = computed(
+    () => import.meta.env.VITE_API_BASE_URL || "" // Use .env variable or default to relative path
+  );
   const apiUrl = computed(() => rootUrl.value + "/api/v1");
 
   // ACTIONS
