@@ -4,5 +4,5 @@
     branch = dev
 [submodule "frontend"]
 	path = frontend
-	url = git@github.com:edge-mining/frontend.
+	url = git@github.com:edge-mining/frontend.git
     branch = develop
