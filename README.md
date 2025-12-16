@@ -1,0 +1,105 @@
+# Edge Mining App
+
+This repository bundles the Edge Mining **core backend** and **web frontend** into a single runnable application.
+
+Edge Mining is intended to be run via **Docker Compose**.
+
+---
+
+## 1. Prerequisites
+
+- Git
+- Docker and Docker Compose
+
+Clone the repository and move into the project root:
+
+```bash
+git clone https://github.com/edge-mining/app.git
+cd app
+```
+
+---
+
+## 2. Quick Start with Docker (Recommended)
+
+This setup runs:
+- `core`: Edge Mining backend (FastAPI, automation engine)
+- `frontend`: Vue web UI
+- `nginx`: reverse proxy exposing everything on port `80`
+
+### 2.1. Start the stack
+
+From the project root (where `compose.yml` is located):
+
+```bash
+docker compose up -d --build
+```
+
+Docker will:
+- Build the backend from `core/Dockerfile`
+- Build the frontend from `frontend/Dockerfile`
+- Start an Nginx container proxying the UI and API on port `80`
+
+### 2.2. Access the application
+
+- Web UI: `http://localhost/`
+- API: `http://localhost/api`
+- API docs: `http://localhost/docs`
+
+If you prefer to access services directly during development, uncomment the `ports` sections for `core` and `frontend` in `compose.yml`.
+
+### 2.3. Stop the stack
+
+```bash
+docker compose down
+```
+
+Volumes under `user_data/` are mounted into containers so that configuration and database files persist across restarts.
+
+---
+
+## 3. Configuration & Data
+
+User-specific data lives in the `user_data/` folder:
+
+- `user_data/optimization_policies/` – example optimization policy YAML files
+- `user_data/edgemining.db` – SQLite database file used by the backend
+
+On first run you can:
+- Copy or adjust example policies from `optimization_policies/` into `user_data/optimization_policies/`
+- Let the backend create `user_data/edgemining.db` automatically, or pre-populate it if you know what you are doing
+
+### 3.1 Initialize user data (recommended)
+
+Before starting the stack for the first time, you can use the helper script `init_user_data.sh` to create and populate the `user_data/` directory with default files:
+
+```bash
+./init_user_data.sh
+```
+
+This script typically:
+- Creates the `user_data/` structure if missing
+- Copies example optimization policies into `user_data/optimization_policies/`
+
+You only need to run it once, or again if you intentionally delete the `user_data/` folder and want to restore the default structure.
+
+---
+
+## 4. Useful Tips
+
+- **Logs**: Use `docker compose logs -f core` or `docker compose logs -f frontend` to inspect services when running with Docker.
+- **Rebuild after changes**: If you change backend or frontend code, re-run `docker compose up -d --build` to rebuild images.
+
+## 5. Troubleshooting
+
+- If containers fail to start, check logs:
+
+```bash
+docker compose logs
+```
+
+- If ports are already in use (80, 5173, 8001), stop the conflicting services or adjust ports and Nginx configuration.
+- If the UI cannot reach the API, verify:
+  - Backend container is healthy (`docker ps`)
+  - Nginx is running and correctly proxying requests
+  - Frontend is pointing to the right API URL.
