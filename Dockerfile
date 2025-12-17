@@ -1,9 +1,7 @@
-FROM node:20-alpine
+FROM node:20-alpine AS build
 
-# Create app directory
 WORKDIR /app
 
-# Install dependencies
 COPY package.json package-lock.json* pnpm-lock.yaml* yarn.lock* ./
 RUN if [ -f package-lock.json ]; then \
         npm ci; \
@@ -15,11 +13,14 @@ RUN if [ -f package-lock.json ]; then \
         npm install; \
     fi
 
-# Copy source
 COPY . .
 
-# Expose port and start application
-ENV HOST=0.0.0.0
-EXPOSE 5173
+RUN npm run build
 
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+FROM nginx:alpine
+
+COPY --from=build /app/dist /usr/share/nginx/html
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
