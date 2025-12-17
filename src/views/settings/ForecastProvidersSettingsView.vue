@@ -101,11 +101,9 @@ const formatAdapterType = (type: string) => {
         </tr>
       </thead>
       <tbody>
-        <template
-          v-for="(forecastProvider, i) in forecastProviderStore.forecastProviders"
-          :key="forecastProvider.id"
-        >
+        <template>
           <ForecastProviderRow
+            v-for="(forecastProvider, i) in forecastProviderStore.forecastProviders" :key="forecastProvider.id"
             v-model="forecastProviderStore.forecastProviders[i]"
             @edit="handleEdit"
             @delete="handleDelete"

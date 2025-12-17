@@ -101,11 +101,9 @@ const formatAdapterType = (type: string) => {
         </tr>
       </thead>
       <tbody>
-        <template
-          v-for="(minerController, i) in minerControllerStore.minerControllers"
-          :key="minerController.id"
-        >
+        <template>
           <MinerControllerRow
+            v-for="(minerController, i) in minerControllerStore.minerControllers" :key="minerController.id"
             v-model="minerControllerStore.minerControllers[i]"
             @edit="handleEdit"
             @delete="handleDelete"
