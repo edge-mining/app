@@ -9,8 +9,8 @@ services:
     environment:
       - TIMEZONE=Europe/Rome
       - SCHEDULER_INTERVAL_SECONDS=5
-    volumes:
-      - ./user_data/optimization_policies:/app/core/optimization_policies
-      - ./user_data/edgemining.db:/app/core/edgemining.db
+    # volumes:
+    #   - ./user_data/optimization_policies:/app/core/optimization_policies
+    #   - ./user_data/edgemining.db:/app/core/edgemining.db
 
 networks: {}
