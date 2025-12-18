@@ -35,9 +35,9 @@ keywords = [
     "hexagonal-architecture",
     "domain-driven-design",
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.11,<4.0"
 dependencies = [
-    "pydantic>=2.8.2",
+    "pydantic>=2.11.0",
     "pyyaml>=6.0.2",
     "pydantic-settings>=2.8.1",
     "apscheduler>=3.11.0",
@@ -51,7 +51,7 @@ api = [
     "uvicorn[standard]>=0.34.1",
 ]
 homeassistant = [
-    "homeassistant_api>=5.0.0",
+    "homeassistant_api==4.2.2.post1",
 ]
 mqtt = [
     "paho-mqtt>=2.1.0",
@@ -62,8 +62,11 @@ telegram = [
 solar = [
     "astral>=3.2",
 ]
+pyasic = [
+    "pyasic==0.76.5"
+]
 all = [
-    "edge-mining[api,homeassistant,mqtt,telegram,solar]",
+    "edge-mining[api,homeassistant,mqtt,telegram,solar,pyasic]",
 ]
 dev = [
     "pytest>=6.0",
