@@ -38,10 +38,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy frontend build into nginx
 COPY --from=frontend-build /frontend/dist /usr/share/nginx/html
 
-# Expose ports:
-# - 80: frontend (nginx)
-# - 8001: backend Python
-EXPOSE 80 8001
+EXPOSE 80
 
 # Run both nginx and the Python backend
 CMD ["sh", "-c", "nginx -g 'daemon off;' & python -m edge_mining standard"]
