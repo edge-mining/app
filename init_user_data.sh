@@ -15,7 +15,15 @@ if [ -d "$CORE_DIR/optimization_policies" ]; then
   fi
 fi
 
-# Copy edgemining.db only if missing
-if [ -f "$CORE_DIR/edgemining.db" ] && [ ! -f "$USER_DATA_DIR/edgemining.db" ]; then
-  cp "$CORE_DIR/edgemining.db" "$USER_DATA_DIR/edgemining.db"
+# Handle edgemining.db
+# If a pre-existing database exists under core/, copy it once.
+# Otherwise, create an empty file in user_data so the app can initialize it.
+if [ -f "$CORE_DIR/edgemining.db" ]; then
+  if [ ! -f "$USER_DATA_DIR/edgemining.db" ]; then
+    cp "$CORE_DIR/edgemining.db" "$USER_DATA_DIR/edgemining.db"
+  fi
+else
+  if [ ! -f "$USER_DATA_DIR/edgemining.db" ]; then
+    touch "$USER_DATA_DIR/edgemining.db"
+  fi
 fi
