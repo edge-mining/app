@@ -22,9 +22,9 @@ cd app/
 
 ## 2. Quick Start with Docker (Recommended)
 
-This setup runs:
+This setup runs a **single container** that bundles:
 - `core`: Edge Mining backend (FastAPI, automation engine)
-- `frontend`: Vue web UI
+- `frontend`: Vue web UI (served as static files)
 - `nginx`: reverse proxy exposing everything on port `80`
 
 ### 2.1. Start the stack
@@ -36,17 +36,14 @@ docker compose up -d --build
 ```
 
 Docker will:
-- Build the backend from `core/Dockerfile`
-- Build the frontend from `frontend/Dockerfile`
-- Start an Nginx container proxying the UI and API on port `80`
+- Build the multi-stage image defined in `Dockerfile` (backend + frontend + nginx)
+- Start a single container named `edge-mining` exposing the web UI and API on port `80`
 
 ### 2.2. Access the application
 
 - Web UI: `http://localhost/`
-- API: `http://localhost/api`
-- API docs: `http://localhost/docs`
-
-If you prefer to access services directly during development, uncomment the `ports` sections for `core` and `frontend` in `compose.yml`.
+- API (via reverse proxy): `http://localhost/api`
+- API docs (via reverse proxy): `http://localhost/docs`
 
 ### 2.3. Stop the stack
 
@@ -54,7 +51,34 @@ If you prefer to access services directly during development, uncomment the `por
 docker compose down
 ```
 
-Volumes under `user_data/` are mounted into containers so that configuration and database files persist across restarts.
+Volumes under `user_data/` are mounted into the container so that configuration and database files persist across restarts.
+
+### 2.4. Environment variables
+
+The container supports a couple of environment variables that control runtime behavior:
+
+- `TIMEZONE`: timezone used by the backend (default: `Europe/Rome`)
+- `SCHEDULER_INTERVAL_SECONDS`: polling interval for the scheduler loop (default: `5` seconds)
+
+When using Docker Compose, you can configure them in `compose.yml` under the `environment` section of the `edge-mining` service. For example:
+
+```yaml
+services:
+  edge-mining:
+    environment:
+      - TIMEZONE=Europe/Rome
+      - SCHEDULER_INTERVAL_SECONDS=5
+```
+
+When running the image directly with `docker run`, you can pass them with `-e`:
+
+```bash
+docker run -d \
+  -p 80:80 \
+  -e TIMEZONE=Europe/Rome \
+  -e SCHEDULER_INTERVAL_SECONDS=5 \
+  edge-mining:latest
+```
 
 ---
 
