@@ -103,3 +103,37 @@ docker compose logs
   - Backend container is healthy (`docker ps`)
   - Nginx is running and correctly proxying requests
   - Frontend is pointing to the right API URL.
+
+## 6. Updating Submodules
+
+This repository uses Git submodules for the `core` and `frontend` components. The submodules are configured to track the `dev` and `develop` branches respectively.
+
+**After cloning**, the submodules will be checked out at the commit SHAs recorded in the parent repository. To update them to the latest commits from their respective branches:
+
+```bash
+# Update all submodules to the latest commits from their configured branches
+git submodule update --remote --merge
+```
+
+**To update a specific submodule:**
+
+```bash
+# Update core submodule to latest dev branch
+cd core
+git checkout dev
+git pull origin dev
+cd ..
+
+# Update frontend submodule to latest develop branch
+cd frontend
+git checkout develop
+git pull origin develop
+cd ..
+```
+
+**Note:** After updating submodules, if you want to commit the new submodule references to the parent repository:
+
+```bash
+git add core frontend
+git commit -m "Update submodules to latest dev/develop branches"
+```
