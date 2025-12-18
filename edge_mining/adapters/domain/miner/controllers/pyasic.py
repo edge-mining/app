@@ -209,16 +209,23 @@ class PyASICMinerController(MinerControlPort):
                 self.logger.error(f"Failed to retrieve miner instance from {self.ip}...")
             return MinerStatus.UNKNOWN
 
-        miner = self._miner
-        mining_state = run_async_func(miner.is_mining())
+        # Due to a bug into PyASIC that affects miner status retrieval for miners with BOS firmware
+        # that use old RPC protocol, we derive the status based on hashrate and power consumption.
+        if self.protocol == MinerControllerProtocol.RPC:
+            if self.logger:
+                self.logger.debug("Deriving miner status due to BOS firmware with RPC protocol...")
+            miner_status = self._derive_miner_status()
+        else:
+            miner = self._miner
+            mining_state = run_async_func(miner.is_mining())
 
-        state_map: Dict[Optional[bool], MinerStatus] = {
-            True: MinerStatus.ON,
-            False: MinerStatus.OFF,
-            None: MinerStatus.UNKNOWN,
-        }
+            state_map: Dict[Optional[bool], MinerStatus] = {
+                True: MinerStatus.ON,
+                False: MinerStatus.OFF,
+                None: MinerStatus.UNKNOWN,
+            }
 
-        miner_status = state_map.get(mining_state, MinerStatus.UNKNOWN)
+            miner_status = state_map.get(mining_state, MinerStatus.UNKNOWN)
 
         if self.logger:
             self.logger.debug(f"Miner status fetched: {miner_status}")
@@ -266,3 +273,21 @@ class PyASICMinerController(MinerControlPort):
             self.logger.debug(f"Start command sent. Success: {success}")
 
         return success or False
+
+    def _derive_miner_status(self) -> MinerStatus:
+        """Derives the miner status based on hashrate and power consumption."""
+
+        # We should to consider fans and mainboard power draw when checking power consumption
+        IDLE_WATTAGE_THRESHOLD = 100  # Watts
+        hashrate: Optional[HashRate] = self.get_miner_hashrate()
+        wattage: Optional[Watts] = self.get_miner_power()
+
+        producing_hashrate = hashrate is not None and hashrate.value > 0
+        consuming_power = wattage is not None and wattage > IDLE_WATTAGE_THRESHOLD
+
+        if producing_hashrate and consuming_power:
+            miner_status = MinerStatus.ON
+        else:
+            miner_status = MinerStatus.OFF
+
+        return miner_status
