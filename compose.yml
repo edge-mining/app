@@ -1,5 +1,6 @@
 services:
   edge-mining:
+    image: edge-mining
     restart: unless-stopped
     build:
       context: .
