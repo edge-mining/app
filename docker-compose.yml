@@ -8,6 +8,8 @@ services:
     environment:
       - TIMEZONE=Europe/Rome
       - SCHEDULER_INTERVAL_SECONDS=5
+      - SQLITE_DB_FILE=user_data/edgemining.db
+      - YAML_POLICIES_DIR=user_data/optimization_policies
     volumes:
       - ./user_data/optimization_policies:/app/core/optimization_policies
       - ./user_data/edgemining.db:/app/core/edgemining.db
