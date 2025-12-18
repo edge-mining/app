@@ -29,7 +29,7 @@ This setup runs a **single container** that bundles:
 
 ### 2.1. Start the stack
 
-From the project root (where `docker-compose.yml` is located):
+From the project root (where `docker-compose.yaml` is located):
 
 ```bash
 docker compose up -d --build
@@ -60,7 +60,7 @@ The container supports a couple of environment variables that control runtime be
 - `TIMEZONE`: timezone used by the backend (default: `Europe/Rome`)
 - `SCHEDULER_INTERVAL_SECONDS`: polling interval for the scheduler loop (default: `5` seconds)
 
-When using Docker Compose, you can configure them in `compose.yml` under the `environment` section of the `edge-mining` service. For example:
+When using Docker Compose, you can configure them in `compose.yaml` under the `environment` section of the `edge-mining` service. For example:
 
 ```yaml
 services:
