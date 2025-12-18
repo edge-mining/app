@@ -15,8 +15,7 @@ Clone the repository and move into the project root:
 
 ```bash
 git clone --recurse-submodules https://github.com/edge-mining/app.git
-cd app
-git submodule update --init --recursive
+cd app/
 ```
 
 ---
