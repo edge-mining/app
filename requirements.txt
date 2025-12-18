@@ -15,4 +15,4 @@ paho-mqtt==2.1.0
 homeassistant_api==4.2.2.post1
 python-telegram-bot>=20.0
 astral==3.2
-pyasic==0.76.5
+pyasic==0.77.2
