@@ -272,9 +272,12 @@ async def stop_miner(
 async def get_miner_status(
     miner_id: EntityId,
     config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+    action_service: Annotated[MinerActionServiceInterface, Depends(get_miner_action_service)],
 ) -> MinerSchema:
     """Get the current status of a miner."""
     try:
+        _ = await action_service.get_miner_status(miner_id)
+
         miner = config_service.get_miner(miner_id)
 
         if miner is None:

@@ -4,6 +4,7 @@ from typing import List, Optional
 
 from edge_mining.application.interfaces import AdapterServiceInterface, MinerActionServiceInterface
 from edge_mining.domain.common import EntityId, Watts
+from edge_mining.domain.miner.common import MinerStatus
 from edge_mining.domain.miner.entities import Miner
 from edge_mining.domain.miner.exceptions import MinerControllerConfigurationError, MinerNotFoundError
 from edge_mining.domain.miner.ports import MinerRepository
@@ -185,3 +186,30 @@ class MinerActionService(MinerActionServiceInterface):
         self.miner_repo.update(miner)
 
         return current_hashrate
+
+    async def get_miner_status(self, miner_id: EntityId) -> MinerStatus:
+        """Gets the current status of the specified miner."""
+        if self.logger:
+            self.logger.info(f"Getting status for miner {miner_id}")
+
+        miner: Optional[Miner] = self.miner_repo.get_by_id(miner_id)
+
+        if not miner:
+            raise MinerNotFoundError(f"Miner with ID {miner_id} not found.")
+
+        # Get the miner controller from the adapter service
+        miner_controller = self.adapter_service.get_miner_controller(miner)
+
+        if not miner_controller:
+            raise MinerControllerConfigurationError(f"Miner controller for miner {miner_id} is not configured.")
+
+        # Update miner status using controller
+        current_status = miner_controller.get_miner_status()
+        current_hashrate = miner_controller.get_miner_hashrate()
+        current_power = miner_controller.get_miner_power()
+        miner.update_status(current_status, current_hashrate, current_power)
+
+        # Persist the observed state
+        self.miner_repo.update(miner)
+
+        return current_status
