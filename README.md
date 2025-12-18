@@ -29,7 +29,7 @@ This setup runs a **single container** that bundles:
 
 ### 2.1. Start the stack
 
-From the project root (where `compose.yml` is located):
+From the project root (where `docker-compose.yml` is located):
 
 ```bash
 docker compose up -d --build
