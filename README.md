@@ -76,6 +76,60 @@ python -m edge_mining cli --help
 
 The API will be available at `http://localhost:8001` (or the configured port). You can access the interactive documentation (Swagger UI) at `http://localhost:8001/docs`.
 
+## Run with Docker Compose
+
+You can run Edge Mining Core using `docker compose` in daemon mode using the provided `compose.yaml`.
+
+### 1. Build the image (first run or when `requirements.txt` changes)
+
+From the project root:
+
+```bash
+docker compose build
+```
+
+This step is required the first time and any time you modify `requirements.txt` (or other dependencies).
+
+### 2. Start Edge Mining Core in background (daemon)
+
+```bash
+docker compose up -d
+```
+
+The API will be exposed on `http://localhost:8001`.
+
+To see logs:
+
+```bash
+docker compose logs -f
+```
+
+To stop the service:
+
+```bash
+docker compose down
+```
+
+### 3. Run Edge Mining Core in interactive CLI mode via Docker
+
+You can start the interactive CLI in two ways:
+
+#### a) Standalone CLI (without standard mode running)
+
+This runs only the CLI and then stops the container when you exit:
+
+```bash
+docker compose run --rm edge-mining-core python -m edge_mining cli interactive
+```
+
+#### b) CLI while standard mode is running
+
+If the core is already running in standard mode via `docker compose up -d`, you can open an interactive CLI session inside the running container:
+
+```bash
+docker compose exec edge-mining-core python -m edge_mining cli interactive
+```
+
 ### Available adapters
 
 - **Energy Monitor:** `dummy`, `home_assistant` (*new*)
