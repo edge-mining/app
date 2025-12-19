@@ -67,6 +67,7 @@ def interactive(ctx: click.Context):
         elif choice == "3":
             sub_choice = miner_menu(
                 configuration_service=services.configuration_service,
+                miner_action_service=services.miner_action_service,
                 logger=logger,
             )
 
