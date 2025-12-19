@@ -641,7 +641,7 @@ def handle_miner_controller_pyasic_config(
     default_port: Optional[int] = None
     default_username: Optional[str] = None
     default_password: Optional[str] = None
-    default_protocol: MinerControllerProtocol = MinerControllerProtocol.WEB
+    default_protocol: Optional[MinerControllerProtocol] = MinerControllerProtocol.WEB
 
     # Try to get defaults from current_config
     if current_config and current_config.is_valid(MinerControllerAdapter.PYASIC):
@@ -661,7 +661,7 @@ def handle_miner_controller_pyasic_config(
     protocol: MinerControllerProtocol = click.prompt(
         "Protocol to use to connect to the PyASIC miner",
         type=click.Choice([p.value for p in MinerControllerProtocol]),
-        default=default_protocol.value,
+        default=default_protocol.value if default_protocol else None,
     )
     protocol = MinerControllerProtocol(protocol)
 
