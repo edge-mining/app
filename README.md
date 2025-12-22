@@ -87,7 +87,30 @@ docker run -d \
   -e SCHEDULER_INTERVAL_SECONDS=5 \
   edge-mining:latest
 ```
+```
+### 2.6. Core interactive CLI mode
 
+Once the container is running in the background with:
+
+```bash
+docker compose up -d
+```
+
+you can open an interactive Core CLI session inside the running container using `docker compose exec` and the startup command described in the `core` README:
+
+```bash
+docker compose exec edge-mining python -m edge_mining cli interactive
+```
+
+This command:
+- enters the `edge-mining` service container defined in `compose.yaml`
+- starts the backend in **interactive CLI** mode, allowing you to manage miners, energy sources, controllers, policies, etc. via a text-based menu.
+
+To see the available CLI options you can run:
+
+```bash
+docker compose exec edge-mining python -m edge_mining cli --help
+```
 ---
 
 ## 3. Configuration & Data
@@ -133,7 +156,7 @@ You may want to re-run it if you intentionally delete the `user_data/` folder an
 docker compose logs
 ```
 
-- If ports are already in use (80, 5173, 8001), stop the conflicting services or adjust ports and Nginx configuration.
+- If ports are already in use (80), stop the conflicting services or adjust ports and Nginx configuration.
 - If the UI cannot reach the API, verify:
   - Backend container is healthy (`docker ps`)
   - Nginx is running and correctly proxying requests
