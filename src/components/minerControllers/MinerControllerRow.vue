@@ -3,7 +3,7 @@ import { computed, ref } from "vue";
 import type { MinerController } from "../../core/models/minerController";
 import type { Miner } from "../../core/models/miner";
 import { useExternalServiceStore } from "../../core/stores/externalServiceStore";
-import { PhHash } from "@phosphor-icons/vue";
+import { PhHash, PhPencil, PhTrash } from "@phosphor-icons/vue";
 
 const model = defineModel<MinerController>({ required: true });
 const props = defineProps<{
@@ -138,8 +138,8 @@ function handleDelete() {
 
     <th>
       <div class="flex gap-2">
-        <button class="btn btn-sm btn-primary" @click="handleEdit" title="Edit miner controller">Edit</button>
-        <button class="btn btn-sm btn-error" @click="handleDelete" title="Delete miner controller">Delete</button>
+        <button class="btn btn-sm btn-primary" @click="handleEdit" title="Edit miner controller"><PhPencil :size="15" /></button>
+        <button class="btn btn-sm btn-error" @click="handleDelete" title="Delete miner controller"><PhTrash :size="15" /></button>
       </div>
     </th>
   </tr>
