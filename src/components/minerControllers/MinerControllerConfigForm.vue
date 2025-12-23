@@ -16,6 +16,85 @@ const service = new MinerControllerService();
 const schema = ref<ConfigSchema | null>(null);
 const loading = ref(false);
 
+// Resolve $ref to actual schema definition
+const resolveRef = (ref: string, schema: ConfigSchema): any => {
+  if (!ref.startsWith("#/$defs/")) return null;
+  const defName = ref.replace("#/$defs/", "");
+  return schema.$defs?.[defName] || null;
+};
+
+// Get resolved property schema (handling $ref and anyOf)
+const getPropertySchema = (property: any, schema: ConfigSchema): any => {
+  if (property.$ref) {
+    return resolveRef(property.$ref, schema);
+  }
+  
+  // Handle anyOf (find first non-null type)
+  if (property.anyOf) {
+    const nonNullType = property.anyOf.find((item: any) => item.type !== "null");
+    if (nonNullType) {
+      // If it's a $ref, resolve it
+      if (nonNullType.$ref) {
+        return resolveRef(nonNullType.$ref, schema);
+      }
+      // Merge anyOf type with parent property (preserving default, description, etc.)
+      return { ...property, ...nonNullType, anyOf: undefined };
+    }
+  }
+  
+  return property;
+};
+
+// Check if property is nullable (has anyOf with null type)
+const isNullable = (property: any): boolean => {
+  if (property.anyOf) {
+    return property.anyOf.some((item: any) => item.type === "null");
+  }
+  return false;
+};
+
+// Initialize default value based on property schema
+const initializeDefaultValue = (property: any, schema: ConfigSchema): any => {
+  // Check if property has explicit default
+  if (property.default !== undefined) {
+    return property.default;
+  }
+
+  // Resolve $ref and anyOf if present
+  const resolvedProperty = getPropertySchema(property, schema);
+
+  // Check default in resolved property
+  if (resolvedProperty?.default !== undefined) {
+    return resolvedProperty.default;
+  }
+
+  // If nullable and no default, return null
+  if (isNullable(property)) {
+    return null;
+  }
+
+  // Handle enum
+  if (resolvedProperty?.enum) {
+    return resolvedProperty.enum[0];
+  }
+
+  // Handle object type
+  if (resolvedProperty?.type === "object" && resolvedProperty?.properties) {
+    const obj: any = {};
+    Object.entries(resolvedProperty.properties).forEach(([key, prop]: [string, any]) => {
+      obj[key] = initializeDefaultValue(prop, schema);
+    });
+    return obj;
+  }
+
+  // Handle primitive types
+  if (resolvedProperty?.type === "string") return "";
+  if (resolvedProperty?.type === "number" || resolvedProperty?.type === "integer") return 0;
+  if (resolvedProperty?.type === "boolean") return false;
+
+  return null;
+};
+
 // Load schema when adapter type changes
 watch(
   () => props.adapterType,
@@ -33,15 +112,7 @@ watch(
       if (schema.value?.properties) {
         const newConfig: MinerControllerConfig = {};
         Object.entries(schema.value.properties).forEach(([key, property]) => {
-          if (property.default !== undefined) {
-            newConfig[key] = property.default;
-          } else if (property.type === "string") {
-            newConfig[key] = "";
-          } else if (property.type === "number") {
-            newConfig[key] = 0;
-          } else if (property.type === "boolean") {
-            newConfig[key] = false;
-          }
+          newConfig[key] = initializeDefaultValue(property, schema.value!);
         });
         config.value = newConfig;
       }
@@ -67,67 +138,146 @@ const formatFieldName = (name: string) => {
 const isRequired = (fieldName: string) => {
   return schema.value?.required?.includes(fieldName) || false;
 };
+
+// Get field type for rendering
+const getFieldType = (property: any, schema: ConfigSchema) => {
+  const resolvedProp = getPropertySchema(property, schema);
+  
+  if (resolvedProp?.enum) return 'enum';
+  if (resolvedProp?.type === 'object' && resolvedProp?.properties) return 'object';
+  if (resolvedProp?.type === 'integer' || resolvedProp?.type === 'number') return 'number';
+  if (resolvedProp?.type === 'string') return 'string';
+  if (resolvedProp?.type === 'boolean') return 'boolean';
+  
+  return 'unknown';
+};
 </script>
 
 <template>
   <div v-if="loading" class="flex items-center justify-center p-4">
     <span class="loading loading-spinner loading-md"></span>
   </div>
-  <div v-else-if="schema && schema.properties" class="flex flex-col gap-3">
+  <div v-else-if="schema && schema.properties" class="flex flex-col gap-4">
     <div
       v-for="(property, fieldName) in schema.properties"
       :key="fieldName"
-      class="form-control"
+      class="space-y-1"
     >
-      <label class="label">
-        <span class="label-text">
-          {{ property.title || formatFieldName(String(fieldName)) }}
-          <span v-if="isRequired(String(fieldName))" class="text-error">*</span>
-        </span>
-      </label>
+      <!-- Field label with required/optional indicator -->
+      <div class="font-medium">
+        {{ property.title || formatFieldName(String(fieldName)) }}
+        <span v-if="isRequired(String(fieldName))" class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+        <span v-if="!isRequired(String(fieldName))" class="text-sm opacity-60 ml-1 font-normal">(optional)</span>
+      </div>
+
+      <!-- Enum select -->
+      <select
+        v-if="getFieldType(property, schema) === 'enum'"
+        v-model="config[fieldName]"
+        :required="isRequired(String(fieldName))"
+        class="select select-bordered select-sm w-full"
+      >
+        <option v-if="isNullable(property)" :value="null">
+          -- None --
+        </option>
+        <option
+          v-for="option in getPropertySchema(property, schema).enum"
+          :key="option"
+          :value="option"
+        >
+          {{ option }}
+        </option>
+      </select>
+
+      <!-- Object type (nested properties) -->
+      <div
+        v-else-if="getFieldType(property, schema) === 'object'"
+        class="border border-base-300 rounded-lg p-3 space-y-3"
+      >
+        <div
+          v-for="(nestedProp, nestedKey) in getPropertySchema(property, schema).properties"
+          :key="nestedKey"
+          class="space-y-1"
+        >
+          <div class="font-medium text-sm">
+            {{ nestedProp.title || formatFieldName(String(nestedKey)) }}
+          </div>
+          
+          <!-- Nested string -->
+          <input
+            v-if="nestedProp.type === 'string'"
+            v-model="config[fieldName][nestedKey]"
+            type="text"
+            :placeholder="nestedProp.default || ''"
+            class="input input-bordered input-xs w-full"
+          />
+          
+          <!-- Nested number -->
+          <input
+            v-else-if="nestedProp.type === 'number' || nestedProp.type === 'integer'"
+            v-model.number="config[fieldName][nestedKey]"
+            type="number"
+            :step="nestedProp.type === 'integer' ? '1' : 'any'"
+            :min="nestedProp.minimum"
+            :max="nestedProp.maximum"
+            :placeholder="nestedProp.default || ''"
+            class="input input-bordered input-xs w-full"
+          />
+          
+          <!-- Nested description -->
+          <div v-if="nestedProp.description" class="text-xs italic opacity-70">
+            {{ nestedProp.description }}
+          </div>
+        </div>
+      </div>
 
       <!-- String input -->
       <input
-        v-if="property.type === 'string'"
+        v-else-if="getFieldType(property, schema) === 'string'"
         v-model="config[fieldName]"
         type="text"
-        :placeholder="property.description || property.title"
+        :placeholder="property.default || ''"
         :required="isRequired(String(fieldName))"
-        class="input input-bordered input-sm"
+        class="input input-bordered input-sm w-full"
       />
 
       <!-- Number input -->
       <input
-        v-else-if="property.type === 'number'"
+        v-else-if="getFieldType(property, schema) === 'number'"
         v-model.number="config[fieldName]"
         type="number"
-        step="any"
-        :placeholder="property.description || property.title"
+        :step="getPropertySchema(property, schema).type === 'integer' ? '1' : 'any'"
+        :min="getPropertySchema(property, schema).minimum"
+        :max="getPropertySchema(property, schema).maximum"
+        :placeholder="property.default"
         :required="isRequired(String(fieldName))"
-        class="input input-bordered input-sm"
+        class="input input-bordered input-sm w-full"
       />
 
       <!-- Boolean checkbox -->
-      <div v-else-if="property.type === 'boolean'" class="form-control">
-        <label class="label cursor-pointer justify-start gap-2">
-          <input
-            v-model="config[fieldName]"
-            type="checkbox"
-            class="checkbox checkbox-sm"
-          />
-          <span class="label-text text-xs opacity-70">
-            {{ property.description }}
-          </span>
-        </label>
-      </div>
-
-      <!-- Description helper text for non-boolean fields -->
-      <label
-        v-if="property.description && property.type !== 'boolean'"
-        class="label"
+      <label 
+        v-else-if="getFieldType(property, schema) === 'boolean'" 
+        class="flex items-center gap-2 cursor-pointer"
       >
-        <span class="label-text-alt opacity-70">{{ property.description }}</span>
+        <input
+          v-model="config[fieldName]"
+          type="checkbox"
+          class="checkbox checkbox-sm"
+        />
+        <span class="text-sm">
+          {{ property.description || 'Enable' }}
+        </span>
       </label>
+
+      <!-- Description helper text -->
+      <div
+        v-if="property.description && 
+              getFieldType(property, schema) !== 'boolean' &&
+              getFieldType(property, schema) !== 'object'"
+        class="text-sm italic opacity-70"
+      >
+        {{ property.description }}
+      </div>
     </div>
   </div>
 </template>

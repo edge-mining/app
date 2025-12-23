@@ -1,16 +1,37 @@
 <script setup lang="ts">
 import type { Miner } from "../../core/models/miner";
+import { useMinerControllerStore } from "../../core/stores/minerControllerStore";
+import { computed } from "vue";
 
 const model = defineModel<Miner>({ required: true });
+const props = defineProps<{
+  allMiners?: Miner[];
+}>();
+
+const minerControllerStore = useMinerControllerStore();
+
+// Compute the controller IDs already assigned to other miners
+const assignedControllerIds = computed(() => {
+  if (!props.allMiners) return new Set<number>();
+  return new Set(
+    props.allMiners
+      .filter((m) => m.id !== model.value.id && m.controller_id)
+      .map((m) => m.controller_id as number)
+  );
+});
+
+// Filter available controllers (not assigned or assigned to the current miner)
+const availableControllers = computed(() => {
+  return minerControllerStore.minerControllers.filter(
+    (controller) => 
+      !assignedControllerIds.value.has(controller.id!) || 
+      controller.id === model.value.controller_id
+  );
+});
 </script>
 <template>
   <tr>
     <th>
-      <label>
-        <input type="checkbox" class="checkbox" />
-      </label>
-    </th>
-    <td>
       <div class="flex items-center gap-3">
         <div>
           <div class="text-xl">
@@ -24,7 +45,7 @@ const model = defineModel<Miner>({ required: true });
           </div>
         </div>
       </div>
-    </td>
+    </th>
     <td>
       <div
         class="text-xl"
@@ -75,6 +96,21 @@ const model = defineModel<Miner>({ required: true });
         />
         Watts -->
       </div>
+    </td>
+    <td>
+      <select
+        class="select select-bordered select-sm w-full"
+        v-model="model.controller_id"
+      >
+        <option :value="undefined">None</option>
+        <option
+          v-for="controller in availableControllers"
+          :key="controller.id"
+          :value="controller.id"
+        >
+          {{ controller.name }}
+        </option>
+      </select>
     </td>
     <th></th>
   </tr>

@@ -1,16 +1,19 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { useMinerStore } from "../../core/stores/minerStore";
+import { useMinerControllerStore } from "../../core/stores/minerControllerStore";
 import MinerRow from "../../components/miners/MinerRow.vue";
 import type { Miner } from "../../core/models/miner";
 import MinerRowEdit from "../../components/miners/MinerRowEdit.vue";
 
 const minerStore = useMinerStore();
+const minerControllerStore = useMinerControllerStore();
 const newMiner = ref<Miner | undefined>(undefined);
 const editingMiner = ref<{ index: number; miner: Miner } | undefined>(undefined);
 
 onMounted(() => {
   minerStore.loadMiners();
+  minerControllerStore.loadMinerControllers();
 });
 
 function addMiner() {
@@ -88,16 +91,12 @@ function handleDeactivate(miner: Miner) {
       <!-- head -->
       <thead>
         <tr>
-          <th>
-            <!-- <label>
-              <input type="checkbox" class="checkbox" />
-            </label> -->
-          </th>
           <th>Name</th>
           <th>Status</th>
           <th>Hash Rate (Max)</th>
           <th>Power Consumption (Max)</th>
-          <th></th>
+          <th>Miner Controller</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -105,6 +104,7 @@ function handleDeactivate(miner: Miner) {
           <MinerRowEdit
             v-if="editingMiner && editingMiner.index === i"
             v-model="editingMiner.miner"
+            :all-miners="minerStore.miners"
           />
           <MinerRow
             v-else
@@ -118,10 +118,10 @@ function handleDeactivate(miner: Miner) {
           />
         </template>
 
-        <MinerRowEdit v-if="newMiner" v-model="newMiner" edit />
+        <MinerRowEdit v-if="newMiner" v-model="newMiner" :all-miners="minerStore.miners" edit />
 
         <tr>
-          <th colspan="6" class="text-center">
+          <th colspan="7" class="text-center">
             <button
               v-if="!newMiner && !editingMiner"
               class="btn btn-primary"
@@ -151,12 +151,12 @@ function handleDeactivate(miner: Miner) {
       <!-- foot -->
       <tfoot>
         <tr>
-          <th></th>
           <th>Name</th>
           <th>Status</th>
           <th>Hash Rate (Max)</th>
           <th>Power Consumption (Max)</th>
-          <th></th>
+          <th>Miner Controller</th>
+          <th>Actions</th>
         </tr>
       </tfoot>
     </table>
