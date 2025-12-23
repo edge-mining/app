@@ -9,6 +9,7 @@ export interface MinerController {
   name: string;
   adapter_type: MinerControllerAdapter;
   config?: MinerControllerConfig;
+  external_service_id?: string;
 }
 
 export interface ConfigSchemaProperty {
