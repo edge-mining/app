@@ -5,7 +5,7 @@ export interface MinerControllerConfig {
 }
 
 export interface MinerController {
-  id?: number;
+  id?: string;
   name: string;
   adapter_type: MinerControllerAdapter;
   config?: MinerControllerConfig;

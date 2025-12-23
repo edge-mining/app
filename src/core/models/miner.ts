@@ -1,5 +1,5 @@
 export interface Miner {
-  id?: number;
+  id?: string;
   name: string;
   status: string;
   hash_rate?: HashRateSchema;
@@ -7,7 +7,7 @@ export interface Miner {
   power_consumption?: number;
   power_consumption_max?: number;
   active: boolean;
-  controller_id?: number;
+  controller_id?: string;
 }
 
 export interface HashRateSchema {
