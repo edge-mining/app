@@ -1,17 +1,23 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { useEnergySourceStore } from "../../core/stores/energySourceStore";
+import { useEnergyMonitorStore } from "../../core/stores/energyMonitorStore";
+import { useForecastProviderStore } from "../../core/stores/forecastProviderStore";
 import EnergySourceRow from "../../components/energySources/EnergySourceRow.vue";
 import type { EnergySource } from "../../core/models/energySource";
 import { EnergySourceType } from "../../core/models/energySource";
 import EnergySourceRowEdit from "../../components/energySources/EnergySourceRowEdit.vue";
 
 const energySourceStore = useEnergySourceStore();
+const energyMonitorStore = useEnergyMonitorStore();
+const forecastProviderStore = useForecastProviderStore();
 const newEnergySource = ref<EnergySource | undefined>(undefined);
 const editingEnergySource = ref<{ index: number; energySource: EnergySource } | undefined>(undefined);
 
 onMounted(() => {
   energySourceStore.loadEnergySources();
+  energyMonitorStore.loadEnergyMonitors();
+  forecastProviderStore.loadForecastProviders();
 });
 
 function addEnergySource() {
@@ -76,13 +82,15 @@ function handleDelete(energySource: EnergySource) {
       <!-- head -->
       <thead>
         <tr>
-          <th></th>
-          <th>Name / Type</th>
+          <th>Name</th>
+          <th>Type</th>
           <th>Nominal Power Max</th>
           <th>Storage Capacity</th>
           <th>Grid Contracted Power</th>
-          <th>Monitor ID</th>
-          <th></th>
+          <th>External Source</th>
+          <th>Energy Monitor</th>
+          <th>Forecast Provider</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -93,6 +101,7 @@ function handleDelete(energySource: EnergySource) {
           <EnergySourceRowEdit
             v-if="editingEnergySource && editingEnergySource.index === i"
             v-model="editingEnergySource.energySource"
+            :all-energy-sources="energySourceStore.energySources"
           />
           <EnergySourceRow
             v-else
@@ -138,13 +147,15 @@ function handleDelete(energySource: EnergySource) {
       <!-- foot -->
       <tfoot>
         <tr>
-          <th></th>
-          <th>Name / Type</th>
+          <th>Name</th>
+          <th>Type</th>
           <th>Nominal Power Max</th>
           <th>Storage Capacity</th>
           <th>Grid Contracted Power</th>
-          <th>Monitor ID</th>
-          <th></th>
+          <th>External Source</th>
+          <th>Energy Monitor</th>
+          <th>Forecast Provider</th>
+          <th>Actions</th>
         </tr>
       </tfoot>
     </table>

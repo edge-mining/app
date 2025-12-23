@@ -1,16 +1,58 @@
 <script setup lang="ts">
 import type { EnergySource } from "../../core/models/energySource";
 import { EnergySourceType } from "../../core/models/energySource";
+import { useEnergyMonitorStore } from "../../core/stores/energyMonitorStore";
+import { useForecastProviderStore } from "../../core/stores/forecastProviderStore";
+import { computed } from "vue";
 
 const model = defineModel<EnergySource>({ required: true });
+const props = defineProps<{
+  allEnergySources?: EnergySource[];
+}>();
+
+const energyMonitorStore = useEnergyMonitorStore();
+const forecastProviderStore = useForecastProviderStore();
+
+// Compute the monitor IDs already assigned to other energy sources
+const assignedEnergyMonitorIds = computed(() => {
+  if (!props.allEnergySources) return new Set<string>();
+  return new Set(
+    props.allEnergySources
+      .filter((es) => es.id !== model.value.id && es.energy_monitor_id)
+      .map((es) => String(es.energy_monitor_id))
+  );
+});
+
+// Compute the forecast provider IDs already assigned to other energy sources
+const assignedForecastProviderIds = computed(() => {
+  if (!props.allEnergySources) return new Set<string>();
+  return new Set(
+    props.allEnergySources
+      .filter((es) => es.id !== model.value.id && es.forecast_provider_id)
+      .map((es) => String(es.forecast_provider_id))
+  );
+});
+
+// Filter available energy monitors (not assigned or assigned to the current energy source)
+const availableEnergyMonitors = computed(() => {
+  return energyMonitorStore.energyMonitors.filter(
+    (monitor) => 
+      !assignedEnergyMonitorIds.value.has(String(monitor.id)) || 
+      String(monitor.id) === String(model.value.energy_monitor_id)
+  );
+});
+
+// Filter available forecast providers (not assigned or assigned to the current energy source)
+const availableForecastProviders = computed(() => {
+  return forecastProviderStore.forecastProviders.filter(
+    (provider) => 
+      !assignedForecastProviderIds.value.has(String(provider.id)) || 
+      String(provider.id) === String(model.value.forecast_provider_id)
+  );
+});
 </script>
 <template>
   <tr>
-    <th>
-      <label>
-        <input type="checkbox" class="checkbox" />
-      </label>
-    </th>
     <td>
       <div class="flex flex-col gap-2">
         <input
@@ -20,22 +62,22 @@ const model = defineModel<EnergySource>({ required: true });
           required
           placeholder="Energy source name"
         />
-        <select
+      </div>
+    </td>
+    <td>
+      <select
           class="select select-info"
           required
           v-model="model.type"
         >
-          <option :value="EnergySourceType.SOLAR">Solar</option>
-          <option :value="EnergySourceType.WIND">Wind</option>
-          <option :value="EnergySourceType.GRID">Grid</option>
-          <option :value="EnergySourceType.HYDROELECTRIC">Hydroelectric</option>
-          <option :value="EnergySourceType.OTHER">Other</option>
+          <option v-for="energySourceType in EnergySourceType" :value="energySourceType">
+            {{ String(energySourceType) }}
+          </option>
         </select>
-      </div>
     </td>
     <td>
       <label class="input">
-        kW
+        Watts
         <input
           v-model.number="model.nominal_power_max"
           type="number"
@@ -46,7 +88,7 @@ const model = defineModel<EnergySource>({ required: true });
     </td>
     <td>
       <label class="input">
-        kWh
+        Wh
         <input
           :value="model.storage?.nominal_capacity ?? ''"
           @input="(e) => {
@@ -61,7 +103,7 @@ const model = defineModel<EnergySource>({ required: true });
     </td>
     <td>
       <label class="input">
-        kW
+        Watts
         <input
           :value="model.grid?.contracted_power ?? ''"
           @input="(e) => {
@@ -75,12 +117,45 @@ const model = defineModel<EnergySource>({ required: true });
       </label>
     </td>
     <td>
-      <input
-        class="input input-sm"
+      <label class="input">
+        Watts
+        <input
+          v-model.number="model.external_source"
+          type="number"
+          class="grow"
+          placeholder="Optional"
+        />
+      </label>
+    </td>
+    <td>
+      <select
+        class="select select-bordered select-sm w-full"
         v-model="model.energy_monitor_id"
-        type="text"
-        placeholder="Optional UUID"
-      />
+      >
+        <option :value="undefined">None</option>
+        <option
+          v-for="energyMonitor in availableEnergyMonitors"
+          :key="energyMonitor.id"
+          :value="energyMonitor.id"
+        >
+          {{ energyMonitor.name }}
+        </option>
+      </select>
+    </td>
+    <td>
+      <select
+        class="select select-bordered select-sm w-full"
+        v-model="model.forecast_provider_id"
+      >
+        <option :value="undefined">None</option>
+        <option
+          v-for="forecastProvider in availableForecastProviders"
+          :key="forecastProvider.id"
+          :value="forecastProvider.id"
+        >
+          {{ forecastProvider.name }}
+        </option>
+      </select>
     </td>
     <th></th>
   </tr>
