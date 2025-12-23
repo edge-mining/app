@@ -46,3 +46,14 @@
   justify-content: center;
   align-items: center;
 }
+
+/* Keep DaisyUI tooltip content on a single line (IDs, tokens, etc.) */
+.id-tooltip::before,
+.id-tooltip::after {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+  max-width: min(70vw, 36rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

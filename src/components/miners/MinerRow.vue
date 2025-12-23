@@ -86,7 +86,7 @@ function handleDeactivate() {
           <div class="text-xl flex items-center gap-1">
             <span
               v-if="model.id != null"
-              class="tooltip tooltip-top whitespace-nowrap"
+              class="tooltip tooltip-right id-tooltip"
               :data-tip="minerIdTip ?? `ID: ${model.id}`"
             >
               <span
@@ -155,7 +155,7 @@ function handleDeactivate() {
         <div class="text-sm opacity-50 flex items-center gap-1">
           <span
             v-if="model.controller_id != null"
-            class="tooltip tooltip-bottom whitespace-nowrap"
+            class="tooltip tooltip-top id-tooltip"
             :data-tip="controllerIdTip ?? `ID: ${model.controller_id}`"
           >
             <span
