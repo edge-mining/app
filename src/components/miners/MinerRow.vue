@@ -2,7 +2,7 @@
 import type { Miner } from "../../core/models/miner";
 import { computed, ref } from "vue";
 import { useMinerControllerStore } from "../../core/stores/minerControllerStore";
-import { PhHash } from "@phosphor-icons/vue";
+import { PhHash, PhPlay, PhStop, PhArrowClockwise } from "@phosphor-icons/vue";
 
 const model = defineModel<Miner>({ required: true });
 const emit = defineEmits<{
@@ -10,6 +10,7 @@ const emit = defineEmits<{
   delete: [miner: Miner];
   start: [miner: Miner];
   stop: [miner: Miner];
+  refresh: [miner: Miner];
   activate: [miner: Miner];
   deactivate: [miner: Miner];
 }>();
@@ -22,6 +23,12 @@ const minerController = computed(() => {
 });
 
 const isProcessing = ref(false);
+
+const isOn = computed(() => model.value.status === "on");
+const isStarting = computed(() => model.value.status === "starting");
+const isStopping = computed(() => model.value.status === "stopping");
+const canStart = computed(() => model.value.active && !isOn.value && (!isStarting.value || isStopping.value) && !isProcessing.value);
+const canStop = computed(() => model.value.active && (isOn.value || isStarting.value) && !isProcessing.value);
 
 const minerIdTip = ref<string | null>(null);
 const controllerIdTip = ref<string | null>(null);
@@ -60,13 +67,19 @@ function handleDelete() {
 }
 
 function handleStart() {
+  if (!canStart.value) return;
   isProcessing.value = true;
   emit("start", model.value);
 }
 
 function handleStop() {
+  if (!canStop.value) return;
   isProcessing.value = true;
   emit("stop", model.value);
+}
+
+function handleRefresh() {
+  emit("refresh", model.value);
 }
 
 function handleActivate() {
@@ -117,11 +130,13 @@ function handleDeactivate() {
       <div
         class="text-xl"
         :class="
-          model.status === 'active'
+          model.status === 'on'
             ? 'text-green-500'
-            : model.status === 'unknown'
+            : model.status === 'starting' || model.status === 'stopping'
               ? 'text-amber-500'
-              : 'text-red-500'
+              : model.status === 'unknown'
+                ? 'text-gray-500'
+                : 'text-red-500'
         "
       >
         {{ model.status }}
@@ -181,20 +196,29 @@ function handleDeactivate() {
       <div class="flex gap-2">
         <div class="join join-vertical lg:join-horizontal">
           <button
-            class="btn btn-sm btn-success join-item"
+            class="btn btn-sm join-item"
+            :class="canStart ? 'btn-success' : 'btn-ghost opacity-60'"
             @click="handleStart"
-            :disabled="isProcessing || model.status === 'active'"
+            :disabled="!canStart"
             title="Start miner"
           >
-            ▶
+            <PhPlay :size="15" />
           </button>
           <button
-            class="btn btn-sm btn-warning join-item"
+            class="btn btn-sm join-item"
+            :class="canStop ? 'btn-warning' : 'btn-ghost opacity-60'"
             @click="handleStop"
-            :disabled="isProcessing || model.status !== 'active'"
+            :disabled="!canStop"
             title="Stop miner"
           >
-            ⏸
+            <PhStop :size="15" />
+          </button>
+          <button
+            class="btn btn-sm btn-info join-item"
+            @click="handleRefresh"
+            title="Refresh miner status"
+          >
+            <PhArrowClockwise :size="15" />
           </button>
         </div>
 

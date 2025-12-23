@@ -81,6 +81,12 @@ function handleDeactivate(miner: Miner) {
     minerStore.loadMiners();
   });
 }
+
+function handleRefresh(miner: Miner) {
+  minerStore.getMinerStatus(miner.id!.toString()).then(() => {
+    minerStore.loadMiners();
+  });
+}
 </script>
 
 <template>
@@ -115,6 +121,7 @@ function handleDeactivate(miner: Miner) {
             @stop="handleStop"
             @activate="handleActivate"
             @deactivate="handleDeactivate"
+            @refresh="handleRefresh"
           />
         </template>
 
