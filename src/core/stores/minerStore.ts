@@ -44,6 +44,10 @@ export const useMinerStore = defineStore("miner", () => {
     return service.deactivateMiner(minerId);
   }
 
+  function getMinerStatus(minerId: string) {
+    return service.getMinerStatus(minerId);
+  }
+
   return {
     //STATE
     miners,
@@ -56,5 +60,6 @@ export const useMinerStore = defineStore("miner", () => {
     stopMiner,
     activateMiner,
     deactivateMiner,
+    getMinerStatus,
   };
 });
