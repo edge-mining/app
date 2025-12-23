@@ -2,7 +2,7 @@
 import type { Miner } from "../../core/models/miner";
 import { computed, ref } from "vue";
 import { useMinerControllerStore } from "../../core/stores/minerControllerStore";
-import { PhCpu, PhCircuitry } from "@phosphor-icons/vue";
+import { PhHash } from "@phosphor-icons/vue";
 
 const model = defineModel<Miner>({ required: true });
 const emit = defineEmits<{
@@ -99,7 +99,7 @@ function handleDeactivate() {
                 @keydown.enter.stop.prevent="copyToClipboard(String(model.id)); flashTip('miner', `ID: ${model.id}`)"
                 @keydown.space.stop.prevent="copyToClipboard(String(model.id)); flashTip('miner', `ID: ${model.id}`)"
               >
-                <PhCpu class="size-3" />
+                <PhHash class="size-3" />
               </span>
             </span>
             <span>{{ model.name }}</span>
@@ -168,7 +168,7 @@ function handleDeactivate() {
               @keydown.enter.stop.prevent="copyToClipboard(String(model.controller_id)); flashTip('controller', `ID: ${model.controller_id}`)"
               @keydown.space.stop.prevent="copyToClipboard(String(model.controller_id)); flashTip('controller', `ID: ${model.controller_id}`)"
             >
-              <PhCircuitry class="size-3" />
+              <PhHash class="size-3" />
             </span>
           </span>
           <span class="text-sm">{{ minerController?.name ?? "Unknown" }}</span>

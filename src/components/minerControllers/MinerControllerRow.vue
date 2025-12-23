@@ -3,7 +3,7 @@ import { computed, ref } from "vue";
 import type { MinerController } from "../../core/models/minerController";
 import type { Miner } from "../../core/models/miner";
 import { useExternalServiceStore } from "../../core/stores/externalServiceStore";
-import { PhCircuitry } from "@phosphor-icons/vue";
+import { PhHash } from "@phosphor-icons/vue";
 
 const model = defineModel<MinerController>({ required: true });
 const props = defineProps<{
@@ -94,7 +94,7 @@ function handleDelete() {
                 @keydown.enter.stop.prevent="copyToClipboard(String(model.id)); flashTip('controller', `ID: ${model.id}`)"
                 @keydown.space.stop.prevent="copyToClipboard(String(model.id)); flashTip('controller', `ID: ${model.id}`)"
               >
-                <PhCircuitry class="size-3" />
+                <PhHash class="size-3" />
               </span>
             </span>
             <span>{{ model.name }}</span>
@@ -127,7 +127,7 @@ function handleDelete() {
               @keydown.enter.stop.prevent="copyToClipboard(model.external_service_id); flashTip('external', `ID: ${model.external_service_id}`)"
               @keydown.space.stop.prevent="copyToClipboard(model.external_service_id); flashTip('external', `ID: ${model.external_service_id}`)"
             >
-              <PhCircuitry class="size-3" />
+              <PhHash class="size-3" />
             </span>
           </span>
           <span class="text-sm">{{ externalService?.name ?? "Unknown" }}</span>
