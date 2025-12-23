@@ -5,6 +5,7 @@ import type {
   MinerControllerConfig,
 } from "../../core/models/minerController";
 import { MinerControllerService } from "../../core/services/minerControllerService";
+import { PhEye, PhEyeSlash } from "@phosphor-icons/vue";
 
 const props = defineProps<{
   adapterType: string;
@@ -15,6 +16,7 @@ const config = defineModel<MinerControllerConfig>({ required: true });
 const service = new MinerControllerService();
 const schema = ref<ConfigSchema | null>(null);
 const loading = ref(false);
+const passwordVisibility = ref<Record<string, boolean>>({});
 
 // Resolve $ref to actual schema definition
 const resolveRef = (ref: string, schema: ConfigSchema): any => {
@@ -151,6 +153,16 @@ const getFieldType = (property: any, schema: ConfigSchema) => {
   
   return 'unknown';
 };
+
+// Toggle password visibility
+const togglePasswordVisibility = (fieldKey: string) => {
+  passwordVisibility.value[fieldKey] = !passwordVisibility.value[fieldKey];
+};
+
+// Check if field is a password field
+const isPasswordField = (fieldName: string): boolean => {
+  return String(fieldName).toLowerCase().includes('password');
+};
 </script>
 
 <template>
@@ -204,13 +216,28 @@ const getFieldType = (property: any, schema: ConfigSchema) => {
           </div>
           
           <!-- Nested string -->
-          <input
+          <div
             v-if="nestedProp.type === 'string'"
-            v-model="config[fieldName][nestedKey]"
-            type="text"
-            :placeholder="nestedProp.default || ''"
-            class="input input-bordered input-xs w-full"
-          />
+            class="relative"
+          >
+            <input
+              v-model="config[fieldName][nestedKey]"
+              :type="isPasswordField(String(nestedKey)) && !passwordVisibility[String(fieldName) + '.' + String(nestedKey)] ? 'password' : 'text'"
+              :placeholder="nestedProp.default || ''"
+              class="input input-bordered input-xs w-full"
+              :class="{ 'pr-10': isPasswordField(String(nestedKey)) }"
+            />
+            <button
+              v-if="isPasswordField(String(nestedKey))"
+              type="button"
+              @click="togglePasswordVisibility(String(fieldName) + '.' + String(nestedKey))"
+              class="absolute right-2 top-1/2 -translate-y-1/2 btn btn-ghost btn-xs"
+              tabindex="-1"
+            >
+              <PhEyeSlash v-if="passwordVisibility[String(fieldName) + '.' + String(nestedKey)]" :size="16" />
+              <PhEye v-else :size="16" />
+            </button>
+          </div>
           
           <!-- Nested number -->
           <input
@@ -232,14 +259,29 @@ const getFieldType = (property: any, schema: ConfigSchema) => {
       </div>
 
       <!-- String input -->
-      <input
+      <div 
         v-else-if="getFieldType(property, schema) === 'string'"
-        v-model="config[fieldName]"
-        type="text"
-        :placeholder="property.default || ''"
-        :required="isRequired(String(fieldName))"
-        class="input input-bordered input-sm w-full"
-      />
+        class="relative"
+      >
+        <input
+          v-model="config[fieldName]"
+          :type="isPasswordField(String(fieldName)) && !passwordVisibility[String(fieldName)] ? 'password' : 'text'"
+          :placeholder="property.default || ''"
+          :required="isRequired(String(fieldName))"
+          class="input input-bordered input-sm w-full"
+          :class="{ 'pr-10': isPasswordField(String(fieldName)) }"
+        />
+        <button
+          v-if="isPasswordField(String(fieldName))"
+          type="button"
+          @click="togglePasswordVisibility(String(fieldName))"
+          class="absolute right-2 top-1/2 -translate-y-1/2 btn btn-ghost btn-xs"
+          tabindex="-1"
+        >
+          <PhEyeSlash v-if="passwordVisibility[String(fieldName)]" :size="16" />
+          <PhEye v-else :size="16" />
+        </button>
+      </div>
 
       <!-- Number input -->
       <input
