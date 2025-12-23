@@ -2,7 +2,7 @@
 import type { Miner } from "../../core/models/miner";
 import { computed, ref } from "vue";
 import { useMinerControllerStore } from "../../core/stores/minerControllerStore";
-import { PhHash, PhPlay, PhStop, PhArrowClockwise } from "@phosphor-icons/vue";
+import { PhHash, PhPlay, PhStop, PhArrowClockwise, PhPencil, PhTrash } from "@phosphor-icons/vue";
 
 const model = defineModel<Miner>({ required: true });
 const emit = defineEmits<{
@@ -239,8 +239,8 @@ function handleDeactivate() {
           Deactivate
         </button>
 
-        <button class="btn btn-sm btn-primary" @click="handleEdit" title="Edit miner">✏️</button>
-        <button class="btn btn-sm btn-error" @click="handleDelete" title="Delete miner">🗑️</button>
+        <button class="btn btn-sm btn-primary" @click="handleEdit" title="Edit miner"><PhPencil :size="15" /></button>
+        <button class="btn btn-sm btn-error" @click="handleDelete" title="Delete miner"><PhTrash :size="15" /></button>
       </div>
     </th>
   </tr>
