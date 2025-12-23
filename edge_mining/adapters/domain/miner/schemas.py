@@ -29,7 +29,7 @@ class HashRateSchema(BaseModel):
     @classmethod
     def validate_unit(cls, v: str) -> str:
         """Validate hash rate unit."""
-        allowed_units = ["GH/s", "TH/s", "PH/s", "EH/s"]
+        allowed_units = ["GH/s", "TH/s", "PH/s", "EH/s", "H/s"]
         if v not in allowed_units:
             raise ValueError(f"Unit must be one of {allowed_units}")
         return v
