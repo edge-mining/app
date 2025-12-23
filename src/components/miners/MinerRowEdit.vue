@@ -12,11 +12,11 @@ const minerControllerStore = useMinerControllerStore();
 
 // Compute the controller IDs already assigned to other miners
 const assignedControllerIds = computed(() => {
-  if (!props.allMiners) return new Set<number>();
+  if (!props.allMiners) return new Set<string>();
   return new Set(
     props.allMiners
       .filter((m) => m.id !== model.value.id && m.controller_id)
-      .map((m) => m.controller_id as number)
+      .map((m) => String(m.controller_id))
   );
 });
 
