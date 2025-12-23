@@ -110,11 +110,17 @@ watch(
     try {
       schema.value = await service.getConfigSchema(newAdapterType);
 
-      // Initialize config with default values
+      // Initialize config with default values, preserving existing values
       if (schema.value?.properties) {
+        const existingConfig = { ...config.value };
         const newConfig: MinerControllerConfig = {};
         Object.entries(schema.value.properties).forEach(([key, property]) => {
-          newConfig[key] = initializeDefaultValue(property, schema.value!);
+          // Use existing value if available, otherwise use default
+          if (existingConfig[key] !== undefined) {
+            newConfig[key] = existingConfig[key];
+          } else {
+            newConfig[key] = initializeDefaultValue(property, schema.value!);
+          }
         });
         config.value = newConfig;
       }
