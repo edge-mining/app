@@ -67,6 +67,9 @@ const availableControllers = computed(() => {
           required
           v-model="model.hash_rate_max.unit"
         >
+          <option>H/s</option>
+          <option>KH/s</option>
+          <option>MH/s</option>
           <option>GH/s</option>
           <option>TH/s</option>
           <option>PH/s</option>
