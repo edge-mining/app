@@ -105,11 +105,9 @@ const formatAdapterType = (type: string) => {
         </tr>
       </thead>
       <tbody>
-        <template
-          v-for="(energyMonitor, i) in energyMonitorStore.energyMonitors"
-          :key="energyMonitor.id"
-        >
+        <template>
           <EnergyMonitorRow
+            v-for="(energyMonitor, i) in energyMonitorStore.energyMonitors" :key="energyMonitor.id"
             v-model="energyMonitorStore.energyMonitors[i]"
             @edit="handleEdit"
             @delete="handleDelete"
