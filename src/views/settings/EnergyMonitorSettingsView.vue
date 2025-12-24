@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onMounted, ref, watch } from "vue";
 import { useEnergyMonitorStore } from "../../core/stores/energyMonitorStore";
 import { useEnergySourceStore } from "../../core/stores/energySourceStore";
 import { useExternalServiceStore } from "../../core/stores/externalServiceStore";
@@ -15,12 +15,114 @@ const editingEnergyMonitor = ref<EnergyMonitor | undefined>(undefined);
 const showModal = ref(false);
 const isEditing = ref(false);
 
+// External service UI state
+const newRequiresExternalService = ref(false);
+const newCompatibleExternalServices = ref<any[]>([]);
+const editingRequiresExternalService = ref(false);
+const editingCompatibleExternalServices = ref<any[]>([]);
+
 onMounted(() => {
   energyMonitorStore.loadEnergyMonitors();
   energyMonitorStore.loadAdapterTypes();
   energySourceStore.loadEnergySources();
   externalServiceStore.loadExternalServices();
 });
+
+// Update compatible external services for 'new' modal
+const updateNewExternalServices = async (adapterType: string) => {
+  if (!adapterType) {
+    newRequiresExternalService.value = false;
+    newCompatibleExternalServices.value = [];
+    return;
+  }
+  try {
+    const resp = await energyMonitorStore.externalServices(adapterType);
+
+    let required = false;
+    let compatibleAdapterTypes: string[] = [];
+
+    if (resp === null || resp === undefined) {
+      required = false;
+      compatibleAdapterTypes = [];
+    } else if (typeof resp === 'string') {
+      // a single adapter type is returned -> external service required and must match this adapter_type
+      required = true;
+      compatibleAdapterTypes = [resp];
+    } else {
+      // fallback: do not require external service
+      required = false;
+      compatibleAdapterTypes = [];
+    }
+
+    newRequiresExternalService.value = required;
+    if (compatibleAdapterTypes.length > 0) {
+      newCompatibleExternalServices.value = externalServiceStore.externalServices.filter((s: any) => compatibleAdapterTypes.includes(s.adapter_type));
+    } else if (required) {
+      // required but no specific adapter types -> allow all external services
+      newCompatibleExternalServices.value = externalServiceStore.externalServices;
+    } else {
+      newCompatibleExternalServices.value = [];
+    }
+  } catch (err) {
+    console.error('Failed to get external services info for adapter:', err);
+    newRequiresExternalService.value = false;
+    newCompatibleExternalServices.value = [];
+  }
+};
+
+// Update compatible external services for 'edit' modal
+const updateEditingExternalServices = async (adapterType: string) => {
+  if (!adapterType) {
+    editingRequiresExternalService.value = false;
+    editingCompatibleExternalServices.value = [];
+    return;
+  }
+  try {
+    const resp = await energyMonitorStore.externalServices(adapterType);
+    // Per OpenAPI: response is string (ExternalServiceAdapter) or null
+    let required = false;
+    let compatibleAdapterTypes: string[] = [];
+
+    if (resp === null || resp === undefined) {
+      required = false;
+      compatibleAdapterTypes = [];
+    } else if (typeof resp === 'string') {
+      required = true;
+      compatibleAdapterTypes = [resp];
+    } else {
+      required = false;
+      compatibleAdapterTypes = [];
+    }
+
+    editingRequiresExternalService.value = required;
+    if (compatibleAdapterTypes.length > 0) {
+      editingCompatibleExternalServices.value = externalServiceStore.externalServices.filter((s: any) => compatibleAdapterTypes.includes(s.adapter_type));
+    } else if (required) {
+      editingCompatibleExternalServices.value = externalServiceStore.externalServices;
+    } else {
+      editingCompatibleExternalServices.value = [];
+    }
+  } catch (err) {
+    console.error('Failed to get external services info for adapter:', err);
+    editingRequiresExternalService.value = false;
+    editingCompatibleExternalServices.value = [];
+  }
+};
+
+// Watch adapter_type changes on new/edit objects
+watch(
+  () => newEnergyMonitor.value?.adapter_type,
+  (val) => {
+    if (val) updateNewExternalServices(val);
+  }
+);
+
+watch(
+  () => editingEnergyMonitor.value?.adapter_type,
+  (val) => {
+    if (val) updateEditingExternalServices(val);
+  }
+);
 
 function cleanEnergyMonitor(energyMonitor: EnergyMonitor): EnergyMonitor {
   const cleaned = { ...energyMonitor };
@@ -40,6 +142,7 @@ function addEnergyMonitor() {
     name: "",
     adapter_type: energyMonitorStore.adapterTypes[0] || "",
     config: {},
+    external_service_id: "",
   };
   isEditing.value = false;
   showModal.value = true;
@@ -49,6 +152,10 @@ function handleEdit(energyMonitor: EnergyMonitor) {
   editingEnergyMonitor.value = { ...energyMonitor };
   isEditing.value = true;
   showModal.value = true;
+  // update compatible external services for this adapter type
+  if (editingEnergyMonitor.value?.adapter_type) {
+    updateEditingExternalServices(editingEnergyMonitor.value.adapter_type);
+  }
 }
 
 function cancelAdd() {
@@ -198,23 +305,29 @@ const formatAdapterType = (type: string) => {
             </div>
           </div>
 
-          <!-- External Service ID -->
-          <div class="space-y-1">
-            <div class="font-medium">External Service</div>
+          <!-- External Service (only shown if required by adapter) -->
+          <div v-if="editingRequiresExternalService" class="space-y-1">
+            <div class="font-medium">
+              External Service
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required by this adapter)</span>
+            </div>
             <select
               v-model="editingEnergyMonitor.external_service_id"
               class="select select-bordered select-sm w-full"
             >
               <option value="">-- None --</option>
+              <option v-if="editingCompatibleExternalServices.length === 0" disabled>
+                No compatible external services available
+              </option>
               <option
-                v-for="svc in externalServiceStore.externalServices"
+                v-for="svc in editingCompatibleExternalServices"
                 :key="svc.id"
                 :value="svc.id"
               >
                 {{ svc.name }}
               </option>
             </select>
-            <div class="text-sm italic opacity-70">Optional: select an external service</div>
+            <div class="text-sm italic opacity-70">Select an external service</div>
           </div>
 
           <!-- Dynamic Config Form -->
@@ -270,23 +383,29 @@ const formatAdapterType = (type: string) => {
             </div>
           </div>
 
-          <!-- External Service ID -->
-          <div class="space-y-1">
-            <div class="font-medium">External Service</div>
+          <!-- External Service (only shown if required by adapter) -->
+          <div v-if="newRequiresExternalService" class="space-y-1">
+            <div class="font-medium">
+              External Service
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required by this adapter)</span>
+            </div>
             <select
               v-model="newEnergyMonitor.external_service_id"
               class="select select-bordered select-sm w-full"
             >
               <option value="">-- None --</option>
+              <option v-if="newCompatibleExternalServices.length === 0" disabled>
+                No compatible external services available
+              </option>
               <option
-                v-for="svc in externalServiceStore.externalServices"
+                v-for="svc in newCompatibleExternalServices"
                 :key="svc.id"
                 :value="svc.id"
               >
                 {{ svc.name }}
               </option>
             </select>
-            <div class="text-sm italic opacity-70">Optional: select an external service</div>
+            <div class="text-sm italic opacity-70">Select an external service</div>
           </div>
 
           <!-- Dynamic Config Form -->
