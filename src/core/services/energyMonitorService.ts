@@ -1,5 +1,6 @@
 import { BaseService } from "./baseService";
 import type { EnergyMonitor, ConfigSchema } from "../models/energyMonitor";
+import type { ExternalServiceAdapter } from "../models/externalService";
 
 export class EnergyMonitorService extends BaseService {
   getEnergyMonitors(): Promise<EnergyMonitor[]> {
@@ -28,5 +29,9 @@ export class EnergyMonitorService extends BaseService {
 
   getConfigSchema(adapterType: string): Promise<ConfigSchema> {
     return this.get<ConfigSchema>(`/energy-monitors/types/${adapterType}/config-schema`).getData();
+  }
+
+  getExternalServices(adapterType: string): Promise<ExternalServiceAdapter> {
+    return this.get<ExternalServiceAdapter>(`/energy-monitors/types/${adapterType}/external-services`).getData();
   }
 }

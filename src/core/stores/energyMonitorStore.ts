@@ -35,6 +35,10 @@ export const useEnergyMonitorStore = defineStore("energyMonitor", () => {
     return service.deleteEnergyMonitor(monitorId);
   }
 
+  function externalServices(adapterType: string) {
+    return service.getExternalServices(adapterType);
+  }
+
   return {
     //STATE
     energyMonitors,
@@ -45,5 +49,6 @@ export const useEnergyMonitorStore = defineStore("energyMonitor", () => {
     addEnergyMonitor,
     updateEnergyMonitor,
     deleteEnergyMonitor,
+    externalServices,
   };
 });
