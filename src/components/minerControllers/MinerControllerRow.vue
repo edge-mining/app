@@ -102,6 +102,7 @@ function handleDelete() {
         </div>
       </div>
     </th>
+    
     <td>
       <div class="text-sm opacity-70">{{ model.adapter_type }}</div>
     </td>

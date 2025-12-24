@@ -28,6 +28,10 @@ function cleanMinerController(minerController: MinerController): MinerController
   if (cleaned.config && Object.keys(cleaned.config).length === 0) {
     delete cleaned.config;
   }
+  // Remove empty string values for external_service_id
+  if ((cleaned as any).external_service_id === "") {
+    delete (cleaned as any).external_service_id;
+  }
   return cleaned;
 }
 
@@ -36,6 +40,7 @@ function addMinerController() {
     name: "",
     adapter_type: minerControllerStore.adapterTypes[0] || "",
     config: {},
+    external_service_id: "",
   };
   isEditing.value = false;
   showModal.value = true;
@@ -195,6 +200,25 @@ const formatAdapterType = (type: string) => {
               Adapter type cannot be changed after creation
             </div>
           </div>
+          
+          <!-- External Service selection -->
+          <div class="space-y-1">
+            <div class="font-medium">External Service</div>
+            <select
+              v-model="editingMinerController.external_service_id"
+              class="select select-bordered select-sm w-full"
+            >
+              <option value="">-- None --</option>
+              <option
+                v-for="svc in externalServiceStore.externalServices"
+                :key="svc.id"
+                :value="svc.id"
+              >
+                {{ svc.name }}
+              </option>
+            </select>
+            <div class="text-sm italic opacity-70">Optional: select an external service</div>
+          </div>
 
           <!-- Dynamic Config Form -->
           <div class="space-y-1">
@@ -249,6 +273,25 @@ const formatAdapterType = (type: string) => {
             <div class="text-sm italic opacity-70">
               Select the type of miner controller adapter
             </div>
+          </div>
+
+          <!-- External Service selection -->
+          <div class="space-y-1">
+            <div class="font-medium">External Service</div>
+            <select
+              v-model="newMinerController.external_service_id"
+              class="select select-bordered select-sm w-full"
+            >
+              <option value="">-- None --</option>
+              <option
+                v-for="svc in externalServiceStore.externalServices"
+                :key="svc.id"
+                :value="svc.id"
+              >
+                {{ svc.name }}
+              </option>
+            </select>
+            <div class="text-sm italic opacity-70">Optional: select an external service</div>
           </div>
 
           <!-- Dynamic Config Form -->
