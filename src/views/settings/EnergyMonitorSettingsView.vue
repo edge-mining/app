@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { useEnergyMonitorStore } from "../../core/stores/energyMonitorStore";
+import { useEnergySourceStore } from "../../core/stores/energySourceStore";
 import EnergyMonitorRow from "../../components/energyMonitors/EnergyMonitorRow.vue";
 import type { EnergyMonitor } from "../../core/models/energyMonitor";
 import EnergyMonitorConfigForm from "../../components/energyMonitors/EnergyMonitorConfigForm.vue";
 
 const energyMonitorStore = useEnergyMonitorStore();
+const energySourceStore = useEnergySourceStore();
 const newEnergyMonitor = ref<EnergyMonitor | undefined>(undefined);
 const editingEnergyMonitor = ref<EnergyMonitor | undefined>(undefined);
 const showModal = ref(false);
@@ -14,6 +16,7 @@ const isEditing = ref(false);
 onMounted(() => {
   energyMonitorStore.loadEnergyMonitors();
   energyMonitorStore.loadAdapterTypes();
+  energySourceStore.loadEnergySources();
 });
 
 function cleanEnergyMonitor(energyMonitor: EnergyMonitor): EnergyMonitor {
@@ -98,21 +101,27 @@ const formatAdapterType = (type: string) => {
       <!-- head -->
       <thead>
         <tr>
-          <th></th>
-          <th>Name / Adapter Type</th>
-          <th>External Service ID</th>
-          <th></th>
+          <th>Name</th>
+          <th>Adapter Type</th>
+          <th>External Service</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
-        <template>
-          <EnergyMonitorRow
-            v-for="(energyMonitor, i) in energyMonitorStore.energyMonitors" :key="energyMonitor.id"
-            v-model="energyMonitorStore.energyMonitors[i]"
-            @edit="handleEdit"
-            @delete="handleDelete"
-          />
-        </template>
+        <EnergyMonitorRow
+          v-for="(energyMonitor, i) in energyMonitorStore.energyMonitors"
+          :key="energyMonitor.id"
+          v-model="energyMonitorStore.energyMonitors[i]"
+          :all-energy-sources="energySourceStore.energySources"
+          @edit="handleEdit"
+          @delete="handleDelete"
+        />
+
+        <tr v-if="energyMonitorStore.energyMonitors.length === 0">
+          <td colspan="4" class="text-center opacity-50">
+            No energy monitors configured yet
+          </td>
+        </tr>
 
         <tr>
           <th colspan="4" class="text-center">
@@ -125,10 +134,10 @@ const formatAdapterType = (type: string) => {
       <!-- foot -->
       <tfoot>
         <tr>
-          <th></th>
-          <th>Name / Adapter Type</th>
-          <th>External Service ID</th>
-          <th></th>
+          <th>Name</th>
+          <th>Adapter Type</th>
+          <th>External Service</th>
+          <th>Actions</th>
         </tr>
       </tfoot>
     </table>
@@ -147,28 +156,30 @@ const formatAdapterType = (type: string) => {
       >
         <template v-if="isEditing && editingEnergyMonitor">
           <!-- Name field -->
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">Name <span class="text-error">*</span></span>
-            </label>
+          <div class="space-y-1">
+            <div class="font-medium">
+              Name
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+            </div>
             <input
               v-model="editingEnergyMonitor.name"
               type="text"
               placeholder="Energy monitor name"
               required
-              class="input input-bordered"
+              class="input input-bordered input-sm w-full"
             />
           </div>
 
           <!-- Adapter Type dropdown -->
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">Adapter Type <span class="text-error">*</span></span>
-            </label>
+          <div class="space-y-1">
+            <div class="font-medium">
+              Adapter Type
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+            </div>
             <select
               v-model="editingEnergyMonitor.adapter_type"
               required
-              class="select select-bordered"
+              class="select select-bordered select-sm w-full"
               disabled
             >
               <option
@@ -179,29 +190,29 @@ const formatAdapterType = (type: string) => {
                 {{ formatAdapterType(adapterType) }}
               </option>
             </select>
+            <div class="text-sm italic opacity-70">
+              Adapter type cannot be changed after creation
+            </div>
           </div>
 
           <!-- External Service ID -->
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">External Service ID</span>
-            </label>
+          <div class="space-y-1">
+            <div class="font-medium">External Service ID</div>
             <input
               v-model="editingEnergyMonitor.external_service_id"
               type="text"
               placeholder="Optional service ID"
-              class="input input-bordered"
+              class="input input-bordered input-sm w-full"
             />
           </div>
 
           <!-- Dynamic Config Form -->
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text font-semibold">Configuration</span>
-            </label>
+          <div class="space-y-1">
+            <div class="font-medium">Configuration</div>
             <div class="border border-base-300 rounded-lg p-4">
               <EnergyMonitorConfigForm
-                v-model="editingEnergyMonitor.config!"
+                v-if="editingEnergyMonitor.config"
+                v-model="editingEnergyMonitor.config"
                 :adapter-type="editingEnergyMonitor.adapter_type"
               />
             </div>
@@ -210,28 +221,30 @@ const formatAdapterType = (type: string) => {
 
         <template v-else-if="newEnergyMonitor">
           <!-- Name field -->
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">Name <span class="text-error">*</span></span>
-            </label>
+          <div class="space-y-1">
+            <div class="font-medium">
+              Name
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+            </div>
             <input
               v-model="newEnergyMonitor.name"
               type="text"
               placeholder="Energy monitor name"
               required
-              class="input input-bordered"
+              class="input input-bordered input-sm w-full"
             />
           </div>
 
           <!-- Adapter Type dropdown -->
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">Adapter Type <span class="text-error">*</span></span>
-            </label>
+          <div class="space-y-1">
+            <div class="font-medium">
+              Adapter Type
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+            </div>
             <select
               v-model="newEnergyMonitor.adapter_type"
               required
-              class="select select-bordered"
+              class="select select-bordered select-sm w-full"
             >
               <option
                 v-for="adapterType in energyMonitorStore.adapterTypes"
@@ -241,29 +254,29 @@ const formatAdapterType = (type: string) => {
                 {{ formatAdapterType(adapterType) }}
               </option>
             </select>
+            <div class="text-sm italic opacity-70">
+              Select the type of energy monitor adapter
+            </div>
           </div>
 
           <!-- External Service ID -->
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">External Service ID</span>
-            </label>
+          <div class="space-y-1">
+            <div class="font-medium">External Service ID</div>
             <input
               v-model="newEnergyMonitor.external_service_id"
               type="text"
               placeholder="Optional service ID"
-              class="input input-bordered"
+              class="input input-bordered input-sm w-full"
             />
           </div>
 
           <!-- Dynamic Config Form -->
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text font-semibold">Configuration</span>
-            </label>
+          <div class="space-y-1">
+            <div class="font-medium">Configuration</div>
             <div class="border border-base-300 rounded-lg p-4">
               <EnergyMonitorConfigForm
-                v-model="newEnergyMonitor.config!"
+                v-if="newEnergyMonitor.config"
+                v-model="newEnergyMonitor.config"
                 :adapter-type="newEnergyMonitor.adapter_type"
               />
             </div>
