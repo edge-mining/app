@@ -106,6 +106,10 @@ function handleDelete() {
     </td>
 
     <td>
+      <div class="text-sm opacity-70">{{ assignedEnergySourcesText }}</div>
+    </td>
+
+    <td>
       <div v-if="model.external_service_id">
         <div class="text-sm opacity-50 flex items-center gap-1">
           <span
