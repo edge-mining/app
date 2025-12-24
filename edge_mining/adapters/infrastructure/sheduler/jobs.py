@@ -28,7 +28,7 @@ class AutomationScheduler(SchedulerPort):
 
     def _run_evaluation_job(self):
         """Wrapper to call the optimization service's run method."""
-        self.logger.info(f"Scheduler triggered. Running job: {self._job_id}.")
+        self.logger.debug(f"Scheduler triggered. Running job: {self._job_id}.")
         try:
             asyncio.run(self.optimization_service.run_all_enabled_units())
         except Exception as e:
@@ -38,7 +38,7 @@ class AutomationScheduler(SchedulerPort):
     async def start(self):
         """Adds the job and starts the scheduler."""
         interval = self.settings.scheduler_interval_seconds
-        self.logger.info(f"Starting scheduler. job |{self._job_id}| will run every {interval} seconds.")
+        self.logger.debug(f"Starting scheduler. job |{self._job_id}| will run every {interval} seconds.")
 
         self.scheduler.add_job(
             self._run_evaluation_job,
@@ -48,9 +48,9 @@ class AutomationScheduler(SchedulerPort):
             replace_existing=True,
         )
 
-        self.logger.info("Scheduler started.")
+        self.logger.debug("Scheduler started.")
         self.scheduler.start()
 
     def stop(self):
-        self.logger.info(f"Scheduler stopped. Job: {self._job_id}")
+        self.logger.debug(f"Scheduler stopped. Job: {self._job_id}")
         self.scheduler.shutdown()
