@@ -652,6 +652,12 @@ class ConfigurationServiceInterface(ABC):
     ) -> Optional[type[EnergyMonitorConfig]]:
         """Get the configuration class for a specific energy monitor adapter type."""
 
+    @abstractmethod
+    def get_energy_monitor_external_service_adapter(
+        self, adapter_type: EnergyMonitorAdapter
+    ) -> Optional[ExternalServiceAdapter]:
+        """Get the external service adapter type for a specific energy monitor adapter type."""
+
     # --- Forecast Provider Management ---
     @abstractmethod
     def create_forecast_provider(

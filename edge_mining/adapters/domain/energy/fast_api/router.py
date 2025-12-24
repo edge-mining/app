@@ -29,6 +29,7 @@ from edge_mining.domain.energy.exceptions import (
     EnergySourceConfigurationError,
     EnergySourceNotFoundError,
 )
+from edge_mining.shared.external_services.common import ExternalServiceAdapter
 from edge_mining.shared.interfaces.config import Configuration, EnergyMonitorConfig
 
 router = APIRouter()
@@ -264,6 +265,23 @@ async def get_energy_monitor_config_schema(
         return energy_monitor_config_schema.model_json_schema()
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get(
+    "/energy-monitors/types/{adapter_type}/external-services",
+    response_model=List[ExternalServiceAdapter],
+)
+async def get_energy_monitor_type_external_service_types(
+    adapter_type: EnergyMonitorAdapter,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+) -> Optional[ExternalServiceAdapter]:
+    """ "Get a list of compatible external service types for a specific energy monitor type."""
+    try:
+        needed_external_service = config_service.get_energy_monitor_external_service_adapter(adapter_type)
+
+        return needed_external_service
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
