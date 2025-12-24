@@ -1,17 +1,19 @@
 """Validation schemas for miner domain."""
 
+import ipaddress
 import uuid
 from typing import Dict, Optional, Union, cast
 
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
 from edge_mining.domain.common import EntityId, Watts
-from edge_mining.domain.miner.common import MinerControllerAdapter, MinerStatus
+from edge_mining.domain.miner.common import MinerControllerAdapter, MinerControllerProtocol, MinerStatus
 from edge_mining.domain.miner.entities import Miner, MinerController
 from edge_mining.domain.miner.value_objects import HashRate
 from edge_mining.shared.adapter_configs.miner import (
     MinerControllerDummyConfig,
     MinerControllerGenericSocketHomeAssistantAPIConfig,
+    MinerControllerPyASICConfig,
 )
 from edge_mining.shared.adapter_maps.miner import MINER_CONTROLLER_CONFIG_TYPE_MAP
 from edge_mining.shared.interfaces.config import MinerControllerConfig
@@ -27,7 +29,7 @@ class HashRateSchema(BaseModel):
     @classmethod
     def validate_unit(cls, v: str) -> str:
         """Validate hash rate unit."""
-        allowed_units = ["GH/s", "TH/s", "PH/s", "EH/s"]
+        allowed_units = ["GH/s", "TH/s", "PH/s", "EH/s", "H/s"]
         if v not in allowed_units:
             raise ValueError(f"Unit must be one of {allowed_units}")
         return v
@@ -99,16 +101,20 @@ class MinerSchema(BaseModel):
     @classmethod
     def from_model(cls, miner: Miner) -> "MinerSchema":
         """Create MinerSchema from a Miner domain model instance."""
+        hash_rate: Optional[HashRateSchema] = None
+        if miner.hash_rate:
+            hash_rate = HashRateSchema(value=miner.hash_rate.value, unit=miner.hash_rate.unit)
+
+        hash_rate_max: Optional[HashRateSchema] = None
+        if miner.hash_rate_max:
+            hash_rate_max = HashRateSchema(value=miner.hash_rate_max.value, unit=miner.hash_rate_max.unit)
+
         return cls(
             id=str(miner.id),
             name=miner.name,
             status=miner.status,
-            hash_rate=HashRateSchema(value=miner.hash_rate.value, unit=miner.hash_rate.unit)
-            if miner.hash_rate
-            else None,
-            hash_rate_max=HashRateSchema(value=miner.hash_rate_max.value, unit=miner.hash_rate_max.unit)
-            if miner.hash_rate_max
-            else None,
+            hash_rate=hash_rate,
+            hash_rate_max=hash_rate_max,
             power_consumption=miner.power_consumption,
             power_consumption_max=miner.power_consumption_max,
             active=miner.active,
@@ -523,10 +529,103 @@ class MinerControllerGenericSocketHomeAssistantAPIConfigSchema(BaseModel):
         validate_assignment = True
 
 
+class MinerControllerPyASICConfigSchema(BaseModel):
+    """Schema for MinerControllerPyASICConfig."""
+
+    ip: str = Field(..., description="IP address of the PyASIC miner")
+    port: Optional[int] = Field(
+        None, description="Port of the PyASIC miner (empty represents 'use the default miner port')"
+    )
+    username: Optional[str] = Field(
+        None, description="Username of the PyASIC miner (empty represents 'use the default miner username')"
+    )
+    password: Optional[str] = Field(
+        None, description="Password of the PyASIC miner (empty represents 'use the default miner password')"
+    )
+    protocol: Optional[MinerControllerProtocol] = Field(
+        default=MinerControllerProtocol.WEB, description="Protocol to use for connecting to the miner"
+    )
+
+    @field_validator("ip")
+    @classmethod
+    def validate_ip(cls, v: str) -> str:
+        """Validate that the value is a plausible IP address."""
+        v = v.strip()
+        if not v:
+            raise ValueError("IP address must be a non-empty string")
+        try:
+            ipaddress.ip_address(str(v))
+        except ValueError as e:
+            raise ValueError(f"Invalid IP address: {v}") from e
+        return v
+
+    @field_validator("port")
+    @classmethod
+    def validate_port(cls, v: Optional[int]) -> Optional[int]:
+        """Validate that the value is a plausible port number."""
+        if v is not None:
+            if not (0 < v < 65536):
+                raise ValueError("Port must be between 1 and 65535")
+        return v
+
+    @field_validator("username")
+    @classmethod
+    def validate_username(cls, v: Optional[str]) -> Optional[str]:
+        """Validate that the value is a plausible username."""
+        if v is not None:
+            v = v.strip()
+            if not v:
+                v = None
+        return v
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: Optional[str]) -> Optional[str]:
+        """Validate that the value is a plausible password."""
+        if v is not None:
+            v = v.strip()
+            if not v:
+                v = None
+        return v
+
+    @field_validator("protocol")
+    @classmethod
+    def validate_protocol(cls, v: str) -> MinerControllerProtocol:
+        """Validate that protocol is a recognized MinerControllerProtocol."""
+        protocol_values = [protocol.value for protocol in MinerControllerProtocol]
+        if v not in protocol_values:
+            raise ValueError(f"protocol must be one of {protocol_values}")
+        return MinerControllerProtocol(v)
+
+    def to_model(self) -> MinerControllerPyASICConfig:
+        """
+        Convert schema to MinerControllerPyASICConfig adapter configuration model instance.
+        """
+
+        return MinerControllerPyASICConfig(
+            ip=self.ip,
+            port=self.port,
+            username=self.username,
+            password=self.password,
+            protocol=self.protocol,
+        )
+
+    class Config:
+        """Pydantic configuration."""
+
+        use_enum_values = True
+        validate_assignment = True
+
+
 MINER_CONTROLLER_CONFIG_SCHEMA_MAP: Dict[
     type[MinerControllerConfig],
-    Union[type[MinerControllerDummyConfigSchema], type[MinerControllerGenericSocketHomeAssistantAPIConfigSchema]],
+    Union[
+        type[MinerControllerDummyConfigSchema],
+        type[MinerControllerGenericSocketHomeAssistantAPIConfigSchema],
+        type[MinerControllerPyASICConfigSchema],
+    ],
 ] = {
     MinerControllerDummyConfig: MinerControllerDummyConfigSchema,
     MinerControllerGenericSocketHomeAssistantAPIConfig: MinerControllerGenericSocketHomeAssistantAPIConfigSchema,
+    MinerControllerPyASICConfig: MinerControllerPyASICConfigSchema,
 }

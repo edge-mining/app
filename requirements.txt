@@ -1,5 +1,5 @@
 # Core Dependencies
-pydantic==2.8.2
+pydantic==2.11.0
 pyyaml==6.0.2
 pydantic-settings==2.8.1
 apscheduler==3.11.0
@@ -12,6 +12,7 @@ uvicorn[standard]==0.34.1
 
 # Optional - For specific Driven Adapters
 paho-mqtt==2.1.0
-homeassistant_api==5.0.0
+homeassistant_api==4.2.2.post1
 python-telegram-bot>=20.0
 astral==3.2
+pyasic==0.77.2

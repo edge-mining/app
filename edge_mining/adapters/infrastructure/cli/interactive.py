@@ -40,7 +40,7 @@ def interactive(ctx: click.Context):
         click.echo("")
         click.echo("7. Manage External Services")
         click.echo("")
-        click.echo("8. Run all optimization units)")
+        click.echo("8. Run all optimization units")
         click.echo("q. Close application")
         click.echo("--------------------------")
 
@@ -67,6 +67,7 @@ def interactive(ctx: click.Context):
         elif choice == "3":
             sub_choice = miner_menu(
                 configuration_service=services.configuration_service,
+                miner_action_service=services.miner_action_service,
                 logger=logger,
             )
 

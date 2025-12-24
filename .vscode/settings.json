@@ -54,6 +54,7 @@
         "sheduler",
         "satoshi",
         "hashrate",
-        "homeassistant"
+        "homeassistant",
+        "pyasic"
     ]
 }
