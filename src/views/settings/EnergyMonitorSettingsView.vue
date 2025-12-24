@@ -213,6 +213,7 @@ const formatAdapterType = (type: string) => {
         <tr>
           <th>Name</th>
           <th>Adapter Type</th>
+          <th>Assigned Energy Source</th>
           <th>External Service</th>
           <th>Actions</th>
         </tr>
@@ -246,6 +247,7 @@ const formatAdapterType = (type: string) => {
         <tr>
           <th>Name</th>
           <th>Adapter Type</th>
+          <th>Assigned Energy Source</th>
           <th>External Service</th>
           <th>Actions</th>
         </tr>
