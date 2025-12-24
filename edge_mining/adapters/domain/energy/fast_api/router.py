@@ -271,7 +271,7 @@ async def get_energy_monitor_config_schema(
 
 @router.get(
     "/energy-monitors/types/{adapter_type}/external-services",
-    response_model=List[ExternalServiceAdapter],
+    response_model=Optional[ExternalServiceAdapter],
 )
 async def get_energy_monitor_type_external_service_types(
     adapter_type: EnergyMonitorAdapter,
