@@ -2,12 +2,14 @@
 import { onMounted, ref } from "vue";
 import { useEnergyMonitorStore } from "../../core/stores/energyMonitorStore";
 import { useEnergySourceStore } from "../../core/stores/energySourceStore";
+import { useExternalServiceStore } from "../../core/stores/externalServiceStore";
 import EnergyMonitorRow from "../../components/energyMonitors/EnergyMonitorRow.vue";
 import type { EnergyMonitor } from "../../core/models/energyMonitor";
 import EnergyMonitorConfigForm from "../../components/energyMonitors/EnergyMonitorConfigForm.vue";
 
 const energyMonitorStore = useEnergyMonitorStore();
 const energySourceStore = useEnergySourceStore();
+const externalServiceStore = useExternalServiceStore();
 const newEnergyMonitor = ref<EnergyMonitor | undefined>(undefined);
 const editingEnergyMonitor = ref<EnergyMonitor | undefined>(undefined);
 const showModal = ref(false);
@@ -17,6 +19,7 @@ onMounted(() => {
   energyMonitorStore.loadEnergyMonitors();
   energyMonitorStore.loadAdapterTypes();
   energySourceStore.loadEnergySources();
+  externalServiceStore.loadExternalServices();
 });
 
 function cleanEnergyMonitor(energyMonitor: EnergyMonitor): EnergyMonitor {
@@ -197,13 +200,21 @@ const formatAdapterType = (type: string) => {
 
           <!-- External Service ID -->
           <div class="space-y-1">
-            <div class="font-medium">External Service ID</div>
-            <input
+            <div class="font-medium">External Service</div>
+            <select
               v-model="editingEnergyMonitor.external_service_id"
-              type="text"
-              placeholder="Optional service ID"
-              class="input input-bordered input-sm w-full"
-            />
+              class="select select-bordered select-sm w-full"
+            >
+              <option value="">-- None --</option>
+              <option
+                v-for="svc in externalServiceStore.externalServices"
+                :key="svc.id"
+                :value="svc.id"
+              >
+                {{ svc.name }}
+              </option>
+            </select>
+            <div class="text-sm italic opacity-70">Optional: select an external service</div>
           </div>
 
           <!-- Dynamic Config Form -->
@@ -261,13 +272,21 @@ const formatAdapterType = (type: string) => {
 
           <!-- External Service ID -->
           <div class="space-y-1">
-            <div class="font-medium">External Service ID</div>
-            <input
+            <div class="font-medium">External Service</div>
+            <select
               v-model="newEnergyMonitor.external_service_id"
-              type="text"
-              placeholder="Optional service ID"
-              class="input input-bordered input-sm w-full"
-            />
+              class="select select-bordered select-sm w-full"
+            >
+              <option value="">-- None --</option>
+              <option
+                v-for="svc in externalServiceStore.externalServices"
+                :key="svc.id"
+                :value="svc.id"
+              >
+                {{ svc.name }}
+              </option>
+            </select>
+            <div class="text-sm italic opacity-70">Optional: select an external service</div>
           </div>
 
           <!-- Dynamic Config Form -->
