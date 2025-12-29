@@ -213,3 +213,72 @@ class MinerActionService(MinerActionServiceInterface):
         self.miner_repo.update(miner)
 
         return current_status
+
+    async def sync_all_miners(self) -> None:
+        """Synchronizes the status of all miners from their controllers.
+
+        This method retrieves all miners from the repository and updates their
+        status by querying their respective controllers. Miners without a configured
+        controller or with errors are logged but do not block the synchronization
+        of other miners.
+
+        This is typically called during application startup to ensure the system
+        state reflects the actual hardware state.
+        """
+        if self.logger:
+            self.logger.info("Starting synchronization of all miners status...")
+
+        miners: List[Miner] = self.miner_repo.get_all()
+
+        if not miners:
+            if self.logger:
+                self.logger.warning("No miners found in the repository.")
+            return
+
+        synced_count = 0
+        error_count = 0
+
+        for miner in miners:
+            try:
+                if self.logger:
+                    self.logger.debug(f"Syncing status for miner {miner.id} ({miner.name})...")
+
+                # Get the miner controller from the adapter service
+                miner_controller = self.adapter_service.get_miner_controller(miner)
+
+                if not miner_controller:
+                    if self.logger:
+                        self.logger.warning(
+                            f"Miner controller for miner {miner.id} ({miner.name}) is not configured. Skipping."
+                        )
+                    error_count += 1
+                    continue
+
+                # Update miner status using controller
+                current_status = miner_controller.get_miner_status()
+                current_hashrate = miner_controller.get_miner_hashrate()
+                current_power = miner_controller.get_miner_power()
+                miner.update_status(current_status, current_hashrate, current_power)
+
+                # Persist the observed state
+                self.miner_repo.update(miner)
+
+                synced_count += 1
+
+                if self.logger:
+                    self.logger.debug(
+                        f"Miner {miner.id} ({miner.name}) synced: status={current_status.name}, "
+                        f"power={current_power}W, hashrate={current_hashrate}"
+                    )
+
+            except MinerControllerConfigurationError as e:
+                if self.logger:
+                    self.logger.warning(f"Configuration error for miner {miner.id} ({miner.name}): {e}")
+                error_count += 1
+            except Exception as e:
+                if self.logger:
+                    self.logger.error(f"Error syncing miner {miner.id} ({miner.name}): {e}")
+                error_count += 1
+
+        if self.logger:
+            self.logger.info(f"Miners status synchronization completed: {synced_count} synced, {error_count} errors.")
