@@ -35,6 +35,10 @@ export const useForecastProviderStore = defineStore("forecastProvider", () => {
     return service.deleteForecastProvider(providerId);
   }
 
+  function externalServices(adapterType: string) {
+    return service.getExternalServices(adapterType);
+  }
+
   return {
     //STATE
     forecastProviders,
@@ -45,5 +49,6 @@ export const useForecastProviderStore = defineStore("forecastProvider", () => {
     addForecastProvider,
     updateForecastProvider,
     deleteForecastProvider,
+    externalServices
   };
 });

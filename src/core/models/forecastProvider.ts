@@ -9,13 +9,22 @@ export interface ForecastProvider {
   name: string;
   adapter_type: ForecastProviderAdapter;
   config?: ForecastProviderConfig;
+  external_service_id?: string;
 }
 
 export interface ConfigSchemaProperty {
-  type: string;
-  title: string;
+  type?: string;
+  title?: string;
   description?: string;
   default?: any;
+  $ref?: string;
+  enum?: any[];
+  properties?: {
+    [key: string]: ConfigSchemaProperty;
+  };
+  minimum?: number;
+  maximum?: number;
+  required?: string[];
 }
 
 export interface ConfigSchema {
@@ -26,4 +35,7 @@ export interface ConfigSchema {
     [key: string]: ConfigSchemaProperty;
   };
   required?: string[];
+  $defs?: {
+    [key: string]: ConfigSchemaProperty;
+  };
 }
