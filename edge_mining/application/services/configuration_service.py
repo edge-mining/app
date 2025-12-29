@@ -63,7 +63,10 @@ from edge_mining.shared.adapter_maps.energy import (
     ENERGY_SOURCE_TYPE_FORECAST_PROVIDER_TYPE_MAP,
 )
 from edge_mining.shared.adapter_maps.external_services import EXTERNAL_SERVICE_CONFIG_TYPE_MAP
-from edge_mining.shared.adapter_maps.forecast import FORECAST_PROVIDER_TYPE_EXTERNAL_SERVICE_MAP
+from edge_mining.shared.adapter_maps.forecast import (
+    FORECAST_PROVIDER_CONFIG_TYPE_MAP,
+    FORECAST_PROVIDER_TYPE_EXTERNAL_SERVICE_MAP,
+)
 from edge_mining.shared.adapter_maps.miner import MINER_CONTROLLER_CONFIG_TYPE_MAP
 from edge_mining.shared.adapter_maps.notification import NOTIFIER_CONFIG_TYPE_MAP, NOTIFIER_TYPE_EXTERNAL_SERVICE_MAP
 from edge_mining.shared.external_services.common import ExternalServiceAdapter
@@ -744,6 +747,28 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         self.logger.debug(f"Forecast provider {provider.id} ({provider.name}) is valid.")
         return True
+
+    def get_forecast_provider_config_by_type(
+        self, adapter_type: ForecastProviderAdapter
+    ) -> Optional[type[ForecastProviderConfig]]:
+        """Get the configuration class for a specific forecast provider adapter type."""
+        self.logger.debug(f"Getting configuration for forecast provider adapter {adapter_type}")
+        if adapter_type not in FORECAST_PROVIDER_CONFIG_TYPE_MAP:
+            raise ForecastProviderConfigurationError(
+                f"Adapter type {adapter_type} is not supported for forecast provider configuration."
+            )
+        return FORECAST_PROVIDER_CONFIG_TYPE_MAP.get(adapter_type, None)
+
+    def get_forecast_provider_external_service_adapter(
+        self, adapter_type: ForecastProviderAdapter
+    ) -> Optional[ExternalServiceAdapter]:
+        """Get the external service adapter type for a specific forecast provider adapter type."""
+        self.logger.debug(f"Getting external service adapter for forecast provider adapter {adapter_type}")
+        if adapter_type not in FORECAST_PROVIDER_TYPE_EXTERNAL_SERVICE_MAP:
+            raise ForecastProviderConfigurationError(
+                f"Adapter type {adapter_type} is not supported for forecast provider configuration."
+            )
+        return FORECAST_PROVIDER_TYPE_EXTERNAL_SERVICE_MAP.get(adapter_type, None)
 
     # --- Optimization Unit Management ---
     def create_optimization_unit(

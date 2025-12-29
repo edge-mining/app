@@ -700,6 +700,18 @@ class ConfigurationServiceInterface(ABC):
     def check_forecast_provider(self, provider: ForecastProvider) -> bool:
         """Check if a forecast provider is valid and can be used."""
 
+    @abstractmethod
+    def get_forecast_provider_config_by_type(
+        self, adapter_type: ForecastProviderAdapter
+    ) -> Optional[type[ForecastProviderConfig]]:
+        """Get the configuration class for a specific forecast provider adapter type."""
+
+    @abstractmethod
+    def get_forecast_provider_external_service_adapter(
+        self, adapter_type: ForecastProviderAdapter
+    ) -> Optional[ExternalServiceAdapter]:
+        """Get the external service adapter type for a specific forecast provider adapter type."""
+
     # --- Settings Management ---
     @abstractmethod
     def get_all_settings(self) -> dict:
