@@ -5,6 +5,7 @@ import type {
 	ForecastProviderConfig,
 } from "../../core/models/forecastProvider";
 import { ForecastProviderService } from "../../core/services/forecastProviderService";
+import { PhEye, PhEyeSlash } from "@phosphor-icons/vue";
 
 const props = defineProps<{
 	adapterType: string;
