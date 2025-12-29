@@ -632,7 +632,7 @@ class ConfigurationService(ConfigurationServiceInterface):
     ) -> Optional[ExternalServiceAdapter]:
         """Get the external service adapter type for a specific energy monitor adapter type."""
         self.logger.debug(f"Getting external service adapter for energy monitor adapter {adapter_type}")
-        if adapter_type not in ENERGY_MONITOR_CONFIG_TYPE_MAP:
+        if adapter_type not in ENERGY_MONITOR_TYPE_EXTERNAL_SERVICE_MAP:
             raise EnergyMonitorConfigurationError(
                 f"Adapter type {adapter_type} is not supported for energy monitor configuration."
             )
