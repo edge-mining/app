@@ -3,9 +3,9 @@ Collection of adapters configuration for the miner domain
 of the Edge Mining application.
 """
 
-from enum import Enum
 import ipaddress
 from dataclasses import asdict, dataclass, field
+from enum import Enum
 from typing import Optional
 
 from edge_mining.domain.miner.common import MinerControllerAdapter, MinerControllerProtocol
@@ -92,7 +92,7 @@ class MinerControllerPyASICConfig(MinerControllerConfig):
     port: Optional[int] = field(default=None)  # None represents "use the default"
     username: Optional[str] = field(default=None)  # None represents "use the default"
     password: Optional[str] = field(default=None)  # None represents "use the default"
-    protocol: MinerControllerProtocol = field(default=MinerControllerProtocol.WEB)
+    protocol: Optional[MinerControllerProtocol] = field(default=MinerControllerProtocol.WEB)
 
     def is_valid(self, adapter_type: MinerControllerAdapter) -> bool:
         """
@@ -123,7 +123,12 @@ class MinerControllerPyASICConfig(MinerControllerConfig):
         protocol = MinerControllerProtocol.WEB
         if "protocol" in data:
             protocol_value = data.get("protocol")
-            protocol = MinerControllerProtocol(protocol_value)
+            if protocol_value:
+                # Check if the protocol value is a known miner controller protocol
+                is_known_protocol = any(
+                    protocol_value == protocol_member.value for protocol_member in MinerControllerProtocol
+                )
+                protocol = MinerControllerProtocol(protocol_value) if is_known_protocol else MinerControllerProtocol.WEB
 
         return MinerControllerPyASICConfig(
             ip=data.get("ip", "192.168.1.100"),

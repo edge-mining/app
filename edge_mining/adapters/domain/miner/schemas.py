@@ -29,7 +29,7 @@ class HashRateSchema(BaseModel):
     @classmethod
     def validate_unit(cls, v: str) -> str:
         """Validate hash rate unit."""
-        allowed_units = ["GH/s", "TH/s", "PH/s", "EH/s"]
+        allowed_units = ["H/s", "MH/s", "GH/s", "TH/s", "PH/s", "EH/s"]
         if v not in allowed_units:
             raise ValueError(f"Unit must be one of {allowed_units}")
         return v
@@ -542,7 +542,7 @@ class MinerControllerPyASICConfigSchema(BaseModel):
     password: Optional[str] = Field(
         None, description="Password of the PyASIC miner (empty represents 'use the default miner password')"
     )
-    protocol: MinerControllerProtocol = Field(
+    protocol: Optional[MinerControllerProtocol] = Field(
         default=MinerControllerProtocol.WEB, description="Protocol to use for connecting to the miner"
     )
 
@@ -570,20 +570,22 @@ class MinerControllerPyASICConfigSchema(BaseModel):
 
     @field_validator("username")
     @classmethod
-    def validate_username(cls, v: str) -> str:
+    def validate_username(cls, v: Optional[str]) -> Optional[str]:
         """Validate that the value is a plausible username."""
-        v = v.strip()
-        if not v:
-            v = None
+        if v is not None:
+            v = v.strip()
+            if not v:
+                v = None
         return v
 
     @field_validator("password")
     @classmethod
-    def validate_password(cls, v: str) -> str:
+    def validate_password(cls, v: Optional[str]) -> Optional[str]:
         """Validate that the value is a plausible password."""
-        v = v.strip()
-        if not v:
-            v = None
+        if v is not None:
+            v = v.strip()
+            if not v:
+                v = None
         return v
 
     @field_validator("protocol")

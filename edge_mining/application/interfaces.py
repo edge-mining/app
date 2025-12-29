@@ -133,6 +133,10 @@ class MinerActionServiceInterface(ABC):
     def get_miner_hashrate(self, miner_id: EntityId) -> Optional[HashRate]:
         """Gets the current hash rate of the specified miner."""
 
+    @abstractmethod
+    async def get_miner_status(self, miner_id: EntityId) -> Optional[MinerStatus]:
+        """Gets the current status of the specified miner."""
+
 
 class ConfigurationServiceInterface(ABC):
     """Base interface for configuration services in the Edge Mining application."""
@@ -647,6 +651,12 @@ class ConfigurationServiceInterface(ABC):
         self, adapter_type: EnergyMonitorAdapter
     ) -> Optional[type[EnergyMonitorConfig]]:
         """Get the configuration class for a specific energy monitor adapter type."""
+
+    @abstractmethod
+    def get_energy_monitor_external_service_adapter(
+        self, adapter_type: EnergyMonitorAdapter
+    ) -> Optional[ExternalServiceAdapter]:
+        """Get the external service adapter type for a specific energy monitor adapter type."""
 
     # --- Forecast Provider Management ---
     @abstractmethod

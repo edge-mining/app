@@ -3,7 +3,7 @@ pyasic adapter (Implementation of Port)
 that controls a miner via pyasic.
 """
 
-from typing import Dict, Optional, cast
+from typing import Dict, Optional, Tuple, cast
 
 import pyasic
 from pyasic import AnyMiner
@@ -163,7 +163,11 @@ class PyASICMinerController(MinerControlPort):
             if self.logger:
                 self.logger.debug(f"Failed to fetch hashrate from {self.ip}...")
             return None
-        real_hashrate = HashRate(value=float(hashrate), unit=str(hashrate.unit))
+        normalized_value, normalized_unit = self._normalize_hashrate_unit(
+            value=float(hashrate),
+            unit=str(hashrate.unit),
+        )
+        real_hashrate = HashRate(value=normalized_value, unit=normalized_unit)
 
         if self.logger:
             self.logger.debug(f"Hashrate fetched: {real_hashrate}")
@@ -291,3 +295,55 @@ class PyASICMinerController(MinerControlPort):
             miner_status = MinerStatus.OFF
 
         return miner_status
+
+    def _normalize_hashrate_unit(
+        self,
+        value: float,
+        unit: str,
+        reference_unit: Optional[str] = None,
+        decimals: int = 2,
+    ) -> Tuple[float, str]:
+        """Normalize a hashrate to the most suitable unit.
+
+        If `reference_unit` is provided and recognized, the value is converted to that unit.
+        Otherwise, it will be scaled to a human-friendly unit (e.g. 1000 H/s -> 1 KH/s).
+        """
+
+        unit = unit.strip()
+        reference_unit = reference_unit.strip() if reference_unit else None
+
+        # Decimal scaling is used for hashrates (k=1000).
+        factors_to_hs = {
+            "H/s": 1.0,
+            "KH/s": 1e3,
+            "MH/s": 1e6,
+            "GH/s": 1e9,
+            "TH/s": 1e12,
+            "PH/s": 1e15,
+            "EH/s": 1e18,
+        }
+
+        if unit not in factors_to_hs:
+            return (round(value, decimals) if decimals is not None else value), unit
+
+        # Convert input to H/s
+        value_hs = value * factors_to_hs[unit]
+
+        # Convert to a specific reference unit if requested
+        if reference_unit and reference_unit in factors_to_hs:
+            converted = value_hs / factors_to_hs[reference_unit]
+            return (round(converted, decimals) if decimals is not None else converted), reference_unit
+
+        # Choose the most suitable unit (keep value in [1, 1000) when possible)
+        ordered_units = ["H/s", "KH/s", "MH/s", "GH/s", "TH/s", "PH/s", "EH/s"]
+        abs_value_hs = abs(value_hs)
+        chosen_unit = "H/s"
+
+        for candidate_unit in ordered_units:
+            candidate_value = abs_value_hs / factors_to_hs[candidate_unit]
+            chosen_unit = candidate_unit
+            if candidate_value < 1000:
+                break
+
+        converted = value_hs / factors_to_hs[chosen_unit]
+        return (round(converted, decimals) if decimals is not None else converted), chosen_unit
