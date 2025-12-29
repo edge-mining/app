@@ -213,23 +213,22 @@ class PyASICMinerController(MinerControlPort):
                 self.logger.error(f"Failed to retrieve miner instance from {self.ip}...")
             return MinerStatus.UNKNOWN
 
-        # Due to a bug into PyASIC that affects miner status retrieval for miners with BOS firmware
-        # that use old RPC protocol, we derive the status based on hashrate and power consumption.
-        if self.protocol == MinerControllerProtocol.RPC:
+        miner = self._miner
+        mining_state = run_async_func(miner.is_mining())
+
+        # If miner status is not provided, we can try to derive it
+        if mining_state is None:
             if self.logger:
-                self.logger.debug("Deriving miner status due to BOS firmware with RPC protocol...")
-            miner_status = self._derive_miner_status()
-        else:
-            miner = self._miner
-            mining_state = run_async_func(miner.is_mining())
+                self.logger.debug("Mining state is not provided, deriving miner status...")
+            mining_state = self._derive_miner_status()
 
-            state_map: Dict[Optional[bool], MinerStatus] = {
-                True: MinerStatus.ON,
-                False: MinerStatus.OFF,
-                None: MinerStatus.UNKNOWN,
-            }
+        state_map: Dict[Optional[bool], MinerStatus] = {
+            True: MinerStatus.ON,
+            False: MinerStatus.OFF,
+            None: MinerStatus.UNKNOWN,
+        }
 
-            miner_status = state_map.get(mining_state, MinerStatus.UNKNOWN)
+        miner_status = state_map.get(mining_state, MinerStatus.UNKNOWN)
 
         if self.logger:
             self.logger.debug(f"Miner status fetched: {miner_status}")
