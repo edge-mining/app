@@ -28,7 +28,7 @@ const externalService = computed(() => {
 const assignedEnergySources = computed(() => {
   if (!props.allEnergySources || !model.value.id) return [];
   return props.allEnergySources
-    .filter((es) => es.energy_monitor_id === model.value.id)
+    .filter((es) => es.forecast_provider_id === model.value.id)
     .map((es) => es.name);
 });
 
