@@ -174,7 +174,7 @@ const isPasswordField = (fieldName: string): boolean => {
 	<div v-if="loading" class="flex items-center justify-center p-4">
 		<span class="loading loading-spinner loading-md"></span>
 	</div>
-	<div v-else-if="schema && schema.properties" class="flex flex-col gap-4">
+	<div v-else-if="schema && schema.properties" class="flex flex-col gap-3">
 		<div
 			v-for="(property, fieldName) in schema.properties"
 			:key="fieldName"

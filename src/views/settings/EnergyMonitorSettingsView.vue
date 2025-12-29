@@ -229,13 +229,13 @@ const formatAdapterType = (type: string) => {
         />
 
         <tr v-if="energyMonitorStore.energyMonitors.length === 0">
-          <td colspan="4" class="text-center opacity-50">
+          <td colspan="5" class="text-center opacity-50">
             No energy monitors configured yet
           </td>
         </tr>
 
         <tr>
-          <th colspan="4" class="text-center">
+          <th colspan="5" class="text-center">
             <button class="btn btn-primary" @click="addEnergyMonitor">
               Add Energy Monitor
             </button>

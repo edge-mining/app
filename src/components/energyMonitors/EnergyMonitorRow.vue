@@ -6,7 +6,7 @@ import { useExternalServiceStore } from "../../core/stores/externalServiceStore"
 import { PhHash, PhPencil, PhTrash } from "@phosphor-icons/vue";
 
 const model = defineModel<EnergyMonitor>({ required: true });
-  const props = defineProps<{
+const props = defineProps<{
   allEnergySources?: EnergySource[];
 }>();
 const emit = defineEmits<{
