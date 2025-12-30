@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { useExternalServiceStore } from "../../core/stores/externalServiceStore";
+import { useEnergyMonitorStore } from "../../core/stores/energyMonitorStore";
+import { useForecastProviderStore } from "../../core/stores/forecastProviderStore";
+import { useMinerControllerStore } from "../../core/stores/minerControllerStore";
 import ExternalServiceRow from "../../components/externalServices/ExternalServiceRow.vue";
 import type { ExternalService } from "../../core/models/externalService";
 import ExternalServiceConfigForm from "../../components/externalServices/ExternalServiceConfigForm.vue";
 
 const externalServiceStore = useExternalServiceStore();
+const energyMonitorStore = useEnergyMonitorStore();
+const forecastProviderStore = useForecastProviderStore();
+const minerControllerStore = useMinerControllerStore();
 const newExternalService = ref<ExternalService | undefined>(undefined);
 const editingExternalService = ref<ExternalService | undefined>(undefined);
 const showModal = ref(false);
@@ -14,6 +20,9 @@ const isEditing = ref(false);
 onMounted(() => {
   externalServiceStore.loadExternalServices();
   externalServiceStore.loadAdapterTypes();
+  energyMonitorStore.loadEnergyMonitors();
+  forecastProviderStore.loadForecastProviders();
+  minerControllerStore.loadMinerControllers();
 });
 
 function cleanExternalService(externalService: ExternalService): ExternalService {
@@ -94,10 +103,12 @@ const formatAdapterType = (type: string) => {
       <!-- head -->
       <thead>
         <tr>
-          <th></th>
-          <th>Name / Adapter Type</th>
-          <th>ID</th>
-          <th></th>
+          <th>Name</th>
+          <th>Adapter Type</th>
+          <th>Assigned Energy Monitors</th>
+          <th>Assigned Forecast Providers</th>
+          <th>Assigned Miner Controllers</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -105,12 +116,21 @@ const formatAdapterType = (type: string) => {
           v-for="(externalService, i) in externalServiceStore.externalServices"
           :key="externalService.id"
           v-model="externalServiceStore.externalServices[i]"
+          :all-energy-monitors="energyMonitorStore.energyMonitors"
+          :all-forecast-providers="forecastProviderStore.forecastProviders"
+          :all-miner-controllers="minerControllerStore.minerControllers"
           @edit="handleEdit"
           @delete="handleDelete"
         />
 
+        <tr v-if="externalServiceStore.externalServices.length === 0">
+          <td colspan="6" class="text-center opacity-50">
+            No external services configured yet
+          </td>
+        </tr>
+
         <tr>
-          <th colspan="4" class="text-center">
+          <th colspan="6" class="text-center">
             <button class="btn btn-primary" @click="addExternalService">
               Add External Service
             </button>
@@ -120,10 +140,12 @@ const formatAdapterType = (type: string) => {
       <!-- foot -->
       <tfoot>
         <tr>
-          <th></th>
-          <th>Name / Adapter Type</th>
-          <th>ID</th>
-          <th></th>
+          <th>Name</th>
+          <th>Adapter Type</th>
+          <th>Assigned Energy Monitors</th>
+          <th>Assigned Forecast Providers</th>
+          <th>Assigned Miner Controllers</th>
+          <th>Actions</th>
         </tr>
       </tfoot>
     </table>
@@ -142,28 +164,30 @@ const formatAdapterType = (type: string) => {
       >
         <template v-if="isEditing && editingExternalService">
           <!-- Name field -->
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">Name <span class="text-error">*</span></span>
-            </label>
+          <div class="space-y-1">
+            <div class="font-medium">
+              Name
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+            </div>
             <input
               v-model="editingExternalService.name"
               type="text"
               placeholder="External service name"
               required
-              class="input input-bordered"
+              class="input input-bordered input-sm w-full"
             />
           </div>
 
           <!-- Adapter Type dropdown -->
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">Adapter Type <span class="text-error">*</span></span>
-            </label>
+          <div class="space-y-1">
+            <div class="font-medium">
+              Adapter Type
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+            </div>
             <select
               v-model="editingExternalService.adapter_type"
               required
-              class="select select-bordered"
+              class="select select-bordered select-sm w-full"
               disabled
             >
               <option
@@ -174,16 +198,18 @@ const formatAdapterType = (type: string) => {
                 {{ formatAdapterType(adapterType) }}
               </option>
             </select>
+            <div class="text-sm italic opacity-70">
+              Adapter type cannot be changed after creation
+            </div>
           </div>
 
           <!-- Dynamic Config Form -->
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text font-semibold">Configuration</span>
-            </label>
+          <div class="space-y-1">
+            <div class="font-medium">Configuration</div>
             <div class="border border-base-300 rounded-lg p-4">
               <ExternalServiceConfigForm
-                v-model="editingExternalService.config!"
+                v-if="editingExternalService.config"
+                v-model="editingExternalService.config"
                 :adapter-type="editingExternalService.adapter_type"
               />
             </div>
@@ -192,28 +218,30 @@ const formatAdapterType = (type: string) => {
 
         <template v-else-if="newExternalService">
           <!-- Name field -->
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">Name <span class="text-error">*</span></span>
-            </label>
+          <div class="space-y-1">
+            <div class="font-medium">
+              Name
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+            </div>
             <input
               v-model="newExternalService.name"
               type="text"
               placeholder="External service name"
               required
-              class="input input-bordered"
+              class="input input-bordered input-sm w-full"
             />
           </div>
 
           <!-- Adapter Type dropdown -->
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">Adapter Type <span class="text-error">*</span></span>
-            </label>
+          <div class="space-y-1">
+            <div class="font-medium">
+              Adapter Type
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+            </div>
             <select
               v-model="newExternalService.adapter_type"
               required
-              class="select select-bordered"
+              class="select select-bordered select-sm w-full"
             >
               <option
                 v-for="adapterType in externalServiceStore.adapterTypes"
@@ -223,16 +251,18 @@ const formatAdapterType = (type: string) => {
                 {{ formatAdapterType(adapterType) }}
               </option>
             </select>
+            <div class="text-sm italic opacity-70">
+              Select the type of external service adapter
+            </div>
           </div>
 
           <!-- Dynamic Config Form -->
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text font-semibold">Configuration</span>
-            </label>
+          <div class="space-y-1">
+            <div class="font-medium">Configuration</div>
             <div class="border border-base-300 rounded-lg p-4">
               <ExternalServiceConfigForm
-                v-model="newExternalService.config!"
+                v-if="newExternalService.config"
+                v-model="newExternalService.config"
                 :adapter-type="newExternalService.adapter_type"
               />
             </div>
