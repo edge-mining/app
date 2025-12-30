@@ -97,7 +97,7 @@ function handleDelete() {
     <td>
       <div v-if="model.nominal_power_max" class="text-xl">
         <span>{{ model.nominal_power_max }}</span>
-        <span class="ml-1 text-xs opacity-70 align-baseline">W</span>
+        <span class="ml-1 text-xs opacity-70 align-baseline">Watts</span>
       </div>
       <div v-else class="text-xl">
         <span>-</span>
