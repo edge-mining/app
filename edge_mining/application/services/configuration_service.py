@@ -1594,6 +1594,17 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         return NOTIFIER_CONFIG_TYPE_MAP.get(adapter_type, None)
 
+    def get_notifier_external_service_adapter(
+        self, adapter_type: NotificationAdapter
+    ) -> Optional[ExternalServiceAdapter]:
+        """Get the external service adapter type for a specific notification adapter type."""
+        self.logger.debug(f"Getting external service adapter for notifier adapter {adapter_type}")
+        if adapter_type not in NOTIFIER_TYPE_EXTERNAL_SERVICE_MAP:
+            raise NotifierConfigurationError(
+                f"Adapter type {adapter_type} is not supported for notifier external service mapping."
+            )
+        return NOTIFIER_TYPE_EXTERNAL_SERVICE_MAP.get(adapter_type, None)
+
     # --- Policy Management ---
     def create_policy(self, name: str, description: str = "") -> OptimizationPolicy:
         """Create a new policy."""

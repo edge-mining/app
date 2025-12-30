@@ -29,6 +29,7 @@ from edge_mining.domain.notification.exceptions import (
     NotifierConfigurationError,
     NotifierNotFoundError,
 )
+from edge_mining.shared.external_services.common import ExternalServiceAdapter
 from edge_mining.shared.interfaces.config import Configuration, NotificationConfig
 
 router = APIRouter()
@@ -94,6 +95,23 @@ async def get_notifier_config_schema(
         return notifier_config_schema.model_json_schema()
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get(
+    "/notifiers/types/{adapter_type}/external-services",
+    response_model=Optional[ExternalServiceAdapter],
+)
+async def get_notifier_type_external_service_types(
+    adapter_type: NotificationAdapter,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+) -> Optional[ExternalServiceAdapter]:
+    """ "Get a list of compatible external service types for a specific energy monitor type."""
+    try:
+        needed_external_service = config_service.get_notifier_external_service_adapter(adapter_type)
+
+        return needed_external_service
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 

@@ -293,6 +293,12 @@ class ConfigurationServiceInterface(ABC):
     def get_notifier_config_by_type(self, adapter_type: NotificationAdapter) -> Optional[type[NotificationConfig]]:
         """Get the configuration class for a specific notifier adapter type."""
 
+    @abstractmethod
+    def get_notifier_external_service_adapter(
+        self, adapter_type: NotificationAdapter
+    ) -> Optional[ExternalServiceAdapter]:
+        """Get the external service adapter type for a specific notification adapter type."""
+
     # --- Policy Management ---
     @abstractmethod
     def create_policy(self, name: str, description: str = "") -> OptimizationPolicy:
