@@ -242,9 +242,12 @@ async def test_notifier(
         # Send a test notification
         test_title = "Test Notification"
         test_message = "This is a test notification from Edge Mining System"
-        await notifier_port.send_notification(test_title, test_message)
+        send_status = await notifier_port.send_notification(test_title, test_message)
 
-        return {"status": "success", "message": "Test notification sent successfully"}
+        status_string = "success" if send_status else "failed"
+        message_string = "Test notification sent successfully" if send_status else "Failed to send test notification"
+
+        return {"status": status_string, "message": message_string}
     except NotifierNotFoundError as e:
         raise HTTPException(status_code=404, detail="Notifier not found") from e
     except Exception as e:
