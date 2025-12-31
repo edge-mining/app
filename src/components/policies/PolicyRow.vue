@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { ref } from "vue";
 import type { Policy } from "../../core/models/policy";
+import { PhHash, PhPencil, PhTrash } from "@phosphor-icons/vue";
 
 const model = defineModel<Policy>({ required: true });
 const emit = defineEmits<{
@@ -8,6 +10,31 @@ const emit = defineEmits<{
   manageRules: [policy: Policy];
   check: [policy: Policy];
 }>();
+
+const optimizationPolicyTip = ref<string | null>(null);
+
+async function copyToClipboard(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const el = document.createElement("textarea");
+    el.value = text;
+    el.style.position = "fixed";
+    el.style.left = "-9999px";
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand("copy");
+    document.body.removeChild(el);
+  }
+}
+
+function flashTip(target: "policy", original: string) {
+  const tipRef = optimizationPolicyTip;
+  tipRef.value = "Copied!";
+  window.setTimeout(() => {
+    tipRef.value = original;
+  }, 1200);
+}
 
 function handleEdit() {
   emit("edit", model.value);
@@ -30,23 +57,33 @@ function handleCheck() {
 <template>
   <tr>
     <th>
-      <label>
-        <input type="checkbox" class="checkbox" />
-      </label>
-    </th>
-    <td>
       <div class="flex items-center gap-3">
         <div>
-          <div class="text-xl">{{ model.name }}</div>
+          <div class="text-xl flex items-center gap-1">
+            <span
+              v-if="model.id != null"
+              class="tooltip tooltip-right id-tooltip"
+              :data-tip="optimizationPolicyTip ?? `ID: ${model.id}`"
+            >
+              <span
+                role="button"
+                tabindex="0"
+                class="inline-flex cursor-pointer select-none opacity-70 hover:opacity-100"
+                title="Copy optimization policy ID"
+                aria-label="Copy optimization policy ID"
+                @click.stop="copyToClipboard(String(model.id)); flashTip('policy', `ID: ${model.id}`)"
+                @keydown.enter.stop.prevent="copyToClipboard(String(model.id)); flashTip('policy', `ID: ${model.id}`)"
+                @keydown.space.stop.prevent="copyToClipboard(String(model.id)); flashTip('policy', `ID: ${model.id}`)"
+              >
+                <PhHash class="size-3" />
+              </span>
+            </span>
+            <span>{{ model.name }}</span>
+          </div>
           <div class="text-sm opacity-50">{{ model.description || 'No description' }}</div>
         </div>
       </div>
-    </td>
-    <td>
-      <div class="text-sm opacity-70">
-        {{ model.id ?? "-" }}
-      </div>
-    </td>
+    </th>
     <td>
       <span
         :class="[
@@ -70,12 +107,8 @@ function handleCheck() {
         <button class="btn btn-sm btn-info" @click="handleCheck" title="Check policy validity">
           Check
         </button>
-        <button class="btn btn-sm btn-primary" @click="handleEdit" title="Edit policy">
-          Edit
-        </button>
-        <button class="btn btn-sm btn-error" @click="handleDelete" title="Delete policy">
-          Delete
-        </button>
+        <button class="btn btn-sm btn-primary" @click="handleEdit" title="Edit optimization policy"><PhPencil :size="15" /></button>
+        <button class="btn btn-sm btn-error" @click="handleDelete" title="Delete optimization policy"><PhTrash :size="15" /></button>
       </div>
     </th>
   </tr>

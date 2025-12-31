@@ -202,12 +202,10 @@ function handleToggleRuleEnabled(rule: PolicyRule) {
     <table class="table">
       <thead>
         <tr>
-          <th></th>
           <th>Name / Description</th>
-          <th>ID</th>
           <th>Status</th>
           <th>Rules</th>
-          <th></th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -222,7 +220,7 @@ function handleToggleRuleEnabled(rule: PolicyRule) {
         />
 
         <tr>
-          <th colspan="6" class="text-center">
+          <th colspan="4" class="text-center">
             <button class="btn btn-primary" @click="addPolicy">
               Add Policy
             </button>
@@ -231,12 +229,10 @@ function handleToggleRuleEnabled(rule: PolicyRule) {
       </tbody>
       <tfoot>
         <tr>
-          <th></th>
           <th>Name / Description</th>
-          <th>ID</th>
           <th>Status</th>
           <th>Rules</th>
-          <th></th>
+          <th>Actions</th>
         </tr>
       </tfoot>
     </table>
