@@ -9,6 +9,7 @@ export interface Notifier {
   name: string;
   adapter_type: NotifierAdapter;
   config?: NotifierConfig;
+  external_service_id?: string;
 }
 
 export interface ConfigSchemaProperty {
@@ -29,6 +30,6 @@ export interface ConfigSchema {
 }
 
 export interface TestNotifierResult {
-  success: boolean;
+  status: string;
   message?: string;
 }

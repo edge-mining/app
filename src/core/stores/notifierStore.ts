@@ -47,6 +47,10 @@ export const useNotifierStore = defineStore("notifier", () => {
     return service.testNotifier(notifierId);
   }
 
+  function externalServices(adapterType: string) {
+    return service.getExternalServices(adapterType);
+  }
+
   return {
     // STATE
     notifiers,
@@ -60,5 +64,6 @@ export const useNotifierStore = defineStore("notifier", () => {
     updateNotifier,
     deleteNotifier,
     testNotifier,
+    externalServices,
   };
 });

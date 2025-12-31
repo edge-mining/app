@@ -33,4 +33,8 @@ export class NotifierService extends BaseService {
   testNotifier(notifierId: string): Promise<TestNotifierResult> {
     return this.post<TestNotifierResult>(`/notifiers/${notifierId}/test`, {}).getData();
   }
+
+  getExternalServices(adapterType: string): Promise<string | null> {
+    return this.get<string | null>(`/notifiers/types/${adapterType}/external-services`).getData();
+  }
 }
