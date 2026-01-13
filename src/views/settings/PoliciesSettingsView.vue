@@ -4,6 +4,7 @@ import { usePolicyStore } from "../../core/stores/policyStore";
 import PolicyRow from "../../components/policies/PolicyRow.vue";
 import PolicyRuleRow from "../../components/policies/PolicyRuleRow.vue";
 import type { OptimizationPolicy, AutomationRule, PolicyCheckResult } from "../../core/models/policy";
+import { PhPlay, PhStop } from "@phosphor-icons/vue";
 
 const policyStore = usePolicyStore();
 
@@ -20,6 +21,8 @@ const editingRule = ref<AutomationRule | undefined>(undefined);
 const showRulesModal = ref(false);
 const showRuleEditModal = ref(false);
 const isEditingRule = ref(false);
+const activeRuleTab = ref<'start' | 'stop'>('start');
+const currentRuleType = ref<'start' | 'stop'>('start');
 
 // Check result modal state
 const showCheckModal = ref(false);
@@ -108,6 +111,7 @@ function closeRulesModal() {
 }
 
 function addRule() {
+  currentRuleType.value = activeRuleTab.value;
   newRule.value = {
     id: "",
     name: "",
@@ -120,7 +124,8 @@ function addRule() {
   showRuleEditModal.value = true;
 }
 
-function handleEditRule(rule: AutomationRule) {
+function handleEditRule(rule: AutomationRule, ruleType: 'start' | 'stop') {
+  currentRuleType.value = ruleType;
   editingRule.value = { ...rule };
   isEditingRule.value = true;
   showRuleEditModal.value = true;
@@ -135,7 +140,7 @@ function cancelRuleModal() {
 
 function confirmAddRule() {
   if (!newRule.value || !selectedPolicy.value) return;
-  policyStore.addRule(selectedPolicy.value.id!.toString(), newRule.value).then(() => {
+  policyStore.addRule(selectedPolicy.value.id!.toString(), currentRuleType.value, newRule.value).then(() => {
     // Reload the policy to get updated rules
     policyStore.loadPolicy(selectedPolicy.value!.id!.toString()).then((updatedPolicy) => {
       selectedPolicy.value = updatedPolicy;
@@ -151,6 +156,7 @@ function confirmEditRule() {
   policyStore
     .updateRule(
       selectedPolicy.value.id!.toString(),
+      currentRuleType.value,
       editingRule.value.id!.toString(),
       editingRule.value
     )
@@ -165,10 +171,10 @@ function confirmEditRule() {
     });
 }
 
-function handleDeleteRule(rule: AutomationRule) {
+function handleDeleteRule(rule: AutomationRule, ruleType: 'start' | 'stop') {
   if (!selectedPolicy.value) return;
   policyStore
-    .deleteRule(selectedPolicy.value.id!.toString(), rule.id!.toString())
+    .deleteRule(selectedPolicy.value.id!.toString(), ruleType, rule.id!.toString())
     .then(() => {
       policyStore.loadPolicy(selectedPolicy.value!.id!.toString()).then((updatedPolicy) => {
         selectedPolicy.value = updatedPolicy;
@@ -177,14 +183,14 @@ function handleDeleteRule(rule: AutomationRule) {
     });
 }
 
-function handleToggleRuleEnabled(rule: AutomationRule) {
+function handleToggleRuleEnabled(rule: AutomationRule, ruleType: 'start' | 'stop') {
   if (!selectedPolicy.value) return;
   const policyId = selectedPolicy.value.id!.toString();
   const ruleId = rule.id!.toString();
 
   const action = rule.enabled
-    ? policyStore.disableRule(policyId, ruleId)
-    : policyStore.enableRule(policyId, ruleId);
+    ? policyStore.disableRule(policyId, ruleType, ruleId)
+    : policyStore.enableRule(policyId, ruleType, ruleId);
 
   action.then(() => {
     policyStore.loadPolicy(policyId).then((updatedPolicy) => {
@@ -196,15 +202,15 @@ function handleToggleRuleEnabled(rule: AutomationRule) {
 </script>
 
 <template>
-  <h1 class="text-3xl font-bold">Policy Settings</h1>
+  <h1 class="text-3xl font-bold">Optimization Policy Settings</h1>
 
   <div class="overflow-x-auto">
     <table class="table">
       <thead>
         <tr>
           <th>Name / Description</th>
-          <th>Status</th>
-          <th>Rules</th>
+          <th>Start Rules</th>
+          <th>Stop Rules</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -230,8 +236,8 @@ function handleToggleRuleEnabled(rule: AutomationRule) {
       <tfoot>
         <tr>
           <th>Name / Description</th>
-          <th>Status</th>
-          <th>Rules</th>
+          <th>Start Rules</th>
+          <th>Stop Rules</th>
           <th>Actions</th>
         </tr>
       </tfoot>
@@ -250,78 +256,55 @@ function handleToggleRuleEnabled(rule: AutomationRule) {
         class="flex flex-col gap-4"
       >
         <template v-if="isEditingPolicy && editingPolicy">
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">Name <span class="text-error">*</span></span>
-            </label>
+          <!-- Name field -->
+          <div class="space-y-1">
+            <div class="font-medium">
+              Name
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+            </div>
             <input
               v-model="editingPolicy.name"
               type="text"
               placeholder="Policy name"
               required
-              class="input input-bordered"
+              class="input input-bordered input-sm w-full"
             />
           </div>
 
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">Description</span>
-            </label>
+          <div class="space-y-1">
+            <div class="font-medium">Description</div>
             <textarea
               v-model="editingPolicy.description"
               placeholder="Policy description"
-              class="textarea textarea-bordered"
+              class="textarea textarea-bordered textarea-sm w-full"
               rows="3"
             ></textarea>
-          </div>
-
-          <div class="form-control">
-            <label class="label cursor-pointer justify-start gap-4">
-              <input
-                v-model="editingPolicy.enabled"
-                type="checkbox"
-                class="toggle toggle-primary"
-              />
-              <span class="label-text">Enabled</span>
-            </label>
           </div>
         </template>
 
         <template v-else-if="newPolicy">
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">Name <span class="text-error">*</span></span>
-            </label>
+          <div class="space-y-1">
+            <div class="font-medium">
+              Name
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+            </div>
             <input
               v-model="newPolicy.name"
               type="text"
               placeholder="Policy name"
               required
-              class="input input-bordered"
+              class="input input-bordered input-sm w-full"
             />
           </div>
 
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">Description</span>
-            </label>
+          <div class="space-y-1">
+            <div class="font-medium">Description</div>
             <textarea
               v-model="newPolicy.description"
               placeholder="Policy description"
-              class="textarea textarea-bordered"
+              class="textarea textarea-bordered textarea-sm w-full"
               rows="3"
             ></textarea>
-          </div>
-
-          <div class="form-control">
-            <label class="label cursor-pointer justify-start gap-4">
-              <input
-                v-model="newPolicy.enabled"
-                type="checkbox"
-                class="toggle toggle-primary"
-              />
-              <span class="label-text">Enabled</span>
-            </label>
           </div>
         </template>
 
@@ -347,40 +330,96 @@ function handleToggleRuleEnabled(rule: AutomationRule) {
         Rules for "{{ selectedPolicy.name }}"
       </h3>
 
-      <div class="overflow-x-auto">
-        <table class="table table-sm">
-          <thead>
-            <tr>
-              <th>Enabled</th>
-              <th>Name / Description</th>
-              <th>Type</th>
-              <th>Priority</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <template v-if="selectedPolicy.rules && selectedPolicy.rules.length > 0">
-              <PolicyRuleRow
-                v-for="(rule, i) in selectedPolicy.rules"
-                :key="rule.id"
-                v-model="selectedPolicy.rules[i]"
-                @edit="handleEditRule"
-                @delete="handleDeleteRule"
-                @toggle-enabled="handleToggleRuleEnabled"
-              />
-            </template>
-            <tr v-else>
-              <td colspan="5" class="text-center text-base-content/50">
-                No rules defined for this policy
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <!-- Tabs for Start/Stop Rules -->
+      <div class="tabs tabs-lifted">
+        <label class="tab">
+          <input 
+            type="radio" 
+            name="rule_tabs" 
+            :checked="activeRuleTab === 'start'"
+            @change="activeRuleTab = 'start'"
+          />
+          <PhPlay :size="16" class="me-2" />
+          Start Rules
+        </label>
+        <div class="tab-content bg-base-100 border-base-300 p-6">
+          <div class="overflow-x-auto">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Enabled</th>
+                  <th>Name / Description</th>
+                  <th>Priority</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template v-if="selectedPolicy.start_rules && selectedPolicy.start_rules.length > 0">
+                  <PolicyRuleRow
+                    v-for="(rule, i) in selectedPolicy.start_rules"
+                    :key="rule.id"
+                    v-model="selectedPolicy.start_rules[i]"
+                    @edit="(r) => handleEditRule(r, 'start')"
+                    @delete="(r) => handleDeleteRule(r, 'start')"
+                    @toggle-enabled="(r) => handleToggleRuleEnabled(r, 'start')"
+                  />
+                </template>
+                <tr v-else>
+                  <td colspan="4" class="text-center text-base-content/50">
+                    No start rules defined for this policy
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <label class="tab">
+          <input 
+            type="radio" 
+            name="rule_tabs"
+            :checked="activeRuleTab === 'stop'"
+            @change="activeRuleTab = 'stop'"
+          />
+          <PhStop :size="16" class="me-2" />
+          Stop Rules
+        </label>
+        <div class="tab-content bg-base-100 border-base-300 p-6">
+          <div class="overflow-x-auto">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Enabled</th>
+                  <th>Name / Description</th>
+                  <th>Priority</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template v-if="selectedPolicy.stop_rules && selectedPolicy.stop_rules.length > 0">
+                  <PolicyRuleRow
+                    v-for="(rule, i) in selectedPolicy.stop_rules"
+                    :key="rule.id"
+                    v-model="selectedPolicy.stop_rules[i]"
+                    @edit="(r) => handleEditRule(r, 'stop')"
+                    @delete="(r) => handleDeleteRule(r, 'stop')"
+                    @toggle-enabled="(r) => handleToggleRuleEnabled(r, 'stop')"
+                  />
+                </template>
+                <tr v-else>
+                  <td colspan="4" class="text-center text-base-content/50">
+                    No stop rules defined for this policy
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <div class="modal-action">
         <button class="btn btn-primary" @click="addRule">
-          Add Rule
+          Add {{ activeRuleTab === 'start' ? 'Start' : 'Stop' }} Rule
         </button>
         <button class="btn btn-secondary" @click="closeRulesModal">
           Close
@@ -396,7 +435,7 @@ function handleToggleRuleEnabled(rule: AutomationRule) {
   <dialog :class="['modal', { 'modal-open': showRuleEditModal }]">
     <div v-if="newRule || editingRule" class="modal-box max-w-2xl">
       <h3 class="font-bold text-lg mb-4">
-        {{ isEditingRule ? 'Edit Rule' : 'Add Rule' }}
+        {{ isEditingRule ? 'Edit' : 'Add' }} {{ currentRuleType === 'start' ? 'Start' : 'Stop' }} Rule
       </h3>
 
       <form
@@ -404,179 +443,179 @@ function handleToggleRuleEnabled(rule: AutomationRule) {
         class="flex flex-col gap-4"
       >
         <template v-if="isEditingRule && editingRule">
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">Name <span class="text-error">*</span></span>
-            </label>
+          <div class="space-y-1">
+            <div class="font-medium">
+              Name
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+            </div>
             <input
               v-model="editingRule.name"
               type="text"
               placeholder="Rule name"
               required
-              class="input input-bordered"
+              class="input input-bordered input-sm w-full"
             />
           </div>
 
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">Description</span>
-            </label>
+          <div class="space-y-1">
+            <div class="font-medium">Description</div>
             <textarea
               v-model="editingRule.description"
               placeholder="Rule description"
-              class="textarea textarea-bordered"
+              class="textarea textarea-bordered textarea-sm w-full"
               rows="2"
             ></textarea>
           </div>
 
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">Rule Type <span class="text-error">*</span></span>
-            </label>
+          <div class="space-y-1">
+            <div class="font-medium">
+              Rule Type
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+            </div>
             <input
               v-model="editingRule.rule_type"
               type="text"
               placeholder="Rule type (e.g., threshold, schedule)"
               required
-              class="input input-bordered"
+              class="input input-bordered input-sm w-full"
             />
+            <div class="text-sm italic opacity-70">
+              Specify the type of rule
+            </div>
           </div>
 
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">Priority</span>
-            </label>
+          <div class="space-y-1">
+            <div class="font-medium">Priority</div>
             <input
               v-model.number="editingRule.priority"
               type="number"
               placeholder="Priority (lower = higher priority)"
-              class="input input-bordered"
+              class="input input-bordered input-sm w-full"
             />
+            <div class="text-sm italic opacity-70">
+              Lower values have higher priority
+            </div>
           </div>
 
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">Conditions (JSON)</span>
-            </label>
+          <div class="space-y-1">
+            <div class="font-medium">Conditions (JSON)</div>
             <textarea
               :value="JSON.stringify(editingRule.conditions, null, 2)"
               @input="editingRule.conditions = JSON.parse(($event.target as HTMLTextAreaElement).value || '{}')"
               placeholder='{"field": "value"}'
-              class="textarea textarea-bordered font-mono text-sm"
+              class="textarea textarea-bordered textarea-sm font-mono text-sm w-full"
               rows="4"
             ></textarea>
           </div>
 
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">Actions (JSON)</span>
-            </label>
+          <div class="space-y-1">
+            <div class="font-medium">Actions (JSON)</div>
             <textarea
               :value="JSON.stringify(editingRule.actions, null, 2)"
               @input="editingRule.actions = JSON.parse(($event.target as HTMLTextAreaElement).value || '{}')"
               placeholder='{"action": "value"}'
-              class="textarea textarea-bordered font-mono text-sm"
+              class="textarea textarea-bordered textarea-sm font-mono text-sm w-full"
               rows="4"
             ></textarea>
           </div>
 
-          <div class="form-control">
-            <label class="label cursor-pointer justify-start gap-4">
+          <div class="space-y-1">
+            <label class="label cursor-pointer justify-start gap-4 p-0">
               <input
                 v-model="editingRule.enabled"
                 type="checkbox"
-                class="toggle toggle-primary"
+                class="toggle toggle-primary toggle-sm"
               />
-              <span class="label-text">Enabled</span>
+              <span class="font-medium">Enabled</span>
             </label>
           </div>
         </template>
 
         <template v-else-if="newRule">
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">Name <span class="text-error">*</span></span>
-            </label>
+          <div class="space-y-1">
+            <div class="font-medium">
+              Name
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+            </div>
             <input
               v-model="newRule.name"
               type="text"
               placeholder="Rule name"
               required
-              class="input input-bordered"
+              class="input input-bordered input-sm w-full"
             />
           </div>
 
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">Description</span>
-            </label>
+          <div class="space-y-1">
+            <div class="font-medium">Description</div>
             <textarea
               v-model="newRule.description"
               placeholder="Rule description"
-              class="textarea textarea-bordered"
+              class="textarea textarea-bordered textarea-sm w-full"
               rows="2"
             ></textarea>
           </div>
 
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">Rule Type <span class="text-error">*</span></span>
-            </label>
+          <div class="space-y-1">
+            <div class="font-medium">
+              Rule Type
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+            </div>
             <input
               v-model="newRule.rule_type"
               type="text"
               placeholder="Rule type (e.g., threshold, schedule)"
               required
-              class="input input-bordered"
+              class="input input-bordered input-sm w-full"
             />
+            <div class="text-sm italic opacity-70">
+              Specify the type of rule
+            </div>
           </div>
 
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">Priority</span>
-            </label>
+          <div class="space-y-1">
+            <div class="font-medium">Priority</div>
             <input
               v-model.number="newRule.priority"
               type="number"
               placeholder="Priority (lower = higher priority)"
-              class="input input-bordered"
+              class="input input-bordered input-sm w-full"
             />
+            <div class="text-sm italic opacity-70">
+              Lower values have higher priority
+            </div>
           </div>
 
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">Conditions (JSON)</span>
-            </label>
+          <div class="space-y-1">
+            <div class="font-medium">Conditions (JSON)</div>
             <textarea
               :value="JSON.stringify(newRule.conditions, null, 2)"
               @input="newRule.conditions = JSON.parse(($event.target as HTMLTextAreaElement).value || '{}')"
               placeholder='{"field": "value"}'
-              class="textarea textarea-bordered font-mono text-sm"
+              class="textarea textarea-bordered textarea-sm font-mono text-sm w-full"
               rows="4"
             ></textarea>
           </div>
 
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">Actions (JSON)</span>
-            </label>
+          <div class="space-y-1">
+            <div class="font-medium">Actions (JSON)</div>
             <textarea
               :value="JSON.stringify(newRule.actions, null, 2)"
               @input="newRule.actions = JSON.parse(($event.target as HTMLTextAreaElement).value || '{}')"
               placeholder='{"action": "value"}'
-              class="textarea textarea-bordered font-mono text-sm"
+              class="textarea textarea-bordered textarea-sm font-mono text-sm w-full"
               rows="4"
             ></textarea>
           </div>
 
-          <div class="form-control">
-            <label class="label cursor-pointer justify-start gap-4">
+          <div class="space-y-1">
+            <label class="label cursor-pointer justify-start gap-4 p-0">
               <input
                 v-model="newRule.enabled"
                 type="checkbox"
-                class="toggle toggle-primary"
+                class="toggle toggle-primary toggle-sm"
               />
-              <span class="label-text">Enabled</span>
+              <span class="font-medium">Enabled</span>
             </label>
           </div>
         </template>
