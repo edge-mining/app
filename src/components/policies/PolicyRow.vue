@@ -79,11 +79,32 @@ function handleCheck() {
               </span>
             </span>
             <span>{{ model.name }}</span>
+            <span v-if="model.metadata?.version" class="badge badge-sm badge-outline">v{{ model.metadata.version }}</span>
           </div>
           <div class="text-sm opacity-50">{{ model.description || 'No description' }}</div>
         </div>
       </div>
     </th>
+    <td>
+      <div class="flex flex-col gap-1 text-xs">
+        <span v-if="model.metadata?.author" class="opacity-70">
+          {{ model.metadata.author }}
+        </span>
+        <span v-else class="opacity-40">
+          —
+        </span>
+      </div>
+    </td>
+    <td>
+      <div class="flex flex-col gap-1 text-xs">
+        <span v-if="model.metadata?.last_modified" class="opacity-70">
+          {{ model.metadata.last_modified }}
+        </span>
+        <span v-else class="opacity-40">
+          —
+        </span>
+      </div>
+    </td>
     <td>
       <span class="badge badge-neutral">
         {{ model.start_rules?.length ?? 0 }} rules
