@@ -25,6 +25,12 @@ export interface OptimizationPolicy {
 
 export interface PolicyCheckResult {
   valid: boolean;
-  errors?: string[];
-  warnings?: string[];
+  policy_id: string;
+  policy_name?: string;
+  errors: string[];
+  warnings: string[];
+  start_rules_count: number;
+  stop_rules_count: number;
+  enabled_start_rules_count: number;
+  enabled_stop_rules_count: number;
 }

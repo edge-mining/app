@@ -624,14 +624,29 @@ function handleToggleRuleEnabled(rule: AutomationRule, ruleType: 'start' | 'stop
 
   <!-- Policy Check Result Modal -->
   <dialog :class="['modal', { 'modal-open': showCheckModal }]">
-    <div v-if="checkResult" class="modal-box">
+    <div v-if="checkResult" class="modal-box max-w-2xl">
       <h3 class="font-bold text-lg mb-4">
-        Policy Check: {{ checkingPolicyName }}
+        Policy Check: {{ checkResult.policy_name || checkingPolicyName }}
       </h3>
 
       <div class="flex flex-col gap-4">
         <div class="alert" :class="checkResult.valid ? 'alert-success' : 'alert-error'">
-          <span>{{ checkResult.valid ? 'Policy is valid' : 'Policy has issues' }}</span>
+          <span>{{ checkResult.valid ? 'Policy is valid and can be used' : 'Policy has issues' }}</span>
+        </div>
+
+        <!-- Policy Statistics -->
+        <div class="stats shadow">
+          <div class="stat">
+            <div class="stat-title">Total Start Rules</div>
+            <div class="stat-value text-sm">{{ checkResult.start_rules_count }}</div>
+            <div class="stat-desc">{{ checkResult.enabled_start_rules_count }} enabled</div>
+          </div>
+          
+          <div class="stat">
+            <div class="stat-title">Total Stop Rules</div>
+            <div class="stat-value text-sm">{{ checkResult.stop_rules_count }}</div>
+            <div class="stat-desc">{{ checkResult.enabled_stop_rules_count }} enabled</div>
+          </div>
         </div>
 
         <div v-if="checkResult.errors && checkResult.errors.length > 0">
