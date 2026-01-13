@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { ref } from "vue";
 import type { AutomationRule } from "../../core/models/policy";
+import { PhHash } from "@phosphor-icons/vue";
 
 const model = defineModel<AutomationRule>({ required: true });
 const emit = defineEmits<{
@@ -7,6 +9,30 @@ const emit = defineEmits<{
   delete: [rule: AutomationRule];
   toggleEnabled: [rule: AutomationRule];
 }>();
+
+const automationRuleTip = ref<string | null>(null);
+
+async function copyToClipboard(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const el = document.createElement("textarea");
+    el.value = text;
+    el.style.position = "fixed";
+    el.style.left = "-9999px";
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand("copy");
+    document.body.removeChild(el);
+  }
+}
+
+function flashTip(original: string) {
+  automationRuleTip.value = "Copied!";
+  window.setTimeout(() => {
+    automationRuleTip.value = original;
+  }, 1200);
+}
 
 function handleEdit() {
   emit("edit", model.value);
@@ -38,7 +64,27 @@ function handleToggleEnabled() {
     <td>
       <div class="flex items-center gap-3">
         <div>
-          <div class="font-semibold">{{ model.name }}</div>
+          <div class="font-semibold flex items-center gap-1">
+            <span
+              v-if="model.id != null"
+              class="tooltip tooltip-right id-tooltip"
+              :data-tip="automationRuleTip ?? `ID: ${model.id}`"
+            >
+              <span
+                role="button"
+                tabindex="0"
+                class="inline-flex cursor-pointer select-none opacity-70 hover:opacity-100"
+                title="Copy automation rule ID"
+                aria-label="Copy automation rule ID"
+                @click.stop="copyToClipboard(String(model.id)); flashTip(`ID: ${model.id}`)"
+                @keydown.enter.stop.prevent="copyToClipboard(String(model.id)); flashTip(`ID: ${model.id}`)"
+                @keydown.space.stop.prevent="copyToClipboard(String(model.id)); flashTip(`ID: ${model.id}`)"
+              >
+                <PhHash class="size-3" />
+              </span>
+            </span>
+            <span>{{ model.name }}</span>
+          </div>
           <div class="text-sm opacity-50">{{ model.description || 'No description' }}</div>
         </div>
       </div>
