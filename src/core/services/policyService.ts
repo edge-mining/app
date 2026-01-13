@@ -1,5 +1,5 @@
 import { BaseService } from "./baseService";
-import type { OptimizationPolicy, AutomationRule, PolicyCheckResult } from "../models/policy";
+import type { OptimizationPolicy, AutomationRule, PolicyCheckResult, RuleType } from "../models/policy";
 
 export class PolicyService extends BaseService {
   // Policy CRUD operations
@@ -28,8 +28,8 @@ export class PolicyService extends BaseService {
   }
 
   // Policy Rules CRUD operations
-  addRule(policyId: string, rule: AutomationRule): Promise<AutomationRule> {
-    return this.post<AutomationRule>(`/policies/${policyId}/rules`, rule).getData();
+  addRule(policyId: string, ruleType: RuleType, rule: AutomationRule): Promise<AutomationRule> {
+    return this.post<AutomationRule>(`/policies/${policyId}/rules?rule_type=${ruleType}`, rule).getData();
   }
 
   getRulesByType(policyId: string, ruleType: string): Promise<AutomationRule[]> {

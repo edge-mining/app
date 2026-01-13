@@ -1,3 +1,5 @@
+export type RuleType = "start" | "stop";
+
 export interface AutomationRule {
   id: string;
   name: string;

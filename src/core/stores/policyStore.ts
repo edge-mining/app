@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import type { OptimizationPolicy, AutomationRule, PolicyCheckResult } from "../models/policy";
+import type { OptimizationPolicy, AutomationRule, PolicyCheckResult, RuleType } from "../models/policy";
 import { PolicyService } from "../services/policyService";
 
 export const usePolicyStore = defineStore("policy", () => {
@@ -45,8 +45,8 @@ export const usePolicyStore = defineStore("policy", () => {
   }
 
   // Rule Actions
-  function addRule(policyId: string, rule: AutomationRule) {
-    return service.addRule(policyId, rule);
+  function addRule(policyId: string, ruleType: RuleType, rule: AutomationRule) {
+    return service.addRule(policyId, ruleType, rule);
   }
 
   function getRulesByType(policyId: string, ruleType: string) {
