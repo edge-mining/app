@@ -44,9 +44,6 @@ function handleToggleEnabled() {
       </div>
     </td>
     <td>
-      <span class="badge badge-outline">{{ model.rule_type }}</span>
-    </td>
-    <td>
       <span class="text-sm opacity-70">{{ model.priority ?? 0 }}</span>
     </td>
     <th>

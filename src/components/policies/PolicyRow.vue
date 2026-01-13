@@ -85,18 +85,13 @@ function handleCheck() {
       </div>
     </th>
     <td>
-      <span
-        :class="[
-          'badge',
-          model.enabled ? 'badge-success' : 'badge-ghost'
-        ]"
-      >
-        {{ model.enabled ? 'Enabled' : 'Disabled' }}
+      <span class="badge badge-neutral">
+        {{ model.start_rules?.length ?? 0 }} rules
       </span>
     </td>
     <td>
       <span class="badge badge-neutral">
-        {{ model.rules?.length ?? 0 }} rules
+        {{ model.stop_rules?.length ?? 0 }} rules
       </span>
     </td>
     <th>
