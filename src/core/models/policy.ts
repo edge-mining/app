@@ -1,21 +1,18 @@
-export interface PolicyRule {
-  id?: number;
-  policy_id?: number;
-  rule_type: string;
+export interface AutomationRule {
+  id: string;
   name: string;
-  description?: string;
-  conditions: Record<string, any>;
-  actions: Record<string, any>;
-  priority?: number;
+  description: string;
+  priority: number;
   enabled: boolean;
+  conditions: Record<string, any>;
 }
 
-export interface Policy {
-  id?: number;
+export interface OptimizationPolicy {
+  id: string;
   name: string;
   description?: string;
-  enabled: boolean;
-  rules?: PolicyRule[];
+  start_rules: AutomationRule[];
+  stop_rules: AutomationRule[];
 }
 
 export interface PolicyCheckResult {
