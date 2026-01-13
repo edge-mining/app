@@ -3,20 +3,20 @@ import { onMounted, ref } from "vue";
 import { usePolicyStore } from "../../core/stores/policyStore";
 import PolicyRow from "../../components/policies/PolicyRow.vue";
 import PolicyRuleRow from "../../components/policies/PolicyRuleRow.vue";
-import type { Policy, PolicyRule, PolicyCheckResult } from "../../core/models/policy";
+import type { OptimizationPolicy, AutomationRule, PolicyCheckResult } from "../../core/models/policy";
 
 const policyStore = usePolicyStore();
 
 // Policy modal state
-const newPolicy = ref<Policy | undefined>(undefined);
-const editingPolicy = ref<Policy | undefined>(undefined);
+const newPolicy = ref<OptimizationPolicy | undefined>(undefined);
+const editingPolicy = ref<OptimizationPolicy | undefined>(undefined);
 const showPolicyModal = ref(false);
 const isEditingPolicy = ref(false);
 
 // Rule modal state
-const selectedPolicy = ref<Policy | undefined>(undefined);
-const newRule = ref<PolicyRule | undefined>(undefined);
-const editingRule = ref<PolicyRule | undefined>(undefined);
+const selectedPolicy = ref<OptimizationPolicy | undefined>(undefined);
+const newRule = ref<AutomationRule | undefined>(undefined);
+const editingRule = ref<AutomationRule | undefined>(undefined);
 const showRulesModal = ref(false);
 const showRuleEditModal = ref(false);
 const isEditingRule = ref(false);
@@ -33,16 +33,17 @@ onMounted(() => {
 // Policy CRUD handlers
 function addPolicy() {
   newPolicy.value = {
+    id: "",
     name: "",
     description: "",
-    enabled: true,
-    rules: [],
+    start_rules: [],
+    stop_rules: []
   };
   isEditingPolicy.value = false;
   showPolicyModal.value = true;
 }
 
-function handleEditPolicy(policy: Policy) {
+function handleEditPolicy(policy: OptimizationPolicy) {
   editingPolicy.value = { ...policy };
   isEditingPolicy.value = true;
   showPolicyModal.value = true;
@@ -76,13 +77,13 @@ function confirmEditPolicy() {
     });
 }
 
-function handleDeletePolicy(policy: Policy) {
+function handleDeletePolicy(policy: OptimizationPolicy) {
   policyStore.deletePolicy(policy.id!.toString()).then(() => {
     policyStore.loadPolicies();
   });
 }
 
-function handleCheckPolicy(policy: Policy) {
+function handleCheckPolicy(policy: OptimizationPolicy) {
   checkingPolicyName.value = policy.name;
   policyStore.checkPolicy(policy.id!.toString()).then((result) => {
     checkResult.value = result;
@@ -96,7 +97,7 @@ function closeCheckModal() {
 }
 
 // Rule management handlers
-function handleManageRules(policy: Policy) {
+function handleManageRules(policy: OptimizationPolicy) {
   selectedPolicy.value = policy;
   showRulesModal.value = true;
 }
@@ -108,19 +109,18 @@ function closeRulesModal() {
 
 function addRule() {
   newRule.value = {
+    id: "",
     name: "",
     description: "",
-    rule_type: "",
-    conditions: {},
-    actions: {},
     priority: 0,
     enabled: true,
+    conditions: {},
   };
   isEditingRule.value = false;
   showRuleEditModal.value = true;
 }
 
-function handleEditRule(rule: PolicyRule) {
+function handleEditRule(rule: AutomationRule) {
   editingRule.value = { ...rule };
   isEditingRule.value = true;
   showRuleEditModal.value = true;
@@ -165,7 +165,7 @@ function confirmEditRule() {
     });
 }
 
-function handleDeleteRule(rule: PolicyRule) {
+function handleDeleteRule(rule: AutomationRule) {
   if (!selectedPolicy.value) return;
   policyStore
     .deleteRule(selectedPolicy.value.id!.toString(), rule.id!.toString())
@@ -177,7 +177,7 @@ function handleDeleteRule(rule: PolicyRule) {
     });
 }
 
-function handleToggleRuleEnabled(rule: PolicyRule) {
+function handleToggleRuleEnabled(rule: AutomationRule) {
   if (!selectedPolicy.value) return;
   const policyId = selectedPolicy.value.id!.toString();
   const ruleId = rule.id!.toString();
