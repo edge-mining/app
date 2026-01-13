@@ -7,12 +7,20 @@ export interface AutomationRule {
   conditions: Record<string, any>;
 }
 
+export interface Metadata {
+  author?: string;
+  version?: number;
+  created?: string;
+  last_modified?: string;
+}
+
 export interface OptimizationPolicy {
   id: string;
   name: string;
   description?: string;
   start_rules: AutomationRule[];
   stop_rules: AutomationRule[];
+  metadata?: Metadata;
 }
 
 export interface PolicyCheckResult {

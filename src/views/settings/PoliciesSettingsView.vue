@@ -40,14 +40,28 @@ function addPolicy() {
     name: "",
     description: "",
     start_rules: [],
-    stop_rules: []
+    stop_rules: [],
+    metadata: {
+      author: undefined,
+      version: undefined,
+      created: undefined,
+      last_modified: undefined
+    }
   };
   isEditingPolicy.value = false;
   showPolicyModal.value = true;
 }
 
 function handleEditPolicy(policy: OptimizationPolicy) {
-  editingPolicy.value = { ...policy };
+  editingPolicy.value = { 
+    ...policy,
+    metadata: policy.metadata || {
+      author: undefined,
+      version: undefined,
+      created: undefined,
+      last_modified: undefined
+    }
+  };
   isEditingPolicy.value = true;
   showPolicyModal.value = true;
 }
@@ -284,6 +298,49 @@ function handleToggleRuleEnabled(rule: AutomationRule, ruleType: 'start' | 'stop
               rows="3"
             ></textarea>
           </div>
+
+          <!-- Metadata Section -->
+          <div class="divider text-sm">Metadata</div>
+
+          <div v-if="editingPolicy.metadata" class="space-y-1">
+            <div class="font-medium">Author</div>
+            <input
+              v-model="editingPolicy.metadata.author"
+              type="text"
+              placeholder="Author name"
+              class="input input-bordered input-sm w-full"
+            />
+          </div>
+
+          <div v-if="editingPolicy.metadata?.version" class="space-y-1">
+            <div class="font-medium">Version</div>
+            <input
+              :value="editingPolicy.metadata.version"
+              type="number"
+              readonly
+              class="input input-bordered input-sm w-full bg-base-200"
+            />
+          </div>
+
+          <div v-if="editingPolicy.metadata?.created" class="space-y-1">
+            <div class="font-medium">Created</div>
+            <input
+              :value="editingPolicy.metadata.created"
+              type="text"
+              readonly
+              class="input input-bordered input-sm w-full bg-base-200"
+            />
+          </div>
+
+          <div v-if="editingPolicy.metadata?.last_modified" class="space-y-1">
+            <div class="font-medium">Last Modified</div>
+            <input
+              :value="editingPolicy.metadata.last_modified"
+              type="text"
+              readonly
+              class="input input-bordered input-sm w-full bg-base-200"
+            />
+          </div>
         </template>
 
         <template v-else-if="newPolicy">
@@ -309,6 +366,19 @@ function handleToggleRuleEnabled(rule: AutomationRule, ruleType: 'start' | 'stop
               class="textarea textarea-bordered textarea-sm w-full"
               rows="3"
             ></textarea>
+          </div>
+
+          <!-- Metadata Section -->
+          <div class="divider text-sm">Metadata</div>
+
+          <div v-if="newPolicy.metadata" class="space-y-1">
+            <div class="font-medium">Author</div>
+            <input
+              v-model="newPolicy.metadata.author"
+              type="text"
+              placeholder="Author name"
+              class="input input-bordered input-sm w-full"
+            />
           </div>
         </template>
 
