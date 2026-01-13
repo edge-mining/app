@@ -472,11 +472,11 @@ function handleToggleRuleEnabled(rule: AutomationRule, ruleType: 'start' | 'stop
             <input
               v-model.number="editingRule.priority"
               type="number"
-              placeholder="Priority (lower = higher priority)"
+              placeholder="Priority (higher = higher priority)"
               class="input input-bordered input-sm w-full"
             />
             <div class="text-sm italic opacity-70">
-              Lower values have higher priority
+              Higher values have higher priority
             </div>
           </div>
 
@@ -544,11 +544,11 @@ function handleToggleRuleEnabled(rule: AutomationRule, ruleType: 'start' | 'stop
             <input
               v-model.number="newRule.priority"
               type="number"
-              placeholder="Priority (lower = higher priority)"
+              placeholder="Priority (higher = higher priority)"
               class="input input-bordered input-sm w-full"
             />
             <div class="text-sm italic opacity-70">
-              Lower values have higher priority
+              Higher values have higher priority
             </div>
           </div>
 
