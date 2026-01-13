@@ -1,5 +1,5 @@
 import { BaseService } from "./baseService";
-import type { OptimizationPolicy, AutomationRule, PolicyCheckResult } from "../models/optimizationPolicy";
+import type { OptimizationPolicy, AutomationRule, PolicyCheckResult } from "../models/policy";
 
 export class PolicyService extends BaseService {
   // Policy CRUD operations

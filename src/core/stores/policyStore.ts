@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import type { OptimizationPolicy, AutomationRule, PolicyCheckResult } from "../models/optimizationPolicy";
+import type { OptimizationPolicy, AutomationRule, PolicyCheckResult } from "../models/policy";
 import { PolicyService } from "../services/policyService";
 
 export const usePolicyStore = defineStore("policy", () => {
