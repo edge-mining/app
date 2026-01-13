@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { PolicyRule } from "../../core/models/policy";
+import type { AutomationRule } from "../../core/models/policy";
 
-const model = defineModel<PolicyRule>({ required: true });
+const model = defineModel<AutomationRule>({ required: true });
 const emit = defineEmits<{
-  edit: [rule: PolicyRule];
-  delete: [rule: PolicyRule];
-  toggleEnabled: [rule: PolicyRule];
+  edit: [rule: AutomationRule];
+  delete: [rule: AutomationRule];
+  toggleEnabled: [rule: AutomationRule];
 }>();
 
 function handleEdit() {
