@@ -374,7 +374,7 @@ function handleToggleRuleEnabled(rule: AutomationRule, ruleType: 'start' | 'stop
       </h3>
 
       <!-- Tabs for Start/Stop Rules -->
-      <div class="tabs tabs-lifted">
+      <div class="tabs tabs-lifted justify-center">
         <label class="tab">
           <input 
             type="radio" 
