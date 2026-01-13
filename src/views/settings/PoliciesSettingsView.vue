@@ -468,23 +468,6 @@ function handleToggleRuleEnabled(rule: AutomationRule, ruleType: 'start' | 'stop
           </div>
 
           <div class="space-y-1">
-            <div class="font-medium">
-              Rule Type
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
-            </div>
-            <input
-              v-model="editingRule.rule_type"
-              type="text"
-              placeholder="Rule type (e.g., threshold, schedule)"
-              required
-              class="input input-bordered input-sm w-full"
-            />
-            <div class="text-sm italic opacity-70">
-              Specify the type of rule
-            </div>
-          </div>
-
-          <div class="space-y-1">
             <div class="font-medium">Priority</div>
             <input
               v-model.number="editingRule.priority"
@@ -554,23 +537,6 @@ function handleToggleRuleEnabled(rule: AutomationRule, ruleType: 'start' | 'stop
               class="textarea textarea-bordered textarea-sm w-full"
               rows="2"
             ></textarea>
-          </div>
-
-          <div class="space-y-1">
-            <div class="font-medium">
-              Rule Type
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
-            </div>
-            <input
-              v-model="newRule.rule_type"
-              type="text"
-              placeholder="Rule type (e.g., threshold, schedule)"
-              required
-              class="input input-bordered input-sm w-full"
-            />
-            <div class="text-sm italic opacity-70">
-              Specify the type of rule
-            </div>
           </div>
 
           <div class="space-y-1">
