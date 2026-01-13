@@ -209,6 +209,8 @@ function handleToggleRuleEnabled(rule: AutomationRule, ruleType: 'start' | 'stop
       <thead>
         <tr>
           <th>Name / Description</th>
+          <th>Author</th>
+          <th>Modified</th>
           <th>Start Rules</th>
           <th>Stop Rules</th>
           <th>Actions</th>
@@ -226,7 +228,7 @@ function handleToggleRuleEnabled(rule: AutomationRule, ruleType: 'start' | 'stop
         />
 
         <tr>
-          <th colspan="4" class="text-center">
+          <th colspan="6" class="text-center">
             <button class="btn btn-primary" @click="addPolicy">
               Add Policy
             </button>
@@ -236,6 +238,8 @@ function handleToggleRuleEnabled(rule: AutomationRule, ruleType: 'start' | 'stop
       <tfoot>
         <tr>
           <th>Name / Description</th>
+          <th>Author</th>
+          <th>Modified</th>
           <th>Start Rules</th>
           <th>Stop Rules</th>
           <th>Actions</th>
