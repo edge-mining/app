@@ -137,6 +137,10 @@ class MinerActionServiceInterface(ABC):
     async def get_miner_status(self, miner_id: EntityId) -> Optional[MinerStatus]:
         """Gets the current status of the specified miner."""
 
+    @abstractmethod
+    async def sync_all_miners(self) -> None:
+        """Synchronizes the status of all miners from their controllers."""
+
 
 class ConfigurationServiceInterface(ABC):
     """Base interface for configuration services in the Edge Mining application."""
@@ -288,6 +292,12 @@ class ConfigurationServiceInterface(ABC):
     @abstractmethod
     def get_notifier_config_by_type(self, adapter_type: NotificationAdapter) -> Optional[type[NotificationConfig]]:
         """Get the configuration class for a specific notifier adapter type."""
+
+    @abstractmethod
+    def get_notifier_external_service_adapter(
+        self, adapter_type: NotificationAdapter
+    ) -> Optional[ExternalServiceAdapter]:
+        """Get the external service adapter type for a specific notification adapter type."""
 
     # --- Policy Management ---
     @abstractmethod
@@ -652,6 +662,12 @@ class ConfigurationServiceInterface(ABC):
     ) -> Optional[type[EnergyMonitorConfig]]:
         """Get the configuration class for a specific energy monitor adapter type."""
 
+    @abstractmethod
+    def get_energy_monitor_external_service_adapter(
+        self, adapter_type: EnergyMonitorAdapter
+    ) -> Optional[ExternalServiceAdapter]:
+        """Get the external service adapter type for a specific energy monitor adapter type."""
+
     # --- Forecast Provider Management ---
     @abstractmethod
     def create_forecast_provider(
@@ -689,6 +705,18 @@ class ConfigurationServiceInterface(ABC):
     @abstractmethod
     def check_forecast_provider(self, provider: ForecastProvider) -> bool:
         """Check if a forecast provider is valid and can be used."""
+
+    @abstractmethod
+    def get_forecast_provider_config_by_type(
+        self, adapter_type: ForecastProviderAdapter
+    ) -> Optional[type[ForecastProviderConfig]]:
+        """Get the configuration class for a specific forecast provider adapter type."""
+
+    @abstractmethod
+    def get_forecast_provider_external_service_adapter(
+        self, adapter_type: ForecastProviderAdapter
+    ) -> Optional[ExternalServiceAdapter]:
+        """Get the external service adapter type for a specific forecast provider adapter type."""
 
     # --- Settings Management ---
     @abstractmethod

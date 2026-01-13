@@ -24,6 +24,7 @@ from edge_mining.domain.forecast.exceptions import (
     ForecastProviderNotFoundError,
 )
 from edge_mining.shared.adapter_maps.forecast import FORECAST_PROVIDER_CONFIG_TYPE_MAP
+from edge_mining.shared.external_services.common import ExternalServiceAdapter
 from edge_mining.shared.interfaces.config import Configuration, ForecastProviderConfig
 
 router = APIRouter()
@@ -104,8 +105,8 @@ async def get_forecast_provider_config_schema(
             raise ValueError(f"Invalid forecast provider adapter type: {adapter_type}") from e
 
         # Get the corresponding configuration class for the adapter type
-        forecast_config_type: Optional[type[ForecastProviderConfig]] = FORECAST_PROVIDER_CONFIG_TYPE_MAP.get(
-            forecast_adapter, None
+        forecast_config_type: Optional[type[ForecastProviderConfig]] = (
+            config_service.get_forecast_provider_config_by_type(forecast_adapter)
         )
 
         if forecast_config_type is None:
@@ -120,6 +121,23 @@ async def get_forecast_provider_config_schema(
         return forecast_config_schema.model_json_schema()
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get(
+    "/forecast-providers/types/{adapter_type}/external-services",
+    response_model=Optional[ExternalServiceAdapter],
+)
+async def get_forecast_provider_type_external_service_types(
+    adapter_type: ForecastProviderAdapter,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+) -> Optional[ExternalServiceAdapter]:
+    """ "Get a list of compatible external service types for a specific forecast provider type."""
+    try:
+        needed_external_service = config_service.get_forecast_provider_external_service_adapter(adapter_type)
+
+        return needed_external_service
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 

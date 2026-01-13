@@ -344,6 +344,7 @@ class AdapterService(AdapterServiceInterface):
             return cached_instance
 
         # Retrieve the external service associated to the notifier
+        external_service: Optional[ExternalServicePort] = None
         if notifier.external_service_id:
             external_service = self.get_external_service(notifier.external_service_id)
             if not external_service:

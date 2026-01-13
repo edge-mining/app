@@ -313,13 +313,13 @@ class OptimizationService(OptimizationServiceInterface):
     async def run_all_enabled_units(self):
         """Run the optimization process for all enabled units."""
         if self.logger:
-            self.logger.info("Starting optimization run for all enabled units...")
+            self.logger.debug("Starting optimization run for all enabled units...")
 
         enabled_units = self.optimization_unit_repo.get_all_enabled()
 
         if not enabled_units:
             if self.logger:
-                self.logger.info("No enabled energy optimization units found.")
+                self.logger.debug("No enabled energy optimization units found.")
             return
 
         unit_tasks = [self._process_unit(unit) for unit in enabled_units]
@@ -327,11 +327,11 @@ class OptimizationService(OptimizationServiceInterface):
         await asyncio.gather(*unit_tasks, return_exceptions=False)
 
         if self.logger:
-            self.logger.info(f"Optimization run for all units finished. {len(enabled_units)} units processed.")
+            self.logger.debug(f"Optimization run for all units finished. {len(enabled_units)} units processed.")
 
     async def _process_unit(self, optimization_unit: EnergyOptimizationUnit):
         if self.logger:
-            self.logger.info(f"Processing Optimization Unit: '{optimization_unit.name}' (ID: {optimization_unit.id})")
+            self.logger.debug(f"Processing Optimization Unit: '{optimization_unit.name}' (ID: {optimization_unit.id})")
 
         # --- Notifiers ---
         unit_notifiers: List[NotificationPort] = []
@@ -357,7 +357,7 @@ class OptimizationService(OptimizationServiceInterface):
             return
         else:
             if self.logger:
-                self.logger.info(f"Optimization unit '{optimization_unit.name}' > Using policy '{policy.name}'.")
+                self.logger.debug(f"Optimization unit '{optimization_unit.name}' > Using policy '{policy.name}'.")
 
         # --- Energy Source  ---
         energy_source: Optional[EnergySource] = None
@@ -378,7 +378,7 @@ class OptimizationService(OptimizationServiceInterface):
             return
         else:
             if self.logger:
-                self.logger.info(
+                self.logger.debug(
                     f"Optimization unit '{optimization_unit.name}' > Using energy source '{energy_source.name}'."
                 )
 
@@ -511,7 +511,7 @@ class OptimizationService(OptimizationServiceInterface):
                     )
         else:
             if self.logger:
-                self.logger.info(
+                self.logger.debug(
                     f"No solar forecast provider configured for optimization unit '{optimization_unit.name}'."
                 )
 
@@ -528,7 +528,7 @@ class OptimizationService(OptimizationServiceInterface):
                     )
         else:
             if self.logger:
-                self.logger.info(
+                self.logger.debug(
                     f"No home load forecast provider configured for optimization unit '{optimization_unit.name}'."
                 )
 
@@ -536,7 +536,7 @@ class OptimizationService(OptimizationServiceInterface):
         # Process each target miner in this optimization unit
         if not optimization_unit.target_miner_ids:
             if self.logger:
-                self.logger.info(f"No target miners configured for optimization unit '{optimization_unit.name}'.")
+                self.logger.debug(f"No target miners configured for optimization unit '{optimization_unit.name}'.")
             return
 
         # --- Mining Performance Tracker ---
@@ -588,7 +588,7 @@ class OptimizationService(OptimizationServiceInterface):
         await asyncio.gather(*miner_processing_tasks, return_exceptions=False)
 
         if self.logger:
-            self.logger.info(
+            self.logger.debug(
                 f"Finished processing for optimization unit '{optimization_unit.name}'. "
                 f"{len(miner_processing_tasks)} miners controlled."
             )

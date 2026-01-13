@@ -29,6 +29,7 @@ from edge_mining.domain.notification.exceptions import (
     NotifierConfigurationError,
     NotifierNotFoundError,
 )
+from edge_mining.shared.external_services.common import ExternalServiceAdapter
 from edge_mining.shared.interfaces.config import Configuration, NotificationConfig
 
 router = APIRouter()
@@ -94,6 +95,23 @@ async def get_notifier_config_schema(
         return notifier_config_schema.model_json_schema()
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get(
+    "/notifiers/types/{adapter_type}/external-services",
+    response_model=Optional[ExternalServiceAdapter],
+)
+async def get_notifier_type_external_service_types(
+    adapter_type: NotificationAdapter,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+) -> Optional[ExternalServiceAdapter]:
+    """ "Get a list of compatible external service types for a specific energy monitor type."""
+    try:
+        needed_external_service = config_service.get_notifier_external_service_adapter(adapter_type)
+
+        return needed_external_service
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -224,9 +242,12 @@ async def test_notifier(
         # Send a test notification
         test_title = "Test Notification"
         test_message = "This is a test notification from Edge Mining System"
-        await notifier_port.send_notification(test_title, test_message)
+        send_status = await notifier_port.send_notification(test_title, test_message)
 
-        return {"status": "success", "message": "Test notification sent successfully"}
+        status_string = "success" if send_status else "failed"
+        message_string = "Test notification sent successfully" if send_status else "Failed to send test notification"
+
+        return {"status": status_string, "message": message_string}
     except NotifierNotFoundError as e:
         raise HTTPException(status_code=404, detail="Notifier not found") from e
     except Exception as e:

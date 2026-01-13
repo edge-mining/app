@@ -33,6 +33,14 @@ async def main_async():
     init_api_dependencies(services, logger)
     logger.debug("API dependencies initialized successfully")
 
+    # --- Synchronize Miners Status ---
+    try:
+        logger.info("Synchronizing miners status at startup...")
+        await services.miner_action_service.sync_all_miners()
+    except Exception as e:
+        logger.error(f"Failed to synchronize miners status: {e}")
+        # Continue execution even if synchronization fails
+
     # --- Determine Run Mode ---
     # Example: Use command-line argument to choose mode
     if len(sys.argv) > 1:
