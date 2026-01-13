@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import type { Policy } from "../../core/models/policy";
+import type { OptimizationPolicy } from "../../core/models/policy";
 import { PhHash, PhPencil, PhTrash } from "@phosphor-icons/vue";
 
-const model = defineModel<Policy>({ required: true });
+const model = defineModel<OptimizationPolicy>({ required: true });
 const emit = defineEmits<{
-  edit: [policy: Policy];
-  delete: [policy: Policy];
-  manageRules: [policy: Policy];
-  check: [policy: Policy];
+  edit: [policy: OptimizationPolicy];
+  delete: [policy: OptimizationPolicy];
+  manageRules: [policy: OptimizationPolicy];
+  check: [policy: OptimizationPolicy];
 }>();
 
 const optimizationPolicyTip = ref<string | null>(null);
