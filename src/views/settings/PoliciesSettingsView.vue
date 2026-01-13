@@ -492,17 +492,6 @@ function handleToggleRuleEnabled(rule: AutomationRule, ruleType: 'start' | 'stop
           </div>
 
           <div class="space-y-1">
-            <div class="font-medium">Actions (JSON)</div>
-            <textarea
-              :value="JSON.stringify(editingRule.actions, null, 2)"
-              @input="editingRule.actions = JSON.parse(($event.target as HTMLTextAreaElement).value || '{}')"
-              placeholder='{"action": "value"}'
-              class="textarea textarea-bordered textarea-sm font-mono text-sm w-full"
-              rows="4"
-            ></textarea>
-          </div>
-
-          <div class="space-y-1">
             <label class="label cursor-pointer justify-start gap-4 p-0">
               <input
                 v-model="editingRule.enabled"
@@ -558,17 +547,6 @@ function handleToggleRuleEnabled(rule: AutomationRule, ruleType: 'start' | 'stop
               :value="JSON.stringify(newRule.conditions, null, 2)"
               @input="newRule.conditions = JSON.parse(($event.target as HTMLTextAreaElement).value || '{}')"
               placeholder='{"field": "value"}'
-              class="textarea textarea-bordered textarea-sm font-mono text-sm w-full"
-              rows="4"
-            ></textarea>
-          </div>
-
-          <div class="space-y-1">
-            <div class="font-medium">Actions (JSON)</div>
-            <textarea
-              :value="JSON.stringify(newRule.actions, null, 2)"
-              @input="newRule.actions = JSON.parse(($event.target as HTMLTextAreaElement).value || '{}')"
-              placeholder='{"action": "value"}'
               class="textarea textarea-bordered textarea-sm font-mono text-sm w-full"
               rows="4"
             ></textarea>
