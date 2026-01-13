@@ -510,16 +510,29 @@ function handleToggleRuleEnabled(rule: AutomationRule, ruleType: 'start' | 'stop
             ></textarea>
           </div>
 
-          <div class="space-y-1">
-            <div class="font-medium">Priority</div>
-            <input
-              v-model.number="editingRule.priority"
-              type="number"
-              placeholder="Priority (higher = higher priority)"
-              class="input input-bordered input-sm w-full"
-            />
-            <div class="text-sm italic opacity-70">
-              Higher values have higher priority
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-1">
+              <div class="font-medium">Priority</div>
+              <input
+                v-model.number="editingRule.priority"
+                type="number"
+                placeholder="Priority (higher = higher priority)"
+                class="input input-bordered input-sm w-full"
+              />
+              <div class="text-sm italic opacity-70">
+                Higher values have higher priority
+              </div>
+            </div>
+
+            <div class="space-y-1 flex items-center">
+              <label class="label cursor-pointer justify-start gap-4 p-0">
+                <input
+                  v-model="editingRule.enabled"
+                  type="checkbox"
+                  class="toggle toggle-primary toggle-sm"
+                />
+                <span class="font-medium">Enabled</span>
+              </label>
             </div>
           </div>
 
@@ -532,17 +545,6 @@ function handleToggleRuleEnabled(rule: AutomationRule, ruleType: 'start' | 'stop
               class="textarea textarea-bordered textarea-sm font-mono text-sm w-full"
               rows="4"
             ></textarea>
-          </div>
-
-          <div class="space-y-1">
-            <label class="label cursor-pointer justify-start gap-4 p-0">
-              <input
-                v-model="editingRule.enabled"
-                type="checkbox"
-                class="toggle toggle-primary toggle-sm"
-              />
-              <span class="font-medium">Enabled</span>
-            </label>
           </div>
         </template>
 
@@ -571,16 +573,29 @@ function handleToggleRuleEnabled(rule: AutomationRule, ruleType: 'start' | 'stop
             ></textarea>
           </div>
 
-          <div class="space-y-1">
-            <div class="font-medium">Priority</div>
-            <input
-              v-model.number="newRule.priority"
-              type="number"
-              placeholder="Priority (higher = higher priority)"
-              class="input input-bordered input-sm w-full"
-            />
-            <div class="text-sm italic opacity-70">
-              Higher values have higher priority
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-1">
+              <div class="font-medium">Priority</div>
+              <input
+                v-model.number="newRule.priority"
+                type="number"
+                placeholder="Priority (higher = higher priority)"
+                class="input input-bordered input-sm w-full"
+              />
+              <div class="text-sm italic opacity-70">
+                Higher values have higher priority
+              </div>
+            </div>
+
+            <div class="space-y-1 flex items-center">
+              <label class="label cursor-pointer justify-start gap-4 p-0">
+                <input
+                  v-model="newRule.enabled"
+                  type="checkbox"
+                  class="toggle toggle-primary toggle-sm"
+                />
+                <span class="font-medium">Enabled</span>
+              </label>
             </div>
           </div>
 
@@ -593,17 +608,6 @@ function handleToggleRuleEnabled(rule: AutomationRule, ruleType: 'start' | 'stop
               class="textarea textarea-bordered textarea-sm font-mono text-sm w-full"
               rows="4"
             ></textarea>
-          </div>
-
-          <div class="space-y-1">
-            <label class="label cursor-pointer justify-start gap-4 p-0">
-              <input
-                v-model="newRule.enabled"
-                type="checkbox"
-                class="toggle toggle-primary toggle-sm"
-              />
-              <span class="font-medium">Enabled</span>
-            </label>
           </div>
         </template>
 
