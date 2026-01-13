@@ -393,6 +393,27 @@ class AutomationRuleUpdateSchema(BaseModel):
         return v
 
 
+class PolicyCheckSchema(BaseModel):
+    """Schema for policy validation check."""
+
+    valid: bool = Field(..., description="Whether the policy is valid and can be used")
+    policy_id: str = Field(..., description="ID of the checked policy")
+    policy_name: Optional[str] = Field(None, description="Name of the checked policy")
+    errors: List[str] = Field(default_factory=list, description="List of validation errors found")
+    warnings: List[str] = Field(default_factory=list, description="List of validation warnings")
+    start_rules_count: int = Field(default=0, description="Number of start rules in the policy")
+    stop_rules_count: int = Field(default=0, description="Number of stop rules in the policy")
+    enabled_start_rules_count: int = Field(default=0, description="Number of enabled start rules")
+    enabled_stop_rules_count: int = Field(default=0, description="Number of enabled stop rules")
+
+    @field_serializer("policy_id")
+    def serialize_policy_id(self, policy_id: str) -> str:
+        """Serialize policy ID as string."""
+        return str(policy_id)
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # Helper methods for converting from domain models to schemas
 def convert_conditions_to_schema(conditions: dict) -> Union[LogicalGroupSchema, RuleConditionSchema]:
     """Recursively convert conditions dict to appropriate schema."""

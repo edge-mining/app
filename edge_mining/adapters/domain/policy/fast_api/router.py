@@ -11,6 +11,7 @@ from edge_mining.adapters.domain.policy.schemas import (
     OptimizationPolicyCreateSchema,
     OptimizationPolicySchema,
     OptimizationPolicyUpdateSchema,
+    PolicyCheckSchema,
 )
 
 # Import dependency injection setup functions
@@ -168,20 +169,64 @@ async def delete_policy(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}") from e
 
 
-@router.get("/policies/{policy_id}/check", response_model=bool)
+@router.get("/policies/{policy_id}/check", response_model=PolicyCheckSchema)
 async def check_policy(
     policy_id: EntityId,
     config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
-) -> bool:
+) -> PolicyCheckSchema:
     """Check if a policy is valid and can be used."""
+    errors = []
+    warnings = []
+    valid = False
+    policy_name = None
+    start_rules_count = 0
+    stop_rules_count = 0
+    enabled_start_rules_count = 0
+    enabled_stop_rules_count = 0
+
     try:
-        return config_service.check_policy(policy_id)
-    except PolicyNotFoundError as e:
-        raise HTTPException(status_code=404, detail="Policy not found") from e
+        # Get policy to extract metadata
+        policy = config_service.get_policy(policy_id)
+        if not policy:
+            raise PolicyNotFoundError()
+
+        policy_name = policy.name
+        start_rules_count = len(policy.start_rules)
+        stop_rules_count = len(policy.stop_rules)
+        enabled_start_rules_count = sum(1 for rule in policy.start_rules if rule.enabled)
+        enabled_stop_rules_count = sum(1 for rule in policy.stop_rules if rule.enabled)
+
+        # Add warnings for disabled rules
+        disabled_start_rules = start_rules_count - enabled_start_rules_count
+        disabled_stop_rules = stop_rules_count - enabled_stop_rules_count
+
+        if disabled_start_rules > 0:
+            warnings.append(f"{disabled_start_rules} start rule(s) are disabled")
+        if disabled_stop_rules > 0:
+            warnings.append(f"{disabled_stop_rules} stop rule(s) are disabled")
+
+        # Perform the actual validation
+        valid = config_service.check_policy(policy_id)
+
+    except PolicyNotFoundError:
+        errors.append("Policy not found")
     except PolicyError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        errors.append(str(e))
+        valid = False
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}") from e
+        errors.append(f"Unexpected error: {str(e)}")
+
+    return PolicyCheckSchema(
+        valid=valid,
+        policy_id=str(policy_id),
+        policy_name=policy_name,
+        errors=errors,
+        warnings=warnings,
+        start_rules_count=start_rules_count,
+        stop_rules_count=stop_rules_count,
+        enabled_start_rules_count=enabled_start_rules_count,
+        enabled_stop_rules_count=enabled_stop_rules_count,
+    )
 
 
 # Policy rule management endpoints
