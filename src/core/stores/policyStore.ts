@@ -1,14 +1,14 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import type { Policy, PolicyRule, PolicyCheckResult } from "../models/policy";
+import type { OptimizationPolicy, AutomationRule, PolicyCheckResult } from "../models/optimizationPolicy";
 import { PolicyService } from "../services/policyService";
 
 export const usePolicyStore = defineStore("policy", () => {
   const service = new PolicyService();
 
   // State
-  const policies = ref<Policy[]>([]);
-  const selectedPolicy = ref<Policy | null>(null);
+  const policies = ref<OptimizationPolicy[]>([]);
+  const selectedPolicy = ref<OptimizationPolicy | null>(null);
   const checkResult = ref<PolicyCheckResult | null>(null);
 
   // Policy Actions
@@ -25,11 +25,11 @@ export const usePolicyStore = defineStore("policy", () => {
     });
   }
 
-  function addPolicy(policy: Policy) {
+  function addPolicy(policy: OptimizationPolicy) {
     return service.addPolicy(policy);
   }
 
-  function updatePolicy(policyId: string, policy: Partial<Policy>) {
+  function updatePolicy(policyId: string, policy: Partial<OptimizationPolicy>) {
     return service.updatePolicy(policyId, policy);
   }
 
@@ -45,7 +45,7 @@ export const usePolicyStore = defineStore("policy", () => {
   }
 
   // Rule Actions
-  function addRule(policyId: string, rule: PolicyRule) {
+  function addRule(policyId: string, rule: AutomationRule) {
     return service.addRule(policyId, rule);
   }
 
@@ -57,7 +57,7 @@ export const usePolicyStore = defineStore("policy", () => {
     return service.getRule(policyId, ruleId);
   }
 
-  function updateRule(policyId: string, ruleId: string, rule: Partial<PolicyRule>) {
+  function updateRule(policyId: string, ruleId: string, rule: Partial<AutomationRule>) {
     return service.updateRule(policyId, ruleId, rule);
   }
 
