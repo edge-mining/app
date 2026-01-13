@@ -302,44 +302,26 @@ function handleToggleRuleEnabled(rule: AutomationRule, ruleType: 'start' | 'stop
           <!-- Metadata Section -->
           <div class="divider text-sm">Metadata</div>
 
-          <div v-if="editingPolicy.metadata" class="space-y-1">
-            <div class="font-medium">Author</div>
-            <input
-              v-model="editingPolicy.metadata.author"
-              type="text"
-              placeholder="Author name"
-              class="input input-bordered input-sm w-full"
-            />
-          </div>
+          <div class="grid grid-cols-4 gap-4">
+            <div class="space-y-1">
+              <div class="font-medium">Author</div>
+              <div class="text-sm opacity-70">{{ editingPolicy.metadata?.author || '—' }}</div>
+            </div>
 
-          <div v-if="editingPolicy.metadata?.version" class="space-y-1">
-            <div class="font-medium">Version</div>
-            <input
-              :value="editingPolicy.metadata.version"
-              type="number"
-              readonly
-              class="input input-bordered input-sm w-full bg-base-200"
-            />
-          </div>
+            <div class="space-y-1">
+              <div class="font-medium">Version</div>
+              <div class="text-sm opacity-70">{{ editingPolicy.metadata?.version || '—' }}</div>
+            </div>
 
-          <div v-if="editingPolicy.metadata?.created" class="space-y-1">
-            <div class="font-medium">Created</div>
-            <input
-              :value="editingPolicy.metadata.created"
-              type="text"
-              readonly
-              class="input input-bordered input-sm w-full bg-base-200"
-            />
-          </div>
+            <div class="space-y-1">
+              <div class="font-medium">Created</div>
+              <div class="text-sm opacity-70">{{ editingPolicy.metadata?.created || '—' }}</div>
+            </div>
 
-          <div v-if="editingPolicy.metadata?.last_modified" class="space-y-1">
-            <div class="font-medium">Last Modified</div>
-            <input
-              :value="editingPolicy.metadata.last_modified"
-              type="text"
-              readonly
-              class="input input-bordered input-sm w-full bg-base-200"
-            />
+            <div class="space-y-1">
+              <div class="font-medium">Last Modified</div>
+              <div class="text-sm opacity-70">{{ editingPolicy.metadata?.last_modified || '—' }}</div>
+            </div>
           </div>
         </template>
 
@@ -366,19 +348,6 @@ function handleToggleRuleEnabled(rule: AutomationRule, ruleType: 'start' | 'stop
               class="textarea textarea-bordered textarea-sm w-full"
               rows="3"
             ></textarea>
-          </div>
-
-          <!-- Metadata Section -->
-          <div class="divider text-sm">Metadata</div>
-
-          <div v-if="newPolicy.metadata" class="space-y-1">
-            <div class="font-medium">Author</div>
-            <input
-              v-model="newPolicy.metadata.author"
-              type="text"
-              placeholder="Author name"
-              class="input input-bordered input-sm w-full"
-            />
           </div>
         </template>
 
