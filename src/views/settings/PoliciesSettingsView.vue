@@ -130,7 +130,7 @@ function addRule() {
     id: "",
     name: "",
     description: "",
-    priority: 0,
+    priority: 10,
     enabled: true,
     conditions: {},
   };
