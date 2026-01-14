@@ -2,7 +2,7 @@
 import { ref, computed, watch } from 'vue';
 import { useRuleEngineStore } from '../../core/stores/ruleEngineStore';
 import type { RuleCondition, LogicalGroup, RuleValidationResult, OperatorType } from '../../core/models/ruleEngine';
-import { PhCheckCircle, PhXCircle, PhCheck } from '@phosphor-icons/vue';
+import { PhCheckCircle, PhXCircle, PhCheck, PhX } from '@phosphor-icons/vue';
 
 interface Condition {
   field: string;
@@ -277,36 +277,41 @@ const parseValue = (val: string): string | number | boolean => {
         'alert-success': validationResult.is_valid,
         'alert-error': !validationResult.is_valid
       }">
-        <div class="flex items-start gap-2">
-          <PhCheckCircle v-if="validationResult.is_valid" :size="24" weight="fill" />
-          <PhXCircle v-else :size="24" weight="fill" />
-          <div class="flex-1">
-            <div class="font-semibold">
-              {{ validationResult.is_valid ? 'Conditions are valid' : 'Validation failed' }}
+        <PhCheckCircle v-if="validationResult.is_valid" :size="24" weight="fill" />
+        <PhXCircle v-else :size="24" weight="fill" />
+        <div class="flex-1">
+          <div class="font-semibold">
+            {{ validationResult.is_valid ? 'Conditions are valid' : 'Validation failed' }}
+          </div>
+          <div v-if="!validationResult.is_valid" class="text-sm mt-2 space-y-1">
+            <div v-if="validationResult.validation_errors.length > 0">
+              <div class="font-medium">Validation Errors:</div>
+              <ul class="list-disc list-inside">
+                <li v-for="(error, idx) in validationResult.validation_errors" :key="idx">{{ error }}</li>
+              </ul>
             </div>
-            <div v-if="!validationResult.is_valid" class="text-sm mt-2 space-y-1">
-              <div v-if="validationResult.validation_errors.length > 0">
-                <div class="font-medium">Validation Errors:</div>
-                <ul class="list-disc list-inside">
-                  <li v-for="(error, idx) in validationResult.validation_errors" :key="idx">{{ error }}</li>
-                </ul>
-              </div>
-              <div v-if="validationResult.syntax_errors.length > 0">
-                <div class="font-medium">Syntax Errors:</div>
-                <ul class="list-disc list-inside">
-                  <li v-for="(error, idx) in validationResult.syntax_errors" :key="idx">{{ error }}</li>
-                </ul>
-              </div>
-              <div v-if="validationResult.field_errors.length > 0">
-                <div class="font-medium">Field Errors:</div>
-                <ul class="list-disc list-inside">
-                  <li v-for="(error, idx) in validationResult.field_errors" :key="idx">{{ error }}</li>
-                </ul>
-              </div>
+            <div v-if="validationResult.syntax_errors.length > 0">
+              <div class="font-medium">Syntax Errors:</div>
+              <ul class="list-disc list-inside">
+                <li v-for="(error, idx) in validationResult.syntax_errors" :key="idx">{{ error }}</li>
+              </ul>
+            </div>
+            <div v-if="validationResult.field_errors.length > 0">
+              <div class="font-medium">Field Errors:</div>
+              <ul class="list-disc list-inside">
+                <li v-for="(error, idx) in validationResult.field_errors" :key="idx">{{ error }}</li>
+              </ul>
             </div>
           </div>
         </div>
         <span v-if="isValidating" class="loading loading-spinner loading-sm"></span>
+        <button 
+          @click="validationResult = null" 
+          class="btn btn-ghost btn-sm btn-circle"
+          aria-label="Close validation results"
+        >
+          <PhX :size="20" />
+        </button>
       </div>
     </div>
 
