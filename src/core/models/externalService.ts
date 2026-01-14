@@ -26,4 +26,8 @@ export interface ConfigSchema {
     [key: string]: ConfigSchemaProperty;
   };
   required?: string[];
+  $defs?: {
+    [key: string]: ConfigSchemaProperty;
+  };
 }
+
