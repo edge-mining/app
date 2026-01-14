@@ -3,7 +3,7 @@ import { onMounted, ref } from "vue";
 import { usePolicyStore } from "../../core/stores/policyStore";
 import PolicyRow from "../../components/policies/PolicyRow.vue";
 import PolicyRuleRow from "../../components/policies/PolicyRuleRow.vue";
-import type { OptimizationPolicy, AutomationRule, PolicyCheckResult } from "../../core/models/policy";
+import type { OptimizationPolicy, AutomationRule, PolicyCheckResult, RuleType } from "../../core/models/policy";
 import { PhPlay, PhStop } from "@phosphor-icons/vue";
 
 const policyStore = usePolicyStore();
@@ -28,6 +28,10 @@ const currentRuleType = ref<'start' | 'stop'>('start');
 const showCheckModal = ref(false);
 const checkResult = ref<PolicyCheckResult | null>(null);
 const checkingPolicyName = ref("");
+
+// Rule error state
+const ruleDeleteError = ref("");
+const ruleAddSaveError = ref("");
 
 onMounted(() => {
   policyStore.loadPolicies();
@@ -116,16 +120,21 @@ function closeCheckModal() {
 // Rule management handlers
 function handleManageRules(policy: OptimizationPolicy) {
   selectedPolicy.value = policy;
+  ruleDeleteError.value = "";
+  ruleAddSaveError.value = "";
   showRulesModal.value = true;
 }
 
 function closeRulesModal() {
   showRulesModal.value = false;
   selectedPolicy.value = undefined;
+  ruleDeleteError.value = "";
+  ruleAddSaveError.value = "";
 }
 
 function addRule() {
   currentRuleType.value = activeRuleTab.value;
+  ruleAddSaveError.value = "";
   newRule.value = {
     id: "",
     name: "",
@@ -138,8 +147,9 @@ function addRule() {
   showRuleEditModal.value = true;
 }
 
-function handleEditRule(rule: AutomationRule, ruleType: 'start' | 'stop') {
+function handleEditRule(rule: AutomationRule, ruleType: RuleType) {
   currentRuleType.value = ruleType;
+  ruleAddSaveError.value = "";
   editingRule.value = { ...rule };
   isEditingRule.value = true;
   showRuleEditModal.value = true;
@@ -149,24 +159,40 @@ function cancelRuleModal() {
   newRule.value = undefined;
   editingRule.value = undefined;
   isEditingRule.value = false;
+  ruleDeleteError.value = "";
+  ruleAddSaveError.value = "";
   showRuleEditModal.value = false;
 }
 
 function confirmAddRule() {
   if (!newRule.value || !selectedPolicy.value) return;
-  policyStore.addRule(selectedPolicy.value.id!.toString(), currentRuleType.value, newRule.value).then(() => {
-    // Reload the policy to get updated rules
-    policyStore.loadPolicy(selectedPolicy.value!.id!.toString()).then((updatedPolicy) => {
-      selectedPolicy.value = updatedPolicy;
+  ruleDeleteError.value = "";
+  policyStore.addRule(selectedPolicy.value.id!.toString(), currentRuleType.value, newRule.value)
+    .then(() => {
+      // Reload the policy to get updated rules
+      policyStore.loadPolicy(selectedPolicy.value!.id!.toString()).then((updatedPolicy) => {
+        selectedPolicy.value = updatedPolicy;
+      });
+      policyStore.loadPolicies();
+      newRule.value = undefined;
+      showRuleEditModal.value = false;
+    })
+    .catch((error) => {
+      console.error("Error adding rule:", error);
+      let errorMsg = 'Unknown error';
+      if (error.response?.data?.detail) {
+        const detail = error.response.data.detail;
+        errorMsg = Array.isArray(detail) ? detail[0]?.msg : detail;
+      } else if (error.message) {
+        errorMsg = error.message;
+      }
+      ruleAddSaveError.value = errorMsg;
     });
-    policyStore.loadPolicies();
-    newRule.value = undefined;
-    showRuleEditModal.value = false;
-  });
 }
 
 function confirmEditRule() {
   if (!editingRule.value || !selectedPolicy.value) return;
+  ruleAddSaveError.value = "";
   policyStore
     .updateRule(
       selectedPolicy.value.id!.toString(),
@@ -182,18 +208,40 @@ function confirmEditRule() {
       editingRule.value = undefined;
       isEditingRule.value = false;
       showRuleEditModal.value = false;
+    })
+    .catch((error) => {
+      console.error("Error updating rule:", error);
+      let errorMsg = 'Unknown error';
+      if (error.response?.data?.detail) {
+        const detail = error.response.data.detail;
+        errorMsg = Array.isArray(detail) ? detail[0]?.msg : detail;
+      } else if (error.message) {
+        errorMsg = error.message;
+      }
+      ruleAddSaveError.value = errorMsg;
     });
 }
 
-function handleDeleteRule(rule: AutomationRule, ruleType: 'start' | 'stop') {
+function handleDeleteRule(rule: AutomationRule) {
   if (!selectedPolicy.value) return;
   policyStore
-    .deleteRule(selectedPolicy.value.id!.toString(), ruleType, rule.id!.toString())
+    .deleteRule(selectedPolicy.value.id!.toString(), "asdf", rule.id!.toString())
     .then(() => {
       policyStore.loadPolicy(selectedPolicy.value!.id!.toString()).then((updatedPolicy) => {
         selectedPolicy.value = updatedPolicy;
       });
       policyStore.loadPolicies();
+    })
+    .catch((error) => {
+      console.error("Error deleting rule:", error);
+      let errorMsg = 'Unknown error';
+      if (error.response?.data?.detail) {
+        const detail = error.response.data.detail;
+        errorMsg = Array.isArray(detail) ? detail[0]?.msg : detail;
+      } else if (error.message) {
+        errorMsg = error.message;
+      }
+      ruleDeleteError.value = errorMsg;
     });
 }
 
@@ -461,6 +509,11 @@ function handleToggleRuleEnabled(rule: AutomationRule, ruleType: 'start' | 'stop
       </div>
 
       <div class="modal-action">
+        <div v-if="ruleDeleteError" class="flex-1 mr-auto">
+          <div class="text-error text-sm">
+            <span class="font-semibold">Error:</span> {{ ruleDeleteError }}
+          </div>
+        </div>
         <button class="btn btn-primary" @click="addRule">
           Add {{ activeRuleTab === 'start' ? 'Start' : 'Stop' }} Rule
         </button>
@@ -612,6 +665,11 @@ function handleToggleRuleEnabled(rule: AutomationRule, ruleType: 'start' | 'stop
         </template>
 
         <div class="modal-action">
+          <div v-if="ruleAddSaveError" class="flex-1 mr-auto">
+            <div class="text-error text-sm">
+              <span class="font-semibold">Error:</span> {{ ruleAddSaveError }}
+            </div>
+          </div>
           <button type="submit" class="btn btn-primary">
             {{ isEditingRule ? 'Save' : 'Add' }}
           </button>
