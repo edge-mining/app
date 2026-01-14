@@ -1,14 +1,10 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import type { Notifier } from "../../core/models/notifier";
-import type { ExternalService } from "../../core/models/externalService";
 import { useExternalServiceStore } from "../../core/stores/externalServiceStore";
 import { PhHash, PhPencil, PhTrash, PhPlay } from "@phosphor-icons/vue";
 
 const model = defineModel<Notifier>({ required: true });
-const props = defineProps<{
-  externalServices: ExternalService[];
-}>();
 const emit = defineEmits<{
   edit: [notifier: Notifier];
   delete: [notifier: Notifier];
