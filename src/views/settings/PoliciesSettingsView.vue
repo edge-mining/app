@@ -178,7 +178,6 @@ function confirmAddRule() {
       showRuleEditModal.value = false;
     })
     .catch((error) => {
-      console.error("Error adding rule:", error);
       let errorMsg = 'Unknown error';
       if (error.response?.data?.detail) {
         const detail = error.response.data.detail;
@@ -210,7 +209,6 @@ function confirmEditRule() {
       showRuleEditModal.value = false;
     })
     .catch((error) => {
-      console.error("Error updating rule:", error);
       let errorMsg = 'Unknown error';
       if (error.response?.data?.detail) {
         const detail = error.response.data.detail;
@@ -233,7 +231,6 @@ function handleDeleteRule(rule: AutomationRule) {
       policyStore.loadPolicies();
     })
     .catch((error) => {
-      console.error("Error deleting rule:", error);
       let errorMsg = 'Unknown error';
       if (error.response?.data?.detail) {
         const detail = error.response.data.detail;
