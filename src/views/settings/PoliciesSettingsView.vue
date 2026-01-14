@@ -143,13 +143,6 @@ function addRule() {
     priority: 10,
     enabled: true,
     conditions: {
-      all_of: [
-        {
-          field: "",
-          operator: "eq",
-          value: ""
-        }
-      ]
     },
   };
   isEditingRule.value = false;
