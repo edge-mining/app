@@ -3,16 +3,18 @@ import { ref, computed, watch, onMounted } from 'vue';
 import { useRuleEngineStore } from '../../core/stores/ruleEngineStore';
 import type { RuleConditions, RuleCondition, LogicalGroup, RuleValidationResult, OperatorType } from '../../core/models/ruleEngine';
 import { OPERATOR_SYMBOLS } from '../../core/models/ruleEngine';
-import { PhCheckCircle, PhXCircle, PhCheck, PhX, PhFloppyDisk } from '@phosphor-icons/vue';
+import { PhCheckCircle, PhXCircle, PhCheck, PhX, PhFloppyDisk, PhLock, PhLockOpen, PhInfo, PhPlus, PhWarning } from '@phosphor-icons/vue';
 
 interface Props {
   modelValue?: RuleConditions;
   depth?: number;
+  godMode?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   modelValue: () => ({} as LogicalGroup),
-  depth: 0
+  depth: 0,
+  godMode: false
 });
 
 const emit = defineEmits<{
@@ -20,6 +22,9 @@ const emit = defineEmits<{
 }>();
 
 const ruleEngineStore = useRuleEngineStore();
+
+// God mode toggle (only at root level)
+const godMode = ref(false);
 
 // Only use local editing state at root level (depth === 0)
 const useLocalState = computed(() => props.depth === 0);
@@ -159,6 +164,27 @@ const fieldSuggestions = [
   'price.electricity',
 ];
 
+// Default rule templates
+const defaultAllOfRule: LogicalGroup = {
+  all_of: [
+    { field: 'energy_state.production', operator: 'gt', value: 100 },
+    { field: 'energy_state.battery.state_of_charge', operator: 'gte', value: 80 },
+    { field: 'price.electricity', operator: 'lt', value: 0.15 }
+  ]
+};
+
+const defaultAnyOfRule: LogicalGroup = {
+  any_of: [
+    { field: 'energy_state.production', operator: 'lt', value: 50 },
+    { field: 'energy_state.battery.state_of_charge', operator: 'lte', value: 20 },
+    { field: 'price.electricity', operator: 'gt', value: 0.25 }
+  ]
+};
+
+const defaultNotRule: LogicalGroup = {
+  not_: { field: 'miner.hashrate', operator: 'eq', value: 0 }
+};
+
 // Check if rule condition is a group
 const isGroup = (ruleCondition: RuleConditions): ruleCondition is LogicalGroup => {
   return ruleCondition !== null && typeof ruleCondition === 'object' && ('any_of' in ruleCondition || 'all_of' in ruleCondition || 'not_' in ruleCondition);
@@ -195,6 +221,11 @@ const groupItems = computed(() => {
     return workingValue.value[type] || [];
   }
   return [];
+});
+
+// Check if god mode is enabled (for nested components, inherit from parent)
+const isGodModeEnabled = computed(() => {
+  return props.depth === 0 ? godMode.value : props.godMode;
 });
 
 // Update condition field
@@ -411,23 +442,40 @@ const handleValueInput = (event: Event) => {
     <div v-if="depth === 0" class="space-y-4">
       <div class="flex justify-between items-center">
         <h3 class="text-lg font-semibold">Conditions</h3>
-        <div class="flex gap-2 items-center">
-          <!-- Save/Cancel buttons -->
-          <button 
-            v-if="hasChanges"
-            @click="cancelChanges" 
-            class="btn btn-sm btn-ghost"
+        <div role="tablist" class="tabs tabs-boxed">
+          <a 
+            role="tab" 
+            class="tab"
+            :class="{ 'tab-active': viewMode === 'builder' }"
+            @click="viewMode = 'builder'; updateJson()"
           >
-            <PhX :size="16" />
-            Cancel
-          </button>
-          <button 
-            v-if="hasChanges"
-            @click="saveChanges" 
-            class="btn btn-sm btn-primary"
+            Builder
+          </a>
+          <a 
+            role="tab" 
+            class="tab"
+            :class="{ 'tab-active': viewMode === 'json' }"
+            @click="viewMode = 'json'; updateJson()"
           >
-            <PhFloppyDisk :size="16" />
-            Save
+            JSON
+          </a>
+        </div>
+      </div>
+      
+      <!-- Action Buttons -->
+      <div class="flex justify-between items-center">
+        <!-- Left: God Mode & Validate -->
+        <div class="flex gap-2">
+          <button 
+            @click="godMode = !godMode"
+            type="button"
+            class="btn btn-sm"
+            :class="godMode ? 'btn-warning' : 'btn-outline'"
+            title="Enable advanced editing mode"
+          >
+            <PhLock v-if="!godMode" :size="16" />
+            <PhLockOpen v-else :size="16" />
+            {{ godMode ? 'Advanced Mode: ON' : 'Advanced Mode: OFF' }}
           </button>
           
           <button 
@@ -439,24 +487,33 @@ const handleValueInput = (event: Event) => {
             <span v-if="isValidating" class="loading loading-spinner loading-xs"></span>
             Validate
           </button>
-          <div role="tablist" class="tabs tabs-boxed">
-            <a 
-            role="tab" 
-            class="tab"
-            :class="{ 'tab-active': viewMode === 'builder' }"
-            @click="viewMode = 'builder'; updateJson()"
-            >
-            Builder
-            </a>
-            <a 
-            role="tab" 
-            class="tab"
-            :class="{ 'tab-active': viewMode === 'json' }"
-            @click="viewMode = 'json'; updateJson()"
-            >
-            JSON
-            </a>
-          </div>
+        </div>
+
+        <!-- Right: Save & Cancel -->
+        <div v-if="hasChanges" class="flex gap-2">
+          <button 
+            @click="cancelChanges" 
+            class="btn btn-sm btn-ghost"
+          >
+            <PhX :size="16" />
+            Cancel
+          </button>
+          <button 
+            @click="saveChanges" 
+            class="btn btn-sm btn-primary"
+          >
+            <PhFloppyDisk :size="16" />
+            Save
+          </button>
+        </div>
+      </div>
+
+      <!-- God Mode Warning -->
+      <div v-if="godMode" class="alert alert-warning shadow-lg">
+        <PhWarning :size="24" />
+        <div>
+          <h3 class="font-bold">Advanced Mode Enabled</h3>
+          <div class="text-sm">You can now modify field names, change logical operators, and delete conditions. Use with caution.</div>
         </div>
       </div>
 
@@ -505,13 +562,23 @@ const handleValueInput = (event: Event) => {
 
     <!-- JSON View (only at root level) -->
     <div v-if="depth === 0 && viewMode === 'json'">
+      <div v-if="!godMode" class="alert alert-info mb-4">
+        <PhInfo :size="24" />
+        <span>JSON editing is disabled in basic mode. Enable Advanced Mode to edit directly.</span>
+      </div>
       <textarea
         v-model="jsonString"
-        @blur="updateFromJson"
+        @blur="godMode && updateFromJson()"
         class="textarea textarea-bordered w-full font-mono text-sm"
+        :class="{ 'bg-base-200 cursor-not-allowed': !godMode }"
+        :readonly="!godMode"
         rows="15"
       ></textarea>
-      <button @click="updateFromJson" class="btn btn-sm btn-primary mt-2">
+      <button 
+        v-if="godMode"
+        @click="updateFromJson" 
+        class="btn btn-sm btn-primary mt-2"
+      >
         Apply JSON Changes
       </button>
     </div>
@@ -523,16 +590,25 @@ const handleValueInput = (event: Event) => {
         <p class="text-sm text-base-content/50 mb-4">No conditions defined</p>
         <div class="flex gap-2 justify-center">
           <button 
-            @click="updateWorkingValue({ all_of: [{ field: '', operator: 'eq', value: '' }] })"
+            @click="updateWorkingValue(defaultAllOfRule)"
             class="btn btn-sm btn-primary"
+            type="button"
           >
             Start with ALL OF (AND)
           </button>
           <button 
-            @click="updateWorkingValue({ any_of: [{ field: '', operator: 'eq', value: '' }] })"
+            @click="updateWorkingValue(defaultAnyOfRule)"
             class="btn btn-sm btn-secondary"
+            type="button"
           >
             Start with ANY OF (OR)
+          </button>
+          <button 
+            @click="updateWorkingValue(defaultNotRule)"
+            class="btn btn-sm btn-accent"
+            type="button"
+          >
+            Start with NOT
           </button>
         </div>
       </div>
@@ -541,12 +617,21 @@ const handleValueInput = (event: Event) => {
       <div v-else-if="isCondition(workingValue)" class="flex gap-2 items-start">
         <div class="flex-1">
           <input
+            v-if="isGodModeEnabled"
             :value="workingValue.field"
             @input="handleFieldInput"
             type="text"
             placeholder="Field name (e.g., energy_state.production)"
             list="field-suggestions"
             class="input input-bordered input-sm w-full font-mono text-xs"
+          />
+          <input
+            v-else
+            :value="workingValue.field"
+            type="text"
+            readonly
+            class="input input-bordered input-sm w-full font-mono text-xs bg-base-200 cursor-not-allowed"
+            title="Enable God Mode to edit field names"
           />
           <datalist id="field-suggestions">
             <option v-for="field in fieldSuggestions" :key="field" :value="field" />
@@ -579,14 +664,17 @@ const handleValueInput = (event: Event) => {
           <div class="flex items-center justify-between gap-2">
             <div class="flex items-center gap-2">
               <button
-                @click.prevent.stop="toggleGroupType($event)"
+                @click.prevent.stop="isGodModeEnabled && toggleGroupType($event)"
                 type="button"
                 class="btn btn-sm"
                 :class="{
                   'btn-primary': groupType === 'all_of',
                   'btn-secondary': groupType === 'any_of',
-                  'btn-accent': groupType === 'not_'
+                  'btn-accent': groupType === 'not_',
+                  'pointer-events-none': !isGodModeEnabled
                 }"
+                :disabled="!isGodModeEnabled"
+                :title="isGodModeEnabled ? 'Click to change logical operator' : 'Enable Advanced Mode to change logical operator'"
               >
                 {{ groupType === 'all_of' ? 'ALL OF' : groupType === 'any_of' ? 'ANY OF' : 'NOT' }}
               </button>
@@ -595,12 +683,10 @@ const handleValueInput = (event: Event) => {
               </span>
             </div>
             
-            <div class="flex gap-1">
+            <div v-if="isGodModeEnabled" class="flex gap-1">
               <div class="dropdown dropdown-end">
                 <label tabindex="0" class="btn btn-sm btn-ghost">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                  </svg>
+                  <PhPlus :size="16" />
                   Add
                 </label>
                 <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
@@ -625,13 +711,16 @@ const handleValueInput = (event: Event) => {
                   :model-value="item"
                   @update:model-value="updateGroupItem(index, $event)"
                   :depth="depth + 1"
+                  :parent-god-mode="isGodModeEnabled"
                 />
               </div>
               
               <button
+                v-if="isGodModeEnabled"
                 @click="removeItem(index)"
                 class="btn btn-sm btn-ghost btn-circle text-error"
                 :disabled="groupItems.length === 1 || groupType === 'not_'"
+                :title="groupItems.length === 1 ? 'Cannot remove the last item' : groupType === 'not_' ? 'NOT group must have exactly one item' : 'Remove this condition'"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
