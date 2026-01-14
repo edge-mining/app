@@ -28,7 +28,7 @@ async function copyToClipboard(text: string) {
   }
 }
 
-function flashTip(target: "policy", original: string) {
+function flashTip(original: string) {
   const tipRef = optimizationPolicyTip;
   tipRef.value = "Copied!";
   window.setTimeout(() => {
@@ -71,9 +71,9 @@ function handleCheck() {
                 class="inline-flex cursor-pointer select-none opacity-70 hover:opacity-100"
                 title="Copy optimization policy ID"
                 aria-label="Copy optimization policy ID"
-                @click.stop="copyToClipboard(String(model.id)); flashTip('policy', `ID: ${model.id}`)"
-                @keydown.enter.stop.prevent="copyToClipboard(String(model.id)); flashTip('policy', `ID: ${model.id}`)"
-                @keydown.space.stop.prevent="copyToClipboard(String(model.id)); flashTip('policy', `ID: ${model.id}`)"
+                @click.stop="copyToClipboard(String(model.id)); flashTip(`ID: ${model.id}`)"
+                @keydown.enter.stop.prevent="copyToClipboard(String(model.id)); flashTip(`ID: ${model.id}`)"
+                @keydown.space.stop.prevent="copyToClipboard(String(model.id)); flashTip(`ID: ${model.id}`)"
               >
                 <PhHash class="size-3" />
               </span>
