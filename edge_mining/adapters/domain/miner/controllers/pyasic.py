@@ -216,19 +216,21 @@ class PyASICMinerController(MinerControlPort):
         miner = self._miner
         mining_state = run_async_func(miner.is_mining())
 
-        # If miner status is not provided, we can try to derive it
-        if mining_state is None:
-            if self.logger:
-                self.logger.debug("Mining state is not provided, deriving miner status...")
-            mining_state = self._derive_miner_status()
-
+        # Map the bool result from is_mining() to MinerStatus
         state_map: Dict[Optional[bool], MinerStatus] = {
             True: MinerStatus.ON,
             False: MinerStatus.OFF,
             None: MinerStatus.UNKNOWN,
         }
 
-        miner_status = state_map.get(mining_state, MinerStatus.UNKNOWN)
+        # If miner status is not provided, we can try to derive it
+        if mining_state is None:
+            if self.logger:
+                self.logger.debug("Mining state is not provided, deriving miner status...")
+            derived_state = self._derive_miner_status()
+            miner_status = state_map.get(derived_state, MinerStatus.UNKNOWN)
+        else:
+            miner_status = state_map.get(mining_state, MinerStatus.UNKNOWN)
 
         if self.logger:
             self.logger.debug(f"Miner status fetched: {miner_status}")
@@ -277,23 +279,38 @@ class PyASICMinerController(MinerControlPort):
 
         return success or False
 
-    def _derive_miner_status(self) -> MinerStatus:
-        """Derives the miner status based on hashrate and power consumption."""
+    def _derive_miner_status(self) -> Optional[bool]:
+        """Derives the miner status based on hashrate and power consumption.
 
-        # We should to consider fans and mainboard power draw when checking power consumption
-        IDLE_WATTAGE_THRESHOLD = 100  # Watts
+        Returns True if miner is ON (both hashrate > 0 and power > IDLE_WATTAGE_THRESHOLD),
+        False if miner is OFF, or None if status cannot be determined.
+
+        The IDLE_WATTAGE_THRESHOLD is set to a low value (1W) to distinguish between
+        truly off (near 0W) and on (consuming power, even for low-power miners like Bitaxe).
+        """
+        IDLE_WATTAGE_THRESHOLD = 1  # Low threshold to work with low-power miners (e.g., Bitaxe ~13W)
+
         hashrate: Optional[HashRate] = self.get_miner_hashrate()
         wattage: Optional[Watts] = self.get_miner_power()
 
-        producing_hashrate = hashrate is not None and hashrate.value > 0
-        consuming_power = wattage is not None and wattage > IDLE_WATTAGE_THRESHOLD
+        if self.logger:
+            self.logger.debug(f"_derive_miner_status: hashrate={hashrate}, wattage={wattage}W (threshold: {IDLE_WATTAGE_THRESHOLD}W)")
 
-        if producing_hashrate and consuming_power:
-            miner_status = MinerStatus.ON
-        else:
-            miner_status = MinerStatus.OFF
+        # Miner is ON only if BOTH conditions are met:
+        # 1. Producing hashrate (hashrate > 0)
+        # 2. Consuming power above idle threshold (wattage > IDLE_WATTAGE_THRESHOLD)
+        has_hashrate = hashrate is not None and hashrate.value > 0
+        has_power_consumption = wattage is not None and wattage > IDLE_WATTAGE_THRESHOLD
 
-        return miner_status
+        if has_hashrate and has_power_consumption:
+            return True
+
+        # If we have both values but conditions aren't met, miner is OFF
+        if hashrate is not None and wattage is not None:
+            return False
+
+        # Can't determine status - missing hashrate or power data
+        return None
 
     def _normalize_hashrate_unit(
         self,
