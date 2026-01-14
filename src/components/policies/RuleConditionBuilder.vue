@@ -6,16 +6,17 @@ import { OPERATOR_SYMBOLS } from '../../core/models/ruleEngine';
 import { PhCheckCircle, PhXCircle, PhCheck, PhX, PhFloppyDisk } from '@phosphor-icons/vue';
 
 interface Props {
-  modelValue: RuleConditions;
+  modelValue?: RuleConditions;
   depth?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  modelValue: () => ({} as LogicalGroup),
   depth: 0
 });
 
 const emit = defineEmits<{
-  'update:modelValue': [value: RuleConditions];
+  (e: 'update:modelValue', value: RuleConditions): void;
 }>();
 
 const ruleEngineStore = useRuleEngineStore();
@@ -158,14 +159,19 @@ const fieldSuggestions = [
   'price.electricity',
 ];
 
-// Check if node is a group
-const isGroup = (node: RuleConditions): node is LogicalGroup => {
-  return 'any_of' in node || 'all_of' in node || 'not_' in node;
+// Check if rule condition is a group
+const isGroup = (ruleCondition: RuleConditions): ruleCondition is LogicalGroup => {
+  return ruleCondition !== null && typeof ruleCondition === 'object' && ('any_of' in ruleCondition || 'all_of' in ruleCondition || 'not_' in ruleCondition);
 };
 
-// Check if node is a condition
-const isCondition = (node: RuleConditions): node is RuleCondition => {
-  return 'field' in node && 'operator' in node && 'value' in node;
+// Check if ruleCondition is a condition
+const isCondition = (ruleCondition: RuleConditions): ruleCondition is RuleCondition => {
+  return ruleCondition !== null && typeof ruleCondition === 'object' && 'field' in ruleCondition && 'operator' in ruleCondition && 'value' in ruleCondition;
+};
+
+// Check if ruleCondition is empty (no properties)
+const isEmpty = (ruleCondition: RuleConditions): boolean => {
+  return ruleCondition !== null && typeof ruleCondition === 'object' && Object.keys(ruleCondition).length === 0;
 };
 
 // Get group type
@@ -207,11 +213,19 @@ const updateGroupItem = (index: number, newValue: RuleConditions) => {
     const type = groupType.value as 'any_of' | 'all_of' | 'not_';
     if (type === 'not_') {
       // not_ contains a single item, not an array
+      if (!isGroup(newValue) && !isCondition(newValue)) {
+        console.error('Invalid value for not_ group');
+        return;
+      }
       updateWorkingValue({
         not_: newValue
       });
     } else {
       const items = [...(workingValue.value[type] || [])];
+      if (!isGroup(newValue) && !isCondition(newValue)) {
+        console.error('Invalid value for group item');
+        return;
+      }
       items[index] = newValue;
       updateWorkingValue({
         [type]: items
@@ -372,6 +386,23 @@ const parseValue = (val: string, operator: OperatorType): string | number | bool
   // Return as string
   return val;
 };
+
+// Helper methods for input handling
+const handleFieldInput = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  updateConditionField('field', target.value);
+};
+
+const handleOperatorChange = (event: Event) => {
+  const target = event.target as HTMLSelectElement;
+  updateConditionField('operator', target.value as OperatorType);
+};
+
+const handleValueInput = (event: Event) => {
+  if (!isCondition(workingValue.value)) return;
+  const target = event.target as HTMLInputElement;
+  updateConditionField('value', parseValue(target.value, workingValue.value.operator));
+};
 </script>
 
 <template>
@@ -488,7 +519,7 @@ const parseValue = (val: string, operator: OperatorType): string | number | bool
     <!-- Builder View -->
     <div v-if="depth > 0 || viewMode === 'builder'">
       <!-- Empty object - show initialization button -->
-      <div v-if="!isCondition(workingValue) && !isGroup(workingValue)" class="text-center py-8">
+      <div v-if="isEmpty(workingValue)" class="text-center py-8">
         <p class="text-sm text-base-content/50 mb-4">No conditions defined</p>
         <div class="flex gap-2 justify-center">
           <button 
@@ -511,7 +542,7 @@ const parseValue = (val: string, operator: OperatorType): string | number | bool
         <div class="flex-1">
           <input
             :value="workingValue.field"
-            @input="updateConditionField('field', ($event.target as HTMLInputElement).value)"
+            @input="handleFieldInput"
             type="text"
             placeholder="Field name (e.g., energy_state.production)"
             list="field-suggestions"
@@ -524,7 +555,7 @@ const parseValue = (val: string, operator: OperatorType): string | number | bool
         
         <select
           :value="workingValue.operator"
-          @change="updateConditionField('operator', ($event.target as HTMLSelectElement).value)"
+          @change="handleOperatorChange"
           class="select select-bordered select-sm w-32"
         >
           <option v-for="op in operators" :key="op.value" :value="op.value">
@@ -534,7 +565,7 @@ const parseValue = (val: string, operator: OperatorType): string | number | bool
         
         <input
           :value="Array.isArray(workingValue.value) ? JSON.stringify(workingValue.value) : workingValue.value"
-          @input="updateConditionField('value', parseValue(($event.target as HTMLInputElement).value, workingValue.operator))"
+          @input="handleValueInput"
           type="text"
           :placeholder="workingValue.operator === 'in' || workingValue.operator === 'not_in' ? '[1,2,3] or 1,2,3' : 'Value'"
           class="input input-bordered input-sm w-48"
