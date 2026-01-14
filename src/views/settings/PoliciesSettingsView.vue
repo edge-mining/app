@@ -21,8 +21,8 @@ const editingRule = ref<AutomationRule | undefined>(undefined);
 const showRulesModal = ref(false);
 const showRuleEditModal = ref(false);
 const isEditingRule = ref(false);
-const activeRuleTab = ref<'start' | 'stop'>('start');
-const currentRuleType = ref<'start' | 'stop'>('start');
+const activeRuleTab = ref<RuleType>('start');
+const currentRuleType = ref<RuleType>('start');
 
 // Check result modal state
 const showCheckModal = ref(false);
@@ -225,7 +225,7 @@ function confirmEditRule() {
 function handleDeleteRule(rule: AutomationRule) {
   if (!selectedPolicy.value) return;
   policyStore
-    .deleteRule(selectedPolicy.value.id!.toString(), "asdf", rule.id!.toString())
+    .deleteRule(selectedPolicy.value.id!.toString(), rule.id!.toString())
     .then(() => {
       policyStore.loadPolicy(selectedPolicy.value!.id!.toString()).then((updatedPolicy) => {
         selectedPolicy.value = updatedPolicy;
@@ -245,14 +245,14 @@ function handleDeleteRule(rule: AutomationRule) {
     });
 }
 
-function handleToggleRuleEnabled(rule: AutomationRule, ruleType: 'start' | 'stop') {
+function handleToggleRuleEnabled(rule: AutomationRule) {
   if (!selectedPolicy.value) return;
   const policyId = selectedPolicy.value.id!.toString();
   const ruleId = rule.id!.toString();
 
   const action = rule.enabled
-    ? policyStore.disableRule(policyId, ruleType, ruleId)
-    : policyStore.enableRule(policyId, ruleType, ruleId);
+    ? policyStore.disableRule(policyId, ruleId)
+    : policyStore.enableRule(policyId, ruleId);
 
   action.then(() => {
     policyStore.loadPolicy(policyId).then((updatedPolicy) => {
@@ -451,8 +451,8 @@ function handleToggleRuleEnabled(rule: AutomationRule, ruleType: 'start' | 'stop
                     :key="rule.id"
                     v-model="selectedPolicy.start_rules[i]"
                     @edit="(r) => handleEditRule(r, 'start')"
-                    @delete="(r) => handleDeleteRule(r, 'start')"
-                    @toggle-enabled="(r) => handleToggleRuleEnabled(r, 'start')"
+                    @delete="(r) => handleDeleteRule(r)"
+                    @toggle-enabled="(r) => handleToggleRuleEnabled(r)"
                   />
                 </template>
                 <tr v-else>
@@ -493,8 +493,8 @@ function handleToggleRuleEnabled(rule: AutomationRule, ruleType: 'start' | 'stop
                     :key="rule.id"
                     v-model="selectedPolicy.stop_rules[i]"
                     @edit="(r) => handleEditRule(r, 'stop')"
-                    @delete="(r) => handleDeleteRule(r, 'stop')"
-                    @toggle-enabled="(r) => handleToggleRuleEnabled(r, 'stop')"
+                    @delete="(r) => handleDeleteRule(r)"
+                    @toggle-enabled="(r) => handleToggleRuleEnabled(r)"
                   />
                 </template>
                 <tr v-else>
