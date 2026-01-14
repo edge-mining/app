@@ -5,7 +5,8 @@ import type {
   RuleEngineInfo,
   EvaluationContext,
   EvaluationResult,
-  ValidationResult,
+  RuleValidationRequest,
+  RuleValidationResult,
 } from "../models/ruleEngine";
 import { RuleEngineService } from "../services/ruleEngineService";
 
@@ -35,8 +36,8 @@ export const useRuleEngineStore = defineStore("ruleEngine", () => {
     return service.evaluate(context);
   }
 
-  function validate(conditions: any): Promise<ValidationResult> {
-    return service.validate(conditions);
+  function validate(request: RuleValidationRequest): Promise<RuleValidationResult> {
+    return service.validate(request);
   }
 
   return {

@@ -4,7 +4,8 @@ import type {
   RuleEngineInfo,
   EvaluationContext,
   EvaluationResult,
-  ValidationResult,
+  RuleValidationRequest,
+  RuleValidationResult,
 } from "../models/ruleEngine";
 
 export class RuleEngineService extends BaseService {
@@ -20,7 +21,7 @@ export class RuleEngineService extends BaseService {
     return this.post<EvaluationResult>("/rule-engine/evaluate", context).getData();
   }
 
-  validate(conditions: any): Promise<ValidationResult> {
-    return this.post<ValidationResult>("/rule-engine/validate", conditions).getData();
+  validate(request: RuleValidationRequest): Promise<RuleValidationResult> {
+    return this.post<RuleValidationResult>("/rule-engine/validate", request).getData();
   }
 }

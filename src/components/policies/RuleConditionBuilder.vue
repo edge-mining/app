@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
+import { useRuleEngineStore } from '../../core/stores/ruleEngineStore';
+import type { RuleCondition, LogicalGroup, RuleValidationResult, OperatorType } from '../../core/models/ruleEngine';
+import { PhCheckCircle, PhXCircle, PhCheck } from '@phosphor-icons/vue';
 
 interface Condition {
   field: string;
@@ -27,16 +30,23 @@ const emit = defineEmits<{
   'update:modelValue': [value: RuleNode];
 }>();
 
+const ruleEngineStore = useRuleEngineStore();
+
 // View mode toggle
 const viewMode = ref<'builder' | 'json'>('builder');
 
 // JSON string for editing
 const jsonString = ref(JSON.stringify(props.modelValue, null, 2));
 
+// Validation state
+const validationResult = ref<RuleValidationResult | null>(null);
+const isValidating = ref(false);
+
 // Update rule from JSON
 const updateFromJson = () => {
   try {
     emit('update:modelValue', JSON.parse(jsonString.value));
+    validateConditions();
   } catch (e) {
     console.error('Invalid JSON:', e);
   }
@@ -46,6 +56,36 @@ const updateFromJson = () => {
 const updateJson = () => {
   jsonString.value = JSON.stringify(props.modelValue, null, 2);
 };
+
+// Validate conditions using rule engine
+const validateConditions = async () => {
+  if (props.depth !== 0) return; // Only validate at root level
+  
+  isValidating.value = true;
+  try {
+    const result = await ruleEngineStore.validate({
+      conditions: props.modelValue as RuleCondition | LogicalGroup
+    });
+    validationResult.value = result;
+  } catch (error) {
+    console.error('Validation error:', error);
+    validationResult.value = {
+      is_valid: false,
+      validation_errors: ['Failed to validate conditions'],
+      syntax_errors: [],
+      field_errors: []
+    };
+  } finally {
+    isValidating.value = false;
+  }
+};
+
+// Watch for changes and validate
+watch(() => props.modelValue, () => {
+  if (props.depth === 0) {
+    validateConditions();
+  }
+}, { deep: true });
 
 // Available operators
 const operators = [
@@ -198,9 +238,20 @@ const parseValue = (val: string): string | number | boolean => {
 <template>
   <div class="space-y-4">
     <!-- Tabs for Builder/JSON view (only show at root level) -->
-    <div v-if="depth === 0" class="flex justify-between items-center">
+    <div v-if="depth === 0" class="space-y-4">
+      <div class="flex justify-between items-center">
         <h3 class="text-lg font-semibold">Conditions</h3>
-        <div role="tablist" class="tabs tabs-boxed">
+        <div class="flex gap-2 items-center">
+          <button 
+            @click="validateConditions" 
+            class="btn btn-sm btn-outline"
+            :disabled="isValidating"
+          >
+            <PhCheck v-if="!isValidating" :size="16" />
+            <span v-if="isValidating" class="loading loading-spinner loading-xs"></span>
+            Validate
+          </button>
+          <div role="tablist" class="tabs tabs-boxed">
             <a 
             role="tab" 
             class="tab"
@@ -217,7 +268,46 @@ const parseValue = (val: string): string | number | boolean => {
             >
             JSON
             </a>
+          </div>
         </div>
+      </div>
+
+      <!-- Validation Results -->
+      <div v-if="validationResult" class="alert" :class="{
+        'alert-success': validationResult.is_valid,
+        'alert-error': !validationResult.is_valid
+      }">
+        <div class="flex items-start gap-2">
+          <PhCheckCircle v-if="validationResult.is_valid" :size="24" weight="fill" />
+          <PhXCircle v-else :size="24" weight="fill" />
+          <div class="flex-1">
+            <div class="font-semibold">
+              {{ validationResult.is_valid ? 'Conditions are valid' : 'Validation failed' }}
+            </div>
+            <div v-if="!validationResult.is_valid" class="text-sm mt-2 space-y-1">
+              <div v-if="validationResult.validation_errors.length > 0">
+                <div class="font-medium">Validation Errors:</div>
+                <ul class="list-disc list-inside">
+                  <li v-for="(error, idx) in validationResult.validation_errors" :key="idx">{{ error }}</li>
+                </ul>
+              </div>
+              <div v-if="validationResult.syntax_errors.length > 0">
+                <div class="font-medium">Syntax Errors:</div>
+                <ul class="list-disc list-inside">
+                  <li v-for="(error, idx) in validationResult.syntax_errors" :key="idx">{{ error }}</li>
+                </ul>
+              </div>
+              <div v-if="validationResult.field_errors.length > 0">
+                <div class="font-medium">Field Errors:</div>
+                <ul class="list-disc list-inside">
+                  <li v-for="(error, idx) in validationResult.field_errors" :key="idx">{{ error }}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+        <span v-if="isValidating" class="loading loading-spinner loading-sm"></span>
+      </div>
     </div>
 
     <!-- JSON View (only at root level) -->
