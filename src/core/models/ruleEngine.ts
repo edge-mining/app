@@ -64,9 +64,12 @@ export interface LogicalGroup {
   not_?: RuleCondition | LogicalGroup | null;
 }
 
+// Rule Conditions
+export type RuleConditions = LogicalGroup | RuleCondition;
+
 // Rule Validation Request
 export interface RuleValidationRequest {
-  conditions: LogicalGroup | RuleCondition;
+  conditions: RuleConditions;
 }
 
 // Rule Validation Result

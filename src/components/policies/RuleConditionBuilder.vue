@@ -1,15 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
 import { useRuleEngineStore } from '../../core/stores/ruleEngineStore';
-import type { RuleCondition, LogicalGroup, RuleValidationResult, OperatorType } from '../../core/models/ruleEngine';
+import type { RuleConditions, RuleCondition, LogicalGroup, RuleValidationResult, OperatorType } from '../../core/models/ruleEngine';
 import { OPERATOR_SYMBOLS } from '../../core/models/ruleEngine';
 import { PhCheckCircle, PhXCircle, PhCheck, PhX, PhFloppyDisk } from '@phosphor-icons/vue';
 
-// Use LogicalGroup directly instead of custom Group interface
-type RuleNode = RuleCondition | LogicalGroup;
-
 interface Props {
-  modelValue: RuleNode;
+  modelValue: RuleConditions;
   depth?: number;
 }
 
@@ -18,7 +15,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-  'update:modelValue': [value: RuleNode];
+  'update:modelValue': [value: RuleConditions];
 }>();
 
 const ruleEngineStore = useRuleEngineStore();
@@ -27,7 +24,7 @@ const ruleEngineStore = useRuleEngineStore();
 const useLocalState = computed(() => props.depth === 0);
 
 // Local editing state (only for root level)
-const localValue = ref<RuleNode>(JSON.parse(JSON.stringify(props.modelValue)));
+const localValue = ref<RuleConditions>(JSON.parse(JSON.stringify(props.modelValue)));
 const hasChanges = ref(false);
 
 // Get the current working value (local if root, props if nested)
@@ -75,7 +72,7 @@ const markAsChanged = () => {
 };
 
 // Update working value
-const updateWorkingValue = (newValue: RuleNode) => {
+const updateWorkingValue = (newValue: RuleConditions) => {
   if (useLocalState.value) {
     localValue.value = newValue;
     markAsChanged();
@@ -162,12 +159,12 @@ const fieldSuggestions = [
 ];
 
 // Check if node is a group
-const isGroup = (node: RuleNode): node is LogicalGroup => {
+const isGroup = (node: RuleConditions): node is LogicalGroup => {
   return 'any_of' in node || 'all_of' in node || 'not_' in node;
 };
 
 // Check if node is a condition
-const isCondition = (node: RuleNode): node is RuleCondition => {
+const isCondition = (node: RuleConditions): node is RuleCondition => {
   return 'field' in node && 'operator' in node && 'value' in node;
 };
 
@@ -205,7 +202,7 @@ const updateConditionField = (field: keyof RuleCondition, value: any) => {
 };
 
 // Update group item
-const updateGroupItem = (index: number, newValue: RuleNode) => {
+const updateGroupItem = (index: number, newValue: RuleConditions) => {
   if (isGroup(workingValue.value)) {
     const type = groupType.value as 'any_of' | 'all_of' | 'not_';
     if (type === 'not_') {
