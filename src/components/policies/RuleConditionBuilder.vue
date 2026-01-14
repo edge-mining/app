@@ -711,7 +711,7 @@ const handleValueInput = (event: Event) => {
                   :model-value="item"
                   @update:model-value="updateGroupItem(index, $event)"
                   :depth="depth + 1"
-                  :parent-god-mode="isGodModeEnabled"
+                  :god-mode="isGodModeEnabled"
                 />
               </div>
               
