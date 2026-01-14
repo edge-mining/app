@@ -23,6 +23,7 @@ const showRuleEditModal = ref(false);
 const isEditingRule = ref(false);
 const activeRuleTab = ref<RuleType>('start');
 const currentRuleType = ref<RuleType>('start');
+const conditionsViewMode = ref<'visual' | 'json'>('visual');
 
 // Check result modal state
 const showCheckModal = ref(false);
@@ -587,8 +588,38 @@ function handleToggleRuleEnabled(rule: AutomationRule) {
           </div>
 
           <div class="space-y-1">
-            <div class="font-medium">Conditions (JSON)</div>
+            <div class="font-medium mb-2">Conditions</div>
+            
+            <!-- Tabs for conditions view -->
+            <div role="tablist" class="tabs tabs-boxed mb-2">
+              <a 
+                role="tab" 
+                class="tab"
+                :class="{ 'tab-active': conditionsViewMode === 'visual' }"
+                @click="conditionsViewMode = 'visual'"
+              >
+                Visual
+              </a>
+              <a 
+                role="tab" 
+                class="tab"
+                :class="{ 'tab-active': conditionsViewMode === 'json' }"
+                @click="conditionsViewMode = 'json'"
+              >
+                JSON
+              </a>
+            </div>
+
+            <!-- Visual mode (placeholder) -->
+            <div v-if="conditionsViewMode === 'visual'" class="border border-base-300 rounded-lg p-4 bg-base-200">
+              <div class="text-center text-base-content/50">
+                Visual condition editor - Coming soon
+              </div>
+            </div>
+
+            <!-- JSON mode -->
             <textarea
+              v-else
               :value="JSON.stringify(editingRule.conditions, null, 2)"
               @input="editingRule.conditions = JSON.parse(($event.target as HTMLTextAreaElement).value || '{}')"
               placeholder='{"field": "value"}'
@@ -650,8 +681,38 @@ function handleToggleRuleEnabled(rule: AutomationRule) {
           </div>
 
           <div class="space-y-1">
-            <div class="font-medium">Conditions (JSON)</div>
+            <div class="font-medium mb-2">Conditions</div>
+            
+            <!-- Tabs for conditions view -->
+            <div role="tablist" class="tabs tabs-boxed mb-2">
+              <a 
+                role="tab" 
+                class="tab"
+                :class="{ 'tab-active': conditionsViewMode === 'visual' }"
+                @click="conditionsViewMode = 'visual'"
+              >
+                Visual
+              </a>
+              <a 
+                role="tab" 
+                class="tab"
+                :class="{ 'tab-active': conditionsViewMode === 'json' }"
+                @click="conditionsViewMode = 'json'"
+              >
+                JSON
+              </a>
+            </div>
+
+            <!-- Visual mode (placeholder) -->
+            <div v-if="conditionsViewMode === 'visual'" class="border border-base-300 rounded-lg p-4 bg-base-200">
+              <div class="text-center text-base-content/50">
+                Visual condition editor - Coming soon
+              </div>
+            </div>
+
+            <!-- JSON mode -->
             <textarea
+              v-else
               :value="JSON.stringify(newRule.conditions, null, 2)"
               @input="newRule.conditions = JSON.parse(($event.target as HTMLTextAreaElement).value || '{}')"
               placeholder='{"field": "value"}'
