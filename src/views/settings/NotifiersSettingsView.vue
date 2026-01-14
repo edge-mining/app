@@ -237,7 +237,6 @@ const formatAdapterType = (type: string) => {
           v-for="(notifier, i) in notifierStore.notifiers"
           :key="notifier.id"
           v-model="notifierStore.notifiers[i]"
-          :externalServices="externalServiceStore.externalServices"
           @edit="handleEdit"
           @delete="handleDelete"
           @test="handleTest"
