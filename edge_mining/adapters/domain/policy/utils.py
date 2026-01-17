@@ -6,7 +6,6 @@ from typing import Any, List, Optional, Union, get_args, get_origin
 
 from pydantic import BaseModel, Field
 
-
 # Built-in types with their accessible properties
 _BUILTIN_TYPE_PROPERTIES = {
     datetime: {
