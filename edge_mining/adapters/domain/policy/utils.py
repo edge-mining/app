@@ -1,9 +1,39 @@
 """Utility functions for policy domain adapters."""
 
+from datetime import date, datetime, time
 from enum import Enum
 from typing import Any, List, Optional, Union, get_args, get_origin
 
 from pydantic import BaseModel, Field
+
+
+# Built-in types with their accessible properties
+_BUILTIN_TYPE_PROPERTIES = {
+    datetime: {
+        "year": ("int", "Year (e.g., 2024)"),
+        "month": ("int", "Month (1-12)"),
+        "day": ("int", "Day of the month (1-31)"),
+        "hour": ("int", "Hour (0-23)"),
+        "minute": ("int", "Minute (0-59)"),
+        "second": ("int", "Second (0-59)"),
+        "microsecond": ("int", "Microsecond (0-999999)"),
+        "weekday": ("int", "Day of the week (0=Monday, 6=Sunday)"),
+        "isoweekday": ("int", "ISO day of the week (1=Monday, 7=Sunday)"),
+    },
+    date: {
+        "year": ("int", "Year (e.g., 2024)"),
+        "month": ("int", "Month (1-12)"),
+        "day": ("int", "Day of the month (1-31)"),
+        "weekday": ("int", "Day of the week (0=Monday, 6=Sunday)"),
+        "isoweekday": ("int", "ISO day of the week (1=Monday, 7=Sunday)"),
+    },
+    time: {
+        "hour": ("int", "Hour (0-23)"),
+        "minute": ("int", "Minute (0-59)"),
+        "second": ("int", "Second (0-59)"),
+        "microsecond": ("int", "Microsecond (0-999999)"),
+    },
+}
 
 
 class FieldStructureSchema(BaseModel):
@@ -87,22 +117,27 @@ def _extract_schema_structure(
             # Get description from Field
             description = field_info.description
 
+            # Check if the type is a built-in type with known properties
+            builtin_children = _get_builtin_type_children(inner_type, full_path)
+            if builtin_children:
+                children = builtin_children
             # Check if inner_type is a List and extract element type
-            inner_origin = get_origin(inner_type)
-            if inner_origin is list:
-                list_args = get_args(inner_type)
-                if list_args and isinstance(list_args[0], type) and issubclass(list_args[0], BaseModel):
-                    # Extract structure from list element type with array notation
-                    # Use .0, .1, etc. to indicate array element access
-                    array_path = f"{full_path}.0"
-                    children = _extract_schema_structure(list_args[0], array_path, visited.copy())
+            else:
+                inner_origin = get_origin(inner_type)
+                if inner_origin is list:
+                    list_args = get_args(inner_type)
+                    if list_args and isinstance(list_args[0], type) and issubclass(list_args[0], BaseModel):
+                        # Extract structure from list element type with array notation
+                        # Use .0, .1, etc. to indicate array element access
+                        array_path = f"{full_path}.0"
+                        children = _extract_schema_structure(list_args[0], array_path, visited.copy())
+                    else:
+                        children = None
+                # Recursively process nested BaseModel schemas (non-list)
+                elif isinstance(inner_type, type) and issubclass(inner_type, BaseModel):
+                    children = _extract_schema_structure(inner_type, full_path, visited.copy())
                 else:
                     children = None
-            # Recursively process nested BaseModel schemas (non-list)
-            elif isinstance(inner_type, type) and issubclass(inner_type, BaseModel):
-                children = _extract_schema_structure(inner_type, full_path, visited.copy())
-            else:
-                children = None
 
             field_struct = FieldStructureSchema(
                 path=full_path,
@@ -188,6 +223,46 @@ def _extract_schema_structure(
                 continue
 
     return fields_structure
+
+
+def _get_builtin_type_children(field_type: Any, parent_path: str) -> Optional[List[FieldStructureSchema]]:
+    """
+    Extract child properties for built-in types like datetime, date, time.
+
+    Args:
+        field_type: The field type to check
+        parent_path: The parent path for building full paths
+
+    Returns:
+        List of FieldStructureSchema if the type has known properties, None otherwise
+    """
+    # Handle Optional types to get the inner type
+    origin = get_origin(field_type)
+    if origin is Union:
+        args = get_args(field_type)
+        non_none_args = [arg for arg in args if arg is not type(None)]
+        if len(non_none_args) == 1:
+            field_type = non_none_args[0]
+
+    # Check if this type is in our built-in types mapping
+    for builtin_type, properties in _BUILTIN_TYPE_PROPERTIES.items():
+        if field_type is builtin_type or (isinstance(field_type, type) and issubclass(field_type, builtin_type)):
+            children = []
+            for prop_name, (prop_type, prop_desc) in properties.items():
+                child_path = f"{parent_path}.{prop_name}"
+                children.append(
+                    FieldStructureSchema(
+                        path=child_path,
+                        type=prop_type,
+                        description=prop_desc,
+                        is_optional=False,
+                        values=None,
+                        children=None,
+                    )
+                )
+            return children
+
+    return None
 
 
 def _get_field_type_name(field_type: Any) -> tuple[str, bool, Optional[List[str]]]:
