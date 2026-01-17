@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onMounted, onUnmounted, ref } from "vue";
 import { useMinerStore } from "../../core/stores/minerStore";
 import { useMinerControllerStore } from "../../core/stores/minerControllerStore";
 import MinerRow from "../../components/miners/MinerRow.vue";
@@ -10,10 +10,37 @@ const minerStore = useMinerStore();
 const minerControllerStore = useMinerControllerStore();
 const newMiner = ref<Miner | undefined>(undefined);
 const editingMiner = ref<{ index: number; miner: Miner } | undefined>(undefined);
+let statusInterval: number | undefined;
 
-onMounted(() => {
-  minerStore.loadMiners();
+async function refreshMinersStatus() {
+  if (minerStore.miners.length > 0) {
+    const statusPromises = minerStore.miners
+      .filter(miner => miner.id != null)
+      .map(miner => minerStore.getMinerStatus(miner.id!.toString()));
+    
+    await Promise.all(statusPromises);
+    await minerStore.loadMiners();
+  }
+}
+
+onMounted(async () => {
+  await minerStore.loadMiners();
   minerControllerStore.loadMinerControllers();
+  
+  // Refresh status for all miners on mount
+  await refreshMinersStatus();
+  
+  // Set up interval to refresh status every 5 seconds
+  statusInterval = window.setInterval(() => {
+    refreshMinersStatus();
+  }, 5000);
+});
+
+onUnmounted(() => {
+  // Clear interval when component is unmounted
+  if (statusInterval !== undefined) {
+    clearInterval(statusInterval);
+  }
 });
 
 function addMiner() {

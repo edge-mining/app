@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Miner } from "../../core/models/miner";
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useMinerControllerStore } from "../../core/stores/minerControllerStore";
 import { PhHash, PhPlay, PhStop, PhArrowClockwise, PhPencil, PhTrash } from "@phosphor-icons/vue";
 
@@ -29,6 +29,13 @@ const isStarting = computed(() => model.value.status === "starting");
 const isStopping = computed(() => model.value.status === "stopping");
 const canStart = computed(() => model.value.active && !isOn.value && (!isStarting.value || isStopping.value) && !isProcessing.value);
 const canStop = computed(() => model.value.active && (isOn.value || isStarting.value) && !isProcessing.value);
+
+// Reset isProcessing when status changes
+watch(() => model.value.status, (newStatus, oldStatus) => {
+  if (newStatus !== oldStatus && isProcessing.value) {
+    isProcessing.value = false;
+  }
+});
 
 const minerIdTip = ref<string | null>(null);
 const controllerIdTip = ref<string | null>(null);
