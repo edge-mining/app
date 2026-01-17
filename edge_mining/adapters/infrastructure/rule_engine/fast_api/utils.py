@@ -30,17 +30,22 @@ def validate_condition_recursively(cond_dict, path="") -> Tuple[bool, List[str],
 
             # Validate operator
             operator = cond_dict.get("operator")
-            valid_operator, operator_error = validate_condition__operator(path, operator)
-            if not valid_operator:
-                syntax_errors.append(operator_error)
+            if operator is None:
+                syntax_errors.append(f"Missing operator at {path}")
                 is_valid = False
+            else:
+                valid_operator, operator_error = validate_condition__operator(path, operator)
+                if not valid_operator:
+                    syntax_errors.append(operator_error)
+                    is_valid = False
 
             # Validate value
             value = cond_dict.get("value")
-            valid_value, value_error = validate_condition__value(path, value, field_path, operator)
-            if not valid_value:
-                syntax_errors.append(value_error)
-                is_valid = False
+            if operator is not None:
+                valid_value, value_error = validate_condition__value(path, value, field_path, operator)
+                if not valid_value:
+                    syntax_errors.append(value_error)
+                    is_valid = False
 
         # Check logical groups
         elif any(k in cond_dict for k in LogicalGroupSchema.model_fields.keys()):
@@ -88,8 +93,29 @@ def validate_condition__field_path(path: str, field_path: str) -> Tuple[bool, st
     current_type = DecisionalContext
 
     for i, part in enumerate(parts):
-        # Check if the current type has the attribute
+        # Check if the current type has the attribute (either in annotations or as a property)
         if not hasattr(current_type, "__annotations__"):
+            # Check if it's a property or method
+            if hasattr(current_type, part):
+                attr = getattr(current_type, part)
+                # If it's a property, get its return type from the property object
+                if isinstance(attr, property):
+                    # Properties don't have direct type annotations, so we allow them but can't traverse further
+                    # We'll need to check the property's return type annotation if available
+                    if hasattr(attr.fget, "__annotations__") and "return" in attr.fget.__annotations__:
+                        field_type = attr.fget.__annotations__["return"]
+                        current_type = field_type
+                        continue
+                    else:
+                        # Property exists but we can't determine its type for further traversal
+                        if i < len(parts) - 1:
+                            return (
+                                False,
+                                f"Invalid field path at {path}: '{field_path}' - cannot traverse beyond property '{part}' without type annotation",
+                            )
+                        else:
+                            # It's the last part, property exists
+                            return True, ""
             return (
                 False,
                 f"Invalid field path at {path}: '{field_path}' - cannot traverse beyond '{'.'.join(parts[:i])}'",
@@ -97,28 +123,55 @@ def validate_condition__field_path(path: str, field_path: str) -> Tuple[bool, st
 
         annotations = current_type.__annotations__
 
-        if part not in annotations:
+        # Check in annotations first
+        if part in annotations:
+            # Get the type of the field to continue traversal
+            field_type = annotations[part]
+
+            # Handle Optional types (e.g., Optional[Miner])
+            if hasattr(field_type, "__origin__"):
+                # For Union types (Optional is Union[X, None])
+                if field_type.__origin__ is Union:
+                    # Get the non-None type
+                    args = [arg for arg in field_type.__args__ if arg is not type(None)]
+                    if args:
+                        field_type = args[0]
+
+            # Update current_type for next iteration
+            current_type = field_type
+        # Check if it's a property
+        elif hasattr(current_type, part):
+            attr = getattr(current_type, part)
+            if isinstance(attr, property):
+                # If it's a property, try to get its return type
+                if hasattr(attr.fget, "__annotations__") and "return" in attr.fget.__annotations__:
+                    field_type = attr.fget.__annotations__["return"]
+                    current_type = field_type
+                else:
+                    # Property exists but we can't determine its type for further traversal
+                    if i < len(parts) - 1:
+                        return (
+                            False,
+                            f"Invalid field path at {path}: '{field_path}' - cannot traverse beyond property '{part}' without type annotation",
+                        )
+                    else:
+                        # It's the last part, property exists
+                        return True, ""
+            else:
+                return (
+                    False,
+                    f"Invalid field path at {path}: '{field_path}' - '{part}' is not a valid field or property",
+                )
+        else:
             # Get available fields for better error message
             available_fields = list(annotations.keys())
+            # Also add properties
+            properties = [name for name in dir(current_type) if isinstance(getattr(current_type, name, None), property)]
+            available_fields.extend(properties)
             return (
                 False,
                 f"Invalid field path at {path}: '{field_path}' - field '{part}' not found in {current_type.__name__}. Available fields: {', '.join(available_fields)}",
             )
-
-        # Get the type of the field to continue traversal
-        field_type = annotations[part]
-
-        # Handle Optional types (e.g., Optional[Miner])
-        if hasattr(field_type, "__origin__"):
-            # For Union types (Optional is Union[X, None])
-            if field_type.__origin__ is Union:
-                # Get the non-None type
-                args = [arg for arg in field_type.__args__ if arg is not type(None)]
-                if args:
-                    field_type = args[0]
-
-        # Update current_type for next iteration
-        current_type = field_type
 
     return True, ""
 
