@@ -1,3 +1,8 @@
+import type { EnergySource, EnergyStateSnapshot } from "./energySource";
+import type { Forecast, Sun } from "./forecast";
+import type { ConsumptionForecast } from "./homeLoad";
+import type { Miner, HashRate } from "./miner";
+
 export type RuleType = "start" | "stop";
 
 export interface AutomationRule {
@@ -35,4 +40,30 @@ export interface PolicyCheckResult {
   stop_rules_count: number;
   enabled_start_rules_count: number;
   enabled_stop_rules_count: number;
+}
+
+export interface DecisionalContextField {
+  path: string;
+  type: string;
+  description: string;
+  is_optional: boolean;
+  values: string[] | null;
+  children: DecisionalContextField[] | null;
+}
+
+export interface DecisionalContextStructure {
+  fields: DecisionalContextField[];
+  total_fields: number;
+}
+
+// Decisional Context - aggregates all domain data for decision making
+export interface DecisionalContext {
+  energy_source?: EnergySource;
+  energy_state?: EnergyStateSnapshot;
+  forecast?: Forecast;
+  home_load_forecast?: ConsumptionForecast;
+  tracker_current_hashrate?: HashRate;
+  sun?: Sun;
+  miner?: Miner;
+  timestamp: string; // ISO datetime
 }

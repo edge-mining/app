@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import type { OptimizationPolicy, AutomationRule, PolicyCheckResult, RuleType } from "../models/policy";
+import type { OptimizationPolicy, AutomationRule, PolicyCheckResult, RuleType, DecisionalContextStructure } from "../models/policy";
 import { PolicyService } from "../services/policyService";
 
 export const usePolicyStore = defineStore("policy", () => {
@@ -10,6 +10,7 @@ export const usePolicyStore = defineStore("policy", () => {
   const policies = ref<OptimizationPolicy[]>([]);
   const selectedPolicy = ref<OptimizationPolicy | null>(null);
   const checkResult = ref<PolicyCheckResult | null>(null);
+  const decisionalContextStructure = ref<DecisionalContextStructure | null>(null);
 
   // Policy Actions
   function loadPolicies() {
@@ -73,11 +74,19 @@ export const usePolicyStore = defineStore("policy", () => {
     return service.disableRule(policyId, ruleId);
   }
 
+  function loadDecisionalContextStructure() {
+    return service.getDecisionalContextStructure().then((response) => {
+      decisionalContextStructure.value = response;
+      return response;
+    });
+  }
+
   return {
     // STATE
     policies,
     selectedPolicy,
     checkResult,
+    decisionalContextStructure,
     // POLICY ACTIONS
     loadPolicies,
     loadPolicy,
@@ -93,5 +102,7 @@ export const usePolicyStore = defineStore("policy", () => {
     deleteRule,
     enableRule,
     disableRule,
+    // DECISIONAL CONTEXT ACTIONS
+    loadDecisionalContextStructure,
   };
 });

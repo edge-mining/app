@@ -1,5 +1,5 @@
 import { BaseService } from "./baseService";
-import type { OptimizationPolicy, AutomationRule, PolicyCheckResult, RuleType } from "../models/policy";
+import type { OptimizationPolicy, AutomationRule, PolicyCheckResult, RuleType, DecisionalContextStructure } from "../models/policy";
 
 export class PolicyService extends BaseService {
   // Policy CRUD operations
@@ -54,5 +54,9 @@ export class PolicyService extends BaseService {
 
   disableRule(policyId: string, ruleId: string): Promise<AutomationRule> {
     return this.get<AutomationRule>(`/policies/${policyId}/rules/${ruleId}/disable`).getData();
+  }
+
+  getDecisionalContextStructure(): Promise<DecisionalContextStructure> {
+    return this.get<DecisionalContextStructure>("/decisional-context/structure").getData();
   }
 }
