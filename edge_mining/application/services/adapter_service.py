@@ -18,7 +18,6 @@ from edge_mining.adapters.domain.notification.notifiers.dummy import DummyNotifi
 from edge_mining.adapters.domain.notification.notifiers.telegram import TelegramNotifierFactory
 from edge_mining.adapters.domain.performance.trackers.dummy import DummyMiningPerformanceTracker
 from edge_mining.adapters.infrastructure.homeassistant.homeassistant_api import ServiceHomeAssistantAPIFactory
-from edge_mining.adapters.infrastructure.rule_engine.common import RuleEngineType
 from edge_mining.adapters.infrastructure.rule_engine.factory import RuleEngineFactory
 from edge_mining.application.interfaces import AdapterServiceInterface
 from edge_mining.domain.common import EntityId
@@ -40,6 +39,7 @@ from edge_mining.domain.notification.ports import NotificationPort, NotifierRepo
 from edge_mining.domain.performance.common import MiningPerformanceTrackerAdapter
 from edge_mining.domain.performance.entities import MiningPerformanceTracker
 from edge_mining.domain.performance.ports import MiningPerformanceTrackerPort, MiningPerformanceTrackerRepository
+from edge_mining.domain.policy.common import RuleEngineType
 from edge_mining.domain.policy.services import RuleEngine
 from edge_mining.shared.external_services.common import ExternalServiceAdapter
 from edge_mining.shared.external_services.entities import ExternalService

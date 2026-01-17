@@ -5,7 +5,8 @@ from typing import Dict, List, Union
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from edge_mining.adapters.domain.policy.schemas import AutomationRuleSchema, LogicalGroupSchema, RuleConditionSchema
-from edge_mining.adapters.infrastructure.rule_engine.common import OperatorType, RuleEngineType
+from edge_mining.domain.policy.common import OperatorType, RuleEngineType
+from edge_mining.domain.policy.services import RuleEngine
 
 
 class RuleEngineConfigSchema(BaseModel):
@@ -26,6 +27,11 @@ class RuleEngineConfigSchema(BaseModel):
             return v
         else:
             raise ValueError("Engine type must be a string or RuleEngineType enum value")
+
+    @classmethod
+    def from_model(cls, rule_engine: RuleEngine) -> "RuleEngineConfigSchema":
+        """Create schema from rule engine model."""
+        return cls(engine_type=rule_engine.get_type())
 
     model_config = ConfigDict(from_attributes=True)
 

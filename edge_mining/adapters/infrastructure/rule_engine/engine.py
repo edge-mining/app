@@ -3,6 +3,7 @@
 from typing import List
 
 from edge_mining.adapters.infrastructure.rule_engine.custom.helpers import RuleEvaluator
+from edge_mining.domain.policy.common import RuleEngineType
 from edge_mining.domain.policy.entities import AutomationRule
 from edge_mining.domain.policy.services import RuleEngine
 from edge_mining.domain.policy.value_objects import DecisionalContext
@@ -15,6 +16,10 @@ class CustomRuleEngine(RuleEngine):
     def __init__(self, logger: LoggerPort):
         self.rules: List[AutomationRule] = []
         self.logger = logger
+
+    def get_type(self) -> RuleEngineType:
+        """Returns the type of the rule engine."""
+        return RuleEngineType.CUSTOM
 
     def load_rules(self, rules: List[AutomationRule]) -> None:
         """Load rules"""

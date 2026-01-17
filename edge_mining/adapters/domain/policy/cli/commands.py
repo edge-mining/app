@@ -4,15 +4,16 @@ from typing import Any, Dict, List, Optional
 
 import click
 
-from edge_mining.adapters.infrastructure.rule_engine.common import (
-    OPERATOR_SYMBOLS,
-    OperatorType,
-)
 from edge_mining.application.interfaces import ConfigurationServiceInterface
 from edge_mining.domain.common import EntityId
 from edge_mining.domain.miner.common import MinerStatus
 from edge_mining.domain.policy.aggregate_roots import OptimizationPolicy
-from edge_mining.domain.policy.common import MiningDecision, RuleType
+from edge_mining.domain.policy.common import (
+    OPERATOR_SYMBOLS,
+    MiningDecision,
+    OperatorType,
+    RuleType,
+)
 from edge_mining.domain.policy.entities import AutomationRule
 from edge_mining.domain.policy.exceptions import PolicyError, PolicyNotFoundError
 from edge_mining.shared.logging.port import LoggerPort

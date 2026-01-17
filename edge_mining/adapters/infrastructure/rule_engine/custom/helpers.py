@@ -8,7 +8,7 @@ from edge_mining.adapters.domain.policy.schemas import (
     RuleConditionSchema,
     convert_conditions_to_schema,
 )
-from edge_mining.adapters.infrastructure.rule_engine.common import OperatorType
+from edge_mining.domain.policy.common import OperatorType
 from edge_mining.domain.policy.value_objects import DecisionalContext
 
 

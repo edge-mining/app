@@ -11,9 +11,9 @@ from edge_mining.adapters.domain.forecast.schemas import ForecastSchema, SunSche
 from edge_mining.adapters.domain.home_load.schemas import ConsumptionForecastSchema
 from edge_mining.adapters.domain.miner.schemas import HashRateSchema, MinerSchema
 from edge_mining.adapters.domain.policy.utils import FieldStructureSchema, _extract_schema_structure
-from edge_mining.adapters.infrastructure.rule_engine.common import OperatorType
 from edge_mining.domain.common import EntityId
 from edge_mining.domain.policy.aggregate_roots import OptimizationPolicy
+from edge_mining.domain.policy.common import OperatorType
 from edge_mining.domain.policy.entities import AutomationRule
 from edge_mining.domain.policy.exceptions import UnsupportedConditionError
 from edge_mining.domain.policy.value_objects import DecisionalContext
