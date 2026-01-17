@@ -2,11 +2,30 @@
 
 import re
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import Any, List, Tuple, Union
 
 from edge_mining.domain.policy.common import OperatorType, RuleEngineType
 from edge_mining.domain.policy.entities import AutomationRule
 from edge_mining.domain.policy.value_objects import DecisionalContext
+
+# Built-in types with known properties (for validation purposes)
+_BUILTIN_TYPE_PROPERTIES = {
+    datetime: {
+        "year",
+        "month",
+        "day",
+        "hour",
+        "minute",
+        "second",
+        "microsecond",
+        "weekday",
+        "isoweekday",
+        "date",
+        "time",
+        "timestamp",
+    },
+}
 
 
 class RuleValidationService:
@@ -139,6 +158,49 @@ class RuleValidationService:
                     return (
                         False,
                         f"Invalid field path at {path}: '{field_path}' - index '{part}' used on non-array type",
+                    )
+
+            # Check if current_type is a built-in type with known properties
+            # Need to handle both direct types and generic aliases
+            actual_type = current_type
+            if hasattr(current_type, "__origin__"):
+                # For generic types, get the origin
+                actual_type = current_type.__origin__
+
+            # Check against built-in types
+            builtin_props = None
+            for builtin_type, props in _BUILTIN_TYPE_PROPERTIES.items():
+                try:
+                    if actual_type is builtin_type or (  # type: ignore
+                        isinstance(actual_type, type) and issubclass(actual_type, builtin_type)
+                    ):
+                        builtin_props = props
+                        break
+                except (TypeError, AttributeError):
+                    # Handle cases where issubclass might fail
+                    if actual_type is builtin_type:  # type: ignore
+                        builtin_props = props
+                        break
+
+            if builtin_props is not None:
+                if part in builtin_props:
+                    # Property exists in built-in type, consider it valid
+                    # We can't traverse further from built-in properties (they are leaf nodes)
+                    if i < len(parts) - 1:
+                        return (
+                            False,
+                            f"Invalid field path at {path}: '{field_path}' - "
+                            f"cannot traverse beyond built-in property '{part}'",
+                        )
+                    else:
+                        return True, ""
+                else:
+                    available_props = sorted(builtin_props)
+                    return (
+                        False,
+                        f"Invalid field path at {path}: '{field_path}' - "
+                        f"property '{part}' not found in datetime. "
+                        f"Available properties: {', '.join(available_props)}",
                     )
 
             if not hasattr(current_type, "__annotations__"):
