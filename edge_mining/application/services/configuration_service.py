@@ -1827,6 +1827,16 @@ class ConfigurationService(ConfigurationServiceInterface):
         if not policy.stop_rules or len(policy.stop_rules) == 0:
             raise PolicyError("Policy must have at least one stop rule with a START MINING action.")
 
+        # Check conditions of all active rules
+        for rule in policy.start_rules + policy.stop_rules:
+            if rule.enabled:
+                is_valid, syntax_errors, field_errors = self.validate_rule_conditions(rule.conditions)
+                if not is_valid:
+                    raise PolicyConfigurationError(
+                        f"Rule {rule.id} ({rule.name}) has invalid conditions. "
+                        f"Syntax Errors: {syntax_errors}, Field Errors: {field_errors}"
+                    )
+
         self.logger.debug(f"Policy {policy.id} ({policy.name}) is valid.")
         return True
 
