@@ -5,8 +5,8 @@ from typing import Annotated, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from edge_mining.adapters.infrastructure.api.setup import get_optimization_service
-from edge_mining.adapters.infrastructure.rule_engine.common import OPERATOR_SYMBOLS, OperatorType, RuleEngineType
+# Import dependency injection setup functions
+from edge_mining.adapters.infrastructure.api.setup import get_adapter_service, get_optimization_service
 from edge_mining.adapters.infrastructure.rule_engine.fast_api.utils import validate_condition_recursively
 from edge_mining.adapters.infrastructure.rule_engine.schemas import (
     OPERATOR_DESCRIPTIONS,
@@ -19,8 +19,9 @@ from edge_mining.adapters.infrastructure.rule_engine.schemas import (
     RuleValidationRequestSchema,
     RuleValidationResultSchema,
 )
-from edge_mining.application.interfaces import OptimizationServiceInterface
+from edge_mining.application.interfaces import AdapterServiceInterface, OptimizationServiceInterface
 from edge_mining.domain.common import EntityId
+from edge_mining.domain.policy.common import OPERATOR_SYMBOLS, OperatorType, RuleEngineType
 from edge_mining.domain.policy.entities import AutomationRule
 from edge_mining.domain.policy.value_objects import DecisionalContext
 
@@ -28,13 +29,16 @@ router = APIRouter()
 
 
 @router.get("/rule-engine/config", response_model=RuleEngineConfigSchema)
-async def get_rule_engine_config() -> RuleEngineConfigSchema:
+async def get_rule_engine_config(
+    adapter_service: Annotated[AdapterServiceInterface, Depends(get_adapter_service)],
+) -> RuleEngineConfigSchema:
     """Get current rule engine configuration."""
-    global _current_engine_type
+    rule_engine = adapter_service.get_rule_engine()
 
-    return RuleEngineConfigSchema(
-        engine_type=_current_engine_type,
-    )
+    if rule_engine:
+        return RuleEngineConfigSchema.from_model(rule_engine)
+    else:
+        raise HTTPException(status_code=404, detail="Rule engine not configured")
 
 
 @router.get("/rule-engine/info", response_model=RuleEngineInfoSchema)
