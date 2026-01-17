@@ -13,13 +13,12 @@ const editingMiner = ref<{ index: number; miner: Miner } | undefined>(undefined)
 let statusInterval: number | undefined;
 
 async function refreshMinersStatus() {
-  if (minerStore.miners.length > 0) {
-    const statusPromises = minerStore.miners
-      .filter(miner => miner.id != null)
+  const activeMiners = minerStore.miners.filter(miner => miner.id != null && miner.active);
+  if (activeMiners.length > 0) {
+    const statusPromises = activeMiners
       .map(miner => minerStore.getMinerStatus(miner.id!.toString()));
     
     await Promise.all(statusPromises);
-    await minerStore.loadMiners();
   }
 }
 
@@ -33,7 +32,7 @@ onMounted(async () => {
   // Set up interval to refresh status every 5 seconds
   statusInterval = window.setInterval(() => {
     refreshMinersStatus();
-  }, 5000);
+  }, 2000);
 });
 
 onUnmounted(() => {
@@ -110,9 +109,7 @@ function handleDeactivate(miner: Miner) {
 }
 
 function handleRefresh(miner: Miner) {
-  minerStore.getMinerStatus(miner.id!.toString()).then(() => {
-    minerStore.loadMiners();
-  });
+  minerStore.getMinerStatus(miner.id!.toString());
 }
 </script>
 

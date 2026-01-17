@@ -45,7 +45,15 @@ export const useMinerStore = defineStore("miner", () => {
   }
 
   function getMinerStatus(minerId: string) {
-    return service.getMinerStatus(minerId);
+    return service.getMinerStatus(minerId).then((updatedMiner) => {
+      // Update the miner in the array with the new status
+      const index = miners.value.findIndex(m => m.id?.toString() === minerId);
+      if (index !== -1) {
+        // Update properties individually to ensure reactivity
+        Object.assign(miners.value[index], updatedMiner);
+      }
+      return updatedMiner;
+    });
   }
 
   return {
