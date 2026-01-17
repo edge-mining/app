@@ -552,6 +552,28 @@ const closeFieldSelector = () => {
   fieldSearchQuery.value = '';
 };
 
+// Add click outside listener
+onMounted(() => {
+  const handleClickOutside = (event: MouseEvent) => {
+    if (showFieldSelector.value !== null) {
+      const dropdown = document.querySelector('.fixed.z-\\[9999\\]');
+      const button = dropdownButtonRef.value;
+      
+      if (dropdown && !dropdown.contains(event.target as Node) && 
+          button && !button.contains(event.target as Node)) {
+        closeFieldSelector();
+      }
+    }
+  };
+  
+  document.addEventListener('click', handleClickOutside);
+  
+  // Cleanup on unmount
+  return () => {
+    document.removeEventListener('click', handleClickOutside);
+  };
+});
+
 // Expose hasUnsavedChanges and restoreOriginal to parent component
 defineExpose({
   hasUnsavedChanges,
@@ -769,20 +791,35 @@ defineExpose({
               <Teleport to="body">
                 <div
                   v-if="showFieldSelector === 0"
-                  class="fixed z-[9999] w-[700px] max-w-[95vw] p-2 shadow-2xl bg-base-100 border border-base-300 rounded-lg"
+                  class="fixed z-[9999] w-[700px] max-w-[95vw] shadow-2xl bg-base-100 border border-base-300 rounded-lg"
                   :style="{ top: 'var(--dropdown-top, 0px)', left: 'var(--dropdown-left, 0px)' }"
                   @click.stop
+                  @keydown.esc="closeFieldSelector"
                 >
                 <div class="p-2">
+                  <!-- Header with close button -->
+                  <div class="flex items-center justify-between mb-2">
+                    <h4 class="text-sm font-semibold text-base-content/70">Select Field</h4>
+                    <button
+                      type="button"
+                      @click="closeFieldSelector"
+                      class="btn btn-ghost btn-xs btn-circle"
+                      aria-label="Close field selector"
+                    >
+                      <PhX :size="16" />
+                    </button>
+                  </div>
+                  
                   <!-- Search Box -->
                   <div class="relative">
-                    <PhListMagnifyingGlass :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50" />
+                    <PhListMagnifyingGlass :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50 pointer-events-none z-10" />
                     <input
                       v-model="fieldSearchQuery"
                       type="text"
                       placeholder="Search fields..."
                       class="input input-bordered input-sm w-full pl-9"
                       @click.stop
+                      @keydown.esc="closeFieldSelector"
                     />
                   </div>
                   
