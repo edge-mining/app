@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onMounted, ref, computed } from "vue";
 import { usePolicyStore } from "../../core/stores/policyStore";
 import PolicyRow from "../../components/policies/PolicyRow.vue";
 import PolicyRuleRow from "../../components/policies/PolicyRuleRow.vue";
 import RuleConditionBuilder from "../../components/policies/RuleConditionBuilder.vue";
 import type { OptimizationPolicy, AutomationRule, PolicyCheckResult, RuleType } from "../../core/models/policy";
-import { PhPlay, PhStop } from "@phosphor-icons/vue";
+import { PhPlay, PhStop, PhWarning, PhArrowCounterClockwise } from "@phosphor-icons/vue";
 
 const policyStore = usePolicyStore();
 
@@ -33,6 +33,25 @@ const checkingPolicyName = ref("");
 // Rule error state
 const ruleDeleteError = ref("");
 const ruleAddSaveError = ref("");
+
+// Reference to RuleConditionBuilder components
+const editingRuleConditionBuilder = ref<InstanceType<typeof RuleConditionBuilder> | null>(null);
+const newRuleConditionBuilder = ref<InstanceType<typeof RuleConditionBuilder> | null>(null);
+
+// Track original conditions for rules (to detect unsaved changes)
+const originalEditingRuleConditions = ref<any>(null);
+const originalNewRuleConditions = ref<any>(null);
+
+// Computed to check if conditions changed from original
+const editingRuleHasUnsavedConditions = computed(() => {
+  if (!editingRule.value || !originalEditingRuleConditions.value) return false;
+  return JSON.stringify(editingRule.value.conditions) !== JSON.stringify(originalEditingRuleConditions.value);
+});
+
+const newRuleHasUnsavedConditions = computed(() => {
+  if (!newRule.value || !originalNewRuleConditions.value) return false;
+  return JSON.stringify(newRule.value.conditions) !== JSON.stringify(originalNewRuleConditions.value);
+});
 
 onMounted(() => {
   policyStore.loadPolicies();
@@ -145,6 +164,7 @@ function addRule() {
     conditions: {
     },
   };
+  originalNewRuleConditions.value = JSON.parse(JSON.stringify(newRule.value.conditions));
   isEditingRule.value = false;
   showRuleEditModal.value = true;
 }
@@ -153,6 +173,7 @@ function handleEditRule(rule: AutomationRule, ruleType: RuleType) {
   currentRuleType.value = ruleType;
   ruleAddSaveError.value = "";
   editingRule.value = { ...rule };
+  originalEditingRuleConditions.value = JSON.parse(JSON.stringify(rule.conditions));
   isEditingRule.value = true;
   showRuleEditModal.value = true;
 }
@@ -160,6 +181,8 @@ function handleEditRule(rule: AutomationRule, ruleType: RuleType) {
 function cancelRuleModal() {
   newRule.value = undefined;
   editingRule.value = undefined;
+  originalNewRuleConditions.value = null;
+  originalEditingRuleConditions.value = null;
   isEditingRule.value = false;
   ruleDeleteError.value = "";
   ruleAddSaveError.value = "";
@@ -177,6 +200,7 @@ function confirmAddRule() {
       });
       policyStore.loadPolicies();
       newRule.value = undefined;
+      originalNewRuleConditions.value = null;
       showRuleEditModal.value = false;
     })
     .catch((error) => {
@@ -206,6 +230,7 @@ function confirmEditRule() {
       });
       policyStore.loadPolicies();
       editingRule.value = undefined;
+      originalEditingRuleConditions.value = null;
       isEditingRule.value = false;
       showRuleEditModal.value = false;
     })
@@ -241,6 +266,20 @@ function handleDeleteRule(rule: AutomationRule) {
       }
       ruleDeleteError.value = errorMsg;
     });
+}
+
+// Restore original conditions for editing rule
+function restoreEditingRuleConditions() {
+  if (editingRule.value && originalEditingRuleConditions.value) {
+    editingRule.value.conditions = JSON.parse(JSON.stringify(originalEditingRuleConditions.value));
+  }
+}
+
+// Restore original conditions for new rule
+function restoreNewRuleConditions() {
+  if (newRule.value && originalNewRuleConditions.value) {
+    newRule.value.conditions = JSON.parse(JSON.stringify(originalNewRuleConditions.value));
+  }
 }
 
 function handleToggleRuleEnabled(rule: AutomationRule) {
@@ -527,7 +566,7 @@ function handleToggleRuleEnabled(rule: AutomationRule) {
 
   <!-- Rule Add/Edit Modal -->
   <dialog :class="['modal', { 'modal-open': showRuleEditModal }]">
-    <div v-if="newRule || editingRule" class="modal-box max-w-2xl">
+    <div v-if="newRule || editingRule" class="modal-box max-w-5xl">
       <h3 class="font-bold text-lg mb-4">
         {{ isEditingRule ? 'Edit' : 'Add' }} {{ currentRuleType === 'start' ? 'Start' : 'Stop' }} Rule
       </h3>
@@ -588,7 +627,25 @@ function handleToggleRuleEnabled(rule: AutomationRule) {
           </div>
 
           <div class="space-y-1">
-            <RuleConditionBuilder v-model="editingRule.conditions" />
+            <RuleConditionBuilder ref="editingRuleConditionBuilder" v-model="editingRule.conditions" />
+          </div>
+
+          <!-- Warning about unsaved conditions -->
+          <div v-if="editingRuleHasUnsavedConditions" class="alert alert-warning shadow-lg">
+            <PhWarning :size="24" />
+            <div class="flex-1">
+              <h3 class="font-bold">Unsaved Conditions</h3>
+              <div class="text-sm">Conditions have been modified but the rule has not been saved yet. Remember to save the rule to apply all changes.</div>
+            </div>
+            <button 
+              type="button"
+              class="btn btn-sm btn-ghost"
+              @click="restoreEditingRuleConditions()"
+              title="Restore conditions to their original state"
+            >
+              <PhArrowCounterClockwise :size="16" />
+              Restore
+            </button>
           </div>
         </template>
 
@@ -645,7 +702,25 @@ function handleToggleRuleEnabled(rule: AutomationRule) {
 
           <div class="space-y-1">
             <div class="font-medium mb-2">Conditions</div>
-            <RuleConditionBuilder v-model="newRule.conditions" />
+            <RuleConditionBuilder ref="newRuleConditionBuilder" v-model="newRule.conditions" />
+          </div>
+
+          <!-- Warning about unsaved conditions -->
+          <div v-if="newRuleHasUnsavedConditions" class="alert alert-warning shadow-lg">
+            <PhWarning :size="24" />
+            <div class="flex-1">
+              <h3 class="font-bold">Unsaved Conditions</h3>
+              <div class="text-sm">Conditions have been modified but the rule has not been saved yet. Remember to save the rule to apply all changes.</div>
+            </div>
+            <button 
+              type="button"
+              class="btn btn-sm btn-ghost"
+              @click="restoreNewRuleConditions()"
+              title="Restore conditions to their original state"
+            >
+              <PhArrowCounterClockwise :size="16" />
+              Restore
+            </button>
           </div>
         </template>
 

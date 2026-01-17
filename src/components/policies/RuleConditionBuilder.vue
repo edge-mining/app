@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
 import { useRuleEngineStore } from '../../core/stores/ruleEngineStore';
+import { usePolicyStore } from '../../core/stores/policyStore';
 import type { RuleConditions, RuleCondition, LogicalGroup, RuleValidationResult, OperatorType } from '../../core/models/ruleEngine';
+import type { DecisionalContextField } from '../../core/models/policy';
 import { OPERATOR_SYMBOLS } from '../../core/models/ruleEngine';
-import { PhCheckCircle, PhXCircle, PhCheck, PhX, PhFloppyDisk, PhLock, PhLockOpen, PhInfo, PhPlus, PhWarning } from '@phosphor-icons/vue';
+import { PhCheckCircle, PhXCircle, PhCheck, PhX, PhFloppyDisk, PhLock, PhLockOpen, PhInfo, PhPlus, PhWarning, PhCaretDown, PhListMagnifyingGlass } from '@phosphor-icons/vue';
 
 interface Props {
   modelValue?: RuleConditions;
@@ -22,6 +24,22 @@ const emit = defineEmits<{
 }>();
 
 const ruleEngineStore = useRuleEngineStore();
+const policyStore = usePolicyStore();
+
+// Load decisional context structure on mount
+onMounted(async () => {
+  if (useLocalState.value) {
+    localValue.value = JSON.parse(JSON.stringify(props.modelValue));
+    // Load context structure if not already loaded
+    if (!policyStore.decisionalContextStructure) {
+      try {
+        await policyStore.loadDecisionalContextStructure();
+      } catch (error) {
+        console.error('Failed to load decisional context structure:', error);
+      }
+    }
+  }
+});
 
 // God mode toggle (only at root level)
 const godMode = ref(false);
@@ -31,17 +49,79 @@ const useLocalState = computed(() => props.depth === 0);
 
 // Local editing state (only for root level)
 const localValue = ref<RuleConditions>(JSON.parse(JSON.stringify(props.modelValue)));
+const originalValue = ref<RuleConditions>(JSON.parse(JSON.stringify(props.modelValue)));
 const hasChanges = ref(false);
+
+// Check if current conditions differ from the original (props)
+const hasUnsavedChanges = computed(() => {
+  if (!useLocalState.value) return false;
+  return JSON.stringify(props.modelValue) !== JSON.stringify(localValue.value);
+});
 
 // Get the current working value (local if root, props if nested)
 const workingValue = computed(() => {
   return useLocalState.value ? localValue.value : props.modelValue;
 });
 
+// Field selector state
+const showFieldSelector = ref<number | null>(null);
+const fieldSearchQuery = ref('');
+
+// Get all available fields from decisional context structure
+const availableFields = computed(() => {
+  if (!policyStore.decisionalContextStructure) return [];
+  
+  const flattenFields = (fields: DecisionalContextField[]): DecisionalContextField[] => {
+    const result: DecisionalContextField[] = [];
+    for (const field of fields) {
+      result.push(field);
+      if (field.children && field.children.length > 0) {
+        result.push(...flattenFields(field.children));
+      }
+    }
+    return result;
+  };
+  
+  return flattenFields(policyStore.decisionalContextStructure.fields);
+});
+
+// Filter fields by search query
+const filteredFields = computed(() => {
+  if (!fieldSearchQuery.value) return availableFields.value;
+  
+  const query = fieldSearchQuery.value.toLowerCase();
+  return availableFields.value.filter(field => 
+    field.path.toLowerCase().includes(query) ||
+    field.description.toLowerCase().includes(query) ||
+    field.type.toLowerCase().includes(query)
+  );
+});
+
+// Group fields by root level (first part of path)
+const groupedFields = computed(() => {
+  const groups: Record<string, DecisionalContextField[]> = {};
+  
+  for (const field of filteredFields.value) {
+    const rootPath = field.path.split('.')[0];
+    if (!groups[rootPath]) {
+      groups[rootPath] = [];
+    }
+    groups[rootPath].push(field);
+  }
+  
+  return groups;
+});
+
+// Get field info by path
+const getFieldInfo = (path: string): DecisionalContextField | undefined => {
+  return availableFields.value.find(f => f.path === path);
+};
+
 // Initialize local value from props
 onMounted(() => {
   if (useLocalState.value) {
     localValue.value = JSON.parse(JSON.stringify(props.modelValue));
+    originalValue.value = JSON.parse(JSON.stringify(props.modelValue));
   }
 });
 
@@ -49,6 +129,7 @@ onMounted(() => {
 watch(() => props.modelValue, (newVal) => {
   if (useLocalState.value && !hasChanges.value) {
     localValue.value = JSON.parse(JSON.stringify(newVal));
+    originalValue.value = JSON.parse(JSON.stringify(newVal));
   }
 }, { deep: true });
 
@@ -65,6 +146,15 @@ const saveChanges = () => {
 const cancelChanges = () => {
   if (useLocalState.value) {
     localValue.value = JSON.parse(JSON.stringify(props.modelValue));
+    hasChanges.value = false;
+    validationResult.value = null;
+  }
+};
+
+// Restore to original conditions from the rule (only at root level)
+const restoreOriginal = () => {
+  if (useLocalState.value) {
+    localValue.value = JSON.parse(JSON.stringify(originalValue.value));
     hasChanges.value = false;
     validationResult.value = null;
   }
@@ -151,18 +241,13 @@ const operators = [
 ];
 
 // Common field suggestions
-const fieldSuggestions = [
-  'energy_state.production',
-  'energy_state.consumption',
-  'energy_state.battery.state_of_charge',
-  'energy_state.battery.power',
-  'energy_state.grid.power',
-  'miner.hashrate',
-  'miner.temperature',
-  'miner.power',
-  'forecast.production',
-  'price.electricity',
-];
+const fieldSuggestions = computed(() => {
+  // Return frequently used fields from the structure
+  return availableFields.value
+    .filter(f => !f.children || f.children.length === 0) // Only leaf nodes
+    .slice(0, 20)
+    .map(f => f.path);
+});
 
 // Default rule templates
 const defaultAllOfRule: LogicalGroup = {
@@ -419,9 +504,35 @@ const parseValue = (val: string, operator: OperatorType): string | number | bool
 };
 
 // Helper methods for input handling
-const handleFieldInput = (event: Event) => {
-  const target = event.target as HTMLInputElement;
-  updateConditionField('field', target.value);
+const dropdownButtonRef = ref<HTMLElement | null>(null);
+
+const handleFieldSelect = (path: string) => {
+  if (isCondition(workingValue.value)) {
+    updateConditionField('field', path);
+  }
+  
+  // Always close selector after selection
+  showFieldSelector.value = null;
+  fieldSearchQuery.value = '';
+};
+
+const toggleFieldSelector = (index: number | null) => {
+  if (showFieldSelector.value === index) {
+    showFieldSelector.value = null;
+    fieldSearchQuery.value = '';
+  } else {
+    showFieldSelector.value = index;
+    fieldSearchQuery.value = '';
+    
+    // Calculate dropdown position on next tick
+    setTimeout(() => {
+      if (dropdownButtonRef.value) {
+        const rect = dropdownButtonRef.value.getBoundingClientRect();
+        document.documentElement.style.setProperty('--dropdown-top', `${rect.bottom + 4}px`);
+        document.documentElement.style.setProperty('--dropdown-left', `${rect.left}px`);
+      }
+    }, 0);
+  }
 };
 
 const handleOperatorChange = (event: Event) => {
@@ -434,10 +545,31 @@ const handleValueInput = (event: Event) => {
   const target = event.target as HTMLInputElement;
   updateConditionField('value', parseValue(target.value, workingValue.value.operator));
 };
+
+// Close field selector when clicking outside
+const closeFieldSelector = () => {
+  showFieldSelector.value = null;
+  fieldSearchQuery.value = '';
+};
+
+// Expose hasUnsavedChanges and restoreOriginal to parent component
+defineExpose({
+  hasUnsavedChanges,
+  restoreOriginal
+});
 </script>
 
 <template>
   <div class="space-y-4">
+    <!-- Loading Context Structure Warning -->
+    <div v-if="depth === 0 && !policyStore.decisionalContextStructure" class="alert alert-info">
+      <PhInfo :size="24" />
+      <div>
+        <h3 class="font-bold">Loading Decisional Context Structure</h3>
+        <div class="text-sm">Field suggestions will be available once the context structure is loaded.</div>
+      </div>
+    </div>
+    
     <!-- Tabs for Builder/JSON view (only show at root level) -->
     <div v-if="depth === 0" class="space-y-4">
       <div class="flex justify-between items-center">
@@ -503,7 +635,7 @@ const handleValueInput = (event: Event) => {
             class="btn btn-sm btn-primary"
           >
             <PhFloppyDisk :size="16" />
-            Save
+            Save Conditions
           </button>
         </div>
       </div>
@@ -513,7 +645,7 @@ const handleValueInput = (event: Event) => {
         <PhWarning :size="24" />
         <div>
           <h3 class="font-bold">Advanced Mode Enabled</h3>
-          <div class="text-sm">You can now modify field names, change logical operators, and delete conditions. Use with caution.</div>
+          <div class="text-sm">You can now change logical operators and delete conditions. Field paths are protected and can only be selected from available options.</div>
         </div>
       </div>
 
@@ -614,47 +746,207 @@ const handleValueInput = (event: Event) => {
       </div>
       
       <!-- Condition (leaf node) -->
-      <div v-else-if="isCondition(workingValue)" class="flex gap-2 items-start">
-        <div class="flex-1">
-          <input
-            v-if="isGodModeEnabled"
-            :value="workingValue.field"
-            @input="handleFieldInput"
-            type="text"
-            placeholder="Field name (e.g., energy_state.production)"
-            list="field-suggestions"
-            class="input input-bordered input-sm w-full font-mono text-xs"
-          />
-          <input
-            v-else
-            :value="workingValue.field"
-            type="text"
-            readonly
-            class="input input-bordered input-sm w-full font-mono text-xs bg-base-200 cursor-not-allowed"
-            title="Enable God Mode to edit field names"
-          />
-          <datalist id="field-suggestions">
-            <option v-for="field in fieldSuggestions" :key="field" :value="field" />
-          </datalist>
+      <div v-else-if="isCondition(workingValue)" class="space-y-2">
+        <div class="flex gap-2 items-start">
+          <!-- Field Selector -->
+          <div class="flex-1 relative">
+            <!-- Dropdown Selector (only in advanced mode) -->
+            <div v-if="isGodModeEnabled" class="relative w-full">
+              <button
+                ref="dropdownButtonRef"
+                type="button"
+                @click="toggleFieldSelector(0)"
+                class="btn btn-sm w-full justify-between font-mono text-xs"
+                :class="(isCondition(workingValue) && workingValue.field) ? 'btn-outline' : 'btn-ghost border-dashed'"
+              >
+                <span class="truncate" :class="!(isCondition(workingValue) && workingValue.field) && 'text-base-content/50'">
+                  {{ (isCondition(workingValue) && workingValue.field) || 'Select field...' }}
+                </span>
+                <PhCaretDown :size="16" class="flex-shrink-0" />
+              </button>
+              
+              <!-- Dropdown Menu -->
+              <Teleport to="body">
+                <div
+                  v-if="showFieldSelector === 0"
+                  class="fixed z-[9999] w-[700px] max-w-[95vw] p-2 shadow-2xl bg-base-100 border border-base-300 rounded-lg"
+                  :style="{ top: 'var(--dropdown-top, 0px)', left: 'var(--dropdown-left, 0px)' }"
+                  @click.stop
+                >
+                <div class="p-2">
+                  <!-- Search Box -->
+                  <div class="relative">
+                    <PhListMagnifyingGlass :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50" />
+                    <input
+                      v-model="fieldSearchQuery"
+                      type="text"
+                      placeholder="Search fields..."
+                      class="input input-bordered input-sm w-full pl-9"
+                      @click.stop
+                    />
+                  </div>
+                  
+                  <!-- Field List -->
+                  <div class="max-h-[500px] overflow-y-auto space-y-1 mt-2">
+                    <div v-if="Object.keys(groupedFields).length === 0" class="text-center py-4 text-base-content/50">
+                      No fields found
+                    </div>
+                    <div v-else>
+                      <div v-for="(groupFields, group) in groupedFields" :key="group" class="mb-3">
+                        <!-- Find the parent field to get its description -->
+                        <div class="text-xs font-semibold text-base-content/70 px-2 py-1 bg-base-200 rounded mb-1 sticky top-0 z-10 flex items-center justify-between gap-2">
+                          <span>{{ group }}</span>
+                          <span class="text-xs font-normal text-base-content/50">
+                            {{ availableFields.find(f => f.path === group)?.description || '' }}
+                          </span>
+                        </div>
+                        <button
+                          v-for="field in groupFields.filter(f => !f.children || f.children.length === 0)"
+                          :key="field.path"
+                          type="button"
+                          @click.stop="handleFieldSelect(field.path)"
+                          class="w-full text-left px-3 py-2 rounded transition-colors hover:bg-base-200 cursor-pointer"
+                          :class="{ 'bg-primary/10': isCondition(workingValue) && workingValue.field === field.path }"
+                        >
+                          <div class="flex items-start justify-between gap-3">
+                            <div class="flex-1 min-w-0">
+                              <div class="font-mono text-sm font-medium" :class="field.is_optional && 'text-base-content/70'">
+                                {{ field.path }}
+                                <span v-if="field.is_optional" class="text-xs text-warning ml-1">optional</span>
+                              </div>
+                              <div class="text-xs text-base-content/60 mt-0.5">
+                                {{ field.description }}
+                              </div>
+                            </div>
+                            <div class="badge badge-sm badge-ghost flex-shrink-0">
+                              {{ field.type }}
+                            </div>
+                          </div>
+                          <!-- Show predefined values if available -->
+                          <div v-if="field.values && field.values.length > 0" class="mt-1.5 flex flex-wrap gap-1">
+                            <span
+                              v-for="val in field.values.slice(0, 8)"
+                              :key="val"
+                              class="badge badge-xs badge-outline"
+                            >
+                              {{ val }}
+                            </span>
+                            <span v-if="field.values.length > 8" class="badge badge-xs badge-ghost">
+                              +{{ field.values.length - 8 }}
+                            </span>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                </div>
+              </Teleport>
+            </div>
+            
+            <!-- Read-only field display (in basic mode) -->
+            <div v-else class="relative w-full">
+              <input
+                :value="isCondition(workingValue) && workingValue.field ? workingValue.field : 'No field selected'"
+                type="text"
+                :placeholder="isCondition(workingValue) && workingValue.field ? workingValue.field : 'No field selected'"
+                class="input input-bordered input-sm w-full font-mono text-xs"
+                readonly
+              />
+            </div>
+            
+            <!-- Field Description (below dropdown/display) -->
+            <div v-if="isCondition(workingValue) && workingValue.field && getFieldInfo(workingValue.field)" class="px-1 mt-1">
+              <div class="text-xs text-base-content/60">
+                {{ getFieldInfo(workingValue.field)?.description }}
+              </div>
+            </div>
+            
+            <datalist id="field-suggestions">
+              <option v-for="field in fieldSuggestions" :key="field" :value="field" />
+            </datalist>
+          </div>
+          
+          <!-- Operator Selector -->
+          <select
+            :value="workingValue.operator"
+            @change="handleOperatorChange"
+            class="select select-bordered select-sm w-50"
+          >
+            <option v-for="op in operators" :key="op.value" :value="op.value">
+              {{ op.label }}
+            </option>
+          </select>
+          
+          <!-- Value Input with Type Info -->
+          <div class="flex flex-col">
+            <div class="relative">
+              <!-- If field has predefined values, show dropdown -->
+              <select
+                v-if="getFieldInfo(workingValue.field)?.values && getFieldInfo(workingValue.field)!.values!.length > 0 && (workingValue.operator === 'eq' || workingValue.operator === 'ne')"
+                :value="workingValue.value"
+                @change="(e) => updateConditionField('value', (e.target as HTMLSelectElement).value)"
+                class="select select-bordered select-sm w-48"
+              >
+                <option value="">Select value...</option>
+                <option v-for="val in getFieldInfo(workingValue.field)?.values" :key="val" :value="val">
+                  {{ val }}
+                </option>
+              </select>
+              <!-- Boolean type: show toggle/select -->
+              <select
+                v-else-if="getFieldInfo(workingValue.field)?.type === 'bool'"
+                :value="workingValue.value"
+                @change="(e) => updateConditionField('value', (e.target as HTMLSelectElement).value === 'true')"
+                class="select select-bordered select-sm w-48"
+              >
+                <option value="">Select...</option>
+                <option value="true">True</option>
+                <option value="false">False</option>
+              </select>
+              <!-- Number types: show number input -->
+              <input
+                v-else-if="getFieldInfo(workingValue.field)?.type === 'int' || getFieldInfo(workingValue.field)?.type === 'float'"
+                :value="workingValue.value"
+                @input="handleValueInput"
+                type="number"
+                :step="getFieldInfo(workingValue.field)?.type === 'float' ? 'any' : '1'"
+                placeholder="Enter number"
+                class="input input-bordered input-sm w-48"
+              />
+              <!-- Datetime type: show datetime-local input -->
+              <input
+                v-else-if="getFieldInfo(workingValue.field)?.type === 'datetime'"
+                :value="workingValue.value"
+                @input="handleValueInput"
+                type="datetime-local"
+                class="input input-bordered input-sm w-48"
+              />
+              <!-- Array operators: show text input for array -->
+              <input
+                v-else-if="workingValue.operator === 'in' || workingValue.operator === 'not_in'"
+                :value="Array.isArray(workingValue.value) ? JSON.stringify(workingValue.value) : workingValue.value"
+                @input="handleValueInput"
+                type="text"
+                placeholder="[1,2,3] or 1,2,3"
+                class="input input-bordered input-sm w-48"
+              />
+              <!-- Default: text input for strings and other types -->
+              <input
+                v-else
+                :value="Array.isArray(workingValue.value) ? JSON.stringify(workingValue.value) : workingValue.value"
+                @input="handleValueInput"
+                type="text"
+                placeholder="Enter value"
+                class="input input-bordered input-sm w-48"
+              />
+            </div>
+            <!-- Type Badge (below value input) -->
+            <div v-if="isCondition(workingValue) && workingValue.field && getFieldInfo(workingValue.field)" class="px-1">
+              <span class="text-xs text-base-content/60">{{ getFieldInfo(workingValue.field)?.type }}</span>
+            </div>
+          </div>
         </div>
-        
-        <select
-          :value="workingValue.operator"
-          @change="handleOperatorChange"
-          class="select select-bordered select-sm w-32"
-        >
-          <option v-for="op in operators" :key="op.value" :value="op.value">
-            {{ op.label }}
-          </option>
-        </select>
-        
-        <input
-          :value="Array.isArray(workingValue.value) ? JSON.stringify(workingValue.value) : workingValue.value"
-          @input="handleValueInput"
-          type="text"
-          :placeholder="workingValue.operator === 'in' || workingValue.operator === 'not_in' ? '[1,2,3] or 1,2,3' : 'Value'"
-          class="input input-bordered input-sm w-48"
-        />
       </div>
 
       <!-- Group (parent node) -->
