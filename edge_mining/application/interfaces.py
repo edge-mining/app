@@ -378,6 +378,18 @@ class ConfigurationServiceInterface(ABC):
     def sort_policy_rules(self, policy_id: EntityId) -> None:
         """Sort the rules of a policy by priority."""
 
+    @abstractmethod
+    def validate_rule_conditions(self, conditions: Dict) -> tuple[bool, List[str], List[str]]:
+        """
+        Validate rule conditions structure and semantics.
+
+        Args:
+            conditions: Dictionary representing the rule conditions
+
+        Returns:
+            Tuple[bool, List[str], List[str]]: (is_valid, syntax_errors, field_errors)
+        """
+
     # --- Optimization Unit Management ---
     @abstractmethod
     def create_optimization_unit(

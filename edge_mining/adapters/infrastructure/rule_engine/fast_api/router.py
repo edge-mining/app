@@ -6,8 +6,11 @@ from typing import Annotated, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 
 # Import dependency injection setup functions
-from edge_mining.adapters.infrastructure.api.setup import get_adapter_service, get_optimization_service
-from edge_mining.adapters.infrastructure.rule_engine.fast_api.utils import validate_condition_recursively
+from edge_mining.adapters.infrastructure.api.setup import (
+    get_adapter_service,
+    get_config_service,
+    get_optimization_service,
+)
 from edge_mining.adapters.infrastructure.rule_engine.schemas import (
     OPERATOR_DESCRIPTIONS,
     OPERATOR_EXAMPLES,
@@ -19,7 +22,11 @@ from edge_mining.adapters.infrastructure.rule_engine.schemas import (
     RuleValidationRequestSchema,
     RuleValidationResultSchema,
 )
-from edge_mining.application.interfaces import AdapterServiceInterface, OptimizationServiceInterface
+from edge_mining.application.interfaces import (
+    AdapterServiceInterface,
+    ConfigurationServiceInterface,
+    OptimizationServiceInterface,
+)
 from edge_mining.domain.common import EntityId
 from edge_mining.domain.policy.common import OPERATOR_SYMBOLS, OperatorType, RuleEngineType
 from edge_mining.domain.policy.entities import AutomationRule
@@ -95,6 +102,7 @@ async def evaluate_rules(
 @router.post("/rule-engine/validate", response_model=RuleValidationResultSchema)
 async def validate_rule_conditions(
     request: RuleValidationRequestSchema,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
 ) -> RuleValidationResultSchema:
     """Validate rule conditions for syntax and field path correctness."""
 
@@ -107,8 +115,8 @@ async def validate_rule_conditions(
         # Basic validation of conditions structure
         conditions_dict = request.conditions.to_model()
 
-        # Validate condition syntax using the internal function
-        is_valid, syntax_errors, field_errors = validate_condition_recursively(conditions_dict)
+        # Validate using ConfigurationService
+        is_valid, syntax_errors, field_errors = config_service.validate_rule_conditions(conditions_dict)
 
         # Collect all validation errors
         validation_errors = syntax_errors + field_errors

@@ -54,6 +54,7 @@ from edge_mining.domain.policy.exceptions import (
     RuleNotFoundError,
 )
 from edge_mining.domain.policy.ports import OptimizationPolicyRepository
+from edge_mining.domain.policy.services import RuleValidationService
 from edge_mining.domain.user.common import UserId
 from edge_mining.domain.user.entities import SystemSettings
 from edge_mining.shared.adapter_maps.energy import (
@@ -1865,6 +1866,19 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         self.logger.info(f"Sorted rules for policy {policy.name} by priority")
         self.policy_repo.update(policy)
+
+    def validate_rule_conditions(self, conditions: Dict) -> tuple[bool, List[str], List[str]]:
+        """
+        Validate rule conditions structure and semantics.
+
+        Args:
+            conditions: Dictionary representing the rule conditions
+
+        Returns:
+            Tuple[bool, List[str], List[str]]: (is_valid, syntax_errors, field_errors)
+        """
+        validation_service = RuleValidationService()
+        return validation_service.validate_conditions(conditions)
 
     # --- Settings Management ---
     def get_all_settings(self) -> Dict[str, Any]:
