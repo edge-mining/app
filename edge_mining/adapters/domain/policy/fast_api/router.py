@@ -8,6 +8,8 @@ from edge_mining.adapters.domain.policy.schemas import (
     AutomationRuleCreateSchema,
     AutomationRuleSchema,
     AutomationRuleUpdateSchema,
+    DecisionalContextSchema,
+    DecisionalContextStructureSchema,
     OptimizationPolicyCreateSchema,
     OptimizationPolicySchema,
     OptimizationPolicyUpdateSchema,
@@ -399,3 +401,18 @@ async def delete_policy_rule(
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}") from e
+
+
+@router.get("/decisional-context/structure", response_model=DecisionalContextStructureSchema)
+async def get_decisional_context_structure_endpoint() -> DecisionalContextStructureSchema:
+    """
+    Get the complete structure of the DecisionalContext.
+
+    Returns a hierarchical representation of all fields available in the decisional context,
+    including their types and descriptions. This is useful for:
+    - Understanding what data is available for rule conditions
+    - Building UIs for rule creation
+    - Documentation purposes
+    - Validating field paths in rule conditions
+    """
+    return DecisionalContextSchema.get_structure()
