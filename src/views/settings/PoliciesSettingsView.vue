@@ -5,7 +5,7 @@ import PolicyRow from "../../components/policies/PolicyRow.vue";
 import PolicyRuleRow from "../../components/policies/PolicyRuleRow.vue";
 import RuleConditionBuilder from "../../components/policies/RuleConditionBuilder.vue";
 import type { OptimizationPolicy, AutomationRule, PolicyCheckResult, RuleType } from "../../core/models/policy";
-import { PhPlay, PhStop, PhWarning, PhArrowCounterClockwise } from "@phosphor-icons/vue";
+import { PhPlay, PhStop, PhWarning, PhArrowCounterClockwise, PhCopy, PhMagnifyingGlass, PhX } from "@phosphor-icons/vue";
 
 const policyStore = usePolicyStore();
 
@@ -24,6 +24,12 @@ const showRuleEditModal = ref(false);
 const isEditingRule = ref(false);
 const activeRuleTab = ref<RuleType>('start');
 const currentRuleType = ref<RuleType>('start');
+
+// Copy From modal state
+const showCopyFromModal = ref(false);
+const copyTargetRule = ref<'new' | 'editing'>('new');
+const copyOnlyConditions = ref(false);
+const copyFromSearchQuery = ref('');
 
 // Check result modal state
 const showCheckModal = ref(false);
@@ -298,6 +304,80 @@ function handleToggleRuleEnabled(rule: AutomationRule) {
     policyStore.loadPolicies();
   });
 }
+
+// Copy From functionality
+function openCopyFromModal(target: 'new' | 'editing') {
+  copyTargetRule.value = target;
+  copyOnlyConditions.value = false;
+  showCopyFromModal.value = true;
+}
+
+function closeCopyFromModal() {
+  showCopyFromModal.value = false;
+  copyOnlyConditions.value = false;
+  copyFromSearchQuery.value = '';
+}
+
+function copyFromRule(_sourcePolicy: OptimizationPolicy, sourceRule: AutomationRule, _ruleType: RuleType) {
+  const targetRule = copyTargetRule.value === 'new' ? newRule.value : editingRule.value;
+  
+  if (!targetRule) return;
+
+  if (copyOnlyConditions.value) {
+    // Copy only conditions
+    targetRule.conditions = JSON.parse(JSON.stringify(sourceRule.conditions));
+  } else {
+    // Copy all fields except id (keep the target's id or empty for new)
+    const targetId = targetRule.id;
+    Object.assign(targetRule, {
+      ...sourceRule,
+      id: targetId,
+      // Deep clone conditions to avoid reference issues
+      conditions: JSON.parse(JSON.stringify(sourceRule.conditions))
+    });
+  }
+
+  // Update original conditions tracking
+  if (copyTargetRule.value === 'new') {
+    originalNewRuleConditions.value = JSON.parse(JSON.stringify(targetRule.conditions));
+  } else {
+    originalEditingRuleConditions.value = JSON.parse(JSON.stringify(targetRule.conditions));
+  }
+
+  closeCopyFromModal();
+}
+
+// Get all available rules from all policies for copy from modal
+const allAvailableRules = computed(() => {
+  const rules: Array<{ policy: OptimizationPolicy; rule: AutomationRule; type: RuleType }> = [];
+  
+  policyStore.policies.forEach(policy => {
+    policy.start_rules?.forEach(rule => {
+      rules.push({ policy, rule, type: 'start' });
+    });
+    policy.stop_rules?.forEach(rule => {
+      rules.push({ policy, rule, type: 'stop' });
+    });
+  });
+  
+  return rules;
+});
+
+// Filter rules based on search query
+const filteredAvailableRules = computed(() => {
+  if (!copyFromSearchQuery.value) return allAvailableRules.value;
+  
+  const query = copyFromSearchQuery.value.toLowerCase();
+  return allAvailableRules.value.filter(({ policy, rule, type }) => {
+    return (
+      policy.name.toLowerCase().includes(query) ||
+      (policy.description?.toLowerCase() || '').includes(query) ||
+      rule.name.toLowerCase().includes(query) ||
+      (rule.description?.toLowerCase() || '').includes(query) ||
+      type.toLowerCase().includes(query)
+    );
+  });
+});
 </script>
 
 <template>
@@ -567,9 +647,20 @@ function handleToggleRuleEnabled(rule: AutomationRule) {
   <!-- Rule Add/Edit Modal -->
   <dialog :class="['modal', { 'modal-open': showRuleEditModal }]">
     <div v-if="newRule || editingRule" class="modal-box max-w-5xl">
-      <h3 class="font-bold text-lg mb-4">
-        {{ isEditingRule ? 'Edit' : 'Add' }} {{ currentRuleType === 'start' ? 'Start' : 'Stop' }} Rule
-      </h3>
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="font-bold text-lg">
+          {{ isEditingRule ? 'Edit' : 'Add' }} {{ currentRuleType === 'start' ? 'Start' : 'Stop' }} Rule
+        </h3>
+        <button 
+          type="button" 
+          class="btn btn-sm btn-outline"
+          @click="openCopyFromModal(isEditingRule ? 'editing' : 'new')"
+          title="Copy from another rule"
+        >
+          <PhCopy :size="16" />
+          Copy From
+        </button>
+      </div>
 
       <form
         @submit.prevent="isEditingRule ? confirmEditRule() : confirmAddRule()"
@@ -627,7 +718,10 @@ function handleToggleRuleEnabled(rule: AutomationRule) {
           </div>
 
           <div class="space-y-1">
-            <RuleConditionBuilder ref="editingRuleConditionBuilder" v-model="editingRule.conditions" />
+            <RuleConditionBuilder 
+              ref="editingRuleConditionBuilder" 
+              v-model="editingRule.conditions"
+            />
           </div>
 
           <!-- Warning about unsaved conditions -->
@@ -702,7 +796,10 @@ function handleToggleRuleEnabled(rule: AutomationRule) {
 
           <div class="space-y-1">
             <div class="font-medium mb-2">Conditions</div>
-            <RuleConditionBuilder ref="newRuleConditionBuilder" v-model="newRule.conditions" />
+            <RuleConditionBuilder 
+              ref="newRuleConditionBuilder" 
+              v-model="newRule.conditions"
+            />
           </div>
 
           <!-- Warning about unsaved conditions -->
@@ -741,6 +838,132 @@ function handleToggleRuleEnabled(rule: AutomationRule) {
     </div>
     <form method="dialog" class="modal-backdrop">
       <button @click="cancelRuleModal">close</button>
+    </form>
+  </dialog>
+
+  <!-- Copy From Rule Modal -->
+  <dialog :class="['modal', { 'modal-open': showCopyFromModal }]">
+    <div class="modal-box max-w-4xl">
+      <h3 class="font-bold text-lg mb-4">
+        Copy From Rule
+      </h3>
+
+      <div class="mb-4 flex items-center gap-4">
+        <p class="text-sm opacity-70">
+          Select a rule to copy.
+        </p>
+        <label class="label cursor-pointer gap-3 ml-auto">
+          <span class="label-text font-medium">Copy only conditions</span>
+          <input
+            v-model="copyOnlyConditions"
+            type="checkbox"
+            class="toggle toggle-primary toggle-sm"
+            title="Toggle between copying all rule settings or only conditions"
+          />
+        </label>
+      </div>
+
+      <div class="alert alert-info mb-4">
+        <div class="text-sm">
+          <strong v-if="copyOnlyConditions">Only conditions will be copied.</strong>
+          <strong v-else>All rule settings will be copied</strong>
+          <span v-if="!copyOnlyConditions"> (name, description, priority, enabled status, and conditions).</span>
+        </div>
+      </div>
+
+      <!-- Search Field -->
+      <div class="mb-4">
+        <label class="input input-bordered input-sm flex items-center gap-2 w-full">
+          <PhMagnifyingGlass :size="16" class="opacity-70" />
+          <input
+            v-model="copyFromSearchQuery"
+            type="text"
+            placeholder="Search by policy name, rule name, description, or type..."
+            class="grow"
+          />
+          <button
+            v-if="copyFromSearchQuery"
+            type="button"
+            @click="copyFromSearchQuery = ''"
+            class="opacity-70 hover:opacity-100"
+            title="Clear search"
+          >
+            <PhX :size="16" />
+          </button>
+        </label>
+      </div>
+
+      <div class="overflow-x-auto max-h-96">
+        <table class="table table-sm table-pin-rows">
+          <thead>
+            <tr>
+              <th>Policy</th>
+              <th>Type</th>
+              <th>Rule Name</th>
+              <th>Description</th>
+              <th>Priority</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template v-if="filteredAvailableRules.length > 0">
+              <tr v-for="({ policy, rule, type }, idx) in filteredAvailableRules" :key="`${policy.id}-${rule.id}-${idx}`">
+                <td>
+                  <div class="font-medium">{{ policy.name }}</div>
+                  <div class="text-xs opacity-50" v-if="policy.description">{{ policy.description }}</div>
+                </td>
+                <td>
+                  <div class="badge badge-sm" :class="type === 'start' ? 'badge-success' : 'badge-error'">
+                    <PhPlay v-if="type === 'start'" :size="12" />
+                    <PhStop v-if="type === 'stop'" :size="12" />
+                    {{ type }}
+                  </div>
+                </td>
+                <td>
+                  <div class="font-medium">{{ rule.name }}</div>
+                </td>
+                <td>
+                  <div class="text-sm opacity-70">{{ rule.description || '—' }}</div>
+                </td>
+                <td>
+                  <div class="text-sm">{{ rule.priority ?? 0 }}</div>
+                </td>
+                <td>
+                  <div class="badge badge-sm" :class="rule.enabled ? 'badge-success' : 'badge-ghost'">
+                    {{ rule.enabled ? 'Enabled' : 'Disabled' }}
+                  </div>
+                </td>
+                <td>
+                  <button 
+                    type="button"
+                    class="btn btn-xs btn-primary"
+                    @click="copyFromRule(policy, rule, type)"
+                    title="Copy this rule"
+                  >
+                    <PhCopy :size="14" />
+                    Copy
+                  </button>
+                </td>
+              </tr>
+            </template>
+            <tr v-else>
+              <td colspan="7" class="text-center text-base-content/50">
+                {{ copyFromSearchQuery ? 'No rules found matching your search' : 'No rules available to copy from' }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="modal-action">
+        <button type="button" class="btn btn-secondary" @click="closeCopyFromModal">
+          Cancel
+        </button>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+      <button @click="closeCopyFromModal">close</button>
     </form>
   </dialog>
 
