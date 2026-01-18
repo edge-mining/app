@@ -648,6 +648,7 @@ defineExpose({
           
           <button 
             @click="validateConditions" 
+            type="button"
             class="btn btn-sm btn-outline"
             :disabled="isValidating"
           >
@@ -661,6 +662,7 @@ defineExpose({
         <div v-if="hasChanges" class="flex gap-2">
           <button 
             @click="cancelChanges" 
+            type="button"
             class="btn btn-sm btn-ghost"
           >
             <PhX :size="16" />
@@ -668,6 +670,7 @@ defineExpose({
           </button>
           <button 
             @click="saveChanges" 
+            type="button"
             class="btn btn-sm btn-primary"
           >
             <PhFloppyDisk :size="16" />
