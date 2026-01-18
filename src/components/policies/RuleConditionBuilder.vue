@@ -5,7 +5,9 @@ import { usePolicyStore } from '../../core/stores/policyStore';
 import type { RuleConditions, RuleCondition, LogicalGroup, RuleValidationResult, OperatorType } from '../../core/models/ruleEngine';
 import type { DecisionalContextField } from '../../core/models/policy';
 import { OPERATOR_SYMBOLS } from '../../core/models/ruleEngine';
-import { PhCheckCircle, PhXCircle, PhCheck, PhX, PhFloppyDisk, PhLock, PhLockOpen, PhInfo, PhPlus, PhWarning, PhCaretDown, PhListMagnifyingGlass } from '@phosphor-icons/vue';
+import { PhCheckCircle, PhXCircle, PhCheck, PhX, PhFloppyDisk, PhLock, PhLockOpen, PhInfo, PhPlus, PhWarning, PhCaretDown, PhListMagnifyingGlass, PhTree, PhGraph, PhBracketsAngle } from '@phosphor-icons/vue';
+import RuleConditionGraph from './RuleConditionGraph.vue';
+import JsonEditor from './JsonEditor.vue';
 
 interface Props {
   modelValue?: RuleConditions;
@@ -178,7 +180,7 @@ const updateWorkingValue = (newValue: RuleConditions) => {
 };
 
 // View mode toggle
-const viewMode = ref<'builder' | 'json'>('builder');
+const viewMode = ref<'builder' | 'json' | 'graph'>('builder');
 
 // JSON string for editing
 const jsonString = ref(JSON.stringify(localValue.value, null, 2));
@@ -559,8 +561,9 @@ onMounted(() => {
       const dropdown = document.querySelector('.fixed.z-\\[9999\\]');
       const button = dropdownButtonRef.value;
       
-      if (dropdown && !dropdown.contains(event.target as Node) && 
-          button && !button.contains(event.target as Node)) {
+      // Use HTMLElement type for DOM nodes to avoid conflict with VueFlow Node type
+      if (dropdown && !dropdown.contains(event.target as HTMLElement) && 
+          button && !button.contains(event.target as HTMLElement)) {
         closeFieldSelector();
       }
     }
@@ -599,18 +602,29 @@ defineExpose({
         <div role="tablist" class="tabs tabs-boxed">
           <a 
             role="tab" 
-            class="tab"
+            class="tab gap-2"
             :class="{ 'tab-active': viewMode === 'builder' }"
             @click="viewMode = 'builder'; updateJson()"
           >
+            <PhTree :size="16" />
             Builder
           </a>
           <a 
             role="tab" 
-            class="tab"
+            class="tab gap-2"
+            :class="{ 'tab-active': viewMode === 'graph' }"
+            @click="viewMode = 'graph'"
+          >
+            <PhGraph :size="16" />
+            Graph
+          </a>
+          <a 
+            role="tab" 
+            class="tab gap-2"
             :class="{ 'tab-active': viewMode === 'json' }"
             @click="viewMode = 'json'; updateJson()"
           >
+            <PhBracketsAngle :size="16" />
             JSON
           </a>
         </div>
@@ -720,14 +734,10 @@ defineExpose({
         <PhInfo :size="24" />
         <span>JSON editing is disabled in basic mode. Enable Advanced Mode to edit directly.</span>
       </div>
-      <textarea
+      <JsonEditor
         v-model="jsonString"
-        @blur="godMode && updateFromJson()"
-        class="textarea textarea-bordered w-full font-mono text-sm"
-        :class="{ 'bg-base-200 cursor-not-allowed': !godMode }"
         :readonly="!godMode"
-        rows="15"
-      ></textarea>
+      />
       <button 
         v-if="godMode"
         @click="updateFromJson" 
@@ -735,6 +745,14 @@ defineExpose({
       >
         Apply JSON Changes
       </button>
+    </div>
+
+    <!-- Graph View (only at root level) -->
+    <div v-if="depth === 0 && viewMode === 'graph'" class="h-[600px] border border-base-300 rounded-lg overflow-hidden">
+      <RuleConditionGraph 
+        :conditions="workingValue"
+        :available-fields="availableFields"
+      />
     </div>
 
     <!-- Builder View -->
