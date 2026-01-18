@@ -52,6 +52,7 @@ class MinerSchema(BaseModel):
 
     id: str = Field(..., description="Unique identifier for the miner")
     name: str = Field(default="", description="Miner name")
+    model: Optional[str] = Field(default=None, description="Miner model/hardware identifier")
     status: MinerStatus = Field(default=MinerStatus.UNKNOWN, description="Current miner status")
     hash_rate: Optional[HashRateSchema] = Field(default=None, description="Current hash rate")
     hash_rate_max: Optional[HashRateSchema] = Field(default=None, description="Maximum hash rate")
@@ -112,6 +113,7 @@ class MinerSchema(BaseModel):
         return cls(
             id=str(miner.id),
             name=miner.name,
+            model=miner.model,
             status=miner.status,
             hash_rate=hash_rate,
             hash_rate_max=hash_rate_max,
@@ -136,6 +138,7 @@ class MinerSchema(BaseModel):
         return Miner(
             id=EntityId(uuid.UUID(self.id)),
             name=self.name,
+            model=self.model,
             status=self.status,
             hash_rate=(HashRate(value=self.hash_rate.value, unit=self.hash_rate.unit) if self.hash_rate else None),
             hash_rate_max=(
@@ -164,6 +167,7 @@ class MinerCreateSchema(BaseModel):
     """Schema for creating a new miner."""
 
     name: str = Field(default="", description="Miner name")
+    model: Optional[str] = Field(default=None, description="Miner model/hardware identifier")
     hash_rate_max: Optional[HashRateSchema] = Field(default=None, description="Maximum hash rate")
     power_consumption_max: Optional[float] = Field(default=None, ge=0, description="Maximum power consumption in Watts")
     controller_id: Optional[str] = Field(default=None, description="ID of the associated controller")
@@ -193,6 +197,7 @@ class MinerCreateSchema(BaseModel):
         return Miner(
             id=EntityId(uuid.uuid4()),
             name=self.name,
+            model=self.model,
             status=MinerStatus.UNKNOWN,
             hash_rate=None,
             hash_rate_max=(
@@ -218,6 +223,7 @@ class MinerUpdateSchema(BaseModel):
     """Schema for updating an existing miner."""
 
     name: str = Field(default="", description="Miner name")
+    model: Optional[str] = Field(default=None, description="Miner model/hardware identifier")
     hash_rate_max: Optional[HashRateSchema] = Field(default=None, description="Maximum hash rate")
     power_consumption_max: Optional[float] = Field(default=None, ge=0, description="Maximum power consumption in Watts")
     active: Optional[bool] = Field(default=None, description="Whether the miner is active")

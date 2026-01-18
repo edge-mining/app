@@ -31,12 +31,14 @@ def handle_add_miner(configuration_service: ConfigurationServiceInterface, logge
     """Menu to add a new miner."""
     click.echo(click.style("\n--- Add Miner ---", fg="yellow"))
     name: str = click.prompt("Name of the miner", type=str)
+    model: str = click.prompt("Model of the miner (optional, press Enter to skip)", type=str, default="")
     hash_rate_max: float = click.prompt("Max HashRate (eg. 100.0)", type=float, default=100.0)
     hash_rate_unit: str = click.prompt("HashRate unit (eg. TH/s, GH/s)", type=str, default="TH/s")
     power_consumption_max: float = click.prompt("Max power consumption (Watt, eg. 3200.0)", type=float, default=3200.0)
 
     new_miner = Miner()
     new_miner.name = name
+    new_miner.model = model if model else None
     new_miner.hash_rate_max = HashRate(value=hash_rate_max, unit=hash_rate_unit)
     new_miner.power_consumption_max = Watts(power_consumption_max)
     new_miner.controller_id = None
@@ -86,6 +88,7 @@ def handle_add_miner(configuration_service: ConfigurationServiceInterface, logge
     try:
         added = configuration_service.add_miner(
             name=new_miner.name,
+            model=new_miner.model,
             hash_rate_max=new_miner.hash_rate_max,
             power_consumption_max=new_miner.power_consumption_max,
             controller_id=new_miner.controller_id,
@@ -110,10 +113,13 @@ def list_miners(configuration_service: ConfigurationServiceInterface):
     else:
         for m in miners:
             hashrate_str = f"{m.hash_rate_max.value} {m.hash_rate_max.unit}" if m.hash_rate_max else "N/A"
+            model_str = f"{m.model}" if m.model else "N/A"
             click.echo(
                 "-> "
                 + "Name: "
                 + click.style(f"{m.name}, ", fg="blue")
+                + "Model: "
+                + click.style(f"{model_str}, ", fg="white")
                 + "ID: "
                 + click.style(f"{m.id}, ", fg="yellow")
                 + "Status: "
@@ -176,10 +182,13 @@ def select_miner(
     default_idx = ""
     for idx, m in enumerate(miners):
         hashrate_str = f"{m.hash_rate_max.value} {m.hash_rate_max.unit}" if m.hash_rate_max else "N/A"
+        model_str = f"{m.model}" if m.model else "N/A"
         click.echo(
             f"{idx}. "
             + "Name: "
             + click.style(f"{m.name}, ", fg="blue")
+            + "Model: "
+            + click.style(f"{model_str}, ", fg="white")
             + "ID: "
             + click.style(f"{m.id}, ", fg="yellow")
             + "Max Power: "
@@ -250,6 +259,11 @@ def update_single_miner(
 ) -> Optional[Miner]:
     """Menu to update a miner's details."""
     name: str = click.prompt("New name of the miner", type=str, default=selected_miner.name)
+    model: str = click.prompt(
+        "Model of the miner (optional, press Enter to skip)",
+        type=str,
+        default=selected_miner.model if selected_miner.model else "",
+    )
     hash_rate: float = click.prompt(
         "Max HashRate (eg. 100.0)",
         type=float,
@@ -282,6 +296,7 @@ def update_single_miner(
         updated = configuration_service.update_miner(
             miner_id=selected_miner.id,
             name=name,
+            model=model if model else None,
             hash_rate_max=hash_rate_max,
             power_consumption_max=Watts(power_consumption),
             controller_id=EntityId(controller_id) if controller_id else None,
@@ -354,6 +369,7 @@ def assign_controller_to_miner(
         updated_miner = configuration_service.update_miner(
             miner_id=selected_miner.id,
             name=selected_miner.name,
+            model=selected_miner.model,
             hash_rate_max=selected_miner.hash_rate_max,
             power_consumption_max=selected_miner.power_consumption_max,
             controller_id=selected_miner.controller_id,

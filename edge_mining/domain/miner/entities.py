@@ -15,6 +15,7 @@ class Miner(Entity):
     """Entity for a miner."""
 
     name: str = ""
+    model: Optional[str] = None
     status: MinerStatus = MinerStatus.UNKNOWN
     hash_rate: Optional[HashRate] = None  # Hash rate in GH/s or TH/s
     hash_rate_max: Optional[HashRate] = None  # Max hash rate for the miner

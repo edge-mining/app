@@ -83,6 +83,7 @@ class SqliteMinerRepository(MinerRepository):
             CREATE TABLE IF NOT EXISTS miners (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
+                model TEXT,
                 status TEXT NOT NULL,
                 active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)),
                 hash_rate TEXT, -- JSON object of HashRate dict
@@ -136,6 +137,7 @@ class SqliteMinerRepository(MinerRepository):
             return Miner(
                 id=EntityId(row["id"]),
                 name=row["name"] if row["name"] is not None else "",
+                model=row["model"] if row["model"] is not None else None,
                 status=MinerStatus(row["status"]),
                 active=(row["active"] == 1 if row["active"] is not None else False),
                 hash_rate=hash_rate,
@@ -155,9 +157,9 @@ class SqliteMinerRepository(MinerRepository):
         self.logger.debug(f"Adding miner {miner.id} to SQLite.")
 
         sql = """
-            INSERT INTO miners (id, name, status, active, hash_rate, hash_rate_max, power_consumption,
+            INSERT INTO miners (id, name, model, status, active, hash_rate, hash_rate_max, power_consumption,
             power_consumption_max, controller_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         conn = self._db.get_connection()
         try:
@@ -171,6 +173,7 @@ class SqliteMinerRepository(MinerRepository):
                     (
                         miner.id,
                         miner.name,
+                        miner.model,
                         miner.status.value,
                         miner.active,
                         hash_rate_json,
@@ -238,7 +241,7 @@ class SqliteMinerRepository(MinerRepository):
 
         sql = """
             UPDATE miners
-            SET name = ?, status = ?, active = ?, hash_rate = ?, hash_rate_max = ?, power_consumption = ?,
+            SET name = ?, model = ?, status = ?, active = ?, hash_rate = ?, hash_rate_max = ?, power_consumption = ?,
             power_consumption_max = ?, controller_id = ?
             WHERE id = ?
         """
@@ -254,6 +257,7 @@ class SqliteMinerRepository(MinerRepository):
                     sql,
                     (
                         miner.name,
+                        miner.model,
                         miner.status.value,
                         miner.active,
                         hash_rate_json,

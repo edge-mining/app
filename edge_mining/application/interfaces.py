@@ -150,6 +150,7 @@ class ConfigurationServiceInterface(ABC):
     def add_miner(
         self,
         name: str,
+        model: Optional[str] = None,
         status: MinerStatus = MinerStatus.UNKNOWN,
         hash_rate_max: Optional[HashRate] = None,
         power_consumption_max: Optional[Watts] = None,
@@ -175,6 +176,7 @@ class ConfigurationServiceInterface(ABC):
         self,
         miner_id: EntityId,
         name: str,
+        model: Optional[str] = None,
         hash_rate_max: Optional[HashRate] = None,
         power_consumption_max: Optional[Watts] = None,
         controller_id: Optional[EntityId] = None,

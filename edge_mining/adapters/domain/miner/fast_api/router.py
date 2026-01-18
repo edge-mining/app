@@ -94,6 +94,7 @@ async def add_miner(
 
         new_miner = config_service.add_miner(
             name=miner_to_add.name,
+            model=miner_to_add.model,
             hash_rate_max=miner_to_add.hash_rate_max,
             power_consumption_max=miner_to_add.power_consumption_max,
             controller_id=miner_to_add.controller_id,
@@ -127,6 +128,7 @@ async def update_miner(
         miner_updated = config_service.update_miner(
             miner_id=miner.id,
             name=miner_update.name or "",
+            model=miner_update.model,
             hash_rate_max=hash_rate_max,
             power_consumption_max=power_consumption_max,
             controller_id=EntityId(uuid.UUID(miner_update.controller_id)),

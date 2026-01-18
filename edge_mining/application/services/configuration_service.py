@@ -1206,6 +1206,7 @@ class ConfigurationService(ConfigurationServiceInterface):
     def add_miner(
         self,
         name: str,
+        model: Optional[str] = None,
         status: MinerStatus = MinerStatus.UNKNOWN,
         hash_rate_max: Optional[HashRate] = None,
         power_consumption_max: Optional[Watts] = None,
@@ -1217,13 +1218,14 @@ class ConfigurationService(ConfigurationServiceInterface):
         hash_rate_str = f"{hash_rate_max.value}{hash_rate_max.unit}" if hash_rate_max else "Unknown"
 
         self.logger.info(
-            f"Adding miner '{name}', "
+            f"Adding miner '{name}' (Model: {model or 'N/A'}), "
             f"Max Hashrate: {hash_rate_str}, "
             f"Max Power: {power_consumption_max}W, Active: {active}"
         )
 
         miner = Miner(
             name=name,
+            model=model,
             status=status,
             hash_rate_max=hash_rate_max,
             power_consumption_max=power_consumption_max,
@@ -1266,6 +1268,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         self,
         miner_id: EntityId,
         name: str,
+        model: Optional[str] = None,
         hash_rate_max: Optional[HashRate] = None,
         power_consumption_max: Optional[Watts] = None,
         controller_id: Optional[EntityId] = None,
@@ -1280,6 +1283,7 @@ class ConfigurationService(ConfigurationServiceInterface):
             raise MinerNotFoundError(f"Miner with ID {miner_id} not found.")
 
         miner.name = name
+        miner.model = model
         miner.hash_rate_max = hash_rate_max
         miner.power_consumption_max = power_consumption_max
         miner.controller_id = controller_id
