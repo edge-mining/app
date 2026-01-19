@@ -122,6 +122,7 @@ function handleRefresh(miner: Miner) {
       <thead>
         <tr>
           <th>Name</th>
+          <th>Model</th>
           <th>Status</th>
           <th>Hash Rate (Max)</th>
           <th>Power Consumption (Max)</th>
@@ -183,6 +184,7 @@ function handleRefresh(miner: Miner) {
       <tfoot>
         <tr>
           <th>Name</th>
+          <th>Model</th>
           <th>Status</th>
           <th>Hash Rate (Max)</th>
           <th>Power Consumption (Max)</th>

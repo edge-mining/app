@@ -134,6 +134,10 @@ function handleDeactivate() {
     </th>
 
     <td>
+      <div class="text-sm">{{ model.model ?? '-' }}</div>
+    </td>
+
+    <td>
       <div
         class="text-xl"
         :class="
