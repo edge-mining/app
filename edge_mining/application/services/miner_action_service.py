@@ -214,7 +214,7 @@ class MinerActionService(MinerActionServiceInterface):
 
         return current_status
 
-    async def sync_all_miners(self) -> None:
+    async def sync_all_miners(self, include_inactive: bool = False) -> None:
         """Synchronizes the status of all miners from their controllers.
 
         This method retrieves all miners from the repository and updates their
@@ -229,6 +229,8 @@ class MinerActionService(MinerActionServiceInterface):
             self.logger.info("Starting synchronization of all miners status...")
 
         miners: List[Miner] = self.miner_repo.get_all()
+        if not include_inactive:
+            miners = [miner for miner in miners if miner.active]
 
         if not miners:
             if self.logger:

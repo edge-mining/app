@@ -138,7 +138,7 @@ class MinerActionServiceInterface(ABC):
         """Gets the current status of the specified miner."""
 
     @abstractmethod
-    async def sync_all_miners(self) -> None:
+    async def sync_all_miners(self, include_inactive: bool = False) -> None:
         """Synchronizes the status of all miners from their controllers."""
 
 
