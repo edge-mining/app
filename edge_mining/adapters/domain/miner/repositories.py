@@ -7,7 +7,6 @@ from typing import Any, Dict, List, Optional
 
 from edge_mining.adapters.infrastructure.persistence.sqlite import BaseSqliteRepository
 from edge_mining.domain.common import EntityId, Watts
-from edge_mining.domain.exceptions import ConfigurationError
 from edge_mining.domain.miner.common import MinerControllerAdapter, MinerStatus
 from edge_mining.domain.miner.entities import Miner, MinerController
 from edge_mining.domain.miner.exceptions import (
@@ -69,47 +68,32 @@ class InMemoryMinerRepository(MinerRepository):
 class SqliteMinerRepository(MinerRepository):
     """SQLite implementation for the Miner Repository."""
 
+    TABLE_NAME = "miners"
+
+    # Declarative schema definition
+    # NOTE: If you modify SCHEMA, update BaseSqliteRepository.CURRENT_DB_VERSION
+    SCHEMA = {
+        "id": "TEXT PRIMARY KEY",
+        "name": "TEXT NOT NULL",
+        "model": "TEXT",  # Miner model/hardware identifier
+        "status": "TEXT NOT NULL",
+        "active": "INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1))",
+        "hash_rate": "TEXT",  # JSON object of HashRate dict
+        "hash_rate_max": "TEXT",  # JSON object of HashRate dict
+        "power_consumption": "REAL",
+        "power_consumption_max": "REAL",
+        "controller_id": "TEXT",  # Foreign key to miner controller
+    }
+
     def __init__(self, db: BaseSqliteRepository):
         self._db = db
         self.logger = db.logger
 
-        self._create_tables()
-
-    def _create_tables(self):
-        """Create the necessary tables for the Miner domain if they do not exist."""
-        self.logger.debug(f"Ensuring SQLite tables exist for Miner Repository in {self._db.db_path}...")
-        sql_statements = [
-            """
-            CREATE TABLE IF NOT EXISTS miners (
-                id TEXT PRIMARY KEY,
-                name TEXT NOT NULL,
-                model TEXT,
-                status TEXT NOT NULL,
-                active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)),
-                hash_rate TEXT, -- JSON object of HashRate dict
-                hash_rate_max TEXT, -- JSON object of HashRate dict
-                power_consumption REAL,
-                power_consumption_max REAL,
-                controller_id TEXT -- Foreign key to miner controller
-            );
-            """
-        ]
-
-        conn = self._db.get_connection()
-
-        try:
-            with conn:
-                cursor = conn.cursor()
-                for statement in sql_statements:
-                    cursor.execute(statement)
-
-                self.logger.debug("Miners tables checked/created successfully.")
-        except sqlite3.Error as e:
-            self.logger.error(f"Error creating SQLite tables: {e}")
-            raise ConfigurationError(f"DB error creating tables: {e}") from e
-        finally:
-            if conn:
-                conn.close()
+        # BaseSqliteRepository generates CREATE TABLE SQL automatically
+        self._db.create_tables(
+            table_name=self.TABLE_NAME,
+            schema=self.SCHEMA,
+        )
 
     def _dict_to_hashrate(self, data: Dict[str, Any]) -> HashRate:
         """Deserialize a dictionary (from JSON) into an HashRate object."""
@@ -156,8 +140,8 @@ class SqliteMinerRepository(MinerRepository):
         """Add a miner to the SQLite database."""
         self.logger.debug(f"Adding miner {miner.id} to SQLite.")
 
-        sql = """
-            INSERT INTO miners (id, name, model, status, active, hash_rate, hash_rate_max, power_consumption,
+        sql = f"""
+            INSERT INTO {self.TABLE_NAME} (id, name, model, status, active, hash_rate, hash_rate_max, power_consumption,
             power_consumption_max, controller_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
@@ -198,7 +182,7 @@ class SqliteMinerRepository(MinerRepository):
         """Get a miner by ID from the SQLite database."""
         self.logger.debug(f"Getting miner {miner_id} from SQLite.")
 
-        sql = "SELECT * FROM miners WHERE id = ?"
+        sql = f"SELECT * FROM {self.TABLE_NAME} WHERE id = ?"
         conn = self._db.get_connection()
         try:
             cursor = conn.cursor()
@@ -216,7 +200,7 @@ class SqliteMinerRepository(MinerRepository):
         """Get all miners from the SQLite database."""
         self.logger.debug("Getting all miners from SQLite.")
 
-        sql = "SELECT * FROM miners"
+        sql = f"SELECT * FROM {self.TABLE_NAME}"
         conn = self._db.get_connection()
         miners = []
         try:
@@ -239,8 +223,8 @@ class SqliteMinerRepository(MinerRepository):
         """Update a miner in the SQLite database."""
         self.logger.debug(f"Updating miner {miner.id} in SQLite.")
 
-        sql = """
-            UPDATE miners
+        sql = f"""
+            UPDATE {self.TABLE_NAME}
             SET name = ?, model = ?, status = ?, active = ?, hash_rate = ?, hash_rate_max = ?, power_consumption = ?,
             power_consumption_max = ?, controller_id = ?
             WHERE id = ?
@@ -281,7 +265,7 @@ class SqliteMinerRepository(MinerRepository):
         """Remove a miner from the SQLite database."""
         self.logger.debug(f"Removing miner {miner_id} from SQLite.")
 
-        sql = "DELETE FROM miners WHERE id = ?"
+        sql = f"DELETE FROM {self.TABLE_NAME} WHERE id = ?"
         conn = self._db.get_connection()
         try:
             with conn:
@@ -302,7 +286,7 @@ class SqliteMinerRepository(MinerRepository):
         """Get all miners associated with a specific controller ID."""
         self.logger.debug(f"Getting miners by controller ID {controller_id} from SQLite.")
 
-        sql = "SELECT * FROM miners WHERE controller_id = ?"
+        sql = f"SELECT * FROM {self.TABLE_NAME} WHERE controller_id = ?"
         conn = self._db.get_connection()
         miners = []
         try:
@@ -375,40 +359,27 @@ class InMemoryMinerControllerRepository(MinerControllerRepository):
 class SqliteMinerControllerRepository(MinerControllerRepository):
     """SQLite implementation for the Miner Controller Repository."""
 
+    TABLE_NAME = "miner_controllers"
+
+    # Declarative schema definition
+    # NOTE: If you modify SCHEMA, update BaseSqliteRepository.CURRENT_DB_VERSION
+    SCHEMA = {
+        "id": "TEXT PRIMARY KEY",
+        "name": "TEXT NOT NULL",
+        "adapter_type": "TEXT NOT NULL",
+        "config": "TEXT",  # JSON object of config
+        "external_service_id": "TEXT",  # Optional ID for external service integration
+    }
+
     def __init__(self, db: BaseSqliteRepository):
         self._db = db
         self.logger = db.logger
 
-        self._create_tables()
-
-    def _create_tables(self):
-        """Create the necessary tables for the Miner Controller if they do not exist."""
-        self.logger.debug(f"Ensuring SQLite tables exist for Miner Controller Repository in {self._db.db_path}...")
-        sql_statements = [
-            """
-            CREATE TABLE IF NOT EXISTS miner_controllers (
-                id TEXT PRIMARY KEY,
-                name TEXT NOT NULL,
-                adapter_type TEXT NOT NULL,
-                config TEXT, -- JSON object of config
-                external_service_id TEXT -- Optional ID for external service integration
-            );
-            """
-        ]
-        conn = self._db.get_connection()
-        try:
-            with conn:
-                cursor = conn.cursor()
-                for statement in sql_statements:
-                    cursor.execute(statement)
-
-                self.logger.debug("Miner Controllers tables checked/created successfully.")
-        except sqlite3.Error as e:
-            self.logger.error(f"Error creating SQLite tables: {e}")
-            raise ConfigurationError(f"DB error creating tables: {e}") from e
-        finally:
-            if conn:
-                conn.close()
+        # BaseSqliteRepository generates CREATE TABLE SQL automatically
+        self._db.create_tables(
+            table_name=self.TABLE_NAME,
+            schema=self.SCHEMA,
+        )
 
     def _deserialize_config(self, adapter_type: MinerControllerAdapter, config_json: str) -> MinerControllerConfig:
         """Deserialize a JSON string into MinerControllerConfig object."""
@@ -457,8 +428,8 @@ class SqliteMinerControllerRepository(MinerControllerRepository):
         """Add a miner controller to the SQLite database."""
         self.logger.debug(f"Adding miner controller {miner_controller.id} to SQLite.")
 
-        sql = """
-            INSERT INTO miner_controllers (id, name, adapter_type, config, external_service_id)
+        sql = f"""
+            INSERT INTO {self.TABLE_NAME} (id, name, adapter_type, config, external_service_id)
             VALUES (?, ?, ?, ?, ?)
         """
         conn = self._db.get_connection()
@@ -497,7 +468,7 @@ class SqliteMinerControllerRepository(MinerControllerRepository):
         """Get a miner controller by ID from the SQLite database."""
         self.logger.debug(f"Getting miner controller {miner_controller_id} from SQLite.")
 
-        sql = "SELECT * FROM miner_controllers WHERE id = ?;"
+        sql = f"SELECT * FROM {self.TABLE_NAME} WHERE id = ?;"
         conn = self._db.get_connection()
         try:
             cursor = conn.cursor()
@@ -515,7 +486,7 @@ class SqliteMinerControllerRepository(MinerControllerRepository):
         """Get all miner controllers from the SQLite database."""
         self.logger.debug("Getting all miner controllers from SQLite.")
 
-        sql = "SELECT * FROM miner_controllers"
+        sql = f"SELECT * FROM {self.TABLE_NAME}"
         conn = self._db.get_connection()
         try:
             cursor = conn.cursor()
@@ -538,8 +509,8 @@ class SqliteMinerControllerRepository(MinerControllerRepository):
         """Update a miner controller in the SQLite database."""
         self.logger.debug(f"Updating miner controller {miner_controller.id} in SQLite.")
 
-        sql = """
-            UPDATE miner_controllers
+        sql = f"""
+            UPDATE {self.TABLE_NAME}
             SET name = ?, adapter_type = ?, config = ?, external_service_id = ?
             WHERE id = ?
         """
@@ -577,7 +548,7 @@ class SqliteMinerControllerRepository(MinerControllerRepository):
         """Remove a miner controller from the SQLite database."""
         self.logger.debug(f"Removing miner controller {miner_controller_id} from SQLite.")
 
-        sql = "DELETE FROM miner_controllers WHERE id = ?"
+        sql = f"DELETE FROM {self.TABLE_NAME} WHERE id = ?"
         conn = self._db.get_connection()
         try:
             with conn:
@@ -600,7 +571,7 @@ class SqliteMinerControllerRepository(MinerControllerRepository):
         """Get all miner controllers associated with a specific external service ID."""
         self.logger.debug(f"Getting miner controllers for external service ID {external_service_id} from SQLite.")
 
-        sql = "SELECT * FROM miner_controllers WHERE external_service_id = ?"
+        sql = f"SELECT * FROM {self.TABLE_NAME} WHERE external_service_id = ?"
         conn = self._db.get_connection()
         try:
             cursor = conn.cursor()
