@@ -98,6 +98,14 @@ class GenericSocketHomeAssistantAPIMinerController(MinerControlPort):
                 f"Entities Configured: Switch={self.entity_switch}, Power={self.entity_power}, Unit={self.unit_power}"
             )
 
+    def get_model(self) -> Optional[str]:
+        """Gets the model of the miner."""
+
+        if self.logger:
+            self.logger.debug("Retrieving miner model for Home Assistant Generic Socket is not supported...")
+
+        return None
+
     def get_miner_hashrate(self) -> Optional[HashRate]:
         """
         Gets the current hash rate, if available.

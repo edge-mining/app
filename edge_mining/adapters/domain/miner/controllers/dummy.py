@@ -27,6 +27,14 @@ class DummyMinerController(MinerControlPort):
 
         self._power: Watts = Watts(0.0)
 
+    def get_model(self) -> Optional[str]:
+        """Gets the model of the miner."""
+
+        if self.logger:
+            self.logger.debug("Retrieving miner model for Dummy Miner Controller is not supported...")
+
+        return None
+
     def start_miner(self) -> bool:
         """Start the miner."""
         print(f"DummyController: Received START (current: {self._status.name})")

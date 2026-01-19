@@ -291,6 +291,11 @@ class OptimizationService(OptimizationServiceInterface):
                             power=current_power,
                         )
 
+                        # Update model if available and it has changed
+                        current_model = miner_controller.get_model()
+                        if current_model and miner.model != current_model:
+                            miner.model = current_model
+
         # Creates the Sun object for the current date.
         sun: Sun = self.sun_factory.create_sun_for_date()
 
@@ -666,6 +671,11 @@ class OptimizationService(OptimizationServiceInterface):
                 hash_rate=current_hashrate,
                 power=current_power,
             )
+
+            # Update model if available and it has changed
+            current_model = miner_controller.get_model()
+            if current_model and miner.model != current_model:
+                miner.model = current_model
 
             # Persist the observed state
             self.miner_repo.update(miner)

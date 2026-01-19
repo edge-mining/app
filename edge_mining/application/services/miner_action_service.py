@@ -65,6 +65,11 @@ class MinerActionService(MinerActionServiceInterface):
         current_power = miner_controller.get_miner_power()
         miner.update_status(current_status, current_hashrate, current_power)
 
+        # Update model if available and it has changed
+        current_model = miner_controller.get_model()
+        if current_model and miner.model != current_model:
+            miner.model = current_model
+
         # Persist the observed state
         self.miner_repo.update(miner)
 
@@ -110,6 +115,11 @@ class MinerActionService(MinerActionServiceInterface):
         current_hashrate = miner_controller.get_miner_hashrate()
         current_power = miner_controller.get_miner_power()
         miner.update_status(current_status, current_hashrate, current_power)
+
+        # Update model if available and it has changed
+        current_model = miner_controller.get_model()
+        if current_model and miner.model != current_model:
+            miner.model = current_model
 
         # Persist the observed state
         self.miner_repo.update(miner)
@@ -182,6 +192,11 @@ class MinerActionService(MinerActionServiceInterface):
         current_hashrate = miner_controller.get_miner_hashrate()
         miner.update_status(new_status=current_status, hash_rate=current_hashrate)
 
+        # Update model if available and it has changed
+        current_model = miner_controller.get_model()
+        if current_model and miner.model != current_model:
+            miner.model = current_model
+
         # Persist the observed state
         self.miner_repo.update(miner)
 
@@ -208,6 +223,11 @@ class MinerActionService(MinerActionServiceInterface):
         current_hashrate = miner_controller.get_miner_hashrate()
         current_power = miner_controller.get_miner_power()
         miner.update_status(current_status, current_hashrate, current_power)
+
+        # Update model if available and it has changed
+        current_model = miner_controller.get_model()
+        if current_model and miner.model != current_model:
+            miner.model = current_model
 
         # Persist the observed state
         self.miner_repo.update(miner)
@@ -261,6 +281,11 @@ class MinerActionService(MinerActionServiceInterface):
                 current_hashrate = miner_controller.get_miner_hashrate()
                 current_power = miner_controller.get_miner_power()
                 miner.update_status(current_status, current_hashrate, current_power)
+
+                # Update model if available and it has changed
+                current_model = miner_controller.get_model()
+                if current_model and miner.model != current_model:
+                    miner.model = current_model
 
                 # Persist the observed state
                 self.miner_repo.update(miner)

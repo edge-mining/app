@@ -13,6 +13,11 @@ class MinerControlPort(ABC):
     """Port for the Miner Control."""
 
     @abstractmethod
+    def get_model(self) -> Optional[str]:
+        """Gets the model of the miner."""
+        raise NotImplementedError
+
+    @abstractmethod
     def start_miner(self) -> bool:
         """Attempts to start the miner. Returns True on success request."""
         raise NotImplementedError

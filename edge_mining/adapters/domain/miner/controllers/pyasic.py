@@ -141,6 +141,22 @@ class PyASICMinerController(MinerControlPort):
                 if self.logger:
                     self.logger.error(f"Failed to retrieve miner instance from {self.ip}: {e}")
 
+    def get_model(self) -> Optional[str]:
+        """Gets the model of the miner."""
+
+        if self.logger:
+            self.logger.debug(f"Fetching model from {self.ip}...")
+
+        # Get pyasic miner instance
+        self._get_miner()
+
+        if not self._miner:
+            if self.logger:
+                self.logger.error(f"Failed to retrieve miner instance from {self.ip}...")
+            return None
+
+        return self._miner.model or None
+
     def get_miner_hashrate(self) -> Optional[HashRate]:
         """
         Gets the current hash rate, if available.
