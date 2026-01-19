@@ -310,7 +310,9 @@ class PyASICMinerController(MinerControlPort):
         wattage: Optional[Watts] = self.get_miner_power()
 
         if self.logger:
-            self.logger.debug(f"_derive_miner_status: hashrate={hashrate}, wattage={wattage}W (threshold: {IDLE_WATTAGE_THRESHOLD}W)")
+            self.logger.debug(
+                f"_derive_miner_status: hashrate={hashrate}, wattage={wattage}W (threshold: {IDLE_WATTAGE_THRESHOLD}W)"
+            )
 
         # Miner is ON only if BOTH conditions are met:
         # 1. Producing hashrate (hashrate > 0)
