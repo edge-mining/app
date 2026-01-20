@@ -6,6 +6,10 @@ import sqlite3
 import uuid
 from typing import Any, Dict, List, Optional
 
+from sqlalchemy import select
+
+from edge_mining.adapters.domain.home_load.tables import home_forecast_providers_table, home_profiles_table
+from edge_mining.adapters.infrastructure.persistence.sqlalchemy.base import BaseSQLAlchemyRepository
 from edge_mining.adapters.infrastructure.persistence.sqlite import BaseSqliteRepository
 from edge_mining.domain.common import EntityId
 from edge_mining.domain.exceptions import ConfigurationError
@@ -440,3 +444,162 @@ class SqliteHomeForecastProviderRepository(HomeForecastProviderRepository):
         finally:
             if conn:
                 conn.close()
+
+
+# SQLAlchemy implementation
+
+
+class SqlAlchemyHomeForecastProviderRepository(HomeForecastProviderRepository):
+    """SQLAlchemy implementation of HomeForecastProviderRepository.
+
+    This repository works directly with the imperatively mapped HomeForecastProvider domain entity.
+    The config field is automatically converted between HomeForecastProviderConfig objects and JSON
+    strings by the custom TypeDecorator and event listener defined in tables.py.
+
+    Args:
+        db: BaseSQLAlchemyRepository instance for database operations
+    """
+
+    def __init__(self, db: BaseSQLAlchemyRepository):
+        """Initialize repository with database instance.
+
+        Args:
+            db: BaseSQLAlchemyRepository instance
+        """
+        self._db = db
+        self.logger = db.logger
+
+    def add(self, home_forecast_provider: HomeForecastProvider) -> None:
+        """Add a home forecast provider to the repository."""
+        session = self._db.get_session()
+        try:
+            session.add(home_forecast_provider)
+            session.commit()
+            session.refresh(home_forecast_provider)
+        finally:
+            session.close()
+
+    def get_by_id(self, home_forecast_provider_id: EntityId) -> Optional[HomeForecastProvider]:
+        """Get a home forecast provider by ID."""
+        session = self._db.get_session()
+        try:
+            stmt = select(HomeForecastProvider).where(
+                home_forecast_providers_table.c.id == str(home_forecast_provider_id)
+            )
+            entity = session.execute(stmt).scalar_one_or_none()
+            return entity
+        finally:
+            session.close()
+
+    def get_all(self) -> List[HomeForecastProvider]:
+        """Get all home forecast providers."""
+        session = self._db.get_session()
+        try:
+            stmt = select(HomeForecastProvider)
+            entities = session.execute(stmt).scalars().all()
+            return list(entities)
+        finally:
+            session.close()
+
+    def update(self, home_forecast_provider: HomeForecastProvider) -> None:
+        """Update a home forecast provider."""
+        session = self._db.get_session()
+        try:
+            stmt = select(HomeForecastProvider).where(
+                home_forecast_providers_table.c.id == str(home_forecast_provider.id)
+            )
+            existing_entity = session.execute(stmt).scalar_one_or_none()
+
+            if existing_entity:
+                existing_entity.name = home_forecast_provider.name
+                existing_entity.adapter_type = home_forecast_provider.adapter_type
+                existing_entity.config = home_forecast_provider.config
+                existing_entity.external_service_id = home_forecast_provider.external_service_id
+
+                session.commit()
+        finally:
+            session.close()
+
+    def remove(self, home_forecast_provider_id: EntityId) -> None:
+        """Remove a home forecast provider by ID."""
+        session = self._db.get_session()
+        try:
+            stmt = select(HomeForecastProvider).where(
+                home_forecast_providers_table.c.id == str(home_forecast_provider_id)
+            )
+            entity = session.execute(stmt).scalar_one_or_none()
+
+            if entity:
+                session.delete(entity)
+                session.commit()
+        finally:
+            session.close()
+
+    def get_by_external_service_id(self, external_service_id: EntityId) -> List[HomeForecastProvider]:
+        """Get home forecast providers by external service ID."""
+        session = self._db.get_session()
+        try:
+            stmt = select(HomeForecastProvider).where(
+                home_forecast_providers_table.c.external_service_id == str(external_service_id)
+            )
+            entities = session.execute(stmt).scalars().all()
+            return list(entities)
+        finally:
+            session.close()
+
+
+class SqlAlchemyHomeLoadsProfileRepository(HomeLoadsProfileRepository):
+    """SQLAlchemy implementation of the HomeLoadsProfileRepository.
+
+    This repository works directly with the imperatively mapped HomeLoadsProfile aggregate root.
+    The devices field is automatically converted between Dict[EntityId, LoadDevice] and JSON
+    by the custom TypeDecorator and event listener defined in tables.py.
+
+    Args:
+        db: BaseSQLAlchemyRepository instance for database operations
+    """
+
+    # fixed UUID for the default profile
+    _DEFAULT_PROFILE_UUID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+
+    def __init__(self, db: BaseSQLAlchemyRepository):
+        """Initialize repository with database instance.
+
+        Args:
+            db: BaseSQLAlchemyRepository instance
+        """
+        self._db = db
+        self.logger = db.logger
+
+    def get_profile(self) -> Optional[HomeLoadsProfile]:
+        """Get the home load profile from the database."""
+        session = self._db.get_session()
+        try:
+            stmt = select(HomeLoadsProfile).where(home_profiles_table.c.id == str(self._DEFAULT_PROFILE_UUID))
+            entity = session.execute(stmt).scalar_one_or_none()
+            return entity
+        finally:
+            session.close()
+
+    def save_profile(self, profile: HomeLoadsProfile) -> None:
+        """Save the home load profile to the database."""
+        session = self._db.get_session()
+        try:
+            # Check if profile already exists
+            stmt = select(HomeLoadsProfile).where(home_profiles_table.c.id == str(self._DEFAULT_PROFILE_UUID))
+            existing_entity = session.execute(stmt).scalar_one_or_none()
+
+            if existing_entity:
+                # Update existing profile
+                existing_entity.name = profile.name
+                existing_entity.devices = profile.devices
+                session.commit()
+            else:
+                # Create new profile with fixed UUID
+                new_profile = HomeLoadsProfile(
+                    id=EntityId(self._DEFAULT_PROFILE_UUID), name=profile.name, devices=profile.devices
+                )
+                session.add(new_profile)
+                session.commit()
+        finally:
+            session.close()
