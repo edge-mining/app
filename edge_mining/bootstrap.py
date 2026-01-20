@@ -49,6 +49,7 @@ from edge_mining.adapters.domain.performance.repositories import (
 )
 from edge_mining.adapters.domain.policy.repositories import (
     InMemoryOptimizationPolicyRepository,
+    SqlAlchemyOptimizationPolicyRepository,
     SqliteOptimizationPolicyRepository,
     YamlOptimizationPolicyRepository,
 )
@@ -219,7 +220,8 @@ def configure_persistence(logger: LoggerPort, settings: AppSettings) -> Persiste
     elif policies_persistence_adapter == PersistenceAdapter.SQLITE:
         if not sqlite_db:
             raise ValueError(
-                "SQLite DB repository is not initialized. Ensure that the policies persistence adapter is set to SQLITE."
+                "SQLite DB repository is not initialized. "
+                "Ensure that the policies persistence adapter is set to SQLITE."
             )
         policy_repo = SqliteOptimizationPolicyRepository(db=sqlite_db)
 
@@ -227,9 +229,10 @@ def configure_persistence(logger: LoggerPort, settings: AppSettings) -> Persiste
     elif policies_persistence_adapter == PersistenceAdapter.SQLALCHEMY:
         if not sqlalchemy_db:
             raise ValueError(
-                "SQLAlchemy DB repository is not initialized. Ensure that the policies persistence adapter is set to SQLALCHEMY."
+                "SQLAlchemy DB repository is not initialized. "
+                "Ensure that the policies persistence adapter is set to SQLALCHEMY."
             )
-        # policy_repo = SqlAlchemyOptimizationPolicyRepository(db=sqlalchemy_db)
+        policy_repo = SqlAlchemyOptimizationPolicyRepository(db=sqlalchemy_db)
 
         logger.debug("Using SQLAlchemy policies persistence adapter.")
     elif policies_persistence_adapter == PersistenceAdapter.YAML:
