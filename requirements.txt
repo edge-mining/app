@@ -6,6 +6,10 @@ apscheduler==3.11.0
 click==8.1.8
 loguru==0.7.3
 
+# Database ORM and Migrations
+sqlalchemy>=2.0.0
+alembic>=1.13.0
+
 # Optional - For API Driving Adapter
 fastapi==0.115.12
 uvicorn[standard]==0.34.1
