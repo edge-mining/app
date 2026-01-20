@@ -200,4 +200,13 @@ mapper_registry.map_imperatively(
             lazy="joined",
         ),
     },
+    # Exclude columns used by composites to avoid conflicts
+    exclude_properties=[
+        "hash_rate_value",
+        "hash_rate_unit",
+        "hash_rate_max_value",
+        "hash_rate_max_unit",
+        "power_consumption",
+        "power_consumption_max",
+    ],
 )
