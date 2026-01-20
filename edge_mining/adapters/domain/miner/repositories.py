@@ -5,6 +5,10 @@ import json
 import sqlite3
 from typing import Any, Dict, List, Optional
 
+from sqlalchemy import select
+
+from edge_mining.adapters.domain.miner.tables import miner_controllers_table, miners_table
+from edge_mining.adapters.infrastructure.persistence.sqlalchemy.base import BaseSQLAlchemyRepository
 from edge_mining.adapters.infrastructure.persistence.sqlite import BaseSqliteRepository
 from edge_mining.domain.common import EntityId, Watts
 from edge_mining.domain.miner.common import MinerControllerAdapter, MinerStatus
@@ -306,6 +310,135 @@ class SqliteMinerRepository(MinerRepository):
                 conn.close()
 
 
+class SqlAlchemyMinerRepository(MinerRepository):
+    """SQLAlchemy-based implementation of the MinerRepository port.
+
+    This repository works directly with the imperatively mapped Miner domain entity.
+    Since the domain entity is mapped directly to the database via imperative mapping
+    with composite value objects, SQLAlchemy handles the conversion between the
+    flattened database columns and the rich domain value objects automatically.
+
+    Args:
+        db: BaseSQLAlchemyRepository instance for database operations
+        session: SQLAlchemy database session for executing queries
+    """
+
+    def __init__(self, db: BaseSQLAlchemyRepository):
+        """Initialize repository with database instance.
+
+        Args:
+            db: BaseSQLAlchemyRepository instance
+        """
+        self._db = db
+        self.logger = db.logger
+
+    def add(self, miner: Miner) -> None:
+        """Add a new miner to the repository.
+
+        Args:
+            miner: Domain entity to persist
+        """
+        session = self._db.get_session()
+        try:
+            session.add(miner)
+            session.commit()
+            session.refresh(miner)
+        finally:
+            session.close()
+
+    def get_by_id(self, miner_id: EntityId) -> Optional[Miner]:
+        """Retrieve a miner by its ID.
+
+        Args:
+            miner_id: Unique identifier of the miner
+
+        Returns:
+            Domain entity if found, None otherwise
+        """
+        session = self._db.get_session()
+        try:
+            stmt = select(Miner).where(miners_table.c.id == str(miner_id))
+            entity = session.execute(stmt).scalar_one_or_none()
+            return entity
+        finally:
+            session.close()
+
+    def get_all(self) -> List[Miner]:
+        """Retrieve all miners from the repository.
+
+        Returns:
+            List of all miner domain entities
+        """
+        session = self._db.get_session()
+        try:
+            stmt = select(Miner)
+            entities = session.execute(stmt).scalars().all()
+            return list(entities)
+        finally:
+            session.close()
+
+    def update(self, miner: Miner) -> None:
+        """Update an existing miner in the repository.
+
+        Args:
+            miner: Domain entity with updated state
+        """
+        session = self._db.get_session()
+        try:
+            stmt = select(Miner).where(miners_table.c.id == str(miner.id))
+            existing_entity = session.execute(stmt).scalar_one_or_none()
+
+            if existing_entity:
+                # Update all fields from the new entity
+                existing_entity.name = miner.name
+                existing_entity.model = miner.model
+                existing_entity.status = miner.status
+                existing_entity.active = miner.active
+                existing_entity.hash_rate = miner.hash_rate
+                existing_entity.hash_rate_max = miner.hash_rate_max
+                existing_entity.power_consumption = miner.power_consumption
+                existing_entity.power_consumption_max = miner.power_consumption_max
+                existing_entity.controller_id = miner.controller_id
+
+                session.commit()
+        finally:
+            session.close()
+
+    def remove(self, miner_id: EntityId) -> None:
+        """Remove a miner from the repository.
+
+        Args:
+            miner_id: Unique identifier of the miner to remove
+        """
+        session = self._db.get_session()
+        try:
+            stmt = select(Miner).where(miners_table.c.id == str(miner_id))
+            entity = session.execute(stmt).scalar_one_or_none()
+
+            if entity:
+                session.delete(entity)
+                session.commit()
+        finally:
+            session.close()
+
+    def get_by_controller_id(self, controller_id: EntityId) -> List[Miner]:
+        """Retrieve all miners associated with a specific controller.
+
+        Args:
+            controller_id: Unique identifier of the controller
+
+        Returns:
+            List of miner domain entities associated with the controller
+        """
+        session = self._db.get_session()
+        try:
+            stmt = select(Miner).where(miners_table.c.controller_id == str(controller_id))
+            entities = session.execute(stmt).scalars().all()
+            return list(entities)
+        finally:
+            session.close()
+
+
 class InMemoryMinerControllerRepository(MinerControllerRepository):
     """In-Memory implementation for the Miner Controller Repository."""
 
@@ -591,3 +724,144 @@ class SqliteMinerControllerRepository(MinerControllerRepository):
         finally:
             if conn:
                 conn.close()
+
+
+class SqlAlchemyMinerControllerRepository(MinerControllerRepository):
+    """SQLAlchemy-based implementation of the MinerControllerRepository port.
+
+    This repository works directly with the imperatively mapped MinerController domain entity.
+    The config field is automatically converted between MinerControllerConfig objects and JSON
+    strings by the custom TypeDecorator and event listener defined in tables.py.
+
+    Args:
+        db: BaseSQLAlchemyRepository instance for database operations
+    """
+
+    def __init__(self, db: BaseSQLAlchemyRepository):
+        """Initialize repository with database instance.
+
+        Args:
+            db: BaseSQLAlchemyRepository instance
+        """
+        self._db = db
+        self.logger = db.logger
+
+    def add(self, miner_controller: MinerController) -> None:
+        """Add a new miner controller to the repository.
+
+        Args:
+            miner_controller: Domain entity to persist
+        """
+        session = self._db.get_session()
+        try:
+            session.add(miner_controller)
+            session.commit()
+            session.refresh(miner_controller)
+        except Exception as e:
+            session.rollback()
+            if "UNIQUE constraint failed" in str(e) or "already exists" in str(e):
+                raise MinerControllerAlreadyExistsError(
+                    f"Miner Controller with ID {miner_controller.id} already exists: {e}"
+                ) from e
+            raise MinerControllerError(f"Error adding miner controller: {e}") from e
+        finally:
+            session.close()
+
+    def get_by_id(self, miner_controller_id: EntityId) -> Optional[MinerController]:
+        """Retrieve a miner controller by its ID.
+
+        Args:
+            miner_controller_id: Unique identifier of the miner controller
+
+        Returns:
+            Domain entity if found, None otherwise
+        """
+        session = self._db.get_session()
+        try:
+            stmt = select(MinerController).where(miner_controllers_table.c.id == str(miner_controller_id))
+            entity = session.execute(stmt).scalar_one_or_none()
+            return entity
+        finally:
+            session.close()
+
+    def get_all(self) -> List[MinerController]:
+        """Retrieve all miner controllers from the repository.
+
+        Returns:
+            List of all miner controller domain entities
+        """
+        session = self._db.get_session()
+        try:
+            stmt = select(MinerController)
+            entities = session.execute(stmt).scalars().all()
+            return list(entities)
+        finally:
+            session.close()
+
+    def update(self, miner_controller: MinerController) -> None:
+        """Update an existing miner controller in the repository.
+
+        Args:
+            miner_controller: Domain entity with updated state
+        """
+        session = self._db.get_session()
+        try:
+            stmt = select(MinerController).where(miner_controllers_table.c.id == str(miner_controller.id))
+            existing_controller = session.execute(stmt).scalar_one_or_none()
+
+            if existing_controller:
+                # Update all fields from the new entity
+                existing_controller.name = miner_controller.name
+                existing_controller.adapter_type = miner_controller.adapter_type
+                existing_controller.external_service_id = miner_controller.external_service_id
+                existing_controller.config = miner_controller.config
+
+                # SQLAlchemy's dirty tracking + TypeDecorator will handle serialization automatically
+                session.commit()
+            else:
+                raise MinerControllerNotFoundError(
+                    f"No miner controller found with ID {miner_controller.id} for update."
+                )
+        except MinerControllerNotFoundError:
+            raise
+        except Exception as e:
+            session.rollback()
+            raise MinerControllerError(f"Error updating miner controller: {e}") from e
+        finally:
+            session.close()
+
+    def remove(self, miner_controller_id: EntityId) -> None:
+        """Remove a miner controller from the repository.
+
+        Args:
+            miner_controller_id: Unique identifier of the miner controller to remove
+        """
+        session = self._db.get_session()
+        try:
+            stmt = select(MinerController).where(miner_controllers_table.c.id == str(miner_controller_id))
+            entity = session.execute(stmt).scalar_one_or_none()
+
+            if entity:
+                session.delete(entity)
+                session.commit()
+        finally:
+            session.close()
+
+    def get_by_external_service_id(self, external_service_id: EntityId) -> List[MinerController]:
+        """Retrieve all miner controllers associated with a specific external service.
+
+        Args:
+            external_service_id: Unique identifier of the external service
+
+        Returns:
+            List of miner controller domain entities associated with the external service
+        """
+        session = self._db.get_session()
+        try:
+            stmt = select(MinerController).where(
+                miner_controllers_table.c.external_service_id == str(external_service_id)
+            )
+            entities = session.execute(stmt).scalars().all()
+            return list(entities)
+        finally:
+            session.close()

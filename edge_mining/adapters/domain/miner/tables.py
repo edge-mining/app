@@ -1,0 +1,192 @@
+"""SQLAlchemy ORM mappings for Miner domain entities.
+
+This module implements imperative (classical) mapping of the domain entities
+to database tables. The domain entities are mapped directly without
+creating separate ORM model classes, maintaining domain purity.
+
+The mappings handle value objects (HashRate, Watts) using SQLAlchemy's composite()
+to map multiple columns to single value object instances.
+
+All tables and mappings use the shared metadata and mapper registry from
+the sqlalchemy.registry module, which are available as module-level singletons.
+"""
+
+import json
+from typing import Optional, cast
+
+from sqlalchemy import Boolean, Column, Float, ForeignKey, String, Table, TypeDecorator, event
+from sqlalchemy.orm import composite, relationship
+
+from edge_mining.adapters.infrastructure.persistence.sqlalchemy.registry import mapper_registry, metadata
+from edge_mining.domain.common import Watts
+from edge_mining.domain.miner.common import MinerControllerAdapter
+from edge_mining.domain.miner.entities import Miner, MinerController
+from edge_mining.domain.miner.value_objects import HashRate
+from edge_mining.shared.adapter_maps.miner import MINER_CONTROLLER_CONFIG_TYPE_MAP
+from edge_mining.shared.interfaces.config import MinerControllerConfig
+
+
+class MinerControllerConfigType(TypeDecorator):
+    """Custom SQLAlchemy type that converts MinerControllerConfig to/from JSON string.
+
+    This type handles serialization when writing to the database.
+    Deserialization is handled by the @event.listens_for decorator on the entity.
+    """
+
+    impl = String
+    cache_ok = True
+
+    def process_bind_param(self, value: Optional[MinerControllerConfig], dialect) -> Optional[str]:
+        """Convert MinerControllerConfig to JSON string before storing in DB.
+
+        Args:
+            value: MinerControllerConfig instance or None
+            dialect: SQLAlchemy dialect
+
+        Returns:
+            JSON string representation or None
+        """
+        if value is None:
+            return None
+        if isinstance(value, str):
+            # Already serialized
+            return value
+        # Serialize config to JSON
+        return json.dumps(value.to_dict())
+
+    def process_result_value(self, value: Optional[str], dialect) -> Optional[str]:
+        """Return the JSON string as-is. Actual deserialization happens in the event listener.
+
+        Args:
+            value: JSON string from database or None
+            dialect: SQLAlchemy dialect
+
+        Returns:
+            JSON string or None (will be converted to MinerControllerConfig by event listener)
+        """
+        return value  # Return as string, event listener will convert
+
+
+def _deserialize_miner_controller_config(
+    adapter_type: MinerControllerAdapter, config_json: str
+) -> Optional[MinerControllerConfig]:
+    """Deserialize JSON string to MinerControllerConfig based on adapter type.
+
+    Args:
+        adapter_type: The type of miner controller adapter
+        config_json: JSON string representation of config
+
+    Returns:
+        MinerControllerConfig instance or None
+    """
+    if not config_json:
+        return None
+
+    data: dict = json.loads(config_json)
+
+    config_class: Optional[type[MinerControllerConfig]] = MINER_CONTROLLER_CONFIG_TYPE_MAP.get(adapter_type)
+    if not config_class:
+        return None
+
+    return cast(MinerControllerConfig, config_class.from_dict(data))
+
+
+@event.listens_for(MinerController, "load")
+def _receive_miner_controller_load(target: MinerController, context) -> None:
+    """Event listener that deserializes config after loading from database.
+
+    Args:
+        target: The MinerController instance being loaded
+        context: SQLAlchemy context
+    """
+    if target.config and isinstance(target.config, str):
+        target.config = _deserialize_miner_controller_config(target.adapter_type, target.config)
+
+
+# Define the miner_controllers table using imperative style
+miner_controllers_table = Table(
+    "miner_controllers",
+    metadata,
+    # Primary Key
+    Column("id", String, primary_key=True, index=True),
+    # Basic attributes
+    Column("name", String, nullable=False),
+    Column("adapter_type", String, nullable=False, default="DUMMY"),
+    # Config stored as JSON string with automatic conversion
+    Column("config", MinerControllerConfigType, nullable=True),
+    # External service reference
+    Column("external_service_id", String, nullable=True),
+)
+
+# Define the miners table using imperative style
+miners_table = Table(
+    "miners",
+    metadata,
+    # Primary Key
+    Column("id", String, primary_key=True, index=True),
+    # Basic attributes
+    Column("name", String, nullable=False),
+    Column("model", String, nullable=True),
+    Column("status", String, nullable=False, default="UNKNOWN"),
+    Column("active", Boolean, nullable=False, default=True),
+    # Hash Rate Value Object flattened into two columns
+    Column("hash_rate_value", Float, nullable=True),
+    Column("hash_rate_unit", String, nullable=True, default="TH/s"),
+    # Max Hash Rate Value Object flattened
+    Column("hash_rate_max_value", Float, nullable=True),
+    Column("hash_rate_max_unit", String, nullable=True, default="TH/s"),
+    # Power Consumption (Watts Value Object stored as float)
+    Column("power_consumption", Float, nullable=True),
+    Column("power_consumption_max", Float, nullable=True),
+    # Foreign Key to MinerController
+    Column("controller_id", String, ForeignKey("miner_controllers.id"), nullable=True),
+)
+
+# Map MinerController first (parent in the relationship)
+mapper_registry.map_imperatively(
+    MinerController,
+    miner_controllers_table,
+    properties={
+        "miners": relationship(
+            "Miner",
+            back_populates="controller",
+            lazy="select",
+        )
+    },
+)
+
+# Map Miner (child in the relationship) with composite value objects
+mapper_registry.map_imperatively(
+    Miner,
+    miners_table,
+    properties={
+        # Map hash_rate as composite of hash_rate_value and hash_rate_unit
+        "hash_rate": composite(
+            HashRate,
+            miners_table.c.hash_rate_value,
+            miners_table.c.hash_rate_unit,
+        ),
+        # Map hash_rate_max as composite
+        "hash_rate_max": composite(
+            HashRate,
+            miners_table.c.hash_rate_max_value,
+            miners_table.c.hash_rate_max_unit,
+        ),
+        # Map power_consumption as composite (Watts wraps a single float)
+        "power_consumption": composite(
+            Watts,
+            miners_table.c.power_consumption,
+        ),
+        # Map power_consumption_max as composite
+        "power_consumption_max": composite(
+            Watts,
+            miners_table.c.power_consumption_max,
+        ),
+        # Relationship to controller
+        "controller": relationship(
+            "MinerController",
+            foreign_keys=[miners_table.c.controller_id],
+            lazy="joined",
+        ),
+    },
+)
