@@ -12,7 +12,7 @@ the sqlalchemy.registry module, which are available as module-level singletons.
 """
 
 import json
-from typing import Optional, cast
+from typing import Optional
 
 from sqlalchemy import Boolean, Column, Float, ForeignKey, String, Table, TypeDecorator, event
 from sqlalchemy.orm import composite, relationship
@@ -21,6 +21,7 @@ from edge_mining.adapters.infrastructure.persistence.sqlalchemy.registry import 
 from edge_mining.domain.common import Watts
 from edge_mining.domain.miner.common import MinerControllerAdapter
 from edge_mining.domain.miner.entities import Miner, MinerController
+from edge_mining.domain.miner.exceptions import MinerControllerConfigurationError
 from edge_mining.domain.miner.value_objects import HashRate
 from edge_mining.shared.adapter_maps.miner import MINER_CONTROLLER_CONFIG_TYPE_MAP
 from edge_mining.shared.interfaces.config import MinerControllerConfig
@@ -84,11 +85,21 @@ def _deserialize_miner_controller_config(
 
     data: dict = json.loads(config_json)
 
+    if adapter_type not in MINER_CONTROLLER_CONFIG_TYPE_MAP:
+        raise MinerControllerConfigurationError(
+            f"Error reading MinerController configuration. Invalid type '{adapter_type}'"
+        )
+
     config_class: Optional[type[MinerControllerConfig]] = MINER_CONTROLLER_CONFIG_TYPE_MAP.get(adapter_type)
     if not config_class:
-        return None
+        raise MinerControllerConfigurationError(f"Error creating MinerController configuration. Type '{adapter_type}'")
 
-    return cast(MinerControllerConfig, config_class.from_dict(data))
+    config_instance = config_class.from_dict(data)
+    if not isinstance(config_instance, MinerControllerConfig):
+        raise MinerControllerConfigurationError(
+            f"Deserialized config is not of type MinerControllerConfig for adapter type {adapter_type}."
+        )
+    return config_instance
 
 
 @event.listens_for(MinerController, "load")
