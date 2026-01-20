@@ -6,16 +6,21 @@ from typing import Optional
 from edge_mining.adapters.domain.energy.repositories import (
     InMemoryEnergyMonitorRepository,
     InMemoryEnergySourceRepository,
+    SqlAlchemyEnergyMonitorRepository,
+    SqlAlchemyEnergySourceRepository,
     SqliteEnergyMonitorRepository,
     SqliteEnergySourceRepository,
 )
 from edge_mining.adapters.domain.forecast.repositories import (
     InMemoryForecastProviderRepository,
+    SqlAlchemyForecastProviderRepository,
     SqliteForecastProviderRepository,
 )
 from edge_mining.adapters.domain.home_load.repositories import (
     InMemoryHomeForecastProviderRepository,
     InMemoryHomeLoadsProfileRepository,
+    SqlAlchemyHomeForecastProviderRepository,
+    SqlAlchemyHomeLoadsProfileRepository,
     SqliteHomeForecastProviderRepository,
     SqliteHomeLoadsProfileRepository,
 )
@@ -24,17 +29,22 @@ from edge_mining.adapters.domain.miner.repositories import (
     InMemoryMinerRepository,
     SqliteMinerControllerRepository,
     SqliteMinerRepository,
+    SqlAlchemyMinerRepository,
+    SqlAlchemyMinerControllerRepository,
 )
 from edge_mining.adapters.domain.notification.repositories import (
     InMemoryNotifierRepository,
+    SqlAlchemyNotifierRepository,
     SqliteNotifierRepository,
 )
 from edge_mining.adapters.domain.optimization_unit.repositories import (
     InMemoryOptimizationUnitRepository,
+    SqlAlchemyOptimizationUnitRepository,
     SqliteOptimizationUnitRepository,
 )
 from edge_mining.adapters.domain.performance.repositories import (
     InMemoryMiningPerformanceTrackerRepository,
+    SqlAlchemyMiningPerformanceTrackerRepository,
     SqliteMiningPerformanceTrackerRepository,
 )
 from edge_mining.adapters.domain.policy.repositories import (
@@ -45,13 +55,16 @@ from edge_mining.adapters.domain.policy.repositories import (
 from edge_mining.domain.miner.ports import MinerControllerRepository
 from edge_mining.adapters.domain.user.repositories import (
     InMemorySettingsRepository,
+    SqlAlchemySettingsRepository,
     SqliteSettingsRepository,
 )
 from edge_mining.adapters.infrastructure.external_services.repositories import (
     InMemoryExternalServiceRepository,
+    SqlAlchemyExternalServiceRepository,
     SqliteExternalServiceRepository,
 )
 from edge_mining.adapters.infrastructure.persistence.sqlite import BaseSqliteRepository
+from edge_mining.adapters.infrastructure.persistence.sqlalchemy.base import BaseSQLAlchemyRepository
 from edge_mining.adapters.infrastructure.sun.factories import AstralSunFactory
 from edge_mining.application.interfaces import SunFactoryInterface
 from edge_mining.application.services.adapter_service import AdapterService
@@ -95,7 +108,7 @@ def configure_persistence(logger: LoggerPort, settings: AppSettings) -> Persiste
         persistence_adapter,
         policies_persistence_adapter,
     ]:
-        db_path = settings.sqlite_db_file
+        db_path = settings.db_path
         db_dir = os.path.dirname(db_path)
         if db_dir and not os.path.exists(db_dir):
             logger.debug(f"Creating database directory: {db_dir}")
@@ -104,10 +117,16 @@ def configure_persistence(logger: LoggerPort, settings: AppSettings) -> Persiste
         logger.debug(f"Using SQLite persistence adapter (DB: {db_path}).")
         sqlite_db = BaseSqliteRepository(db_path=db_path, logger=logger)
 
-    if not sqlite_db:
-        raise ValueError(
-            "SQLite DB repository is not initialized. Ensure that the persistence adapter is set to SQLITE."
-        )
+    # Initialize SQLAlchemy DB base repository if needed
+    sqlalchemy_db: Optional[BaseSQLAlchemyRepository] = None
+    if PersistenceAdapter.SQLALCHEMY in [
+        persistence_adapter,
+        policies_persistence_adapter,
+    ]:
+        db_url = settings.db_path
+
+        logger.debug(f"Using SQLAlchemy persistence adapter (DB URL: {db_url}).")
+        sqlalchemy_db = BaseSQLAlchemyRepository(db_path=db_url, logger=logger)
 
     # Initialize repositories based on the selected persistence adapter
     energy_source_repo: EnergySourceRepository
@@ -141,6 +160,11 @@ def configure_persistence(logger: LoggerPort, settings: AppSettings) -> Persiste
 
         logger.debug("Using InMemory persistence adapters.")
     elif persistence_adapter == PersistenceAdapter.SQLITE:
+        if not sqlite_db:
+            raise ValueError(
+                "SQLite DB repository is not initialized. Ensure that the persistence adapter is set to SQLITE."
+            )
+
         # Instantiate all SQLite repositories passing the DB base
 
         energy_source_repo = SqliteEnergySourceRepository(db=sqlite_db)
@@ -159,6 +183,29 @@ def configure_persistence(logger: LoggerPort, settings: AppSettings) -> Persiste
         # user_repo: UserRepository = SqliteUserRepository(
         #   db_path=db_path, logger=logger
         # ) # If implemented
+    elif persistence_adapter == PersistenceAdapter.SQLALCHEMY:
+        if not sqlalchemy_db:
+            raise ValueError(
+                "SQLAlchemy DB repository is not initialized. Ensure that the persistence adapter is set to SQLALCHEMY."
+            )
+
+        # Instantiate all SQLAlchemy repositories passing the DB base
+        energy_source_repo = SqlAlchemyEnergySourceRepository(db=sqlalchemy_db)
+        energy_monitor_repo = SqlAlchemyEnergyMonitorRepository(db=sqlalchemy_db)
+        miner_repo = SqlAlchemyMinerRepository(db=sqlalchemy_db)
+        miner_controller_repo = SqlAlchemyMinerControllerRepository(db=sqlalchemy_db)
+        forecast_provider_repo = SqlAlchemyForecastProviderRepository(db=sqlalchemy_db)
+        notifier_repo = SqlAlchemyNotifierRepository(db=sqlalchemy_db)
+        mining_performance_tracker_repo = SqlAlchemyMiningPerformanceTrackerRepository(db=sqlalchemy_db)
+        settings_repo = SqlAlchemySettingsRepository(db=sqlalchemy_db)
+        home_profile_repo = SqlAlchemyHomeLoadsProfileRepository(db=sqlalchemy_db)
+        home_forecast_provider_repo = SqlAlchemyHomeForecastProviderRepository(db=sqlalchemy_db)
+        optimization_unit_repo = SqlAlchemyOptimizationUnitRepository(db=sqlalchemy_db)
+        external_service_repo = SqlAlchemyExternalServiceRepository(db=sqlalchemy_db)
+
+        # user_repo: UserRepository = SqliteUserRepository(
+        #   db_path=db_path, logger=logger
+        # ) # If implemented
     else:
         raise ValueError(f"Unsupported persistence_adapter: {settings.persistence_adapter}")
 
@@ -170,9 +217,21 @@ def configure_persistence(logger: LoggerPort, settings: AppSettings) -> Persiste
 
         logger.debug("Using InMemory policies persistence adapter.")
     elif policies_persistence_adapter == PersistenceAdapter.SQLITE:
+        if not sqlite_db:
+            raise ValueError(
+                "SQLite DB repository is not initialized. Ensure that the policies persistence adapter is set to SQLITE."
+            )
         policy_repo = SqliteOptimizationPolicyRepository(db=sqlite_db)
 
         logger.debug("Using SQLite policies persistence adapter.")
+    elif policies_persistence_adapter == PersistenceAdapter.SQLALCHEMY:
+        if not sqlalchemy_db:
+            raise ValueError(
+                "SQLAlchemy DB repository is not initialized. Ensure that the policies persistence adapter is set to SQLALCHEMY."
+            )
+        # policy_repo = SqlAlchemyOptimizationPolicyRepository(db=sqlalchemy_db)
+
+        logger.debug("Using SQLAlchemy policies persistence adapter.")
     elif policies_persistence_adapter == PersistenceAdapter.YAML:
         policy_repo = YamlOptimizationPolicyRepository(policies_directory=settings.yaml_policies_dir, logger=logger)
         logger.debug("Using YAML policies persistence adapter.")

@@ -15,10 +15,11 @@ class AppSettings(BaseSettings):
     longitude: float = 12.4964  # Default longitude for Rome
 
     # Adapters Configuration (select which ones to use)
-    persistence_adapter: str = "sqlite"  # Options: "in_memory", "sqlite", "yaml"
-    policies_persistence_adapter: str = "yaml"  # Options: "in_memory", "sqlite", "yaml"
+    persistence_adapter: str = "sqlite"  # Options: "in_memory", "sqlite", "yaml", "sqlalchemy"
+    policies_persistence_adapter: str = "yaml"  # Options: "in_memory", "sqlite", "yaml", "sqlalchemy"
 
-    sqlite_db_file: str = "edgemining.db"  # SQLite file path
+    db_path: str = "sqlite+aiosqlite:///edgemining.db"  # Database URL
+
     yaml_policies_dir: str = "optimization_policies"  # Directory for YAML policies
 
     # API Settings

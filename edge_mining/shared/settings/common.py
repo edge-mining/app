@@ -8,4 +8,5 @@ class PersistenceAdapter(Enum):
 
     IN_MEMORY = "in_memory"
     SQLITE = "sqlite"
+    SQLALCHEMY = "sqlalchemy"
     YAML = "yaml"
