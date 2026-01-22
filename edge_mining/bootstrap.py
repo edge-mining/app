@@ -27,10 +27,10 @@ from edge_mining.adapters.domain.home_load.repositories import (
 from edge_mining.adapters.domain.miner.repositories import (
     InMemoryMinerControllerRepository,
     InMemoryMinerRepository,
+    SqlAlchemyMinerControllerRepository,
+    SqlAlchemyMinerRepository,
     SqliteMinerControllerRepository,
     SqliteMinerRepository,
-    SqlAlchemyMinerRepository,
-    SqlAlchemyMinerControllerRepository,
 )
 from edge_mining.adapters.domain.notification.repositories import (
     InMemoryNotifierRepository,
@@ -53,7 +53,6 @@ from edge_mining.adapters.domain.policy.repositories import (
     SqliteOptimizationPolicyRepository,
     YamlOptimizationPolicyRepository,
 )
-from edge_mining.domain.miner.ports import MinerControllerRepository
 from edge_mining.adapters.domain.user.repositories import (
     InMemorySettingsRepository,
     SqlAlchemySettingsRepository,
@@ -64,8 +63,8 @@ from edge_mining.adapters.infrastructure.external_services.repositories import (
     SqlAlchemyExternalServiceRepository,
     SqliteExternalServiceRepository,
 )
-from edge_mining.adapters.infrastructure.persistence.sqlite import BaseSqliteRepository
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.base import BaseSQLAlchemyRepository
+from edge_mining.adapters.infrastructure.persistence.sqlite import BaseSqliteRepository
 from edge_mining.adapters.infrastructure.sun.factories import AstralSunFactory
 from edge_mining.application.interfaces import SunFactoryInterface
 from edge_mining.application.services.adapter_service import AdapterService
@@ -81,7 +80,7 @@ from edge_mining.domain.home_load.ports import (
     HomeForecastProviderRepository,
     HomeLoadsProfileRepository,
 )
-from edge_mining.domain.miner.ports import MinerRepository
+from edge_mining.domain.miner.ports import MinerControllerRepository, MinerRepository
 from edge_mining.domain.notification.ports import NotifierRepository
 from edge_mining.domain.optimization_unit.ports import EnergyOptimizationUnitRepository
 from edge_mining.domain.performance.ports import MiningPerformanceTrackerRepository
@@ -128,6 +127,14 @@ def configure_persistence(logger: LoggerPort, settings: AppSettings) -> Persiste
 
         logger.debug(f"Using SQLAlchemy persistence adapter (DB URL: {db_url}).")
         sqlalchemy_db = BaseSQLAlchemyRepository(db_path=db_url, logger=logger)
+
+        # Import registry loader to ensure all table definitions are registered
+        from edge_mining.adapters.infrastructure.persistence.sqlalchemy import registry_loader  # noqa: F401
+
+        # Create all tables if they don't exist
+        logger.debug("Creating database tables (if not exist)...")
+        sqlalchemy_db.create_all_tables()
+        logger.debug("Database tables ready.")
 
     # Initialize repositories based on the selected persistence adapter
     energy_source_repo: EnergySourceRepository
