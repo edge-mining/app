@@ -4,6 +4,11 @@ This module implements imperative (classical) mapping of the domain entities
 to database tables. The domain entities are mapped directly without
 creating separate ORM model classes, maintaining domain purity.
 
+The mappings handle complex objects using SQLAlchemy event listeners and custom types:
+- LoadDevice dictionaries are serialized to JSON and reconstructed after loading
+- HomeForecastProviderConfig is serialized using custom ConfigurationType
+- EntityId value objects are implicitly converted to/from strings
+
 All tables and mappings use the shared metadata and mapper registry from
 the sqlalchemy.registry module, which are available as module-level singletons.
 """

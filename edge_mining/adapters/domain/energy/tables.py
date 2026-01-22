@@ -4,8 +4,9 @@ This module implements imperative (classical) mapping of the domain entities
 to database tables. The domain entities are mapped directly without
 creating separate ORM model classes, maintaining domain purity.
 
-The mappings handle value objects (Battery, Grid, Watts) using SQLAlchemy's composite()
-to map multiple columns to single value object instances.
+The mappings handle value objects (Battery, Grid, Watts) using SQLAlchemy event listeners
+to convert between domain objects and database columns. Value objects are flattened to
+float columns for persistence and reconstructed after loading.
 
 All tables and mappings use the shared metadata and mapper registry from
 the sqlalchemy.registry module, which are available as module-level singletons.

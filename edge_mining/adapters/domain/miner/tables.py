@@ -4,8 +4,11 @@ This module implements imperative (classical) mapping of the domain entities
 to database tables. The domain entities are mapped directly without
 creating separate ORM model classes, maintaining domain purity.
 
-The mappings handle value objects (HashRate, Watts) using SQLAlchemy's composite()
-to map multiple columns to single value object instances.
+The mappings handle value objects and enums using SQLAlchemy event listeners and custom types:
+- HashRate is serialized to JSON strings and reconstructed after loading
+- Watts is flattened to float columns for persistence and reconstructed after loading
+- MinerStatus enum uses custom TypeDecorator for string conversion
+- MinerControllerConfig is serialized using custom ConfigurationType
 
 All tables and mappings use the shared metadata and mapper registry from
 the sqlalchemy.registry module, which are available as module-level singletons.
