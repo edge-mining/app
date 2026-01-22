@@ -143,7 +143,7 @@ miner_controllers_table = Table(
     # Config stored as JSON string with automatic conversion
     Column("config", MinerControllerConfigType, nullable=True),
     # External service reference
-    Column("external_service_id", String, nullable=True),
+    Column("external_service_id", String, ForeignKey("external_services.id"), nullable=True),
 )
 
 # Define the miners table using imperative style

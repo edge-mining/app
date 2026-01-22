@@ -100,7 +100,7 @@ energy_monitors_table = Table(
     # Config stored as JSON string with automatic conversion
     Column("config", EnergyMonitorConfigType, nullable=True),
     # External service reference
-    Column("external_service_id", String, nullable=True),
+    Column("external_service_id", String, ForeignKey("external_services.id"), nullable=True),
 )
 
 # Define the energy_sources table using imperative style

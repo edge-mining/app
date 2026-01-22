@@ -11,7 +11,7 @@ the sqlalchemy.registry module, which are available as module-level singletons.
 import json
 from typing import Optional
 
-from sqlalchemy import Column, String, Table, event
+from sqlalchemy import Column, ForeignKey, String, Table, event
 
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.common import ConfigurationType
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.registry import mapper_registry, metadata
@@ -72,7 +72,7 @@ forecast_providers_table = Table(
     Column("name", String, nullable=False),
     Column("adapter_type", String, nullable=False),
     Column("config", ForecastProviderConfigType, nullable=True),
-    Column("external_service_id", String, nullable=True),
+    Column("external_service_id", String, ForeignKey("external_services.id"), nullable=True),
 )
 
 # Map ForecastProvider
