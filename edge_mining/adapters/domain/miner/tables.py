@@ -15,7 +15,7 @@ import json
 from typing import Optional
 
 from sqlalchemy import Boolean, Column, Float, ForeignKey, String, Table, TypeDecorator, event
-from sqlalchemy.orm import composite, relationship
+from sqlalchemy.orm import relationship
 
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.common import ConfigurationType
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.registry import mapper_registry, metadata
@@ -119,6 +119,14 @@ def _receive_miner_controller_load(target: MinerController, context) -> None:
         target: The MinerController instance being loaded
         context: SQLAlchemy context
     """
+    # Convert adapter_type string to enum if needed
+    if isinstance(target.adapter_type, str):
+        try:
+            target.adapter_type = MinerControllerAdapter(target.adapter_type)
+        except ValueError:
+            # If conversion fails, leave as string (will fail in config deserialization)
+            pass
+
     if target.config and isinstance(target.config, str):
         target.config = _deserialize_miner_controller_config(target.adapter_type, target.config)
 
@@ -147,14 +155,11 @@ miners_table = Table(
     # Basic attributes
     Column("name", String, nullable=False),
     Column("model", String, nullable=True),
-    Column("status", String, nullable=False, default="UNKNOWN"),
+    Column("status", MinerStatusType, nullable=False, default="UNKNOWN"),
     Column("active", Boolean, nullable=False, default=True),
-    # Hash Rate Value Object flattened into two columns
-    Column("hash_rate_value", Float, nullable=True),
-    Column("hash_rate_unit", String, nullable=True, default="TH/s"),
-    # Max Hash Rate Value Object flattened
-    Column("hash_rate_max_value", Float, nullable=True),
-    Column("hash_rate_max_unit", String, nullable=True, default="TH/s"),
+    # Hash Rate Value Object - stored as TEXT (JSON) in SQLite to match existing schema
+    Column("hash_rate", String, nullable=True),
+    Column("hash_rate_max", String, nullable=True),
     # Power Consumption (Watts Value Object stored as float)
     Column("power_consumption", Float, nullable=True),
     Column("power_consumption_max", Float, nullable=True),
@@ -175,33 +180,11 @@ mapper_registry.map_imperatively(
     },
 )
 
-# Map Miner (child in the relationship) with composite value objects
+# Map Miner (child in the relationship) - use event listeners for value object conversions
 mapper_registry.map_imperatively(
     Miner,
     miners_table,
     properties={
-        # Map hash_rate as composite of hash_rate_value and hash_rate_unit
-        "hash_rate": composite(
-            HashRate,
-            miners_table.c.hash_rate_value,
-            miners_table.c.hash_rate_unit,
-        ),
-        # Map hash_rate_max as composite
-        "hash_rate_max": composite(
-            HashRate,
-            miners_table.c.hash_rate_max_value,
-            miners_table.c.hash_rate_max_unit,
-        ),
-        # Map power_consumption as composite (Watts wraps a single float)
-        "power_consumption": composite(
-            Watts,
-            miners_table.c.power_consumption,
-        ),
-        # Map power_consumption_max as composite
-        "power_consumption_max": composite(
-            Watts,
-            miners_table.c.power_consumption_max,
-        ),
         # Relationship to controller
         "controller": relationship(
             "MinerController",
@@ -209,13 +192,80 @@ mapper_registry.map_imperatively(
             lazy="joined",
         ),
     },
-    # Exclude columns used by composites to avoid conflicts
-    exclude_properties=[
-        "hash_rate_value",
-        "hash_rate_unit",
-        "hash_rate_max_value",
-        "hash_rate_max_unit",
-        "power_consumption",
-        "power_consumption_max",
-    ],
+    # Don't exclude properties - let SQLAlchemy load them, then convert in event listener
 )
+
+
+# Event listeners for value object conversions
+@event.listens_for(Miner, "load")
+def _receive_miner_load(target: Miner, context) -> None:
+    """Event listener that reconstructs value objects after loading.
+
+    Args:
+        target: The Miner instance being loaded
+        context: SQLAlchemy context
+    """
+    # SQLAlchemy will load the raw column values as strings/floats
+    # We need to convert them to proper value objects
+
+    # Reconstruct hash_rate (HashRate) from JSON string
+    if hasattr(target, "hash_rate") and target.hash_rate:
+        if isinstance(target.hash_rate, str):
+            try:
+                hash_rate_data = json.loads(target.hash_rate)
+                target.hash_rate = HashRate(value=hash_rate_data.get("value"), unit=hash_rate_data.get("unit", "TH/s"))
+            except (json.JSONDecodeError, TypeError, KeyError):
+                target.hash_rate = None
+
+    # Reconstruct hash_rate_max (HashRate) from JSON string
+    if hasattr(target, "hash_rate_max") and target.hash_rate_max:
+        if isinstance(target.hash_rate_max, str):
+            try:
+                hash_rate_max_data = json.loads(target.hash_rate_max)
+                target.hash_rate_max = HashRate(
+                    value=hash_rate_max_data.get("value"), unit=hash_rate_max_data.get("unit", "TH/s")
+                )
+            except (json.JSONDecodeError, TypeError, KeyError):
+                target.hash_rate_max = None
+
+    # Convert power_consumption to Watts (it's loaded as float)
+    if hasattr(target, "power_consumption") and target.power_consumption is not None:
+        if not isinstance(target.power_consumption, type(Watts(0.0))):
+            target.power_consumption = Watts(float(target.power_consumption))
+
+    # Convert power_consumption_max to Watts (it's loaded as float)
+    if hasattr(target, "power_consumption_max") and target.power_consumption_max is not None:
+        if not isinstance(target.power_consumption_max, type(Watts(0.0))):
+            target.power_consumption_max = Watts(float(target.power_consumption_max))
+
+
+@event.listens_for(Miner, "before_insert")
+@event.listens_for(Miner, "before_update")
+def _flatten_miner_value_objects(mapper, connection, target: Miner) -> None:
+    """Event listener that flattens value objects before persisting.
+
+    Args:
+        mapper: SQLAlchemy mapper
+        connection: Database connection
+        target: The Miner instance being persisted
+    """
+    # Flatten hash_rate (HashRate) to JSON string
+    if hasattr(target, "hash_rate") and target.hash_rate is not None:
+        if not isinstance(target.hash_rate, str):
+            hash_rate_dict = {"value": target.hash_rate.value, "unit": target.hash_rate.unit}
+            target.hash_rate = json.dumps(hash_rate_dict)
+
+    # Flatten hash_rate_max (HashRate) to JSON string
+    if hasattr(target, "hash_rate_max") and target.hash_rate_max is not None:
+        if not isinstance(target.hash_rate_max, str):
+            hash_rate_max_dict = {"value": target.hash_rate_max.value, "unit": target.hash_rate_max.unit}
+            target.hash_rate_max = json.dumps(hash_rate_max_dict)
+
+    # Flatten power_consumption (Watts) to float
+    # Watts is a NewType (alias for float), so just ensure it's a float
+    if hasattr(target, "power_consumption") and target.power_consumption is not None:
+        target.power_consumption = float(target.power_consumption)
+
+    # Flatten power_consumption_max (Watts) to float
+    if hasattr(target, "power_consumption_max") and target.power_consumption_max is not None:
+        target.power_consumption_max = float(target.power_consumption_max)
