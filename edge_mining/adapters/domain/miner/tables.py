@@ -20,7 +20,7 @@ from sqlalchemy.orm import composite, relationship
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.common import ConfigurationType
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.registry import mapper_registry, metadata
 from edge_mining.domain.common import Watts
-from edge_mining.domain.miner.common import MinerControllerAdapter
+from edge_mining.domain.miner.common import MinerControllerAdapter, MinerStatus
 from edge_mining.domain.miner.entities import Miner, MinerController
 from edge_mining.domain.miner.exceptions import MinerControllerConfigurationError
 from edge_mining.domain.miner.value_objects import HashRate
@@ -33,6 +33,48 @@ class MinerControllerConfigType(ConfigurationType):
 
     Inherits from ConfigurationType to handle JSON serialization/deserialization.
     """
+
+
+class MinerStatusType(TypeDecorator):
+    """Custom SQLAlchemy type that converts MinerStatus enum to/from string.
+
+    SQLite doesn't natively support enums, so we need to convert them to strings.
+    """
+
+    impl = String
+    cache_ok = True
+
+    def process_bind_param(self, value: Optional[MinerStatus], dialect) -> Optional[str]:
+        """Convert MinerStatus enum to string before storing in DB.
+
+        Args:
+            value: MinerStatus enum instance or None
+            dialect: SQLAlchemy dialect
+
+        Returns:
+            String value of enum or None
+        """
+        if value is None:
+            return None
+        if isinstance(value, str):
+            return value
+        return value.value  # Get the string value from enum
+
+    def process_result_value(self, value: Optional[str], dialect) -> Optional[MinerStatus]:
+        """Convert string back to MinerStatus enum after loading from DB.
+
+        Args:
+            value: String from database or None
+            dialect: SQLAlchemy dialect
+
+        Returns:
+            MinerStatus enum instance or None
+        """
+        if value is None:
+            return None
+        if isinstance(value, MinerStatus):
+            return value
+        return MinerStatus(value)
 
 
 def _deserialize_miner_controller_config(
