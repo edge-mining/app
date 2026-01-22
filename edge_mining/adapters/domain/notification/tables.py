@@ -11,8 +11,9 @@ the sqlalchemy.registry module, which are available as module-level singletons.
 import json
 from typing import Optional
 
-from sqlalchemy import Column, String, Table, TypeDecorator, event
+from sqlalchemy import Column, String, Table, event
 
+from edge_mining.adapters.infrastructure.persistence.sqlalchemy.common import ConfigurationType
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.registry import mapper_registry, metadata
 from edge_mining.domain.notification.common import NotificationAdapter
 from edge_mining.domain.notification.entities import Notifier
@@ -21,27 +22,11 @@ from edge_mining.shared.adapter_maps.notification import NOTIFIER_CONFIG_TYPE_MA
 from edge_mining.shared.interfaces.config import NotificationConfig
 
 
-class NotifierConfigType(TypeDecorator):
-    """Custom SQLAlchemy type that converts NotificationConfig to/from JSON string.
+class NotifierConfigType(ConfigurationType):
+    """SQLAlchemy type for NotificationConfig serialization.
 
-    This type handles serialization when writing to the database.
-    Deserialization is handled by the @event.listens_for decorator on the entity.
+    Inherits from ConfigurationType to handle JSON serialization/deserialization.
     """
-
-    impl = String
-    cache_ok = True
-
-    def process_bind_param(self, value: Optional[NotificationConfig], dialect) -> Optional[str]:
-        """Convert NotificationConfig to JSON string before storing in DB."""
-        if value is None:
-            return None
-        if isinstance(value, str):
-            return value
-        return json.dumps(value.to_dict())
-
-    def process_result_value(self, value: Optional[str], dialect) -> Optional[str]:
-        """Return the JSON string as-is. Actual deserialization happens in the event listener."""
-        return value
 
 
 def _deserialize_notifier_config(adapter_type: NotificationAdapter, config_json: str) -> Optional[NotificationConfig]:

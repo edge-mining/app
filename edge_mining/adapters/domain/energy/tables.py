@@ -17,6 +17,7 @@ from typing import Optional
 from sqlalchemy import Column, Float, ForeignKey, String, Table, TypeDecorator, event
 from sqlalchemy.orm import composite
 
+from edge_mining.adapters.infrastructure.persistence.sqlalchemy.common import ConfigurationType
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.registry import mapper_registry, metadata
 from edge_mining.domain.common import WattHours, Watts
 from edge_mining.domain.energy.common import EnergyMonitorAdapter
@@ -27,45 +28,11 @@ from edge_mining.shared.adapter_maps.energy import ENERGY_MONITOR_CONFIG_TYPE_MA
 from edge_mining.shared.interfaces.config import EnergyMonitorConfig
 
 
-class EnergyMonitorConfigType(TypeDecorator):
-    """Custom SQLAlchemy type that converts EnergyMonitorConfig to/from JSON string.
+class EnergyMonitorConfigType(ConfigurationType):
+    """SQLAlchemy type for EnergyMonitorConfig serialization.
 
-    This type handles serialization when writing to the database.
-    Deserialization is handled by the @event.listens_for decorator on the entity.
+    Inherits from ConfigurationType to handle JSON serialization/deserialization.
     """
-
-    impl = String
-    cache_ok = True
-
-    def process_bind_param(self, value: Optional[EnergyMonitorConfig], dialect) -> Optional[str]:
-        """Convert EnergyMonitorConfig to JSON string before storing in DB.
-
-        Args:
-            value: EnergyMonitorConfig instance or None
-            dialect: SQLAlchemy dialect
-
-        Returns:
-            JSON string representation or None
-        """
-        if value is None:
-            return None
-        if isinstance(value, str):
-            # Already serialized
-            return value
-        # Serialize config to JSON
-        return json.dumps(value.to_dict())
-
-    def process_result_value(self, value: Optional[str], dialect) -> Optional[str]:
-        """Return the JSON string as-is. Actual deserialization happens in the event listener.
-
-        Args:
-            value: JSON string from database or None
-            dialect: SQLAlchemy dialect
-
-        Returns:
-            JSON string or None (will be converted to EnergyMonitorConfig by event listener)
-        """
-        return value  # Return as string, event listener will convert
 
 
 def _deserialize_energy_monitor_config(

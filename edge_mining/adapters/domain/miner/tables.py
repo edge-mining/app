@@ -17,6 +17,7 @@ from typing import Optional
 from sqlalchemy import Boolean, Column, Float, ForeignKey, String, Table, TypeDecorator, event
 from sqlalchemy.orm import composite, relationship
 
+from edge_mining.adapters.infrastructure.persistence.sqlalchemy.common import ConfigurationType
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.registry import mapper_registry, metadata
 from edge_mining.domain.common import Watts
 from edge_mining.domain.miner.common import MinerControllerAdapter
@@ -27,45 +28,11 @@ from edge_mining.shared.adapter_maps.miner import MINER_CONTROLLER_CONFIG_TYPE_M
 from edge_mining.shared.interfaces.config import MinerControllerConfig
 
 
-class MinerControllerConfigType(TypeDecorator):
-    """Custom SQLAlchemy type that converts MinerControllerConfig to/from JSON string.
+class MinerControllerConfigType(ConfigurationType):
+    """SQLAlchemy type for MinerControllerConfig serialization.
 
-    This type handles serialization when writing to the database.
-    Deserialization is handled by the @event.listens_for decorator on the entity.
+    Inherits from ConfigurationType to handle JSON serialization/deserialization.
     """
-
-    impl = String
-    cache_ok = True
-
-    def process_bind_param(self, value: Optional[MinerControllerConfig], dialect) -> Optional[str]:
-        """Convert MinerControllerConfig to JSON string before storing in DB.
-
-        Args:
-            value: MinerControllerConfig instance or None
-            dialect: SQLAlchemy dialect
-
-        Returns:
-            JSON string representation or None
-        """
-        if value is None:
-            return None
-        if isinstance(value, str):
-            # Already serialized
-            return value
-        # Serialize config to JSON
-        return json.dumps(value.to_dict())
-
-    def process_result_value(self, value: Optional[str], dialect) -> Optional[str]:
-        """Return the JSON string as-is. Actual deserialization happens in the event listener.
-
-        Args:
-            value: JSON string from database or None
-            dialect: SQLAlchemy dialect
-
-        Returns:
-            JSON string or None (will be converted to MinerControllerConfig by event listener)
-        """
-        return value  # Return as string, event listener will convert
 
 
 def _deserialize_miner_controller_config(
