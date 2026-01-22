@@ -122,7 +122,7 @@ energy_sources_table = Table(
     Column("external_source", Float, nullable=True),
     # Foreign Keys to other entities
     Column("energy_monitor_id", String, ForeignKey("energy_monitors.id"), nullable=True),
-    Column("forecast_provider_id", String, nullable=True),  # FK to forecast_providers
+    Column("forecast_provider_id", String, ForeignKey("forecast_providers.id"), nullable=True),
 )
 
 # Map EnergyMonitor first (parent in some relationships)
