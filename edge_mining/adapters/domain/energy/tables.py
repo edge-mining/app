@@ -14,8 +14,7 @@ the sqlalchemy.registry module, which are available as module-level singletons.
 import json
 from typing import Optional
 
-from sqlalchemy import Column, Float, ForeignKey, String, Table, TypeDecorator, event
-from sqlalchemy.orm import composite
+from sqlalchemy import Column, Float, ForeignKey, String, Table, event
 
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.common import ConfigurationType
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.registry import mapper_registry, metadata
@@ -77,6 +76,14 @@ def _receive_energy_monitor_load(target: EnergyMonitor, context) -> None:
         target: The EnergyMonitor instance being loaded
         context: SQLAlchemy context
     """
+    # Convert adapter_type string to enum if needed
+    if isinstance(target.adapter_type, str):
+        try:
+            target.adapter_type = EnergyMonitorAdapter(target.adapter_type)
+        except ValueError:
+            # If conversion fails, leave as string (will fail in config deserialization)
+            pass
+
     if target.config and isinstance(target.config, str):
         target.config = _deserialize_energy_monitor_config(target.adapter_type, target.config)
 
@@ -105,6 +112,7 @@ energy_sources_table = Table(
     # Basic attributes
     Column("name", String, nullable=False),
     Column("type", String, nullable=False, default="SOLAR"),
+    # Watts value objects stored as float
     Column("nominal_power_max", Float, nullable=True),
     # Battery Value Object flattened into one column
     Column("storage_nominal_capacity", Float, nullable=True),
@@ -123,78 +131,83 @@ mapper_registry.map_imperatively(
     energy_monitors_table,
 )
 
-# Map EnergySource with composite value objects
+# Map EnergySource - use event listeners for all value object conversions
 mapper_registry.map_imperatively(
     EnergySource,
     energy_sources_table,
-    properties={
-        # Map nominal_power_max as composite (Watts wraps a single float)
-        "nominal_power_max": composite(
-            Watts,
-            energy_sources_table.c.nominal_power_max,
-        ),
-        # Map external_source as composite (Watts wraps a single float)
-        "external_source": composite(
-            Watts,
-            energy_sources_table.c.external_source,
-        ),
-        # Note: storage (Battery) and grid (Grid) are composite value objects
-        # that wrap other value objects (WattHours, Watts). These are handled
-        # via event listeners since SQLAlchemy's composite() doesn't handle Optional
-        # wrapped value objects well. The columns storage_nominal_capacity and
-        # grid_contracted_power are excluded from automatic mapping.
-    },
-    # Exclude the columns used by composites and custom event handlers
-    exclude_properties=["nominal_power_max", "external_source", "storage_nominal_capacity", "grid_contracted_power"],
+    # Don't exclude properties - let SQLAlchemy load them, then convert in event listener
 )
 
 
-# Event listeners for Battery and Grid composite value objects
+# Event listeners for value object conversions
 @event.listens_for(EnergySource, "load")
 def _receive_energy_source_load(target: EnergySource, context) -> None:
-    """Event listener that reconstructs Battery and Grid value objects after loading.
+    """Event listener that reconstructs value objects after loading.
 
     Args:
         target: The EnergySource instance being loaded
         context: SQLAlchemy context
     """
-    # Reconstruct Battery from storage_nominal_capacity column
-    if hasattr(target, "_sa_instance_state"):
-        state = target._sa_instance_state
-        if "storage_nominal_capacity" in state.dict:
-            capacity = state.dict["storage_nominal_capacity"]
-            if capacity is not None:
-                target.storage = Battery(nominal_capacity=WattHours(capacity))
-            else:
-                target.storage = None
+    # SQLAlchemy will load the raw column values as floats
+    # We need to convert them to proper value objects
 
-        # Reconstruct Grid from grid_contracted_power column
-        if "grid_contracted_power" in state.dict:
-            power = state.dict["grid_contracted_power"]
-            if power is not None:
-                target.grid = Grid(contracted_power=Watts(power))
-            else:
-                target.grid = None
+    # Convert nominal_power_max to Watts (loaded as float)
+    if hasattr(target, "nominal_power_max") and target.nominal_power_max is not None:
+        if not isinstance(target.nominal_power_max, type(Watts(0.0))):
+            target.nominal_power_max = Watts(float(target.nominal_power_max))
+
+    # Convert external_source to Watts (loaded as float)
+    if hasattr(target, "external_source") and target.external_source is not None:
+        if not isinstance(target.external_source, type(Watts(0.0))):
+            target.external_source = Watts(float(target.external_source))
+
+    # Reconstruct Battery from storage_nominal_capacity column (loaded as float)
+    if hasattr(target, "storage_nominal_capacity"):
+        capacity = target.storage_nominal_capacity
+        if capacity is not None:
+            target.storage = Battery(nominal_capacity=WattHours(capacity))
+        else:
+            target.storage = None
+        # Remove the raw column attribute to avoid confusion
+        delattr(target, "storage_nominal_capacity")
+
+    # Reconstruct Grid from grid_contracted_power column (loaded as float)
+    if hasattr(target, "grid_contracted_power"):
+        power = target.grid_contracted_power
+        if power is not None:
+            target.grid = Grid(contracted_power=Watts(power))
+        else:
+            target.grid = None
+        # Remove the raw column attribute to avoid confusion
+        delattr(target, "grid_contracted_power")
 
 
 @event.listens_for(EnergySource, "before_insert")
 @event.listens_for(EnergySource, "before_update")
 def _flatten_energy_source_composites(mapper, connection, target: EnergySource) -> None:
-    """Event listener that flattens Battery and Grid before persisting.
+    """Event listener that flattens value objects before persisting.
 
     Args:
         mapper: SQLAlchemy mapper
         connection: Database connection
         target: The EnergySource instance being persisted
     """
+    # Flatten nominal_power_max (Watts) to float
+    if hasattr(target, "nominal_power_max") and target.nominal_power_max is not None:
+        target.nominal_power_max = float(target.nominal_power_max)
+
+    # Flatten external_source (Watts) to float
+    if hasattr(target, "external_source") and target.external_source is not None:
+        target.external_source = float(target.external_source)
+
     # Flatten Battery to storage_nominal_capacity column
     if hasattr(target, "storage") and target.storage is not None:
-        mapper.columns["storage_nominal_capacity"].set_value(target, float(target.storage.nominal_capacity))
+        target.storage_nominal_capacity = float(target.storage.nominal_capacity)
     else:
-        mapper.columns["storage_nominal_capacity"].set_value(target, None)
+        target.storage_nominal_capacity = None
 
     # Flatten Grid to grid_contracted_power column
     if hasattr(target, "grid") and target.grid is not None:
-        mapper.columns["grid_contracted_power"].set_value(target, float(target.grid.contracted_power))
+        target.grid_contracted_power = float(target.grid.contracted_power)
     else:
-        mapper.columns["grid_contracted_power"].set_value(target, None)
+        target.grid_contracted_power = None
