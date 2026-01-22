@@ -18,7 +18,7 @@ class AppSettings(BaseSettings):
     persistence_adapter: str = "sqlite"  # Options: "in_memory", "sqlite", "yaml", "sqlalchemy"
     policies_persistence_adapter: str = "yaml"  # Options: "in_memory", "sqlite", "yaml", "sqlalchemy"
 
-    db_path: str = "sqlite+aiosqlite:///edgemining.db"  # Database URL
+    db_path: str = "sqlite:///edgemining.db"  # Database URL
 
     yaml_policies_dir: str = "optimization_policies"  # Directory for YAML policies
 

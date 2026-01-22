@@ -9,7 +9,6 @@ loguru==0.7.3
 # Database ORM and Migrations
 sqlalchemy>=2.0.0
 alembic>=1.13.0
-aiosqlite>=0.20.0
 
 # Optional - For API Driving Adapter
 fastapi==0.115.12

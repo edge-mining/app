@@ -45,7 +45,6 @@ dependencies = [
     "loguru>=0.7.3",
     "sqlalchemy>=2.0.0",
     "alembic>=1.13.0",
-    "aiosqlite>=0.20.0",
 ]
 
 [project.optional-dependencies]
