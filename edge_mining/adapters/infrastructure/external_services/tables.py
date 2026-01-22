@@ -58,6 +58,15 @@ def _deserialize_external_service_config(
 @event.listens_for(ExternalService, "load")
 def _receive_external_service_load(target: ExternalService, context) -> None:
     """Event listener that deserializes config after loading from database."""
+    # Convert adapter_type from string to enum if necessary
+    if isinstance(target.adapter_type, str):
+        try:
+            from edge_mining.shared.external_services.common import ExternalServiceAdapter
+
+            target.adapter_type = ExternalServiceAdapter(target.adapter_type)
+        except ValueError:
+            pass
+
     if target.config and isinstance(target.config, str):
         target.config = _deserialize_external_service_config(target.adapter_type, target.config)
 
