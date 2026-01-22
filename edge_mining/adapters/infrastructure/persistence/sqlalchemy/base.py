@@ -3,6 +3,11 @@
 This module provides centralized SQLAlchemy configuration similar to BaseSqliteRepository.
 It manages the database engine, session factory, metadata, and a shared mapper registry
 for imperative mapping of domain entities.
+
+The BaseSQLAlchemyRepository class handles:
+- Engine and session factory creation
+- Database schema initialization (migrations + table creation)
+- Shared metadata and mapper registry management
 """
 
 from typing import Generator, Optional
@@ -10,6 +15,10 @@ from typing import Generator, Optional
 from sqlalchemy import Engine, MetaData, create_engine
 from sqlalchemy.orm import Session, registry, sessionmaker
 
+# Import registry_loader at module level to ensure all table definitions are registered
+# This must happen before any migration or table creation operations
+from edge_mining.adapters.infrastructure.persistence.sqlalchemy import registry_loader  # noqa: F401
+from edge_mining.adapters.infrastructure.persistence.sqlalchemy.migrations import run_migrations
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.registry import mapper_registry, metadata
 from edge_mining.shared.logging.port import LoggerPort
 
@@ -36,6 +45,7 @@ class BaseSQLAlchemyRepository:
         db_path: str,
         logger: Optional[LoggerPort] = None,
         echo: bool = False,
+        run_migrations: bool = True,
     ):
         """Initialize the SQLAlchemy repository base.
 
@@ -43,9 +53,11 @@ class BaseSQLAlchemyRepository:
             db_path: Database path/URL. If None, uses DATABASE_URL env var or default SQLite path
             logger: Logger instance for logging database operations
             echo: If True, SQLAlchemy will log all SQL statements
+            run_migrations: If True, automatically run Alembic migrations
         """
         self.logger = logger
         self.db_path = db_path
+        self.run_migrations = run_migrations
 
         # Initialize shared resources if not already initialized
         if BaseSQLAlchemyRepository._engine is None:
@@ -138,24 +150,39 @@ class BaseSQLAlchemyRepository:
         finally:
             session.close()
 
-    def create_all_tables(self) -> None:
-        """Create all tables defined in the metadata.
+    def initialize_database(self) -> None:
+        """Initialize database schema using Alembic migrations.
 
-        This method is idempotent and safe to call multiple times.
-        It uses SQLAlchemy's create_all() which only creates tables that don't exist.
+        This method handles the complete database initialization workflow:
+        1. Imports all table definitions (via registry_loader)
+        2. Runs Alembic migrations (if enabled) to create/update schema
 
-        Note:
-            For production, use Alembic migrations instead.
-            This method should be called after all table definitions are loaded.
+        All schema changes MUST be managed through Alembic migrations.
+        If migrations are disabled, the database must be initialized manually.
+
+        Raises:
+            RuntimeError: If engine is not initialized
+            Exception: If migrations fail to execute
         """
         if self.logger:
-            self.logger.info("Creating database tables (if not exist)...")
+            self.logger.debug("Initializing database schema...")
 
-        if BaseSQLAlchemyRepository._engine is None:
-            raise RuntimeError("Engine not initialized.")
+        # Run Alembic migrations if enabled
+        if self.run_migrations:
+            if self.logger:
+                self.logger.info("Running Alembic migrations...")
 
-        # create_all() is idempotent - only creates tables that don't exist
-        metadata.create_all(bind=BaseSQLAlchemyRepository._engine)
+            try:
+                run_migrations(db_url=self.db_path, logger=self.logger)
 
-        if self.logger:
-            self.logger.info("Database tables ready")
+                if self.logger:
+                    self.logger.info("Database initialization complete")
+            except Exception as e:
+                if self.logger:
+                    self.logger.error(f"Failed to run migrations: {e}")
+                raise
+        else:
+            if self.logger:
+                self.logger.warning(
+                    "Automatic migrations disabled. Database must be initialized manually with: alembic upgrade head"
+                )

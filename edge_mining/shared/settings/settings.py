@@ -20,6 +20,9 @@ class AppSettings(BaseSettings):
 
     db_path: str = "sqlite:///edgemining.db"  # Database URL
 
+    # Database migration settings
+    run_migrations_on_startup: bool = True  # Automatically run Alembic migrations on startup
+
     yaml_policies_dir: str = "optimization_policies"  # Directory for YAML policies
 
     # API Settings

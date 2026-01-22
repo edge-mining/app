@@ -126,15 +126,14 @@ def configure_persistence(logger: LoggerPort, settings: AppSettings) -> Persiste
         db_url = settings.db_path
 
         logger.debug(f"Using SQLAlchemy persistence adapter (DB URL: {db_url}).")
-        sqlalchemy_db = BaseSQLAlchemyRepository(db_path=db_url, logger=logger)
+        sqlalchemy_db = BaseSQLAlchemyRepository(
+            db_path=db_url,
+            logger=logger,
+            run_migrations=settings.run_migrations_on_startup,
+        )
 
-        # Import registry loader to ensure all table definitions are registered
-        from edge_mining.adapters.infrastructure.persistence.sqlalchemy import registry_loader  # noqa: F401
-
-        # Create all tables if they don't exist
-        logger.debug("Creating database tables (if not exist)...")
-        sqlalchemy_db.create_all_tables()
-        logger.debug("Database tables ready.")
+        # Initialize database schema (migrations + tables)
+        sqlalchemy_db.initialize_database()
 
     # Initialize repositories based on the selected persistence adapter
     energy_source_repo: EnergySourceRepository
