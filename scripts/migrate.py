@@ -5,16 +5,26 @@ This script provides convenient commands for managing database migrations
 while respecting the application's settings and configuration.
 
 Usage:
-    python scripts/migrate.py status          # Check current revision
-    python scripts/migrate.py upgrade         # Apply all pending migrations
-    python scripts/migrate.py downgrade [n]   # Rollback n migrations (default: 1)
-    python scripts/migrate.py create "msg"    # Create new migration
-    python scripts/migrate.py history         # Show migration history
+    cd /root/edge-mining/core-step1
+    python -m scripts.migrate status          # Check current revision
+    python -m scripts.migrate upgrade         # Apply all pending migrations
+    python -m scripts.migrate downgrade [n]   # Rollback n migrations (default: 1)
+    python -m scripts.migrate create "msg"    # Create new migration
+    python -m scripts.migrate history         # Show migration history
+
+    OR use directly:
+    python scripts/migrate.py status
 """
 
 import argparse
 import sys
 from pathlib import Path
+
+# Add project root to path for direct script execution
+if __name__ == "__main__":
+    project_root = Path(__file__).parent.parent
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
 
 from edge_mining.adapters.infrastructure.logging.terminal_logging import TerminalLogger
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.migrations import (
@@ -25,10 +35,6 @@ from edge_mining.adapters.infrastructure.persistence.sqlalchemy.migrations impor
     run_migrations,
 )
 from edge_mining.shared.settings.settings import AppSettings
-
-# Add project root to path
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
 
 
 def main():
