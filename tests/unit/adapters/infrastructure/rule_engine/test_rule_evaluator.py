@@ -5,7 +5,7 @@ from datetime import datetime
 from unittest.mock import Mock, patch
 
 from edge_mining.adapters.domain.policy.schemas import LogicalGroupSchema, RuleConditionSchema
-from edge_mining.adapters.infrastructure.rule_engine.common import OperatorType
+from edge_mining.domain.policy.common import OperatorType
 from edge_mining.adapters.infrastructure.rule_engine.custom.helpers import RuleEvaluator
 from edge_mining.domain.policy.exceptions import UnsupportedConditionError
 from edge_mining.domain.policy.value_objects import DecisionalContext
