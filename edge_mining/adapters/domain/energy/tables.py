@@ -5,8 +5,8 @@ to database tables. The domain entities are mapped directly without
 creating separate ORM model classes, maintaining domain purity.
 
 The mappings handle value objects (Battery, Grid, Watts) using SQLAlchemy event listeners
-to convert between domain objects and database columns. Value objects are flattened to
-float columns for persistence and reconstructed after loading.
+to convert between domain objects and database columns. Complex value objects (Battery, Grid)
+are stored as JSON for flexibility, while simple value objects (Watts) are stored as floats.
 
 All tables and mappings use the shared metadata and mapper registry from
 the sqlalchemy.registry module, which are available as module-level singletons.
@@ -26,7 +26,7 @@ For a step-by-step example, see: docs/MIGRATION_EXAMPLE.md
 import json
 from typing import Any, Optional
 
-from sqlalchemy import Column, Float, ForeignKey, String, Table, event
+from sqlalchemy import JSON, Column, Float, ForeignKey, String, Table, event
 
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.common import ConfigurationType
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.registry import mapper_registry, metadata
@@ -126,10 +126,10 @@ energy_sources_table = Table(
     Column("type", String, nullable=False, default="SOLAR"),
     # Watts value objects stored as float
     Column("nominal_power_max", Float, nullable=True),
-    # Battery Value Object flattened into one column
-    Column("storage_nominal_capacity", Float, nullable=True),
-    # Grid Value Object flattened into one column
-    Column("grid_contracted_power", Float, nullable=True),
+    # Battery Value Object stored as JSON
+    Column("storage", JSON, nullable=True),
+    # Grid Value Object stored as JSON
+    Column("grid", JSON, nullable=True),
     # External source power (Watts stored as float)
     Column("external_source", Float, nullable=True),
     # Foreign Keys to other entities
@@ -173,25 +173,23 @@ def _receive_energy_source_load(target: EnergySource, context) -> None:
         if not isinstance(target.external_source, type(Watts(0.0))):
             target.external_source = Watts(float(target.external_source))
 
-    # Reconstruct Battery from storage_nominal_capacity column (loaded as float)
-    if hasattr(target, "storage_nominal_capacity"):
-        capacity = target.storage_nominal_capacity
-        if capacity is not None:
-            target.storage = Battery(nominal_capacity=WattHours(capacity))
-        else:
-            target.storage = None
-        # Remove the raw column attribute to avoid confusion
-        delattr(target, "storage_nominal_capacity")
+    # Reconstruct Battery from JSON (loaded as dict)
+    if hasattr(target, "storage") and target.storage is not None:
+        if isinstance(target.storage, dict):
+            target.storage = Battery(nominal_capacity=WattHours(target.storage["nominal_capacity"]))
+        elif isinstance(target.storage, str):
+            # Handle case where it's still a JSON string
+            storage_data = json.loads(target.storage)
+            target.storage = Battery(nominal_capacity=WattHours(storage_data["nominal_capacity"]))
 
-    # Reconstruct Grid from grid_contracted_power column (loaded as float)
-    if hasattr(target, "grid_contracted_power"):
-        power = target.grid_contracted_power
-        if power is not None:
-            target.grid = Grid(contracted_power=Watts(power))
-        else:
-            target.grid = None
-        # Remove the raw column attribute to avoid confusion
-        delattr(target, "grid_contracted_power")
+    # Reconstruct Grid from JSON (loaded as dict)
+    if hasattr(target, "grid") and target.grid is not None:
+        if isinstance(target.grid, dict):
+            target.grid = Grid(contracted_power=Watts(target.grid["contracted_power"]))
+        elif isinstance(target.grid, str):
+            # Handle case where it's still a JSON string
+            grid_data = json.loads(target.grid)
+            target.grid = Grid(contracted_power=Watts(grid_data["contracted_power"]))
 
 
 @event.listens_for(EnergySource, "before_insert")
@@ -212,14 +210,12 @@ def _flatten_energy_source_composites(mapper, connection, target: Any) -> None:
     if hasattr(target, "external_source") and target.external_source is not None:
         target.external_source = float(target.external_source)
 
-    # Flatten Battery to storage_nominal_capacity column
+    # Serialize Battery to JSON
     if hasattr(target, "storage") and target.storage is not None:
-        target.storage_nominal_capacity = float(target.storage.nominal_capacity)
-    else:
-        target.storage_nominal_capacity = None
+        if not isinstance(target.storage, (dict, str)):
+            target.storage = {"nominal_capacity": float(target.storage.nominal_capacity)}
 
-    # Flatten Grid to grid_contracted_power column
+    # Serialize Grid to JSON
     if hasattr(target, "grid") and target.grid is not None:
-        target.grid_contracted_power = float(target.grid.contracted_power)
-    else:
-        target.grid_contracted_power = None
+        if not isinstance(target.grid, (dict, str)):
+            target.grid = {"contracted_power": float(target.grid.contracted_power)}
