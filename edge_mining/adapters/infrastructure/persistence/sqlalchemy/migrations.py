@@ -247,11 +247,19 @@ def has_pending_migrations(
         alembic_cfg = get_alembic_config(db_url, script_location)
         script = ScriptDirectory.from_config(alembic_cfg)
 
-        # Get current database revision
-        current_rev = check_current_revision(db_url, logger, script_location)
-
         # Get head (latest) revision from migration scripts
         head_rev = script.get_current_head()
+
+        # If there's no head revision, there are no migration files
+        if head_rev is None:
+            if logger:
+                logger.warning(
+                    "No migration files found in alembic/versions. Please create an initial migration with: alembic revision --autogenerate -m 'Initial schema'"
+                )
+            raise RuntimeError("No Alembic migrations found. Database cannot be initialized without migrations.")
+
+        # Get current database revision
+        current_rev = check_current_revision(db_url, logger, script_location)
 
         # If current is None, database needs initialization (migrations pending)
         if current_rev is None:
@@ -271,9 +279,8 @@ def has_pending_migrations(
 
     except Exception as e:
         if logger:
-            logger.warning(f"Could not check for pending migrations: {e}")
-        # If we can't determine, assume migrations might be needed
-        return True
+            logger.error(f"Could not check for pending migrations: {e}")
+        raise
 
 
 def create_migration(
