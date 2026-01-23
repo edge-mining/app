@@ -88,17 +88,49 @@ sqlalchemy_db.initialize_database()
 
 The `initialize_database()` method in `BaseSQLAlchemyRepository`:
 
-1. **Loads table definitions** via `registry_loader`
-2. **Checks for pending migrations**
-   - Compares current database revision with latest migration script
-   - Skips migration process if database is already up to date
-3. **Creates database backup** (if enabled and migrations are pending)
-   - Only for SQLite databases
-   - Backup file format: `dbname_backup_YYYYMMDD_HHMMSS.db`
-4. **Runs Alembic migrations** (if `run_migrations=True` and migrations are pending)
-   - Applies all pending migrations with `alembic upgrade head`
-   - **All** tables must be managed via migrations
+1. **Loads table definitions** via `registry_loader` (imported at module level)
+2. **Runs Alembic migrations** (if `run_migrations=True`)
+   - **Checks for pending migrations**
+     - Compares current database revision with latest migration script
+     - Skips migration process if database is already up to date
+     - **Raises RuntimeError if no migration files exist** (enforces Alembic-only approach)
+   - **Creates database backup** (if enabled and migrations are pending)
+     - Only for SQLite databases
+     - Backup file format: `dbname_backup_YYYYMMDD_HHMMSS.db`
+   - **Applies all pending migrations** with `alembic upgrade head`
+3. **Database schema is EXCLUSIVELY managed through Alembic migrations**
+   - No fallback to `metadata.create_all()`
+   - First run requires an initial migration (e.g., `alembic revision --autogenerate -m "Initial schema"`)
+   - All subsequent schema changes must be done via migrations
    - If migrations fail, initialization fails (fail-fast)
+
+## Initial Setup (New Projects)
+
+For a completely new project or empty database:
+
+1. **Generate Initial Migration**
+   ```bash
+   # This will auto-detect all tables defined in the codebase
+   alembic revision --autogenerate -m "Initial schema with all tables"
+   ```
+
+2. **Review Generated Migration**
+   ```python
+   # In alembic/versions/xxx_initial_schema_with_all_tables.py
+   # Verify that all tables are included
+   # Check that custom types are properly imported
+   ```
+
+3. **Apply Migration**
+   ```bash
+   # Start the application (migrations run automatically)
+   python -m edge_mining
+
+   # Or run manually
+   alembic upgrade head
+   ```
+
+**Note**: The migration template (`alembic/script.py.mako`) automatically includes imports for all custom types, so auto-generated migrations should work without manual import fixes.
 
 ## Creating New Migrations
 
@@ -216,6 +248,8 @@ alembic upgrade head --sql > migration.sql
 2. **Test upgrade and downgrade**: Make sure both work
 3. **Use descriptive names**: `add_temperature_to_miners` instead of `update_table`
 4. **Commit migrations with code**: Migrations are part of the code
+5. **Never delete the initial migration**: It's required for creating new databases
+6. **Custom types are auto-imported**: The template (`script.py.mako`) includes all custom type imports
 
 ### Production
 
@@ -274,6 +308,24 @@ alembic upgrade head
 ```bash
 # WARNING: Deletes all data!
 rm edgemining.db
+
+# Option 1: Run the application (migrations apply automatically)
+python -m edge_mining
+
+# Option 2: Run migrations manually
+alembic upgrade head
+```
+
+### Missing Initial Migration
+
+If you encounter an error like "No Alembic migrations found":
+
+```bash
+# Generate the initial migration
+alembic revision --autogenerate -m "Initial schema with all tables"
+
+# Review the generated file in alembic/versions/
+# Then apply it
 alembic upgrade head
 ```
 
