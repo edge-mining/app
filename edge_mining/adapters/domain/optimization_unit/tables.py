@@ -52,9 +52,9 @@ class EntityIdListType(TypeDecorator):
         return [EntityId(uuid.UUID(eid)) for eid in json.loads(value)]
 
 
-# Define the energy_optimization_units table using imperative style
-energy_optimization_units_table = Table(
-    "energy_optimization_units",
+# Define the optimization_units table using imperative style
+optimization_units_table = Table(
+    "optimization_units",
     metadata,
     Column("id", String, primary_key=True, index=True),
     Column("name", String, nullable=False),
@@ -71,5 +71,5 @@ energy_optimization_units_table = Table(
 # Map EnergyOptimizationUnit
 mapper_registry.map_imperatively(
     EnergyOptimizationUnit,
-    energy_optimization_units_table,
+    optimization_units_table,
 )

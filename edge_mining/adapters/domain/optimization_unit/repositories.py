@@ -7,7 +7,7 @@ from typing import Dict, List, Optional
 
 from sqlalchemy import select
 
-from edge_mining.adapters.domain.optimization_unit.tables import energy_optimization_units_table
+from edge_mining.adapters.domain.optimization_unit.tables import optimization_units_table
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.base import BaseSQLAlchemyRepository
 from edge_mining.adapters.infrastructure.persistence.sqlite import BaseSqliteRepository
 from edge_mining.domain.common import EntityId
@@ -345,9 +345,7 @@ class SqlAlchemyOptimizationUnitRepository(EnergyOptimizationUnitRepository):
         """Get an optimization unit by ID."""
         session = self._db.get_session()
         try:
-            stmt = select(EnergyOptimizationUnit).where(
-                energy_optimization_units_table.c.id == str(optimization_unit_id)
-            )
+            stmt = select(EnergyOptimizationUnit).where(optimization_units_table.c.id == str(optimization_unit_id))
             entity = session.execute(stmt).scalar_one_or_none()
             return entity
         finally:
@@ -357,7 +355,7 @@ class SqlAlchemyOptimizationUnitRepository(EnergyOptimizationUnitRepository):
         """Get all enabled optimization units."""
         session = self._db.get_session()
         try:
-            stmt = select(EnergyOptimizationUnit).where(energy_optimization_units_table.c.is_enabled)
+            stmt = select(EnergyOptimizationUnit).where(optimization_units_table.c.is_enabled)
             entities = session.execute(stmt).scalars().all()
             return list(entities)
         finally:
@@ -377,9 +375,7 @@ class SqlAlchemyOptimizationUnitRepository(EnergyOptimizationUnitRepository):
         """Update an optimization unit."""
         session = self._db.get_session()
         try:
-            stmt = select(EnergyOptimizationUnit).where(
-                energy_optimization_units_table.c.id == str(optimization_unit.id)
-            )
+            stmt = select(EnergyOptimizationUnit).where(optimization_units_table.c.id == str(optimization_unit.id))
             existing_entity = session.execute(stmt).scalar_one_or_none()
 
             if existing_entity:
@@ -401,9 +397,7 @@ class SqlAlchemyOptimizationUnitRepository(EnergyOptimizationUnitRepository):
         """Remove an optimization unit by ID."""
         session = self._db.get_session()
         try:
-            stmt = select(EnergyOptimizationUnit).where(
-                energy_optimization_units_table.c.id == str(optimization_unit_id)
-            )
+            stmt = select(EnergyOptimizationUnit).where(optimization_units_table.c.id == str(optimization_unit_id))
             entity = session.execute(stmt).scalar_one_or_none()
 
             if entity:
