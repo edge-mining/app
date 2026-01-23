@@ -157,14 +157,19 @@ class BaseSQLAlchemyRepository:
         """Initialize database schema using Alembic migrations.
 
         This method handles the complete database initialization workflow:
-        1. Imports all table definitions (via registry_loader)
-        2. Runs Alembic migrations (if enabled) to create/update schema
+        1. Imports all table definitions (via registry_loader imported at module level)
+        2. Runs Alembic migrations to create/update the database schema
 
-        All schema changes MUST be managed through Alembic migrations.
-        If migrations are disabled, the database must be initialized manually.
+        Database schema creation is EXCLUSIVELY managed through Alembic migrations:
+        - On first run: Alembic creates the database and applies the initial migration
+        - On subsequent runs: Alembic applies only pending migrations
+        - All schema changes (new tables, columns, indexes, etc.) must be done via migrations
+
+        If migrations are disabled (run_migrations=False), the database must be
+        initialized manually using: alembic upgrade head
 
         Raises:
-            RuntimeError: If engine is not initialized
+            RuntimeError: If engine is not initialized or no migrations are found
             Exception: If migrations fail to execute
         """
         if self.logger:
