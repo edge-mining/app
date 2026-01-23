@@ -10,6 +10,17 @@ float columns for persistence and reconstructed after loading.
 
 All tables and mappings use the shared metadata and mapper registry from
 the sqlalchemy.registry module, which are available as module-level singletons.
+
+⚠️  DEVELOPER WARNING ⚠️
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ANY SCHEMA CHANGE (adding/removing/modifying tables or columns) REQUIRES an
+Alembic migration. Do NOT modify this file without creating a migration:
+
+  python scripts/migrate.py create "Description of your change"
+
+For detailed instructions, see: docs/ALEMBIC_MIGRATIONS.md
+For a step-by-step example, see: docs/MIGRATION_EXAMPLE.md
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
 import json
