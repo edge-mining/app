@@ -48,11 +48,21 @@ The project uses **Hexagonal Architecture (Ports and Adapters)** to clearly sepa
     pip install -r requirements.txt
     ```
 4.  **Configure environment variables:**
-    Copy `.env.example` to `.env` and change the values ​​according to your configuration (log level, timezone and geographical position).
+    Copy `.env.example` to `.env` and change the values according to your configuration:
     ```bash
     cp .env.example .env
-    nano .env # Change the file .env
+    nano .env # Edit the .env file
     ```
+
+    Key settings:
+    - `PERSISTENCE_ADAPTER`: Choose between `in_memory`, `sqlite`, or `sqlalchemy` (recommended)
+    - `DB_PATH`: Database URL (e.g., `sqlite:///edgemining.db` or PostgreSQL URL)
+    - `RUN_MIGRATIONS_ON_STARTUP`: Set to `true` to automatically apply database migrations
+
+5.  **Initialize the database (SQLAlchemy only):**
+    If using SQLAlchemy persistence, migrations **will run automatically on startup**.
+
+    See [docs/ALEMBIC_MIGRATIONS.md](docs/ALEMBIC_MIGRATIONS.md) for detailed migration management.
 
 ## Execution
 
@@ -132,20 +142,18 @@ docker compose exec edge-mining-core python -m edge_mining cli interactive
 
 ### Available adapters
 
-- **Energy Monitor:** `dummy`, `home_assistant` (*new*)
+- **Energy Monitor:** `dummy`, `home_assistant`
 - **Miner Controller:** `dummy`
-- **Forecast Provider:** `dummy`, `home_assistant` (*new*)
-- **Persistence:** `in_memory`, `sqlite`, `YAML` (*new*)
-- **Notification:** `dummy`, `telegram` (*new*)
-- **Interaction:** `cli`, `api`(*new*)
+- **Forecast Provider:** `dummy`, `home_assistant`
+- **Persistence:** `in_memory`, `sqlite`, `sqlalchemy` (with Alembic migrations), `yaml` (for policies)
+- **Notification:** `dummy`, `telegram`
+- **Interaction:** `cli`, `api`
+
 
 ## TODO
 
 - [ ] Implement real adapters for specific scenarios (HomeAssistant MQTT, specific ASIC APIs).
 - [ ] Implement real adapters for external APIs (Solcast, OpenWeatherMap, Mining Pools).
 - [ ] Add unit, integration and acceptance tests.
-- [ ] Improve error handling and logging.
-- [ ] Develop a web UI (could be a separate driving adapter using the API, maybe in a different repository).
 - [ ] Implement more sophisticated home load forecasting logic.
 - [ ] Handle authentication and authorization (especially for the API).
-- [x] Improve the rules engine.
