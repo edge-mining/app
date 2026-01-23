@@ -186,6 +186,7 @@ data/db/
 
 # Track example templates but ignore any custom files added by users
 data/examples/*
+data/policies/*
 !data/examples/rules/
 !data/examples/rules/start/
 !data/examples/rules/stop/
