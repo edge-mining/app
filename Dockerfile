@@ -24,5 +24,10 @@ RUN if [ -f requirements.txt ]; then \
 # Copy the rest of the source code
 COPY . .
 
+# Create data directories for user files
+RUN mkdir -p /app/data/db/backups \
+    && mkdir -p /app/data/policies \
+    && mkdir -p /app/data/examples
+
 # Execute the application
 CMD ["python", "-m", "edge_mining", "standard"]

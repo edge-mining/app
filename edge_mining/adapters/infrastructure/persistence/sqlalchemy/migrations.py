@@ -88,9 +88,13 @@ def backup_database(db_url: str, logger: Optional[LoggerPort] = None) -> Optiona
                 logger.debug(f"Database file does not exist yet: {db_file}. Skipping backup.")
             return None
 
+        # Create backups directory if it doesn't exist
+        backup_dir = db_file.parent / "backups"
+        backup_dir.mkdir(parents=True, exist_ok=True)
+
         # Create backup filename with timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_file = db_file.parent / f"{db_file.stem}_backup_{timestamp}{db_file.suffix}"
+        backup_file = backup_dir / f"{db_file.stem}_backup_{timestamp}{db_file.suffix}"
 
         # Copy the database file
         shutil.copy2(db_file, backup_file)
