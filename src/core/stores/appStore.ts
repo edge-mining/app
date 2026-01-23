@@ -48,7 +48,7 @@ export const useAppStore = defineStore("app", () => {
 
   // WATCHERS
   watch(router.currentRoute, () => {
-    let title = "Edge Mining";
+    let title = "EDGE MINING | 0.1.0";
     const routeTitle = router.currentRoute.value.meta?.title;
     if (routeTitle) {
       title += ` - ${routeTitle}`;

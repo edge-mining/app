@@ -3,6 +3,7 @@
 
 @theme {
   --font-sans: "Plus Jakarta Sans", sans-serif;
+  /* --spacing: 0.4375rem; */
 }
 
 @plugin "daisyui/theme" {

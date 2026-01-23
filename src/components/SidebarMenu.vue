@@ -13,8 +13,6 @@ import VectorIcon from "./VectorIcon.vue";
 
 const route = useRoute();
 
-const isDashboardActive = computed(() => route.path === "/");
-
 const isEnergyOpen = computed(() => {
   return (
     route.path.startsWith("/settings/energy-sources") ||
@@ -65,7 +63,7 @@ const isNotifiersOpen = computed(() => {
             active-class="active text-primary"
             exact
           >
-            <PhPulse :weight="isDashboardActive ? 'fill' : 'regular'" />
+            <PhPulse />
             Dashboard
           </RouterLink>
         </li>
@@ -77,7 +75,7 @@ const isNotifiersOpen = computed(() => {
               class="text-lg"
               :class="{ 'text-primary font-semibold': isAutomationOpen }"
             >
-              <PhGraph :weight="isAutomationOpen ? 'fill' : 'regular'" />
+              <PhGraph />
               Optimization
             </summary>
             <ul class="rounded-t-none p-2 w-full submenu-curved">
@@ -110,7 +108,7 @@ const isNotifiersOpen = computed(() => {
               class="text-lg"
               :class="{ 'text-primary font-semibold': isEnergyOpen }"
             >
-              <PhLightning :weight="isEnergyOpen ? 'fill' : 'regular'" />
+              <PhLightning />
               Energy
             </summary>
             <ul class="rounded-t-none p-2 w-full submenu-curved">
@@ -152,7 +150,7 @@ const isNotifiersOpen = computed(() => {
               class="text-lg"
               :class="{ 'text-primary font-semibold': isMiningOpen }"
             >
-              <PhCpu :weight="isMiningOpen ? 'fill' : 'regular'" />
+              <PhCpu />
               Mining
             </summary>
             <ul class="rounded-t-none p-2 w-full submenu-curved">
@@ -190,7 +188,7 @@ const isNotifiersOpen = computed(() => {
               class="text-lg"
               :class="{ 'text-primary font-semibold': isIntegrationsOpen }"
             >
-              <PhPlug :weight="isIntegrationsOpen ? 'fill' : 'regular'" />
+              <PhPlug />
               External Services
             </summary>
             <!-- </details> -->
@@ -209,7 +207,7 @@ const isNotifiersOpen = computed(() => {
               class="text-lg"
               :class="{ 'text-primary font-semibold': isNotifiersOpen }"
             >
-              <PhBell :weight="isNotifiersOpen ? 'fill' : 'regular'" />
+              <PhBell />
               Notifiers
             </summary>
             <!-- </details> -->
