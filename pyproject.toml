@@ -2,9 +2,12 @@
 requires = ["setuptools>=64", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools.dynamic]
+version = {attr = "edge_mining.__version__.__version__"}
+
 [project]
 name = "edge-mining"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Software to optimize the use of excess energy, especially from renewable sources, through Bitcoin mining"
 readme = "README.md"
 license = {text = "MIT"}
