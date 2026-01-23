@@ -24,14 +24,15 @@ For a step-by-step example, see: docs/MIGRATION_EXAMPLE.md
 """
 
 import json
+import uuid
 from typing import Any, Optional
 
 from sqlalchemy import JSON, Column, Float, ForeignKey, String, Table, event
 
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.common import ConfigurationType
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.registry import mapper_registry, metadata
-from edge_mining.domain.common import WattHours, Watts
-from edge_mining.domain.energy.common import EnergyMonitorAdapter
+from edge_mining.domain.common import EntityId, WattHours, Watts
+from edge_mining.domain.energy.common import EnergyMonitorAdapter, EnergySourceType
 from edge_mining.domain.energy.entities import EnergyMonitor, EnergySource
 from edge_mining.domain.energy.exceptions import EnergyMonitorConfigurationError
 from edge_mining.domain.energy.value_objects import Battery, Grid
@@ -88,6 +89,17 @@ def _receive_energy_monitor_load(target: EnergyMonitor, context) -> None:
         target: The EnergyMonitor instance being loaded
         context: SQLAlchemy context
     """
+    # Convert id string to EntityId if needed
+    if hasattr(target, "id") and target.id is not None:
+        if isinstance(target.id, str):  # type: ignore[arg-type,misc]
+            target.id = EntityId(uuid.UUID(target.id))  # type: ignore[assignment]
+
+    # Convert foreign keys to EntityId
+    # NOTE: SQLAlchemy returns strings for UUID columns that need conversion to EntityId
+    if hasattr(target, "external_service_id") and target.external_service_id is not None:
+        if isinstance(target.external_service_id, str):  # type: ignore
+            target.external_service_id = EntityId(uuid.UUID(target.external_service_id))  # type: ignore
+
     # Convert adapter_type string to enum if needed
     if isinstance(target.adapter_type, str):
         try:
@@ -98,6 +110,52 @@ def _receive_energy_monitor_load(target: EnergyMonitor, context) -> None:
 
     if target.config and isinstance(target.config, str):
         target.config = _deserialize_energy_monitor_config(target.adapter_type, target.config)
+
+
+@event.listens_for(EnergyMonitor, "before_insert")
+@event.listens_for(EnergyMonitor, "before_update")
+def _flatten_energy_monitor_composites(mapper, connection, target: Any) -> None:
+    """Event listener that flattens value objects before persisting.
+
+    Args:
+        mapper: SQLAlchemy mapper
+        connection: Database connection
+        target: The EnergyMonitor instance being persisted
+    """
+    # Convert EnergyMonitorAdapter enum to string
+    if hasattr(target, "adapter_type") and target.adapter_type is not None:
+        if isinstance(target.adapter_type, EnergyMonitorAdapter):
+            target.adapter_type = target.adapter_type.value
+
+
+@event.listens_for(EnergyMonitor, "after_insert")
+@event.listens_for(EnergyMonitor, "after_update")
+def _restore_energy_monitor_composites(mapper, connection, target: Any) -> None:
+    """Event listener that restores value objects after persisting.
+
+    Args:
+        mapper: SQLAlchemy mapper
+        connection: Database connection
+        target: The EnergyMonitor instance that was persisted
+    """
+    # Restore id to EntityId if it was converted to string
+    # NOTE: After SQLAlchemy flush, IDs may be strings and need restoration to EntityId
+    if hasattr(target, "id") and target.id is not None:
+        if isinstance(target.id, str):  # type: ignore
+            target.id = EntityId(uuid.UUID(target.id))  # type: ignore
+
+    # Restore external_service_id to EntityId if needed
+    if hasattr(target, "external_service_id") and target.external_service_id is not None:
+        if isinstance(target.external_service_id, str):  # type: ignore
+            target.external_service_id = EntityId(uuid.UUID(target.external_service_id))  # type: ignore
+
+    # Restore adapter_type to enum
+    if hasattr(target, "adapter_type") and target.adapter_type is not None:
+        if isinstance(target.adapter_type, str):
+            try:
+                target.adapter_type = EnergyMonitorAdapter(target.adapter_type)
+            except ValueError:
+                pass
 
 
 # Define the energy_monitors table using imperative style
@@ -160,8 +218,36 @@ def _receive_energy_source_load(target: EnergySource, context) -> None:
         target: The EnergySource instance being loaded
         context: SQLAlchemy context
     """
-    # SQLAlchemy will load the raw column values as floats
+    # SQLAlchemy will load the raw column values as floats/strings
     # We need to convert them to proper value objects
+
+    # Convert id string to EntityId if needed
+    # NOTE: Type checker marks this as unreachable because EntityId is typed as UUID,
+    # but SQLAlchemy can return strings from the database that need conversion
+    if hasattr(target, "id") and target.id is not None:
+        if isinstance(target.id, str):  # type: ignore
+            target.id = EntityId(uuid.UUID(target.id))  # type: ignore
+        if isinstance(target.id, str):  # type: ignore
+            target.id = EntityId(uuid.UUID(target.id))  # type: ignore
+
+    # Convert foreign keys to EntityId
+    # NOTE: SQLAlchemy returns strings for UUID columns that need conversion to EntityId
+    if hasattr(target, "energy_monitor_id") and target.energy_monitor_id is not None:
+        if isinstance(target.energy_monitor_id, str):  # type: ignore
+            target.energy_monitor_id = EntityId(uuid.UUID(target.energy_monitor_id))  # type: ignore
+
+    if hasattr(target, "forecast_provider_id") and target.forecast_provider_id is not None:
+        if isinstance(target.forecast_provider_id, str):  # type: ignore
+            target.forecast_provider_id = EntityId(uuid.UUID(target.forecast_provider_id))  # type: ignore
+
+    # Convert type string to enum if needed
+    if hasattr(target, "type") and target.type is not None:
+        if isinstance(target.type, str):
+            try:
+                target.type = EnergySourceType(target.type)
+            except ValueError:
+                # If conversion fails, leave as string
+                pass
 
     # Convert nominal_power_max to Watts (loaded as float)
     if hasattr(target, "nominal_power_max") and target.nominal_power_max is not None:
@@ -202,6 +288,11 @@ def _flatten_energy_source_composites(mapper, connection, target: Any) -> None:
         connection: Database connection
         target: The EnergySource instance being persisted
     """
+    # Convert EnergySourceType enum to string
+    if hasattr(target, "type") and target.type is not None:
+        if isinstance(target.type, EnergySourceType):
+            target.type = target.type.value
+
     # Flatten nominal_power_max (Watts) to float
     if hasattr(target, "nominal_power_max") and target.nominal_power_max is not None:
         target.nominal_power_max = float(target.nominal_power_max)
@@ -219,3 +310,57 @@ def _flatten_energy_source_composites(mapper, connection, target: Any) -> None:
     if hasattr(target, "grid") and target.grid is not None:
         if not isinstance(target.grid, (dict, str)):
             target.grid = {"contracted_power": float(target.grid.contracted_power)}
+
+
+@event.listens_for(EnergySource, "after_insert")
+@event.listens_for(EnergySource, "after_update")
+def _restore_energy_source_composites(mapper, connection, target: Any) -> None:
+    """Event listener that restores value objects after persisting.
+
+    Args:
+        mapper: SQLAlchemy mapper
+        connection: Database connection
+        target: The EnergySource instance that was persisted
+    """
+    # Restore id to EntityId if it was converted to string
+    # NOTE: After SQLAlchemy flush, IDs may be strings and need restoration to EntityId
+    if hasattr(target, "id") and target.id is not None:
+        if isinstance(target.id, str):  # type: ignore
+            target.id = EntityId(uuid.UUID(target.id))  # type: ignore
+
+    # Restore foreign keys to EntityId
+    # NOTE: Foreign key UUIDs may be strings after persist and need conversion
+    if hasattr(target, "energy_monitor_id") and target.energy_monitor_id is not None:
+        if isinstance(target.energy_monitor_id, str):  # type: ignore
+            target.energy_monitor_id = EntityId(uuid.UUID(target.energy_monitor_id))  # type: ignore
+
+    if hasattr(target, "forecast_provider_id") and target.forecast_provider_id is not None:
+        if isinstance(target.forecast_provider_id, str):  # type: ignore
+            target.forecast_provider_id = EntityId(uuid.UUID(target.forecast_provider_id))  # type: ignore
+
+    # Restore type to enum
+    if hasattr(target, "type") and target.type is not None:
+        if isinstance(target.type, str):
+            try:
+                target.type = EnergySourceType(target.type)
+            except ValueError:
+                pass
+
+    # Restore Watts values
+    if hasattr(target, "nominal_power_max") and target.nominal_power_max is not None:
+        if not isinstance(target.nominal_power_max, type(Watts(0.0))):
+            target.nominal_power_max = Watts(float(target.nominal_power_max))
+
+    if hasattr(target, "external_source") and target.external_source is not None:
+        if not isinstance(target.external_source, type(Watts(0.0))):
+            target.external_source = Watts(float(target.external_source))
+
+    # Restore Battery from dict
+    if hasattr(target, "storage") and target.storage is not None:
+        if isinstance(target.storage, dict):
+            target.storage = Battery(nominal_capacity=WattHours(target.storage["nominal_capacity"]))
+
+    # Restore Grid from dict
+    if hasattr(target, "grid") and target.grid is not None:
+        if isinstance(target.grid, dict):
+            target.grid = Grid(contracted_power=Watts(target.grid["contracted_power"]))
