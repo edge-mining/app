@@ -296,7 +296,7 @@ alembic current | grep "head" || {
 ### Automated Testing
 
 ```python
-# tests/test_migrations.py
+# tests/unit/adapters/persistence/test_migrations.py
 def test_migrations_apply_cleanly():
     """Test that all migrations can be applied from scratch."""
     # Drop database
