@@ -256,19 +256,19 @@ def _flatten_miner_value_objects(mapper, connection, target: Miner) -> None:
     if hasattr(target, "hash_rate") and target.hash_rate is not None:
         if not isinstance(target.hash_rate, str):
             hash_rate_dict = {"value": target.hash_rate.value, "unit": target.hash_rate.unit}
-            target.hash_rate = json.dumps(hash_rate_dict)
+            target.hash_rate = json.dumps(hash_rate_dict)  # type: ignore[assignment]
 
     # Flatten hash_rate_max (HashRate) to JSON string
     if hasattr(target, "hash_rate_max") and target.hash_rate_max is not None:
         if not isinstance(target.hash_rate_max, str):
             hash_rate_max_dict = {"value": target.hash_rate_max.value, "unit": target.hash_rate_max.unit}
-            target.hash_rate_max = json.dumps(hash_rate_max_dict)
+            target.hash_rate_max = json.dumps(hash_rate_max_dict)  # type: ignore[assignment]
 
     # Flatten power_consumption (Watts) to float
     # Watts is a NewType (alias for float), so just ensure it's a float
     if hasattr(target, "power_consumption") and target.power_consumption is not None:
-        target.power_consumption = float(target.power_consumption)
+        target.power_consumption = float(target.power_consumption)  # type: ignore[assignment]
 
     # Flatten power_consumption_max (Watts) to float
     if hasattr(target, "power_consumption_max") and target.power_consumption_max is not None:
-        target.power_consumption_max = float(target.power_consumption_max)
+        target.power_consumption_max = float(target.power_consumption_max)  # type: ignore[assignment]

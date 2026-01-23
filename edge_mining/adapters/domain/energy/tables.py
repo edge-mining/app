@@ -13,7 +13,7 @@ the sqlalchemy.registry module, which are available as module-level singletons.
 """
 
 import json
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy import Column, Float, ForeignKey, String, Table, event
 
@@ -185,7 +185,7 @@ def _receive_energy_source_load(target: EnergySource, context) -> None:
 
 @event.listens_for(EnergySource, "before_insert")
 @event.listens_for(EnergySource, "before_update")
-def _flatten_energy_source_composites(mapper, connection, target: EnergySource) -> None:
+def _flatten_energy_source_composites(mapper, connection, target: Any) -> None:
     """Event listener that flattens value objects before persisting.
 
     Args:
