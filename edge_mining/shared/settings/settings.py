@@ -22,6 +22,7 @@ class AppSettings(BaseSettings):
 
     # Database migration settings
     run_migrations_on_startup: bool = True  # Automatically run Alembic migrations on startup
+    backup_before_migration: bool = True  # Create database backup before running migrations
 
     yaml_policies_dir: str = "optimization_policies"  # Directory for YAML policies
 

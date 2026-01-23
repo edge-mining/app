@@ -46,6 +46,7 @@ class BaseSQLAlchemyRepository:
         logger: Optional[LoggerPort] = None,
         echo: bool = False,
         run_migrations: bool = True,
+        backup_before_migration: bool = True,
     ):
         """Initialize the SQLAlchemy repository base.
 
@@ -54,10 +55,12 @@ class BaseSQLAlchemyRepository:
             logger: Logger instance for logging database operations
             echo: If True, SQLAlchemy will log all SQL statements
             run_migrations: If True, automatically run Alembic migrations
+            backup_before_migration: If True, create database backup before running migrations
         """
         self.logger = logger
         self.db_path = db_path
         self.run_migrations = run_migrations
+        self.backup_before_migration = backup_before_migration
 
         # Initialize shared resources if not already initialized
         if BaseSQLAlchemyRepository._engine is None:
@@ -173,7 +176,11 @@ class BaseSQLAlchemyRepository:
                 self.logger.info("Running Alembic migrations...")
 
             try:
-                run_migrations(db_url=self.db_path, logger=self.logger)
+                run_migrations(
+                    db_url=self.db_path,
+                    logger=self.logger,
+                    backup_enabled=self.backup_before_migration,
+                )
 
                 if self.logger:
                     self.logger.info("Database initialization complete")

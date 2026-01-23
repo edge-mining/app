@@ -130,6 +130,7 @@ def configure_persistence(logger: LoggerPort, settings: AppSettings) -> Persiste
             db_path=db_url,
             logger=logger,
             run_migrations=settings.run_migrations_on_startup,
+            backup_before_migration=settings.backup_before_migration,
         )
 
         # Initialize database schema (migrations + tables)
