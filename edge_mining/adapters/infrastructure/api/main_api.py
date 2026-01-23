@@ -6,6 +6,7 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+from edge_mining.__version__ import __version__
 from edge_mining.adapters.domain.energy.fast_api.router import router as energy_router
 from edge_mining.adapters.domain.forecast.fast_api.router import router as forecast_router
 from edge_mining.adapters.domain.miner.fast_api.router import router as miner_router
@@ -51,9 +52,9 @@ async def app_lifespan(api_app: FastAPI):
 
 
 app = FastAPI(
-    title="Edge Mining API",
-    description="API for managing and monitoring the bitcoin mining energy optimization system.",
-    version="0.1.0",
+    title="Edge Mining Core API",
+    description="Core API for managing and monitoring the bitcoin mining energy optimization system.",
+    version=__version__,
     lifespan=app_lifespan,
 )
 
@@ -85,6 +86,15 @@ app.include_router(forecast_router, prefix="/api/v1", tags=["forecast"])
 async def health_check():
     """Basic health check endpoint."""
     return {"status": "ok"}
+
+
+@app.get("/version/core", tags=["system"])
+async def get_version():
+    """Get the current version of the Edge Mining Core software."""
+    return {
+        "version": __version__,
+        "name": "Edge Mining Core",
+    }
 
 
 # Example endpoint using dependency injection
