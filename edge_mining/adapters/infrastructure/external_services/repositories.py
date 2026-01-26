@@ -4,6 +4,10 @@ import json
 import sqlite3
 from typing import List, Optional
 
+from sqlalchemy import select
+
+from edge_mining.adapters.infrastructure.external_services.tables import external_services_table
+from edge_mining.adapters.infrastructure.persistence.sqlalchemy.base import BaseSQLAlchemyRepository
 from edge_mining.adapters.infrastructure.persistence.sqlite import BaseSqliteRepository
 from edge_mining.domain.common import EntityId
 from edge_mining.domain.exceptions import ConfigurationError
@@ -262,3 +266,86 @@ class SqliteExternalServiceRepository(ExternalServiceRepository):
         finally:
             if conn:
                 conn.close()
+
+
+# SQLAlchemy implementation
+
+
+class SqlAlchemyExternalServiceRepository(ExternalServiceRepository):
+    """SQLAlchemy implementation of ExternalServiceRepository.
+
+    This repository works directly with the imperatively mapped ExternalService domain entity.
+    The config field is automatically converted between ExternalServiceConfig objects and JSON
+    strings by the custom TypeDecorator and event listener defined in tables.py.
+
+    Args:
+        db: BaseSQLAlchemyRepository instance for database operations
+    """
+
+    def __init__(self, db: BaseSQLAlchemyRepository):
+        """Initialize repository with database instance.
+
+        Args:
+            db: BaseSQLAlchemyRepository instance
+        """
+        self._db = db
+        self.logger = db.logger
+
+    def add(self, external_service: ExternalService) -> None:
+        """Add an external service to the repository."""
+        session = self._db.get_session()
+        try:
+            session.add(external_service)
+            session.commit()
+            session.refresh(external_service)
+        finally:
+            session.close()
+
+    def get_by_id(self, external_service_id: EntityId) -> Optional[ExternalService]:
+        """Get an external service by ID."""
+        session = self._db.get_session()
+        try:
+            stmt = select(ExternalService).where(external_services_table.c.id == str(external_service_id))
+            entity = session.execute(stmt).scalar_one_or_none()
+            return entity
+        finally:
+            session.close()
+
+    def get_all(self) -> List[ExternalService]:
+        """Get all external services."""
+        session = self._db.get_session()
+        try:
+            stmt = select(ExternalService)
+            entities = session.execute(stmt).scalars().all()
+            return list(entities)
+        finally:
+            session.close()
+
+    def update(self, external_service: ExternalService) -> None:
+        """Update an external service."""
+        session = self._db.get_session()
+        try:
+            stmt = select(ExternalService).where(external_services_table.c.id == str(external_service.id))
+            existing_entity = session.execute(stmt).scalar_one_or_none()
+
+            if existing_entity:
+                existing_entity.name = external_service.name
+                existing_entity.adapter_type = external_service.adapter_type
+                existing_entity.config = external_service.config
+
+                session.commit()
+        finally:
+            session.close()
+
+    def remove(self, external_service_id: EntityId) -> None:
+        """Remove an external service by ID."""
+        session = self._db.get_session()
+        try:
+            stmt = select(ExternalService).where(external_services_table.c.id == str(external_service_id))
+            entity = session.execute(stmt).scalar_one_or_none()
+
+            if entity:
+                session.delete(entity)
+                session.commit()
+        finally:
+            session.close()

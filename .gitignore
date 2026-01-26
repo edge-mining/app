@@ -183,3 +183,9 @@ htmlcov/
 
 # Edge Mining stuffs
 edgemining.db
+
+# SQLAlchemy database files
+*.db
+*.db-journal
+*.db-shm
+*.db-wal

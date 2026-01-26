@@ -5,6 +5,10 @@ import json
 import sqlite3
 from typing import Dict, List, Optional
 
+from sqlalchemy import select
+
+from edge_mining.adapters.domain.optimization_unit.tables import optimization_units_table
+from edge_mining.adapters.infrastructure.persistence.sqlalchemy.base import BaseSQLAlchemyRepository
 from edge_mining.adapters.infrastructure.persistence.sqlite import BaseSqliteRepository
 from edge_mining.domain.common import EntityId
 from edge_mining.domain.optimization_unit.aggregate_roots import EnergyOptimizationUnit
@@ -304,3 +308,100 @@ class SqliteOptimizationUnitRepository(EnergyOptimizationUnitRepository):
         finally:
             if conn:
                 conn.close()
+
+
+# SQLAlchemy implementation
+
+
+class SqlAlchemyOptimizationUnitRepository(EnergyOptimizationUnitRepository):
+    """SQLAlchemy implementation of EnergyOptimizationUnitRepository.
+
+    This repository works directly with the imperatively mapped EnergyOptimizationUnit domain entity.
+
+    Args:
+        db: BaseSQLAlchemyRepository instance for database operations
+    """
+
+    def __init__(self, db: BaseSQLAlchemyRepository):
+        """Initialize repository with database instance.
+
+        Args:
+            db: BaseSQLAlchemyRepository instance
+        """
+        self._db = db
+        self.logger = db.logger
+
+    def add(self, optimization_unit: EnergyOptimizationUnit) -> None:
+        """Add an optimization unit to the repository."""
+        session = self._db.get_session()
+        try:
+            session.add(optimization_unit)
+            session.commit()
+            session.refresh(optimization_unit)
+        finally:
+            session.close()
+
+    def get_by_id(self, optimization_unit_id: EntityId) -> Optional[EnergyOptimizationUnit]:
+        """Get an optimization unit by ID."""
+        session = self._db.get_session()
+        try:
+            stmt = select(EnergyOptimizationUnit).where(optimization_units_table.c.id == str(optimization_unit_id))
+            entity = session.execute(stmt).scalar_one_or_none()
+            return entity
+        finally:
+            session.close()
+
+    def get_all_enabled(self) -> List[EnergyOptimizationUnit]:
+        """Get all enabled optimization units."""
+        session = self._db.get_session()
+        try:
+            stmt = select(EnergyOptimizationUnit).where(optimization_units_table.c.is_enabled)
+            entities = session.execute(stmt).scalars().all()
+            return list(entities)
+        finally:
+            session.close()
+
+    def get_all(self) -> List[EnergyOptimizationUnit]:
+        """Get all optimization units."""
+        session = self._db.get_session()
+        try:
+            stmt = select(EnergyOptimizationUnit)
+            entities = session.execute(stmt).scalars().all()
+            return list(entities)
+        finally:
+            session.close()
+
+    def update(self, optimization_unit: EnergyOptimizationUnit) -> None:
+        """Update an optimization unit."""
+        session = self._db.get_session()
+        try:
+            stmt = select(EnergyOptimizationUnit).where(optimization_units_table.c.id == str(optimization_unit.id))
+            existing_entity = session.execute(stmt).scalar_one_or_none()
+
+            if existing_entity:
+                existing_entity.name = optimization_unit.name
+                existing_entity.description = optimization_unit.description
+                existing_entity.is_enabled = optimization_unit.is_enabled
+                existing_entity.policy_id = optimization_unit.policy_id
+                existing_entity.target_miner_ids = optimization_unit.target_miner_ids
+                existing_entity.energy_source_id = optimization_unit.energy_source_id
+                existing_entity.home_forecast_provider_id = optimization_unit.home_forecast_provider_id
+                existing_entity.performance_tracker_id = optimization_unit.performance_tracker_id
+                existing_entity.notifier_ids = optimization_unit.notifier_ids
+
+                session.commit()
+        finally:
+            session.close()
+
+    def remove(self, optimization_unit_id: EntityId) -> None:
+        """Remove an optimization unit by ID."""
+        session = self._db.get_session()
+        try:
+            stmt = select(EnergyOptimizationUnit).where(optimization_units_table.c.id == str(optimization_unit_id))
+            entity = session.execute(stmt).scalar_one_or_none()
+
+            if entity:
+                session.delete(entity)
+                session.commit()
+        finally:
+            session.close()

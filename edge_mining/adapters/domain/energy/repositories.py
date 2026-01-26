@@ -5,6 +5,10 @@ import json
 import sqlite3
 from typing import Any, Dict, List, Optional
 
+from sqlalchemy import select
+
+from edge_mining.adapters.domain.energy.tables import energy_monitors_table, energy_sources_table
+from edge_mining.adapters.infrastructure.persistence.sqlalchemy.base import BaseSQLAlchemyRepository
 from edge_mining.adapters.infrastructure.persistence.sqlite import BaseSqliteRepository
 from edge_mining.domain.common import EntityId, WattHours, Watts
 from edge_mining.domain.energy.common import EnergyMonitorAdapter, EnergySourceType
@@ -567,3 +571,179 @@ class SqliteEnergyMonitorRepository(EnergyMonitorRepository):
         finally:
             if conn:
                 conn.close()
+
+
+class SqlAlchemyEnergySourceRepository(EnergySourceRepository):
+    """SQLAlchemy implementation of EnergySourceRepository.
+
+    This repository works directly with the imperatively mapped EnergySource domain entity.
+    Composite value objects (Battery, Grid, Watts) are automatically handled by SQLAlchemy's
+    composite() mapping defined in tables.py.
+
+    Args:
+        db: BaseSQLAlchemyRepository instance for database operations
+    """
+
+    def __init__(self, db: BaseSQLAlchemyRepository):
+        """Initialize repository with database instance.
+
+        Args:
+            db: BaseSQLAlchemyRepository instance
+        """
+        self._db = db
+        self.logger = db.logger
+
+    def add(self, energy_source: EnergySource) -> None:
+        """Add an energy source to the repository."""
+        session = self._db.get_session()
+        try:
+            session.add(energy_source)
+            session.commit()
+            session.refresh(energy_source)
+        finally:
+            session.close()
+
+    def get_by_id(self, energy_source_id: EntityId) -> Optional[EnergySource]:
+        """Get an energy source by ID."""
+        session = self._db.get_session()
+        try:
+            stmt = select(EnergySource).where(energy_sources_table.c.id == str(energy_source_id))
+            entity = session.execute(stmt).scalar_one_or_none()
+            return entity
+        finally:
+            session.close()
+
+    def get_all(self) -> List[EnergySource]:
+        """Get all energy sources."""
+        session = self._db.get_session()
+        try:
+            stmt = select(EnergySource)
+            entities = session.execute(stmt).scalars().all()
+            return list(entities)
+        finally:
+            session.close()
+
+    def update(self, energy_source: EnergySource) -> None:
+        """Update an energy source."""
+        session = self._db.get_session()
+        try:
+            stmt = select(EnergySource).where(energy_sources_table.c.id == str(energy_source.id))
+            existing_entity = session.execute(stmt).scalar_one_or_none()
+
+            if existing_entity:
+                existing_entity.name = energy_source.name
+                existing_entity.type = energy_source.type
+                existing_entity.nominal_power_max = energy_source.nominal_power_max
+                existing_entity.storage = energy_source.storage
+                existing_entity.grid = energy_source.grid
+                existing_entity.external_source = energy_source.external_source
+                existing_entity.energy_monitor_id = energy_source.energy_monitor_id
+                existing_entity.forecast_provider_id = energy_source.forecast_provider_id
+
+                session.commit()
+        finally:
+            session.close()
+
+    def remove(self, energy_source_id: EntityId) -> None:
+        """Remove an energy source by ID."""
+        session = self._db.get_session()
+        try:
+            stmt = select(EnergySource).where(energy_sources_table.c.id == str(energy_source_id))
+            entity = session.execute(stmt).scalar_one_or_none()
+
+            if entity:
+                session.delete(entity)
+                session.commit()
+        finally:
+            session.close()
+
+
+class SqlAlchemyEnergyMonitorRepository(EnergyMonitorRepository):
+    """SQLAlchemy implementation of EnergyMonitorRepository.
+
+    This repository works directly with the imperatively mapped EnergyMonitor domain entity.
+    The config field is automatically converted between EnergyMonitorConfig objects and JSON
+    strings by the custom TypeDecorator and event listener defined in tables.py.
+
+    Args:
+        db: BaseSQLAlchemyRepository instance for database operations
+    """
+
+    def __init__(self, db: BaseSQLAlchemyRepository):
+        """Initialize repository with database instance.
+
+        Args:
+            db: BaseSQLAlchemyRepository instance
+        """
+        self._db = db
+        self.logger = db.logger
+
+    def add(self, energy_monitor: EnergyMonitor) -> None:
+        """Add an energy monitor to the repository."""
+        session = self._db.get_session()
+        try:
+            session.add(energy_monitor)
+            session.commit()
+            session.refresh(energy_monitor)
+        finally:
+            session.close()
+
+    def get_by_id(self, energy_monitor_id: EntityId) -> Optional[EnergyMonitor]:
+        """Get an energy monitor by ID."""
+        session = self._db.get_session()
+        try:
+            stmt = select(EnergyMonitor).where(energy_monitors_table.c.id == str(energy_monitor_id))
+            entity = session.execute(stmt).scalar_one_or_none()
+            return entity
+        finally:
+            session.close()
+
+    def get_all(self) -> List[EnergyMonitor]:
+        """Get all energy monitors."""
+        session = self._db.get_session()
+        try:
+            stmt = select(EnergyMonitor)
+            entities = session.execute(stmt).scalars().all()
+            return list(entities)
+        finally:
+            session.close()
+
+    def update(self, energy_monitor: EnergyMonitor) -> None:
+        """Update an energy monitor."""
+        session = self._db.get_session()
+        try:
+            stmt = select(EnergyMonitor).where(energy_monitors_table.c.id == str(energy_monitor.id))
+            existing_entity = session.execute(stmt).scalar_one_or_none()
+
+            if existing_entity:
+                existing_entity.name = energy_monitor.name
+                existing_entity.adapter_type = energy_monitor.adapter_type
+                existing_entity.config = energy_monitor.config
+                existing_entity.external_service_id = energy_monitor.external_service_id
+
+                session.commit()
+        finally:
+            session.close()
+
+    def remove(self, energy_monitor_id: EntityId) -> None:
+        """Remove an energy monitor by ID."""
+        session = self._db.get_session()
+        try:
+            stmt = select(EnergyMonitor).where(energy_monitors_table.c.id == str(energy_monitor_id))
+            entity = session.execute(stmt).scalar_one_or_none()
+
+            if entity:
+                session.delete(entity)
+                session.commit()
+        finally:
+            session.close()
+
+    def get_by_external_service_id(self, external_service_id: EntityId) -> List[EnergyMonitor]:
+        """Get energy monitors by external service ID."""
+        session = self._db.get_session()
+        try:
+            stmt = select(EnergyMonitor).where(energy_monitors_table.c.external_service_id == str(external_service_id))
+            entities = session.execute(stmt).scalars().all()
+            return list(entities)
+        finally:
+            session.close()

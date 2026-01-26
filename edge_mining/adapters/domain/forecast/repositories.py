@@ -4,6 +4,10 @@ import json
 import sqlite3
 from typing import List, Optional
 
+from sqlalchemy import select
+
+from edge_mining.adapters.domain.forecast.tables import forecast_providers_table
+from edge_mining.adapters.infrastructure.persistence.sqlalchemy.base import BaseSQLAlchemyRepository
 from edge_mining.adapters.infrastructure.persistence.sqlite import BaseSqliteRepository
 from edge_mining.domain.common import EntityId
 from edge_mining.domain.exceptions import ConfigurationError
@@ -298,3 +302,96 @@ class SqliteForecastProviderRepository(ForecastProviderRepository):
         finally:
             if conn:
                 conn.close()
+
+
+class SqlAlchemyForecastProviderRepository(ForecastProviderRepository):
+    """SQLAlchemy implementation of ForecastProviderRepository.
+
+    This repository works directly with the imperatively mapped ForecastProvider domain entity.
+    The config field is automatically converted between ForecastProviderConfig objects and JSON
+    strings by the custom TypeDecorator and event listener defined in tables.py.
+
+    Args:
+        db: BaseSQLAlchemyRepository instance for database operations
+    """
+
+    def __init__(self, db: BaseSQLAlchemyRepository):
+        """Initialize repository with database instance.
+
+        Args:
+            db: BaseSQLAlchemyRepository instance
+        """
+        self._db = db
+        self.logger = db.logger
+
+    def add(self, forecast_provider: ForecastProvider) -> None:
+        """Add a forecast provider to the repository."""
+        session = self._db.get_session()
+        try:
+            session.add(forecast_provider)
+            session.commit()
+            session.refresh(forecast_provider)
+        finally:
+            session.close()
+
+    def get_by_id(self, forecast_provider_id: EntityId) -> Optional[ForecastProvider]:
+        """Get a forecast provider by ID."""
+        session = self._db.get_session()
+        try:
+            stmt = select(ForecastProvider).where(forecast_providers_table.c.id == str(forecast_provider_id))
+            entity = session.execute(stmt).scalar_one_or_none()
+            return entity
+        finally:
+            session.close()
+
+    def get_all(self) -> List[ForecastProvider]:
+        """Get all forecast providers."""
+        session = self._db.get_session()
+        try:
+            stmt = select(ForecastProvider)
+            entities = session.execute(stmt).scalars().all()
+            return list(entities)
+        finally:
+            session.close()
+
+    def update(self, forecast_provider: ForecastProvider) -> None:
+        """Update a forecast provider."""
+        session = self._db.get_session()
+        try:
+            stmt = select(ForecastProvider).where(forecast_providers_table.c.id == str(forecast_provider.id))
+            existing_entity = session.execute(stmt).scalar_one_or_none()
+
+            if existing_entity:
+                existing_entity.name = forecast_provider.name
+                existing_entity.adapter_type = forecast_provider.adapter_type
+                existing_entity.config = forecast_provider.config
+                existing_entity.external_service_id = forecast_provider.external_service_id
+
+                session.commit()
+        finally:
+            session.close()
+
+    def remove(self, forecast_provider_id: EntityId) -> None:
+        """Remove a forecast provider by ID."""
+        session = self._db.get_session()
+        try:
+            stmt = select(ForecastProvider).where(forecast_providers_table.c.id == str(forecast_provider_id))
+            entity = session.execute(stmt).scalar_one_or_none()
+
+            if entity:
+                session.delete(entity)
+                session.commit()
+        finally:
+            session.close()
+
+    def get_by_external_service_id(self, external_service_id: EntityId) -> List[ForecastProvider]:
+        """Get forecast providers by external service ID."""
+        session = self._db.get_session()
+        try:
+            stmt = select(ForecastProvider).where(
+                forecast_providers_table.c.external_service_id == str(external_service_id)
+            )
+            entities = session.execute(stmt).scalars().all()
+            return list(entities)
+        finally:
+            session.close()

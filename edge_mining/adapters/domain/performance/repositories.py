@@ -5,6 +5,10 @@ import json
 import sqlite3
 from typing import Dict, List, Optional
 
+from sqlalchemy import select
+
+from edge_mining.adapters.domain.performance.tables import mining_performance_trackers_table
+from edge_mining.adapters.infrastructure.persistence.sqlalchemy.base import BaseSQLAlchemyRepository
 from edge_mining.adapters.infrastructure.persistence.sqlite import BaseSqliteRepository
 from edge_mining.domain.common import EntityId
 from edge_mining.domain.exceptions import ConfigurationError
@@ -308,3 +312,99 @@ class SqliteMiningPerformanceTrackerRepository(MiningPerformanceTrackerRepositor
         finally:
             if conn:
                 conn.close()
+
+
+# SQLAlchemy implementation
+
+
+class SqlAlchemyMiningPerformanceTrackerRepository(MiningPerformanceTrackerRepository):
+    """SQLAlchemy implementation of MiningPerformanceTrackerRepository.
+
+    This repository works directly with the imperatively mapped MiningPerformanceTracker domain entity.
+    The config field is automatically converted between MiningPerformanceTrackerConfig objects and JSON
+    strings by the custom TypeDecorator and event listener defined in tables.py.
+
+    Args:
+        db: BaseSQLAlchemyRepository instance for database operations
+    """
+
+    def __init__(self, db: BaseSQLAlchemyRepository):
+        """Initialize repository with database instance.
+
+        Args:
+            db: BaseSQLAlchemyRepository instance
+        """
+        self._db = db
+        self.logger = db.logger
+
+    def add(self, tracker: MiningPerformanceTracker) -> None:
+        """Add a mining performance tracker to the repository."""
+        session = self._db.get_session()
+        try:
+            session.add(tracker)
+            session.commit()
+            session.refresh(tracker)
+        finally:
+            session.close()
+
+    def get_by_id(self, tracker_id: EntityId) -> Optional[MiningPerformanceTracker]:
+        """Get a mining performance tracker by ID."""
+        session = self._db.get_session()
+        try:
+            stmt = select(MiningPerformanceTracker).where(mining_performance_trackers_table.c.id == str(tracker_id))
+            entity = session.execute(stmt).scalar_one_or_none()
+            return entity
+        finally:
+            session.close()
+
+    def get_all(self) -> List[MiningPerformanceTracker]:
+        """Get all mining performance trackers."""
+        session = self._db.get_session()
+        try:
+            stmt = select(MiningPerformanceTracker)
+            entities = session.execute(stmt).scalars().all()
+            return list(entities)
+        finally:
+            session.close()
+
+    def update(self, tracker: MiningPerformanceTracker) -> None:
+        """Update a mining performance tracker."""
+        session = self._db.get_session()
+        try:
+            stmt = select(MiningPerformanceTracker).where(mining_performance_trackers_table.c.id == str(tracker.id))
+            existing_entity = session.execute(stmt).scalar_one_or_none()
+
+            if existing_entity:
+                existing_entity.name = tracker.name
+                existing_entity.adapter_type = tracker.adapter_type
+                existing_entity.config = tracker.config
+                existing_entity.external_service_id = tracker.external_service_id
+
+                session.commit()
+        finally:
+            session.close()
+
+    def remove(self, tracker_id: EntityId) -> None:
+        """Remove a mining performance tracker by ID."""
+        session = self._db.get_session()
+        try:
+            stmt = select(MiningPerformanceTracker).where(mining_performance_trackers_table.c.id == str(tracker_id))
+            entity = session.execute(stmt).scalar_one_or_none()
+
+            if entity:
+                session.delete(entity)
+                session.commit()
+        finally:
+            session.close()
+
+    def get_by_external_service_id(self, external_service_id: EntityId) -> List[MiningPerformanceTracker]:
+        """Get mining performance trackers by external service ID."""
+        session = self._db.get_session()
+        try:
+            stmt = select(MiningPerformanceTracker).where(
+                mining_performance_trackers_table.c.external_service_id == str(external_service_id)
+            )
+            entities = session.execute(stmt).scalars().all()
+            return list(entities)
+        finally:
+            session.close()

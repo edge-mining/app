@@ -7,7 +7,9 @@
             "request": "launch",
             "console": "integratedTerminal",
             "module": "edge_mining",
-            "args": "standard"
+            "args": ["standard"],
+            "python": "${workspaceFolder}/.venv/bin/python",
+            "cwd": "${workspaceFolder}"
         },
         {
             "name": "Edge Mining Debugger: CLI Mode",
@@ -15,7 +17,9 @@
             "request": "launch",
             "console": "integratedTerminal",
             "module": "edge_mining",
-            "args": "cli interactive"
+            "args": ["cli", "interactive"],
+            "python": "${workspaceFolder}/.venv/bin/python",
+            "cwd": "${workspaceFolder}"
         }
     ]
 }
