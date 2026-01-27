@@ -1,6 +1,8 @@
 """Validation schemas for external services."""
 
 import uuid
+from datetime import datetime
+from enum import Enum
 from typing import Dict, Optional, Union, cast
 
 from pydantic import BaseModel, Field, field_serializer, field_validator
@@ -257,6 +259,41 @@ class ExternalServiceHomeAssistantConfigSchema(BaseModel):
 
         use_enum_values = True
         validate_assignment = True
+
+
+class ExternalServiceStatusEnum(str, Enum):
+    """Enum for external service connection status."""
+
+    CONNECTED = "connected"
+    DISCONNECTED = "disconnected"
+    UNAUTHORIZED = "unauthorized"
+
+
+class ExternalServiceStatusSchema(BaseModel):
+    """Schema for external service status response."""
+
+    name: str = Field(..., description="Name of the external service")
+    status: ExternalServiceStatusEnum = Field(..., description="Connection status of the external service")
+    last_check: datetime = Field(..., description="Timestamp of the last status check")
+    error_message: Optional[str] = Field(default=None, description="Error message if status is not connected")
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        """Validate external service name."""
+        v = v.strip()
+        if not v:
+            raise ValueError("Name must not be empty")
+        return v
+
+    class Config:
+        """Pydantic configuration."""
+
+        use_enum_values = True
+        validate_assignment = True
+        json_encoders = {
+            datetime: lambda v: v.isoformat(),
+        }
 
 
 EXTERNAL_SERVICE_CONFIG_SCHEMA_MAP: Dict[

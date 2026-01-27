@@ -1,18 +1,22 @@
 """API Router for external services domain"""
 
+from datetime import datetime
 from typing import Annotated, Any, Dict, List, Optional, cast
 
 from fastapi import APIRouter, Depends, HTTPException
 
 # Import dependency injection setup functions
-from edge_mining.adapters.infrastructure.api.setup import get_config_service
+from edge_mining.adapters.infrastructure.api.setup import get_adapter_service, get_config_service
 from edge_mining.adapters.infrastructure.external_services.schemas import (
     EXTERNAL_SERVICE_CONFIG_SCHEMA_MAP,
     ExternalServiceCreateSchema,
     ExternalServiceSchema,
+    ExternalServiceStatusEnum,
+    ExternalServiceStatusSchema,
     ExternalServiceUpdateSchema,
 )
 from edge_mining.application.interfaces import (
+    AdapterServiceInterface,
     ConfigurationServiceInterface,
 )
 from edge_mining.domain.common import EntityId
@@ -190,5 +194,44 @@ async def delete_external_service(
         return response
     except ExternalServiceNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/external-services/{service_id}/status", response_model=ExternalServiceStatusSchema)
+async def get_external_service_status(
+    service_id: EntityId,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+    adapter_service: Annotated[AdapterServiceInterface, Depends(get_adapter_service)],
+) -> ExternalServiceStatusSchema:
+    """Get the connection status of a specific external service"""
+    try:
+        external_service_adapter = adapter_service.get_external_service(service_id)
+
+        if external_service_adapter is None:
+            raise ExternalServiceNotFoundError(f"External service with id {service_id} not found")
+
+        external_service = config_service.get_external_service(service_id)
+        if external_service is None:
+            raise ExternalServiceNotFoundError(f"External service with id {service_id} not found")
+
+        try:
+            is_connected = external_service_adapter.is_connected()
+            status = ExternalServiceStatusEnum.CONNECTED if is_connected else ExternalServiceStatusEnum.DISCONNECTED
+            error_message = None
+        except Exception as e:
+            status = ExternalServiceStatusEnum.DISCONNECTED
+            error_message = str(e)
+
+        return ExternalServiceStatusSchema(
+            name=external_service.name,
+            status=status,
+            last_check=datetime.now(),
+            error_message=error_message,
+        )
+    except ExternalServiceNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
