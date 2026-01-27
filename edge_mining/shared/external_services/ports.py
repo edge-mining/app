@@ -25,6 +25,11 @@ class ExternalServicePort(ABC):
         """Disconnect from the external service."""
         pass
 
+    @abstractmethod
+    def is_connected(self) -> bool:
+        """Check if the external service is connected."""
+        pass
+
 
 class ExternalServiceRepository(ABC):
     """Port for the External Service Repository."""
