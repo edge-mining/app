@@ -88,6 +88,23 @@ class ServiceHomeAssistantAPI(ExternalServicePort):
         # The Client does not have a disconnect method, but we can clear the client
         self.client = None
 
+    def is_connected(self) -> bool:
+        """Check if the external service is connected."""
+        if not self.client:
+            if self.logger:
+                self.logger.error("Home Assistant client is not connected.")
+            return False
+
+        try:
+            self.client.get_config()
+            if self.logger:
+                self.logger.info("Successfully connected to Home Assistant API.")
+            return True
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Connection check to Home Assistant API failed: {e}")
+            return False
+
     def get_entity_state(self, entity_id: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
         """Safely retrieves the state and unit of an entity."""
         if not entity_id:
