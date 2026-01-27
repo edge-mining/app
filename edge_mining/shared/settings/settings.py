@@ -18,13 +18,13 @@ class AppSettings(BaseSettings):
     persistence_adapter: str = "sqlalchemy"  # Options: "in_memory", "sqlite", "yaml", "sqlalchemy"
     policies_persistence_adapter: str = "yaml"  # Options: "in_memory", "sqlite", "yaml", "sqlalchemy"
 
-    db_path: str = "sqlite:///edgemining.db"  # Database URL
+    db_path: str = "sqlite:///data/db/edgemining.db"  # Database URL
 
     # Database migration settings
     run_migrations_on_startup: bool = True  # Automatically run Alembic migrations on startup
     backup_before_migration: bool = True  # Create database backup before running migrations
 
-    yaml_policies_dir: str = "optimization_policies"  # Directory for YAML policies
+    yaml_policies_dir: str = "data/policies"  # Directory for YAML policies
 
     # API Settings
     api_port: int = 8001

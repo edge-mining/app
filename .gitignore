@@ -181,8 +181,19 @@ htmlcov/
 .pytest_cache/
 *.log
 
-# Edge Mining stuffs
-edgemining.db
+# User data directory
+data/db/
+
+# Track example templates but ignore any custom files added by users
+data/examples/*
+data/policies/*
+!data/examples/rules/
+!data/examples/rules/start/
+!data/examples/rules/stop/
+!data/examples/rules/start/*.yaml
+!data/examples/rules/stop/*.yaml
+!data/examples/policies/
+!data/examples/policies/*.yaml
 
 # SQLAlchemy database files
 *.db

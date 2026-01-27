@@ -56,10 +56,22 @@ The project uses **Hexagonal Architecture (Ports and Adapters)** to clearly sepa
 
     Key settings:
     - `PERSISTENCE_ADAPTER`: Choose between `in_memory`, `sqlite`, or `sqlalchemy` (recommended)
-    - `DB_PATH`: Database URL (e.g., `sqlite:///edgemining.db` or PostgreSQL URL)
+    - `DB_PATH`: Database URL (e.g., `sqlite:///data/db/edgemining.db` or PostgreSQL URL)
     - `RUN_MIGRATIONS_ON_STARTUP`: Set to `true` to automatically apply database migrations
 
-5.  **Initialize the database (SQLAlchemy only):**
+5.  **Create data directory structure:**
+
+    The application stores all user data in the `data/` directory:
+    ```bash
+    mkdir -p data/db/backups data/policies data/examples
+    ```
+
+    **Directory structure:**
+    - `data/db/` - Database file and automatic backups
+    - `data/policies/` - Your optimization policy YAML files
+    - `data/examples/` - Example rules for reference (templates only)
+
+6.  **Initialize the database (SQLAlchemy only):**
     If using SQLAlchemy persistence, migrations **will run automatically on startup**.
 
     See [docs/ALEMBIC_MIGRATIONS.md](docs/ALEMBIC_MIGRATIONS.md) for detailed migration management.
@@ -89,6 +101,19 @@ The API will be available at `http://localhost:8001` (or the configured port). Y
 ## Run with Docker Compose
 
 You can run Edge Mining Core using `docker compose` in daemon mode using the provided `compose.yaml`.
+
+**Important:** The `data/` directory is mounted as a volume, ensuring your database, policies, and backups persist even when the container is removed.
+
+Before first run, create the data directory structure:
+```bash
+mkdir -p data/db/backups data/policies data/examples
+```
+
+You can:
+- Place your optimization policy YAML files in `data/policies/`
+- Find rule examples in `data/examples/start/` and `data/examples/stop/`
+- Access the database at `data/db/edgemining.db`
+- Find automatic backups in `data/db/backups/`
 
 ### 1. Build the image (first run or when `requirements.txt` changes)
 
