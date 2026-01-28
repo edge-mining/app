@@ -3,30 +3,23 @@
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Dict, Optional, Union, cast
+from typing import Dict, List, Optional, Union, cast
 
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
-# from edge_mining.adapters.domain.energy.schemas import EnergyMonitorSchema
-# from edge_mining.adapters.domain.forecast.schemas import ForecastProviderSchema
-# from edge_mining.adapters.domain.home_load.schemas import HomeForecastProviderSchema
-# from edge_mining.adapters.domain.miner.schemas import MinerControllerSchema
-# from edge_mining.adapters.domain.notification.schemas import NotifierSchema
+from edge_mining.adapters.domain.energy.schemas import EnergyMonitorSchema
+from edge_mining.adapters.domain.forecast.schemas import ForecastProviderSchema
+from edge_mining.adapters.domain.home_load.schemas import HomeForecastProviderSchema
+from edge_mining.adapters.domain.miner.schemas import MinerControllerSchema
+from edge_mining.adapters.domain.notification.schemas import NotifierSchema
 from edge_mining.domain.common import EntityId
-
-# from edge_mining.domain.energy.entities import EnergyMonitor
-# from edge_mining.domain.forecast.entities import ForecastProvider
-# from edge_mining.domain.home_load.entities import HomeForecastProvider
-# from edge_mining.domain.miner.entities import MinerController
-# from edge_mining.domain.notification.entities import Notifier
 from edge_mining.shared.adapter_configs.external_services import ExternalServiceHomeAssistantConfig
 from edge_mining.shared.adapter_maps.external_services import EXTERNAL_SERVICE_CONFIG_TYPE_MAP
 from edge_mining.shared.external_services.common import ExternalServiceAdapter
 from edge_mining.shared.external_services.entities import ExternalService
-
-# from edge_mining.shared.external_services.value_objects import (
-#     ExternalServiceLinkedEntities,
-# )
+from edge_mining.shared.external_services.value_objects import (
+    ExternalServiceLinkedEntities,
+)
 from edge_mining.shared.interfaces.config import ExternalServiceConfig
 
 
@@ -185,26 +178,41 @@ class ExternalServiceUpdateSchema(BaseModel):
         validate_assignment = True
 
 
-# class ExternalServiceLinkedEntitiesSchema(BaseModel):
-#     """Schema for ExternalServiceLinkedEntities value object."""
+class ExternalServiceLinkedEntitiesSchema(BaseModel):
+    """Schema for ExternalServiceLinkedEntities value object."""
 
-#     miner_controllers: List[MinerControllerSchema]
-#     energy_monitors: List[EnergyMonitorSchema]
-#     forecast_providers: List[ForecastProviderSchema]
-#     home_forecast_providers: List[HomeForecastProviderSchema]
-#     notifiers: List[NotifierSchema]
+    miner_controllers: List[MinerControllerSchema]
+    energy_monitors: List[EnergyMonitorSchema]
+    forecast_providers: List[ForecastProviderSchema]
+    home_forecast_providers: List[HomeForecastProviderSchema]
+    notifiers: List[NotifierSchema]
 
-#     def to_model(self) -> ExternalServiceLinkedEntities:
-#         """Convert schema to ExternalServiceLinkedEntities domain value object."""
-#         return ExternalServiceLinkedEntities(
-#             miner_controllers=[cast(MinerController, item.to_model()) for item in self.miner_controllers],
-#             energy_monitors=[cast(EnergyMonitor, item.to_model()) for item in self.energy_monitors],
-#             forecast_providers=[cast(ForecastProvider, item.to_model()) for item in self.forecast_providers],
-#             home_forecast_providers=[
-#                 cast(HomeForecastProvider, item.to_model()) for item in self.home_forecast_providers
-#             ],
-#             notifiers=[cast(Notifier, item.to_model()) for item in self.notifiers],
-#         )
+    @classmethod
+    def from_model(cls, linked_entities: ExternalServiceLinkedEntities) -> "ExternalServiceLinkedEntitiesSchema":
+        """Create ExternalServiceLinkedEntitiesSchema from ExternalServiceLinkedEntities value object."""
+        return cls(
+            miner_controllers=[
+                MinerControllerSchema.from_model(controller) for controller in linked_entities.miner_controllers
+            ],
+            energy_monitors=[EnergyMonitorSchema.from_model(monitor) for monitor in linked_entities.energy_monitors],
+            forecast_providers=[
+                ForecastProviderSchema.from_model(provider) for provider in linked_entities.forecast_providers
+            ],
+            home_forecast_providers=[
+                HomeForecastProviderSchema.from_model(provider) for provider in linked_entities.home_forecast_providers
+            ],
+            notifiers=[NotifierSchema.from_model(notifier) for notifier in linked_entities.notifiers],
+        )
+
+    def to_model(self) -> ExternalServiceLinkedEntities:
+        """Convert schema to ExternalServiceLinkedEntities domain value object."""
+        return ExternalServiceLinkedEntities(
+            miner_controllers=[item.to_model() for item in self.miner_controllers],
+            energy_monitors=[item.to_model() for item in self.energy_monitors],
+            forecast_providers=[item.to_model() for item in self.forecast_providers],
+            home_forecast_providers=[item.to_model() for item in self.home_forecast_providers],
+            notifiers=[item.to_model() for item in self.notifiers],
+        )
 
 
 class ExternalServiceHomeAssistantConfigSchema(BaseModel):
