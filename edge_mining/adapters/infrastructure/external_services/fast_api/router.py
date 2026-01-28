@@ -10,6 +10,7 @@ from edge_mining.adapters.infrastructure.api.setup import get_adapter_service, g
 from edge_mining.adapters.infrastructure.external_services.schemas import (
     EXTERNAL_SERVICE_CONFIG_SCHEMA_MAP,
     ExternalServiceCreateSchema,
+    ExternalServiceLinkedEntitiesSchema,
     ExternalServiceSchema,
     ExternalServiceStatusEnum,
     ExternalServiceStatusSchema,
@@ -229,6 +230,28 @@ async def get_external_service_status(
             last_check=datetime.now(),
             error_message=error_message,
         )
+    except ExternalServiceNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/external-services/{service_id}/linked-entities", response_model=ExternalServiceLinkedEntitiesSchema)
+async def get_external_service_linked_entities(
+    service_id: EntityId,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+) -> ExternalServiceLinkedEntitiesSchema:
+    """Get all entities linked to a specific external service"""
+    try:
+        external_service = config_service.get_external_service(service_id)
+        if external_service is None:
+            raise ExternalServiceNotFoundError(f"External service with id {service_id} not found")
+
+        linked_entities = config_service.get_entities_by_external_service(service_id)
+
+        return ExternalServiceLinkedEntitiesSchema.from_model(linked_entities)
     except ExternalServiceNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except ValueError as e:
