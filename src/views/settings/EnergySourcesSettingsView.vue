@@ -12,7 +12,9 @@ const energySourceStore = useEnergySourceStore();
 const energyMonitorStore = useEnergyMonitorStore();
 const forecastProviderStore = useForecastProviderStore();
 const newEnergySource = ref<EnergySource | undefined>(undefined);
-const editingEnergySource = ref<{ index: number; energySource: EnergySource } | undefined>(undefined);
+const editingEnergySource = ref<
+  { index: number; energySource: EnergySource } | undefined
+>(undefined);
 
 onMounted(() => {
   energySourceStore.loadEnergySources();
@@ -53,9 +55,14 @@ function handleEdit(energySource: EnergySource, index: number) {
 
 function confirmEdit() {
   if (editingEnergySource.value) {
-    const energySourceToUpdate = cleanEnergySource(editingEnergySource.value.energySource);
+    const energySourceToUpdate = cleanEnergySource(
+      editingEnergySource.value.energySource,
+    );
     energySourceStore
-      .updateEnergySource(editingEnergySource.value.energySource.id!.toString(), energySourceToUpdate)
+      .updateEnergySource(
+        editingEnergySource.value.energySource.id!.toString(),
+        energySourceToUpdate,
+      )
       .then(() => {
         energySourceStore.loadEnergySources();
         editingEnergySource.value = undefined;
@@ -111,7 +118,11 @@ function handleDelete(energySource: EnergySource) {
           />
         </template>
 
-        <EnergySourceRowEdit v-if="newEnergySource" v-model="newEnergySource" edit />
+        <EnergySourceRowEdit
+          v-if="newEnergySource"
+          v-model="newEnergySource"
+          edit
+        />
 
         <tr>
           <th colspan="7" class="text-center">
@@ -129,35 +140,17 @@ function handleDelete(energySource: EnergySource) {
               >
                 Cancel
               </button>
-              <button class="btn btn-primary" @click="confirmAdd">
-                OK
-              </button>
+              <button class="btn btn-primary" @click="confirmAdd">OK</button>
             </template>
             <template v-else-if="editingEnergySource">
               <button class="btn btn-secondary mr-4" @click="cancelEdit">
                 Cancel
               </button>
-              <button class="btn btn-primary" @click="confirmEdit">
-                Save
-              </button>
+              <button class="btn btn-primary" @click="confirmEdit">Save</button>
             </template>
           </th>
         </tr>
       </tbody>
-      <!-- foot -->
-      <tfoot>
-        <tr>
-          <th>Name</th>
-          <th>Type</th>
-          <th>Nominal Power Max</th>
-          <th>Storage Capacity</th>
-          <th>Grid Contracted Power</th>
-          <th>External Source</th>
-          <th>Energy Monitor</th>
-          <th>Forecast Provider</th>
-          <th>Actions</th>
-        </tr>
-      </tfoot>
     </table>
   </div>
 </template>

@@ -25,7 +25,9 @@ onMounted(() => {
   minerControllerStore.loadMinerControllers();
 });
 
-function cleanExternalService(externalService: ExternalService): ExternalService {
+function cleanExternalService(
+  externalService: ExternalService,
+): ExternalService {
   const cleaned = { ...externalService };
   // Remove empty config object if no properties
   if (cleaned.config && Object.keys(cleaned.config).length === 0) {
@@ -45,7 +47,10 @@ function addExternalService() {
 }
 
 function handleEdit(externalService: ExternalService) {
-  editingExternalService.value = { ...externalService, config: { ...externalService.config } };
+  editingExternalService.value = {
+    ...externalService,
+    config: { ...externalService.config },
+  };
   isEditing.value = true;
   showModal.value = true;
 }
@@ -69,9 +74,14 @@ function confirmAdd() {
 
 function confirmEdit() {
   if (!editingExternalService.value) return;
-  const externalServiceToUpdate = cleanExternalService(editingExternalService.value);
+  const externalServiceToUpdate = cleanExternalService(
+    editingExternalService.value,
+  );
   externalServiceStore
-    .updateExternalService(editingExternalService.value.id!.toString(), externalServiceToUpdate)
+    .updateExternalService(
+      editingExternalService.value.id!.toString(),
+      externalServiceToUpdate,
+    )
     .then(() => {
       externalServiceStore.loadExternalServices();
       editingExternalService.value = undefined;
@@ -81,9 +91,11 @@ function confirmEdit() {
 }
 
 function handleDelete(externalService: ExternalService) {
-  externalServiceStore.deleteExternalService(externalService.id!.toString()).then(() => {
-    externalServiceStore.loadExternalServices();
-  });
+  externalServiceStore
+    .deleteExternalService(externalService.id!.toString())
+    .then(() => {
+      externalServiceStore.loadExternalServices();
+    });
 }
 
 // Format adapter type for display
@@ -137,25 +149,17 @@ const formatAdapterType = (type: string) => {
           </th>
         </tr>
       </tbody>
-      <!-- foot -->
-      <tfoot>
-        <tr>
-          <th>Name</th>
-          <th>Adapter Type</th>
-          <th>Assigned Energy Monitors</th>
-          <th>Assigned Forecast Providers</th>
-          <th>Assigned Miner Controllers</th>
-          <th>Actions</th>
-        </tr>
-      </tfoot>
     </table>
   </div>
 
   <!-- Modal for adding/editing external service -->
   <dialog :class="['modal', { 'modal-open': showModal }]">
-    <div v-if="newExternalService || editingExternalService" class="modal-box max-w-2xl">
+    <div
+      v-if="newExternalService || editingExternalService"
+      class="modal-box max-w-2xl"
+    >
       <h3 class="font-bold text-lg mb-4">
-        {{ isEditing ? 'Edit External Service' : 'Add External Service' }}
+        {{ isEditing ? "Edit External Service" : "Add External Service" }}
       </h3>
 
       <form
@@ -167,7 +171,9 @@ const formatAdapterType = (type: string) => {
           <div class="space-y-1">
             <div class="font-medium">
               Name
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+              <span class="text-sm text-error opacity-60 ml-1 font-normal"
+                >(required)</span
+              >
             </div>
             <input
               v-model="editingExternalService.name"
@@ -182,7 +188,9 @@ const formatAdapterType = (type: string) => {
           <div class="space-y-1">
             <div class="font-medium">
               Adapter Type
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+              <span class="text-sm text-error opacity-60 ml-1 font-normal"
+                >(required)</span
+              >
             </div>
             <select
               v-model="editingExternalService.adapter_type"
@@ -221,7 +229,9 @@ const formatAdapterType = (type: string) => {
           <div class="space-y-1">
             <div class="font-medium">
               Name
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+              <span class="text-sm text-error opacity-60 ml-1 font-normal"
+                >(required)</span
+              >
             </div>
             <input
               v-model="newExternalService.name"
@@ -236,7 +246,9 @@ const formatAdapterType = (type: string) => {
           <div class="space-y-1">
             <div class="font-medium">
               Adapter Type
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+              <span class="text-sm text-error opacity-60 ml-1 font-normal"
+                >(required)</span
+              >
             </div>
             <select
               v-model="newExternalService.adapter_type"
@@ -275,7 +287,7 @@ const formatAdapterType = (type: string) => {
             Cancel
           </button>
           <button type="submit" class="btn btn-primary">
-            {{ isEditing ? 'Save' : 'Add' }}
+            {{ isEditing ? "Save" : "Add" }}
           </button>
         </div>
       </form>

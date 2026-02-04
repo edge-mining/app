@@ -136,16 +136,6 @@ const formatAdapterType = (type: string) => {
           </th>
         </tr>
       </tbody>
-      <!-- foot -->
-      <tfoot>
-        <tr>
-          <th>Name</th>
-          <th>Controller Type</th>
-          <th>Assigned Miners</th>
-          <th>External Service</th>
-          <th>Actions</th>
-        </tr>
-      </tfoot>
     </table>
   </div>
 

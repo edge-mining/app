@@ -44,7 +44,7 @@ const updateNewExternalServices = async (adapterType: string) => {
     if (resp === null || resp === undefined) {
       required = false;
       compatibleAdapterTypes = [];
-    } else if (typeof resp === 'string') {
+    } else if (typeof resp === "string") {
       // a single adapter type is returned -> external service required and must match this adapter_type
       required = true;
       compatibleAdapterTypes = [resp];
@@ -56,15 +56,19 @@ const updateNewExternalServices = async (adapterType: string) => {
 
     newRequiresExternalService.value = required;
     if (compatibleAdapterTypes.length > 0) {
-      newCompatibleExternalServices.value = externalServiceStore.externalServices.filter((s: any) => compatibleAdapterTypes.includes(s.adapter_type));
+      newCompatibleExternalServices.value =
+        externalServiceStore.externalServices.filter((s: any) =>
+          compatibleAdapterTypes.includes(s.adapter_type),
+        );
     } else if (required) {
       // required but no specific adapter types -> allow all external services
-      newCompatibleExternalServices.value = externalServiceStore.externalServices;
+      newCompatibleExternalServices.value =
+        externalServiceStore.externalServices;
     } else {
       newCompatibleExternalServices.value = [];
     }
   } catch (err) {
-    console.error('Failed to get external services info for adapter:', err);
+    console.error("Failed to get external services info for adapter:", err);
     newRequiresExternalService.value = false;
     newCompatibleExternalServices.value = [];
   }
@@ -86,7 +90,7 @@ const updateEditingExternalServices = async (adapterType: string) => {
     if (resp === null || resp === undefined) {
       required = false;
       compatibleAdapterTypes = [];
-    } else if (typeof resp === 'string') {
+    } else if (typeof resp === "string") {
       required = true;
       compatibleAdapterTypes = [resp];
     } else {
@@ -96,14 +100,18 @@ const updateEditingExternalServices = async (adapterType: string) => {
 
     editingRequiresExternalService.value = required;
     if (compatibleAdapterTypes.length > 0) {
-      editingCompatibleExternalServices.value = externalServiceStore.externalServices.filter((s: any) => compatibleAdapterTypes.includes(s.adapter_type));
+      editingCompatibleExternalServices.value =
+        externalServiceStore.externalServices.filter((s: any) =>
+          compatibleAdapterTypes.includes(s.adapter_type),
+        );
     } else if (required) {
-      editingCompatibleExternalServices.value = externalServiceStore.externalServices;
+      editingCompatibleExternalServices.value =
+        externalServiceStore.externalServices;
     } else {
       editingCompatibleExternalServices.value = [];
     }
   } catch (err) {
-    console.error('Failed to get external services info for adapter:', err);
+    console.error("Failed to get external services info for adapter:", err);
     editingRequiresExternalService.value = false;
     editingCompatibleExternalServices.value = [];
   }
@@ -114,17 +122,19 @@ watch(
   () => newForecastProvider.value?.adapter_type,
   (val) => {
     if (val) updateNewExternalServices(val);
-  }
+  },
 );
 
 watch(
   () => editingForecastProvider.value?.adapter_type,
   (val) => {
     if (val) updateEditingExternalServices(val);
-  }
+  },
 );
 
-function cleanForecastProvider(forecastProvider: ForecastProvider): ForecastProvider {
+function cleanForecastProvider(
+  forecastProvider: ForecastProvider,
+): ForecastProvider {
   const cleaned = { ...forecastProvider };
   // Remove empty string values for external_service_id
   if (cleaned.external_service_id === "") {
@@ -167,7 +177,9 @@ function cancelAdd() {
 
 function confirmAdd() {
   if (!newForecastProvider.value) return;
-  const forecastProviderToAdd = cleanForecastProvider(newForecastProvider.value);
+  const forecastProviderToAdd = cleanForecastProvider(
+    newForecastProvider.value,
+  );
   forecastProviderStore.addForecastProvider(forecastProviderToAdd).then(() => {
     forecastProviderStore.loadForecastProviders();
     newForecastProvider.value = undefined;
@@ -177,9 +189,14 @@ function confirmAdd() {
 
 function confirmEdit() {
   if (!editingForecastProvider.value) return;
-  const forecastProviderToUpdate = cleanForecastProvider(editingForecastProvider.value);
+  const forecastProviderToUpdate = cleanForecastProvider(
+    editingForecastProvider.value,
+  );
   forecastProviderStore
-    .updateForecastProvider(editingForecastProvider.value.id!.toString(), forecastProviderToUpdate)
+    .updateForecastProvider(
+      editingForecastProvider.value.id!.toString(),
+      forecastProviderToUpdate,
+    )
     .then(() => {
       forecastProviderStore.loadForecastProviders();
       editingForecastProvider.value = undefined;
@@ -189,9 +206,11 @@ function confirmEdit() {
 }
 
 function handleDelete(forecastProvider: ForecastProvider) {
-  forecastProviderStore.deleteForecastProvider(forecastProvider.id!.toString()).then(() => {
-    forecastProviderStore.loadForecastProviders();
-  });
+  forecastProviderStore
+    .deleteForecastProvider(forecastProvider.id!.toString())
+    .then(() => {
+      forecastProviderStore.loadForecastProviders();
+    });
 }
 
 // Format adapter type for display
@@ -220,7 +239,10 @@ const formatAdapterType = (type: string) => {
       </thead>
       <tbody>
         <ForecastProviderRow
-          v-for="(forecastProvider, i) in forecastProviderStore.forecastProviders" :key="forecastProvider.id"
+          v-for="(
+            forecastProvider, i
+          ) in forecastProviderStore.forecastProviders"
+          :key="forecastProvider.id"
           v-model="forecastProviderStore.forecastProviders[i]"
           :all-energy-sources="energySourceStore.energySources"
           @edit="handleEdit"
@@ -241,24 +263,17 @@ const formatAdapterType = (type: string) => {
           </th>
         </tr>
       </tbody>
-      <!-- foot -->
-      <tfoot>
-        <tr>
-          <th>Name</th>
-          <th>Adapter Type</th>
-          <th>Assigned Energy Source</th>
-          <th>External Service</th>
-          <th>Actions</th>
-        </tr>
-      </tfoot>
     </table>
   </div>
 
   <!-- Modal for adding/editing forecast provider -->
   <dialog :class="['modal', { 'modal-open': showModal }]">
-    <div v-if="newForecastProvider || editingForecastProvider" class="modal-box max-w-2xl">
+    <div
+      v-if="newForecastProvider || editingForecastProvider"
+      class="modal-box max-w-2xl"
+    >
       <h3 class="font-bold text-lg mb-4">
-        {{ isEditing ? 'Edit Forecast Provider' : 'Add Forecast Provider' }}
+        {{ isEditing ? "Edit Forecast Provider" : "Add Forecast Provider" }}
       </h3>
 
       <form
@@ -270,7 +285,9 @@ const formatAdapterType = (type: string) => {
           <div class="space-y-1">
             <div class="font-medium">
               Name
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+              <span class="text-sm text-error opacity-60 ml-1 font-normal"
+                >(required)</span
+              >
             </div>
             <input
               v-model="editingForecastProvider.name"
@@ -285,7 +302,9 @@ const formatAdapterType = (type: string) => {
           <div class="space-y-1">
             <div class="font-medium">
               Adapter Type
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+              <span class="text-sm text-error opacity-60 ml-1 font-normal"
+                >(required)</span
+              >
             </div>
             <select
               v-model="editingForecastProvider.adapter_type"
@@ -310,14 +329,19 @@ const formatAdapterType = (type: string) => {
           <div v-if="editingRequiresExternalService" class="space-y-1">
             <div class="font-medium">
               External Service
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required by this adapter)</span>
+              <span class="text-sm text-error opacity-60 ml-1 font-normal"
+                >(required by this adapter)</span
+              >
             </div>
             <select
               v-model="editingForecastProvider.external_service_id"
               class="select select-bordered select-sm w-full"
             >
               <option value="">-- None --</option>
-              <option v-if="editingCompatibleExternalServices.length === 0" disabled>
+              <option
+                v-if="editingCompatibleExternalServices.length === 0"
+                disabled
+              >
                 No compatible external services available
               </option>
               <option
@@ -328,7 +352,9 @@ const formatAdapterType = (type: string) => {
                 {{ svc.name }}
               </option>
             </select>
-            <div class="text-sm italic opacity-70">Select an external service</div>
+            <div class="text-sm italic opacity-70">
+              Select an external service
+            </div>
           </div>
 
           <!-- Dynamic Config Form -->
@@ -349,7 +375,9 @@ const formatAdapterType = (type: string) => {
           <div class="space-y-1">
             <div class="font-medium">
               Name
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+              <span class="text-sm text-error opacity-60 ml-1 font-normal"
+                >(required)</span
+              >
             </div>
             <input
               v-model="newForecastProvider.name"
@@ -364,7 +392,9 @@ const formatAdapterType = (type: string) => {
           <div class="space-y-1">
             <div class="font-medium">
               Adapter Type
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+              <span class="text-sm text-error opacity-60 ml-1 font-normal"
+                >(required)</span
+              >
             </div>
             <select
               v-model="newForecastProvider.adapter_type"
@@ -388,14 +418,19 @@ const formatAdapterType = (type: string) => {
           <div v-if="newRequiresExternalService" class="space-y-1">
             <div class="font-medium">
               External Service
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required by this adapter)</span>
+              <span class="text-sm text-error opacity-60 ml-1 font-normal"
+                >(required by this adapter)</span
+              >
             </div>
             <select
               v-model="newForecastProvider.external_service_id"
               class="select select-bordered select-sm w-full"
             >
               <option value="">-- None --</option>
-              <option v-if="newCompatibleExternalServices.length === 0" disabled>
+              <option
+                v-if="newCompatibleExternalServices.length === 0"
+                disabled
+              >
                 No compatible external services available
               </option>
               <option
@@ -406,7 +441,9 @@ const formatAdapterType = (type: string) => {
                 {{ svc.name }}
               </option>
             </select>
-            <div class="text-sm italic opacity-70">Select an external service</div>
+            <div class="text-sm italic opacity-70">
+              Select an external service
+            </div>
           </div>
 
           <!-- Dynamic Config Form -->
@@ -428,7 +465,7 @@ const formatAdapterType = (type: string) => {
             Cancel
           </button>
           <button type="submit" class="btn btn-primary">
-            {{ isEditing ? 'Save' : 'Add' }}
+            {{ isEditing ? "Save" : "Add" }}
           </button>
         </div>
       </form>

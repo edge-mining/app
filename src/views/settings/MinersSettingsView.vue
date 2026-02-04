@@ -9,15 +9,20 @@ import MinerRowEdit from "../../components/miners/MinerRowEdit.vue";
 const minerStore = useMinerStore();
 const minerControllerStore = useMinerControllerStore();
 const newMiner = ref<Miner | undefined>(undefined);
-const editingMiner = ref<{ index: number; miner: Miner } | undefined>(undefined);
+const editingMiner = ref<{ index: number; miner: Miner } | undefined>(
+  undefined,
+);
 let statusInterval: number | undefined;
 
 async function refreshMinersStatus() {
-  const activeMiners = minerStore.miners.filter(miner => miner.id != null && miner.active);
+  const activeMiners = minerStore.miners.filter(
+    (miner) => miner.id != null && miner.active,
+  );
   if (activeMiners.length > 0) {
-    const statusPromises = activeMiners
-      .map(miner => minerStore.getMinerStatus(miner.id!.toString()));
-    
+    const statusPromises = activeMiners.map((miner) =>
+      minerStore.getMinerStatus(miner.id!.toString()),
+    );
+
     await Promise.all(statusPromises);
   }
 }
@@ -25,10 +30,10 @@ async function refreshMinersStatus() {
 onMounted(async () => {
   await minerStore.loadMiners();
   minerControllerStore.loadMinerControllers();
-  
+
   // Refresh status for all miners on mount
   await refreshMinersStatus();
-  
+
   // Set up interval to refresh status every 5 seconds
   statusInterval = window.setInterval(() => {
     refreshMinersStatus();
@@ -66,7 +71,10 @@ function handleEdit(miner: Miner, index: number) {
 function confirmEdit() {
   if (editingMiner.value) {
     minerStore
-      .updateMiner(editingMiner.value.miner.id!.toString(), editingMiner.value.miner)
+      .updateMiner(
+        editingMiner.value.miner.id!.toString(),
+        editingMiner.value.miner,
+      )
       .then(() => {
         minerStore.loadMiners();
         editingMiner.value = undefined;
@@ -150,7 +158,12 @@ function handleRefresh(miner: Miner) {
           />
         </template>
 
-        <MinerRowEdit v-if="newMiner" v-model="newMiner" :all-miners="minerStore.miners" edit />
+        <MinerRowEdit
+          v-if="newMiner"
+          v-model="newMiner"
+          :all-miners="minerStore.miners"
+          edit
+        />
 
         <tr>
           <th colspan="7" class="text-center">
@@ -162,36 +175,23 @@ function handleRefresh(miner: Miner) {
               Add Miner
             </button>
             <template v-else-if="newMiner">
-              <button class="btn btn-secondary mr-4" @click="newMiner = undefined">
+              <button
+                class="btn btn-secondary mr-4"
+                @click="newMiner = undefined"
+              >
                 Cancel
               </button>
-              <button class="btn btn-primary" @click="confirmAdd">
-                OK
-              </button>
+              <button class="btn btn-primary" @click="confirmAdd">OK</button>
             </template>
             <template v-else-if="editingMiner">
               <button class="btn btn-secondary mr-4" @click="cancelEdit">
                 Cancel
               </button>
-              <button class="btn btn-primary" @click="confirmEdit">
-                Save
-              </button>
+              <button class="btn btn-primary" @click="confirmEdit">Save</button>
             </template>
           </th>
         </tr>
       </tbody>
-      <!-- foot -->
-      <tfoot>
-        <tr>
-          <th>Name</th>
-          <th>Model</th>
-          <th>Status</th>
-          <th>Hash Rate (Max)</th>
-          <th>Power Consumption (Max)</th>
-          <th>Miner Controller</th>
-          <th>Actions</th>
-        </tr>
-      </tfoot>
     </table>
   </div>
 </template>

@@ -47,7 +47,7 @@ const updateNewExternalServices = async (adapterType: string) => {
     if (resp === null || resp === undefined) {
       required = false;
       compatibleAdapterTypes = [];
-    } else if (typeof resp === 'string') {
+    } else if (typeof resp === "string") {
       // a single adapter type is returned -> external service required and must match this adapter_type
       required = true;
       compatibleAdapterTypes = [resp];
@@ -58,7 +58,10 @@ const updateNewExternalServices = async (adapterType: string) => {
     }
 
     newRequiresExternalService.value = required;
-    newCompatibleExternalServices.value = externalServiceStore.externalServices.filter(s => compatibleAdapterTypes.includes(s.adapter_type));
+    newCompatibleExternalServices.value =
+      externalServiceStore.externalServices.filter((s) =>
+        compatibleAdapterTypes.includes(s.adapter_type),
+      );
   } catch (err) {
     console.error("Failed to load compatible external services:", err);
   }
@@ -80,7 +83,7 @@ const updateEditingExternalServices = async (adapterType: string) => {
     if (resp === null || resp === undefined) {
       required = false;
       compatibleAdapterTypes = [];
-    } else if (typeof resp === 'string') {
+    } else if (typeof resp === "string") {
       // a single adapter type is returned -> external service required and must match this adapter_type
       required = true;
       compatibleAdapterTypes = [resp];
@@ -91,7 +94,10 @@ const updateEditingExternalServices = async (adapterType: string) => {
     }
 
     editingRequiresExternalService.value = required;
-    editingCompatibleExternalServices.value = externalServiceStore.externalServices.filter(s => compatibleAdapterTypes.includes(s.adapter_type));
+    editingCompatibleExternalServices.value =
+      externalServiceStore.externalServices.filter((s) =>
+        compatibleAdapterTypes.includes(s.adapter_type),
+      );
   } catch (err) {
     console.error("Failed to load compatible external services:", err);
   }
@@ -104,7 +110,7 @@ watch(
     if (newAdapterType) {
       updateNewExternalServices(newAdapterType);
     }
-  }
+  },
 );
 
 watch(
@@ -113,7 +119,7 @@ watch(
     if (newAdapterType) {
       updateEditingExternalServices(newAdapterType);
     }
-  }
+  },
 );
 
 function cleanNotifier(notifier: Notifier): Notifier {
@@ -141,7 +147,11 @@ function addNotifier() {
 }
 
 function handleEdit(notifier: Notifier) {
-  editingNotifier.value = { ...notifier, config: { ...notifier.config }, external_service_id: notifier.external_service_id || "" };
+  editingNotifier.value = {
+    ...notifier,
+    config: { ...notifier.config },
+    external_service_id: notifier.external_service_id || "",
+  };
   isEditing.value = true;
   showModal.value = true;
   // update compatible external services for this adapter type
@@ -192,16 +202,19 @@ function handleTest(notifier: Notifier) {
   testResult.value = null;
   showTestModal.value = true;
 
-  notifierStore.testNotifier(notifier.id!.toString()).then((result) => {
-    testResult.value = result;
-    testLoading.value = false;
-  }).catch((error) => {
-    testResult.value = {
-      status: "failed",
-      message: error.message || "Test failed",
-    };
-    testLoading.value = false;
-  });
+  notifierStore
+    .testNotifier(notifier.id!.toString())
+    .then((result) => {
+      testResult.value = result;
+      testLoading.value = false;
+    })
+    .catch((error) => {
+      testResult.value = {
+        status: "failed",
+        message: error.message || "Test failed",
+      };
+      testLoading.value = false;
+    });
 }
 
 function closeTestModal() {
@@ -256,15 +269,6 @@ const formatAdapterType = (type: string) => {
           </th>
         </tr>
       </tbody>
-      <!-- foot -->
-      <tfoot>
-        <tr>
-          <th>Name</th>
-          <th>Adapter Type</th>
-          <th>External Service</th>
-          <th>Actions</th>
-        </tr>
-      </tfoot>
     </table>
   </div>
 
@@ -272,7 +276,7 @@ const formatAdapterType = (type: string) => {
   <dialog :class="['modal', { 'modal-open': showModal }]">
     <div v-if="newNotifier || editingNotifier" class="modal-box max-w-2xl">
       <h3 class="font-bold text-lg mb-4">
-        {{ isEditing ? 'Edit Notifier' : 'Add Notifier' }}
+        {{ isEditing ? "Edit Notifier" : "Add Notifier" }}
       </h3>
 
       <form
@@ -284,7 +288,9 @@ const formatAdapterType = (type: string) => {
           <div class="space-y-1">
             <div class="font-medium">
               Name
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+              <span class="text-sm text-error opacity-60 ml-1 font-normal"
+                >(required)</span
+              >
             </div>
             <input
               v-model="editingNotifier.name"
@@ -299,7 +305,9 @@ const formatAdapterType = (type: string) => {
           <div class="space-y-1">
             <div class="font-medium">
               Adapter Type
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+              <span class="text-sm text-error opacity-60 ml-1 font-normal"
+                >(required)</span
+              >
             </div>
             <select
               v-model="editingNotifier.adapter_type"
@@ -324,7 +332,9 @@ const formatAdapterType = (type: string) => {
           <div v-if="editingRequiresExternalService" class="space-y-1">
             <div class="font-medium">
               External Service
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+              <span class="text-sm text-error opacity-60 ml-1 font-normal"
+                >(required)</span
+              >
             </div>
             <select
               v-model="editingNotifier.external_service_id"
@@ -363,7 +373,9 @@ const formatAdapterType = (type: string) => {
           <div class="space-y-1">
             <div class="font-medium">
               Name
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+              <span class="text-sm text-error opacity-60 ml-1 font-normal"
+                >(required)</span
+              >
             </div>
             <input
               v-model="newNotifier.name"
@@ -378,7 +390,9 @@ const formatAdapterType = (type: string) => {
           <div class="space-y-1">
             <div class="font-medium">
               Adapter Type
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+              <span class="text-sm text-error opacity-60 ml-1 font-normal"
+                >(required)</span
+              >
             </div>
             <select
               v-model="newNotifier.adapter_type"
@@ -402,7 +416,9 @@ const formatAdapterType = (type: string) => {
           <div v-if="newRequiresExternalService" class="space-y-1">
             <div class="font-medium">
               External Service
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+              <span class="text-sm text-error opacity-60 ml-1 font-normal"
+                >(required)</span
+              >
             </div>
             <select
               v-model="newNotifier.external_service_id"
@@ -442,7 +458,7 @@ const formatAdapterType = (type: string) => {
             Cancel
           </button>
           <button type="submit" class="btn btn-primary">
-            {{ isEditing ? 'Save' : 'Add' }}
+            {{ isEditing ? "Save" : "Add" }}
           </button>
         </div>
       </form>
@@ -465,7 +481,12 @@ const formatAdapterType = (type: string) => {
       </div>
 
       <div v-else-if="testResult" class="flex flex-col gap-4">
-        <div class="alert" :class="testResult.status === 'success' ? 'alert-success' : 'alert-error'">
+        <div
+          class="alert"
+          :class="
+            testResult.status === 'success' ? 'alert-success' : 'alert-error'
+          "
+        >
           <span>{{ testResult.status }}</span>
         </div>
 
@@ -475,9 +496,7 @@ const formatAdapterType = (type: string) => {
       </div>
 
       <div class="modal-action">
-        <button class="btn btn-primary" @click="closeTestModal">
-          Close
-        </button>
+        <button class="btn btn-primary" @click="closeTestModal">Close</button>
       </div>
     </div>
     <form method="dialog" class="modal-backdrop">

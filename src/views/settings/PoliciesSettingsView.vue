@@ -4,8 +4,21 @@ import { usePolicyStore } from "../../core/stores/policyStore";
 import PolicyRow from "../../components/policies/PolicyRow.vue";
 import PolicyRuleRow from "../../components/policies/PolicyRuleRow.vue";
 import RuleConditionBuilder from "../../components/policies/RuleConditionBuilder.vue";
-import type { OptimizationPolicy, AutomationRule, PolicyCheckResult, RuleType } from "../../core/models/policy";
-import { PhPlay, PhStop, PhWarning, PhArrowCounterClockwise, PhCopy, PhMagnifyingGlass, PhX } from "@phosphor-icons/vue";
+import type {
+  OptimizationPolicy,
+  AutomationRule,
+  PolicyCheckResult,
+  RuleType,
+} from "../../core/models/policy";
+import {
+  PhPlay,
+  PhStop,
+  PhWarning,
+  PhArrowCounterClockwise,
+  PhCopy,
+  PhMagnifyingGlass,
+  PhX,
+} from "@phosphor-icons/vue";
 
 const policyStore = usePolicyStore();
 
@@ -22,14 +35,14 @@ const editingRule = ref<AutomationRule | undefined>(undefined);
 const showRulesModal = ref(false);
 const showRuleEditModal = ref(false);
 const isEditingRule = ref(false);
-const activeRuleTab = ref<RuleType>('start');
-const currentRuleType = ref<RuleType>('start');
+const activeRuleTab = ref<RuleType>("start");
+const currentRuleType = ref<RuleType>("start");
 
 // Copy From modal state
 const showCopyFromModal = ref(false);
-const copyTargetRule = ref<'new' | 'editing'>('new');
+const copyTargetRule = ref<"new" | "editing">("new");
 const copyOnlyConditions = ref(false);
-const copyFromSearchQuery = ref('');
+const copyFromSearchQuery = ref("");
 
 // Check result modal state
 const showCheckModal = ref(false);
@@ -41,8 +54,12 @@ const ruleDeleteError = ref("");
 const ruleAddSaveError = ref("");
 
 // Reference to RuleConditionBuilder components
-const editingRuleConditionBuilder = ref<InstanceType<typeof RuleConditionBuilder> | null>(null);
-const newRuleConditionBuilder = ref<InstanceType<typeof RuleConditionBuilder> | null>(null);
+const editingRuleConditionBuilder = ref<InstanceType<
+  typeof RuleConditionBuilder
+> | null>(null);
+const newRuleConditionBuilder = ref<InstanceType<
+  typeof RuleConditionBuilder
+> | null>(null);
 
 // Track original conditions for rules (to detect unsaved changes)
 const originalEditingRuleConditions = ref<any>(null);
@@ -51,12 +68,18 @@ const originalNewRuleConditions = ref<any>(null);
 // Computed to check if conditions changed from original
 const editingRuleHasUnsavedConditions = computed(() => {
   if (!editingRule.value || !originalEditingRuleConditions.value) return false;
-  return JSON.stringify(editingRule.value.conditions) !== JSON.stringify(originalEditingRuleConditions.value);
+  return (
+    JSON.stringify(editingRule.value.conditions) !==
+    JSON.stringify(originalEditingRuleConditions.value)
+  );
 });
 
 const newRuleHasUnsavedConditions = computed(() => {
   if (!newRule.value || !originalNewRuleConditions.value) return false;
-  return JSON.stringify(newRule.value.conditions) !== JSON.stringify(originalNewRuleConditions.value);
+  return (
+    JSON.stringify(newRule.value.conditions) !==
+    JSON.stringify(originalNewRuleConditions.value)
+  );
 });
 
 onMounted(() => {
@@ -75,22 +98,22 @@ function addPolicy() {
       author: undefined,
       version: undefined,
       created: undefined,
-      last_modified: undefined
-    }
+      last_modified: undefined,
+    },
   };
   isEditingPolicy.value = false;
   showPolicyModal.value = true;
 }
 
 function handleEditPolicy(policy: OptimizationPolicy) {
-  editingPolicy.value = { 
+  editingPolicy.value = {
     ...policy,
     metadata: policy.metadata || {
       author: undefined,
       version: undefined,
       created: undefined,
-      last_modified: undefined
-    }
+      last_modified: undefined,
+    },
   };
   isEditingPolicy.value = true;
   showPolicyModal.value = true;
@@ -167,10 +190,11 @@ function addRule() {
     description: "",
     priority: 10,
     enabled: true,
-    conditions: {
-    },
+    conditions: {},
   };
-  originalNewRuleConditions.value = JSON.parse(JSON.stringify(newRule.value.conditions));
+  originalNewRuleConditions.value = JSON.parse(
+    JSON.stringify(newRule.value.conditions),
+  );
   isEditingRule.value = false;
   showRuleEditModal.value = true;
 }
@@ -179,7 +203,9 @@ function handleEditRule(rule: AutomationRule, ruleType: RuleType) {
   currentRuleType.value = ruleType;
   ruleAddSaveError.value = "";
   editingRule.value = { ...rule };
-  originalEditingRuleConditions.value = JSON.parse(JSON.stringify(rule.conditions));
+  originalEditingRuleConditions.value = JSON.parse(
+    JSON.stringify(rule.conditions),
+  );
   isEditingRule.value = true;
   showRuleEditModal.value = true;
 }
@@ -198,19 +224,26 @@ function cancelRuleModal() {
 function confirmAddRule() {
   if (!newRule.value || !selectedPolicy.value) return;
   ruleDeleteError.value = "";
-  policyStore.addRule(selectedPolicy.value.id!.toString(), currentRuleType.value, newRule.value)
+  policyStore
+    .addRule(
+      selectedPolicy.value.id!.toString(),
+      currentRuleType.value,
+      newRule.value,
+    )
     .then(() => {
       // Reload the policy to get updated rules
-      policyStore.loadPolicy(selectedPolicy.value!.id!.toString()).then((updatedPolicy) => {
-        selectedPolicy.value = updatedPolicy;
-      });
+      policyStore
+        .loadPolicy(selectedPolicy.value!.id!.toString())
+        .then((updatedPolicy) => {
+          selectedPolicy.value = updatedPolicy;
+        });
       policyStore.loadPolicies();
       newRule.value = undefined;
       originalNewRuleConditions.value = null;
       showRuleEditModal.value = false;
     })
     .catch((error) => {
-      let errorMsg = 'Unknown error';
+      let errorMsg = "Unknown error";
       if (error.response?.data?.detail) {
         const detail = error.response.data.detail;
         errorMsg = Array.isArray(detail) ? detail[0]?.msg : detail;
@@ -228,12 +261,14 @@ function confirmEditRule() {
     .updateRule(
       selectedPolicy.value.id!.toString(),
       editingRule.value.id!.toString(),
-      editingRule.value
+      editingRule.value,
     )
     .then(() => {
-      policyStore.loadPolicy(selectedPolicy.value!.id!.toString()).then((updatedPolicy) => {
-        selectedPolicy.value = updatedPolicy;
-      });
+      policyStore
+        .loadPolicy(selectedPolicy.value!.id!.toString())
+        .then((updatedPolicy) => {
+          selectedPolicy.value = updatedPolicy;
+        });
       policyStore.loadPolicies();
       editingRule.value = undefined;
       originalEditingRuleConditions.value = null;
@@ -241,7 +276,7 @@ function confirmEditRule() {
       showRuleEditModal.value = false;
     })
     .catch((error) => {
-      let errorMsg = 'Unknown error';
+      let errorMsg = "Unknown error";
       if (error.response?.data?.detail) {
         const detail = error.response.data.detail;
         errorMsg = Array.isArray(detail) ? detail[0]?.msg : detail;
@@ -257,13 +292,15 @@ function handleDeleteRule(rule: AutomationRule) {
   policyStore
     .deleteRule(selectedPolicy.value.id!.toString(), rule.id!.toString())
     .then(() => {
-      policyStore.loadPolicy(selectedPolicy.value!.id!.toString()).then((updatedPolicy) => {
-        selectedPolicy.value = updatedPolicy;
-      });
+      policyStore
+        .loadPolicy(selectedPolicy.value!.id!.toString())
+        .then((updatedPolicy) => {
+          selectedPolicy.value = updatedPolicy;
+        });
       policyStore.loadPolicies();
     })
     .catch((error) => {
-      let errorMsg = 'Unknown error';
+      let errorMsg = "Unknown error";
       if (error.response?.data?.detail) {
         const detail = error.response.data.detail;
         errorMsg = Array.isArray(detail) ? detail[0]?.msg : detail;
@@ -277,14 +314,18 @@ function handleDeleteRule(rule: AutomationRule) {
 // Restore original conditions for editing rule
 function restoreEditingRuleConditions() {
   if (editingRule.value && originalEditingRuleConditions.value) {
-    editingRule.value.conditions = JSON.parse(JSON.stringify(originalEditingRuleConditions.value));
+    editingRule.value.conditions = JSON.parse(
+      JSON.stringify(originalEditingRuleConditions.value),
+    );
   }
 }
 
 // Restore original conditions for new rule
 function restoreNewRuleConditions() {
   if (newRule.value && originalNewRuleConditions.value) {
-    newRule.value.conditions = JSON.parse(JSON.stringify(originalNewRuleConditions.value));
+    newRule.value.conditions = JSON.parse(
+      JSON.stringify(originalNewRuleConditions.value),
+    );
   }
 }
 
@@ -306,7 +347,7 @@ function handleToggleRuleEnabled(rule: AutomationRule) {
 }
 
 // Copy From functionality
-function openCopyFromModal(target: 'new' | 'editing') {
+function openCopyFromModal(target: "new" | "editing") {
   copyTargetRule.value = target;
   copyOnlyConditions.value = false;
   showCopyFromModal.value = true;
@@ -315,12 +356,17 @@ function openCopyFromModal(target: 'new' | 'editing') {
 function closeCopyFromModal() {
   showCopyFromModal.value = false;
   copyOnlyConditions.value = false;
-  copyFromSearchQuery.value = '';
+  copyFromSearchQuery.value = "";
 }
 
-function copyFromRule(_sourcePolicy: OptimizationPolicy, sourceRule: AutomationRule, _ruleType: RuleType) {
-  const targetRule = copyTargetRule.value === 'new' ? newRule.value : editingRule.value;
-  
+function copyFromRule(
+  _sourcePolicy: OptimizationPolicy,
+  sourceRule: AutomationRule,
+  _ruleType: RuleType,
+) {
+  const targetRule =
+    copyTargetRule.value === "new" ? newRule.value : editingRule.value;
+
   if (!targetRule) return;
 
   if (copyOnlyConditions.value) {
@@ -333,15 +379,19 @@ function copyFromRule(_sourcePolicy: OptimizationPolicy, sourceRule: AutomationR
       ...sourceRule,
       id: targetId,
       // Deep clone conditions to avoid reference issues
-      conditions: JSON.parse(JSON.stringify(sourceRule.conditions))
+      conditions: JSON.parse(JSON.stringify(sourceRule.conditions)),
     });
   }
 
   // Update original conditions tracking
-  if (copyTargetRule.value === 'new') {
-    originalNewRuleConditions.value = JSON.parse(JSON.stringify(targetRule.conditions));
+  if (copyTargetRule.value === "new") {
+    originalNewRuleConditions.value = JSON.parse(
+      JSON.stringify(targetRule.conditions),
+    );
   } else {
-    originalEditingRuleConditions.value = JSON.parse(JSON.stringify(targetRule.conditions));
+    originalEditingRuleConditions.value = JSON.parse(
+      JSON.stringify(targetRule.conditions),
+    );
   }
 
   closeCopyFromModal();
@@ -349,31 +399,35 @@ function copyFromRule(_sourcePolicy: OptimizationPolicy, sourceRule: AutomationR
 
 // Get all available rules from all policies for copy from modal
 const allAvailableRules = computed(() => {
-  const rules: Array<{ policy: OptimizationPolicy; rule: AutomationRule; type: RuleType }> = [];
-  
-  policyStore.policies.forEach(policy => {
-    policy.start_rules?.forEach(rule => {
-      rules.push({ policy, rule, type: 'start' });
+  const rules: Array<{
+    policy: OptimizationPolicy;
+    rule: AutomationRule;
+    type: RuleType;
+  }> = [];
+
+  policyStore.policies.forEach((policy) => {
+    policy.start_rules?.forEach((rule) => {
+      rules.push({ policy, rule, type: "start" });
     });
-    policy.stop_rules?.forEach(rule => {
-      rules.push({ policy, rule, type: 'stop' });
+    policy.stop_rules?.forEach((rule) => {
+      rules.push({ policy, rule, type: "stop" });
     });
   });
-  
+
   return rules;
 });
 
 // Filter rules based on search query
 const filteredAvailableRules = computed(() => {
   if (!copyFromSearchQuery.value) return allAvailableRules.value;
-  
+
   const query = copyFromSearchQuery.value.toLowerCase();
   return allAvailableRules.value.filter(({ policy, rule, type }) => {
     return (
       policy.name.toLowerCase().includes(query) ||
-      (policy.description?.toLowerCase() || '').includes(query) ||
+      (policy.description?.toLowerCase() || "").includes(query) ||
       rule.name.toLowerCase().includes(query) ||
-      (rule.description?.toLowerCase() || '').includes(query) ||
+      (rule.description?.toLowerCase() || "").includes(query) ||
       type.toLowerCase().includes(query)
     );
   });
@@ -414,16 +468,6 @@ const filteredAvailableRules = computed(() => {
           </th>
         </tr>
       </tbody>
-      <tfoot>
-        <tr>
-          <th>Name / Description</th>
-          <th>Author</th>
-          <th>Modified</th>
-          <th>Start Rules</th>
-          <th>Stop Rules</th>
-          <th>Actions</th>
-        </tr>
-      </tfoot>
     </table>
   </div>
 
@@ -431,11 +475,13 @@ const filteredAvailableRules = computed(() => {
   <dialog :class="['modal', { 'modal-open': showPolicyModal }]">
     <div v-if="newPolicy || editingPolicy" class="modal-box max-w-2xl">
       <h3 class="font-bold text-lg mb-4">
-        {{ isEditingPolicy ? 'Edit Policy' : 'Add Policy' }}
+        {{ isEditingPolicy ? "Edit Policy" : "Add Policy" }}
       </h3>
 
       <form
-        @submit.prevent="isEditingPolicy ? confirmEditPolicy() : confirmAddPolicy()"
+        @submit.prevent="
+          isEditingPolicy ? confirmEditPolicy() : confirmAddPolicy()
+        "
         class="flex flex-col gap-4"
       >
         <template v-if="isEditingPolicy && editingPolicy">
@@ -443,7 +489,9 @@ const filteredAvailableRules = computed(() => {
           <div class="space-y-1">
             <div class="font-medium">
               Name
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+              <span class="text-sm text-error opacity-60 ml-1 font-normal"
+                >(required)</span
+              >
             </div>
             <input
               v-model="editingPolicy.name"
@@ -470,22 +518,30 @@ const filteredAvailableRules = computed(() => {
           <div class="grid grid-cols-4 gap-4">
             <div class="space-y-1">
               <div class="font-medium">Author</div>
-              <div class="text-sm opacity-70">{{ editingPolicy.metadata?.author || '—' }}</div>
+              <div class="text-sm opacity-70">
+                {{ editingPolicy.metadata?.author || "—" }}
+              </div>
             </div>
 
             <div class="space-y-1">
               <div class="font-medium">Version</div>
-              <div class="text-sm opacity-70">{{ editingPolicy.metadata?.version || '—' }}</div>
+              <div class="text-sm opacity-70">
+                {{ editingPolicy.metadata?.version || "—" }}
+              </div>
             </div>
 
             <div class="space-y-1">
               <div class="font-medium">Created</div>
-              <div class="text-sm opacity-70">{{ editingPolicy.metadata?.created || '—' }}</div>
+              <div class="text-sm opacity-70">
+                {{ editingPolicy.metadata?.created || "—" }}
+              </div>
             </div>
 
             <div class="space-y-1">
               <div class="font-medium">Last Modified</div>
-              <div class="text-sm opacity-70">{{ editingPolicy.metadata?.last_modified || '—' }}</div>
+              <div class="text-sm opacity-70">
+                {{ editingPolicy.metadata?.last_modified || "—" }}
+              </div>
             </div>
           </div>
         </template>
@@ -494,7 +550,9 @@ const filteredAvailableRules = computed(() => {
           <div class="space-y-1">
             <div class="font-medium">
               Name
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+              <span class="text-sm text-error opacity-60 ml-1 font-normal"
+                >(required)</span
+              >
             </div>
             <input
               v-model="newPolicy.name"
@@ -517,11 +575,15 @@ const filteredAvailableRules = computed(() => {
         </template>
 
         <div class="modal-action">
-          <button type="button" class="btn btn-secondary" @click="cancelPolicyModal">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            @click="cancelPolicyModal"
+          >
             Cancel
           </button>
           <button type="submit" class="btn btn-primary">
-            {{ isEditingPolicy ? 'Save' : 'Add' }}
+            {{ isEditingPolicy ? "Save" : "Add" }}
           </button>
         </div>
       </form>
@@ -541,9 +603,9 @@ const filteredAvailableRules = computed(() => {
       <!-- Tabs for Start/Stop Rules -->
       <div class="tabs tabs-lifted justify-center">
         <label class="tab">
-          <input 
-            type="radio" 
-            name="rule_tabs" 
+          <input
+            type="radio"
+            name="rule_tabs"
             :checked="activeRuleTab === 'start'"
             @change="activeRuleTab = 'start'"
           />
@@ -562,7 +624,12 @@ const filteredAvailableRules = computed(() => {
                 </tr>
               </thead>
               <tbody>
-                <template v-if="selectedPolicy.start_rules && selectedPolicy.start_rules.length > 0">
+                <template
+                  v-if="
+                    selectedPolicy.start_rules &&
+                    selectedPolicy.start_rules.length > 0
+                  "
+                >
                   <PolicyRuleRow
                     v-for="(rule, i) in selectedPolicy.start_rules"
                     :key="rule.id"
@@ -583,8 +650,8 @@ const filteredAvailableRules = computed(() => {
         </div>
 
         <label class="tab">
-          <input 
-            type="radio" 
+          <input
+            type="radio"
             name="rule_tabs"
             :checked="activeRuleTab === 'stop'"
             @change="activeRuleTab = 'stop'"
@@ -604,7 +671,12 @@ const filteredAvailableRules = computed(() => {
                 </tr>
               </thead>
               <tbody>
-                <template v-if="selectedPolicy.stop_rules && selectedPolicy.stop_rules.length > 0">
+                <template
+                  v-if="
+                    selectedPolicy.stop_rules &&
+                    selectedPolicy.stop_rules.length > 0
+                  "
+                >
                   <PolicyRuleRow
                     v-for="(rule, i) in selectedPolicy.stop_rules"
                     :key="rule.id"
@@ -632,7 +704,7 @@ const filteredAvailableRules = computed(() => {
           </div>
         </div>
         <button class="btn btn-primary" @click="addRule">
-          Add {{ activeRuleTab === 'start' ? 'Start' : 'Stop' }} Rule
+          Add {{ activeRuleTab === "start" ? "Start" : "Stop" }} Rule
         </button>
         <button class="btn btn-secondary" @click="closeRulesModal">
           Close
@@ -649,10 +721,11 @@ const filteredAvailableRules = computed(() => {
     <div v-if="newRule || editingRule" class="modal-box max-w-5xl">
       <div class="flex justify-between items-center mb-4">
         <h3 class="font-bold text-lg">
-          {{ isEditingRule ? 'Edit' : 'Add' }} {{ currentRuleType === 'start' ? 'Start' : 'Stop' }} Rule
+          {{ isEditingRule ? "Edit" : "Add" }}
+          {{ currentRuleType === "start" ? "Start" : "Stop" }} Rule
         </h3>
-        <button 
-          type="button" 
+        <button
+          type="button"
           class="btn btn-sm btn-outline"
           @click="openCopyFromModal(isEditingRule ? 'editing' : 'new')"
           title="Copy from another rule"
@@ -670,7 +743,9 @@ const filteredAvailableRules = computed(() => {
           <div class="space-y-1">
             <div class="font-medium">
               Name
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+              <span class="text-sm text-error opacity-60 ml-1 font-normal"
+                >(required)</span
+              >
             </div>
             <input
               v-model="editingRule.name"
@@ -718,20 +793,26 @@ const filteredAvailableRules = computed(() => {
           </div>
 
           <div class="space-y-1">
-            <RuleConditionBuilder 
-              ref="editingRuleConditionBuilder" 
+            <RuleConditionBuilder
+              ref="editingRuleConditionBuilder"
               v-model="editingRule.conditions"
             />
           </div>
 
           <!-- Warning about unsaved conditions -->
-          <div v-if="editingRuleHasUnsavedConditions" class="alert alert-warning shadow-lg">
+          <div
+            v-if="editingRuleHasUnsavedConditions"
+            class="alert alert-warning shadow-lg"
+          >
             <PhWarning :size="24" />
             <div class="flex-1">
               <h3 class="font-bold">Unsaved Conditions</h3>
-              <div class="text-sm">Conditions have been modified but the rule has not been saved yet. Remember to save the rule to apply all changes.</div>
+              <div class="text-sm">
+                Conditions have been modified but the rule has not been saved
+                yet. Remember to save the rule to apply all changes.
+              </div>
             </div>
-            <button 
+            <button
               type="button"
               class="btn btn-sm btn-ghost"
               @click="restoreEditingRuleConditions()"
@@ -747,7 +828,9 @@ const filteredAvailableRules = computed(() => {
           <div class="space-y-1">
             <div class="font-medium">
               Name
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
+              <span class="text-sm text-error opacity-60 ml-1 font-normal"
+                >(required)</span
+              >
             </div>
             <input
               v-model="newRule.name"
@@ -796,20 +879,26 @@ const filteredAvailableRules = computed(() => {
 
           <div class="space-y-1">
             <div class="font-medium mb-2">Conditions</div>
-            <RuleConditionBuilder 
-              ref="newRuleConditionBuilder" 
+            <RuleConditionBuilder
+              ref="newRuleConditionBuilder"
               v-model="newRule.conditions"
             />
           </div>
 
           <!-- Warning about unsaved conditions -->
-          <div v-if="newRuleHasUnsavedConditions" class="alert alert-warning shadow-lg">
+          <div
+            v-if="newRuleHasUnsavedConditions"
+            class="alert alert-warning shadow-lg"
+          >
             <PhWarning :size="24" />
             <div class="flex-1">
               <h3 class="font-bold">Unsaved Conditions</h3>
-              <div class="text-sm">Conditions have been modified but the rule has not been saved yet. Remember to save the rule to apply all changes.</div>
+              <div class="text-sm">
+                Conditions have been modified but the rule has not been saved
+                yet. Remember to save the rule to apply all changes.
+              </div>
             </div>
-            <button 
+            <button
               type="button"
               class="btn btn-sm btn-ghost"
               @click="restoreNewRuleConditions()"
@@ -827,11 +916,15 @@ const filteredAvailableRules = computed(() => {
               <span class="font-semibold">Error:</span> {{ ruleAddSaveError }}
             </div>
           </div>
-          <button type="button" class="btn btn-secondary" @click="cancelRuleModal">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            @click="cancelRuleModal"
+          >
             Cancel
           </button>
           <button type="submit" class="btn btn-primary">
-            {{ isEditingRule ? 'Save' : 'Add' }}
+            {{ isEditingRule ? "Save" : "Add" }}
           </button>
         </div>
       </form>
@@ -844,14 +937,10 @@ const filteredAvailableRules = computed(() => {
   <!-- Copy From Rule Modal -->
   <dialog :class="['modal', { 'modal-open': showCopyFromModal }]">
     <div class="modal-box max-w-4xl">
-      <h3 class="font-bold text-lg mb-4">
-        Copy From Rule
-      </h3>
+      <h3 class="font-bold text-lg mb-4">Copy From Rule</h3>
 
       <div class="mb-4 flex items-center gap-4">
-        <p class="text-sm opacity-70">
-          Select a rule to copy.
-        </p>
+        <p class="text-sm opacity-70">Select a rule to copy.</p>
         <label class="label cursor-pointer gap-3 ml-auto">
           <span class="label-text font-medium">Copy only conditions</span>
           <input
@@ -865,15 +954,21 @@ const filteredAvailableRules = computed(() => {
 
       <div class="alert alert-info mb-4">
         <div class="text-sm">
-          <strong v-if="copyOnlyConditions">Only conditions will be copied.</strong>
+          <strong v-if="copyOnlyConditions"
+            >Only conditions will be copied.</strong
+          >
           <strong v-else>All rule settings will be copied</strong>
-          <span v-if="!copyOnlyConditions"> (name, description, priority, enabled status, and conditions).</span>
+          <span v-if="!copyOnlyConditions">
+            (name, description, priority, enabled status, and conditions).</span
+          >
         </div>
       </div>
 
       <!-- Search Field -->
       <div class="mb-4">
-        <label class="input input-bordered input-sm flex items-center gap-2 w-full">
+        <label
+          class="input input-bordered input-sm flex items-center gap-2 w-full"
+        >
           <PhMagnifyingGlass :size="16" class="opacity-70" />
           <input
             v-model="copyFromSearchQuery"
@@ -908,13 +1003,21 @@ const filteredAvailableRules = computed(() => {
           </thead>
           <tbody>
             <template v-if="filteredAvailableRules.length > 0">
-              <tr v-for="({ policy, rule, type }, idx) in filteredAvailableRules" :key="`${policy.id}-${rule.id}-${idx}`">
+              <tr
+                v-for="({ policy, rule, type }, idx) in filteredAvailableRules"
+                :key="`${policy.id}-${rule.id}-${idx}`"
+              >
                 <td>
                   <div class="font-medium">{{ policy.name }}</div>
-                  <div class="text-xs opacity-50" v-if="policy.description">{{ policy.description }}</div>
+                  <div class="text-xs opacity-50" v-if="policy.description">
+                    {{ policy.description }}
+                  </div>
                 </td>
                 <td>
-                  <div class="badge badge-sm" :class="type === 'start' ? 'badge-success' : 'badge-error'">
+                  <div
+                    class="badge badge-sm"
+                    :class="type === 'start' ? 'badge-success' : 'badge-error'"
+                  >
                     <PhPlay v-if="type === 'start'" :size="12" />
                     <PhStop v-if="type === 'stop'" :size="12" />
                     {{ type }}
@@ -924,18 +1027,23 @@ const filteredAvailableRules = computed(() => {
                   <div class="font-medium">{{ rule.name }}</div>
                 </td>
                 <td>
-                  <div class="text-sm opacity-70">{{ rule.description || '—' }}</div>
+                  <div class="text-sm opacity-70">
+                    {{ rule.description || "—" }}
+                  </div>
                 </td>
                 <td>
                   <div class="text-sm">{{ rule.priority ?? 0 }}</div>
                 </td>
                 <td>
-                  <div class="badge badge-sm" :class="rule.enabled ? 'badge-success' : 'badge-ghost'">
-                    {{ rule.enabled ? 'Enabled' : 'Disabled' }}
+                  <div
+                    class="badge badge-sm"
+                    :class="rule.enabled ? 'badge-success' : 'badge-ghost'"
+                  >
+                    {{ rule.enabled ? "Enabled" : "Disabled" }}
                   </div>
                 </td>
                 <td>
-                  <button 
+                  <button
                     type="button"
                     class="btn btn-xs btn-primary"
                     @click="copyFromRule(policy, rule, type)"
@@ -949,7 +1057,11 @@ const filteredAvailableRules = computed(() => {
             </template>
             <tr v-else>
               <td colspan="7" class="text-center text-base-content/50">
-                {{ copyFromSearchQuery ? 'No rules found matching your search' : 'No rules available to copy from' }}
+                {{
+                  copyFromSearchQuery
+                    ? "No rules found matching your search"
+                    : "No rules available to copy from"
+                }}
               </td>
             </tr>
           </tbody>
@@ -957,7 +1069,11 @@ const filteredAvailableRules = computed(() => {
       </div>
 
       <div class="modal-action">
-        <button type="button" class="btn btn-secondary" @click="closeCopyFromModal">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          @click="closeCopyFromModal"
+        >
           Cancel
         </button>
       </div>
@@ -975,29 +1091,48 @@ const filteredAvailableRules = computed(() => {
       </h3>
 
       <div class="flex flex-col gap-4">
-        <div class="alert" :class="checkResult.valid ? 'alert-success' : 'alert-error'">
-          <span>{{ checkResult.valid ? 'Policy is valid and can be used' : 'Policy has issues' }}</span>
+        <div
+          class="alert"
+          :class="checkResult.valid ? 'alert-success' : 'alert-error'"
+        >
+          <span>{{
+            checkResult.valid
+              ? "Policy is valid and can be used"
+              : "Policy has issues"
+          }}</span>
         </div>
 
         <!-- Policy Statistics -->
         <div class="stats shadow">
           <div class="stat">
             <div class="stat-title">Total Start Rules</div>
-            <div class="stat-value text-sm">{{ checkResult.start_rules_count }}</div>
-            <div class="stat-desc">{{ checkResult.enabled_start_rules_count }} enabled</div>
+            <div class="stat-value text-sm">
+              {{ checkResult.start_rules_count }}
+            </div>
+            <div class="stat-desc">
+              {{ checkResult.enabled_start_rules_count }} enabled
+            </div>
           </div>
-          
+
           <div class="stat">
             <div class="stat-title">Total Stop Rules</div>
-            <div class="stat-value text-sm">{{ checkResult.stop_rules_count }}</div>
-            <div class="stat-desc">{{ checkResult.enabled_stop_rules_count }} enabled</div>
+            <div class="stat-value text-sm">
+              {{ checkResult.stop_rules_count }}
+            </div>
+            <div class="stat-desc">
+              {{ checkResult.enabled_stop_rules_count }} enabled
+            </div>
           </div>
         </div>
 
         <div v-if="checkResult.errors && checkResult.errors.length > 0">
           <h4 class="font-semibold text-error mb-2">Errors:</h4>
           <ul class="list-disc list-inside">
-            <li v-for="(error, i) in checkResult.errors" :key="i" class="text-error">
+            <li
+              v-for="(error, i) in checkResult.errors"
+              :key="i"
+              class="text-error"
+            >
               {{ error }}
             </li>
           </ul>
@@ -1006,7 +1141,11 @@ const filteredAvailableRules = computed(() => {
         <div v-if="checkResult.warnings && checkResult.warnings.length > 0">
           <h4 class="font-semibold text-warning mb-2">Warnings:</h4>
           <ul class="list-disc list-inside">
-            <li v-for="(warning, i) in checkResult.warnings" :key="i" class="text-warning">
+            <li
+              v-for="(warning, i) in checkResult.warnings"
+              :key="i"
+              class="text-warning"
+            >
               {{ warning }}
             </li>
           </ul>
@@ -1014,9 +1153,7 @@ const filteredAvailableRules = computed(() => {
       </div>
 
       <div class="modal-action">
-        <button class="btn btn-primary" @click="closeCheckModal">
-          Close
-        </button>
+        <button class="btn btn-primary" @click="closeCheckModal">Close</button>
       </div>
     </div>
     <form method="dialog" class="modal-backdrop">

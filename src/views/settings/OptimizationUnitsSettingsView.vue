@@ -203,15 +203,6 @@ function handleSubmit() {
           </th>
         </tr>
       </tbody>
-      <tfoot>
-        <tr>
-          <th>Enabled</th>
-          <th>Name / Description</th>
-          <th>ID</th>
-          <th>Assignments</th>
-          <th></th>
-        </tr>
-      </tfoot>
     </table>
   </div>
 
@@ -219,14 +210,16 @@ function handleSubmit() {
   <dialog :class="['modal', { 'modal-open': showModal }]">
     <div class="modal-box max-w-3xl">
       <h3 class="font-bold text-lg mb-4">
-        {{ isEditing ? 'Edit Optimization Unit' : 'Add Optimization Unit' }}
+        {{ isEditing ? "Edit Optimization Unit" : "Add Optimization Unit" }}
       </h3>
 
       <form @submit.prevent="handleSubmit" class="flex flex-col gap-4">
         <!-- Basic Info -->
         <div class="form-control">
           <label class="label">
-            <span class="label-text">Name <span class="text-error">*</span></span>
+            <span class="label-text"
+              >Name <span class="text-error">*</span></span
+            >
           </label>
           <input
             v-model="formData.name"
@@ -271,7 +264,10 @@ function handleSubmit() {
           <label class="label">
             <span class="label-text">Energy Source</span>
           </label>
-          <select v-model="formData.energy_source_id" class="select select-bordered">
+          <select
+            v-model="formData.energy_source_id"
+            class="select select-bordered"
+          >
             <option :value="undefined">No energy source selected</option>
             <option
               v-for="source in energySourceStore.energySources"
@@ -288,7 +284,10 @@ function handleSubmit() {
           <label class="label">
             <span class="label-text">Home Forecast Provider</span>
           </label>
-          <select v-model="formData.home_forecast_provider_id" class="select select-bordered">
+          <select
+            v-model="formData.home_forecast_provider_id"
+            class="select select-bordered"
+          >
             <option :value="undefined">No forecast provider selected</option>
             <option
               v-for="provider in forecastProviderStore.forecastProviders"
@@ -305,8 +304,13 @@ function handleSubmit() {
           <label class="label">
             <span class="label-text">Target Miners</span>
           </label>
-          <div class="border border-base-300 rounded-lg p-3 max-h-48 overflow-y-auto">
-            <div v-if="minerStore.miners.length === 0" class="text-base-content/50 text-center py-2">
+          <div
+            class="border border-base-300 rounded-lg p-3 max-h-48 overflow-y-auto"
+          >
+            <div
+              v-if="minerStore.miners.length === 0"
+              class="text-base-content/50 text-center py-2"
+            >
               No miners available
             </div>
             <div
@@ -326,7 +330,9 @@ function handleSubmit() {
             </div>
           </div>
           <label class="label">
-            <span class="label-text-alt">{{ selectedMinerIds.length }} miners selected</span>
+            <span class="label-text-alt"
+              >{{ selectedMinerIds.length }} miners selected</span
+            >
           </label>
         </div>
 
@@ -335,8 +341,13 @@ function handleSubmit() {
           <label class="label">
             <span class="label-text">Notifiers</span>
           </label>
-          <div class="border border-base-300 rounded-lg p-3 max-h-48 overflow-y-auto">
-            <div v-if="notifierStore.notifiers.length === 0" class="text-base-content/50 text-center py-2">
+          <div
+            class="border border-base-300 rounded-lg p-3 max-h-48 overflow-y-auto"
+          >
+            <div
+              v-if="notifierStore.notifiers.length === 0"
+              class="text-base-content/50 text-center py-2"
+            >
               No notifiers available
             </div>
             <div
@@ -356,7 +367,9 @@ function handleSubmit() {
             </div>
           </div>
           <label class="label">
-            <span class="label-text-alt">{{ selectedNotifierIds.length }} notifiers selected</span>
+            <span class="label-text-alt"
+              >{{ selectedNotifierIds.length }} notifiers selected</span
+            >
           </label>
         </div>
 
@@ -366,7 +379,7 @@ function handleSubmit() {
             Cancel
           </button>
           <button type="submit" class="btn btn-primary">
-            {{ isEditing ? 'Save' : 'Add' }}
+            {{ isEditing ? "Save" : "Add" }}
           </button>
         </div>
       </form>
