@@ -35,13 +35,6 @@ const isAutomationOpen = computed(() => {
   );
 });
 
-const isIntegrationsOpen = computed(() => {
-  return route.path.startsWith("/settings/external-services");
-});
-
-const isNotifiersOpen = computed(() => {
-  return route.path.startsWith("/settings/notifiers");
-});
 </script>
 <template>
   <div class="navbar p-4 h-full">
@@ -177,42 +170,28 @@ const isNotifiersOpen = computed(() => {
         </li>
 
         <!-- Integrations -->
-        <RouterLink
-          to="/settings/external-services"
-          class="w-full"
-          active-class="active text-primary"
-        >
-          <li class="w-full">
-            <!-- <details :open="isIntegrationsOpen"> -->
-            <summary
-              class="text-lg"
-              :class="{ 'text-primary font-semibold': isIntegrationsOpen }"
-            >
-              <PhPlug />
-              External Services
-            </summary>
-            <!-- </details> -->
-          </li>
-        </RouterLink>
+        <li class="w-full">
+          <RouterLink
+            to="/settings/external-services"
+            class="w-full text-lg"
+            active-class="active text-primary"
+          >
+            <PhPlug />
+            External Services
+          </RouterLink>
+        </li>
 
         <!-- Notifiers -->
-        <RouterLink
-          to="/settings/notifiers"
-          class="w-full"
-          active-class="active text-primary"
-        >
-          <li class="w-full">
-            <!-- <details :open="isNotifiersOpen"> -->
-            <summary
-              class="text-lg"
-              :class="{ 'text-primary font-semibold': isNotifiersOpen }"
-            >
-              <PhBell />
-              Notifiers
-            </summary>
-            <!-- </details> -->
-          </li>
-        </RouterLink>
+        <li class="w-full">
+          <RouterLink
+            to="/settings/notifiers"
+            class="w-full text-lg"
+            active-class="active text-primary"
+          >
+            <PhBell />
+            Notifiers
+          </RouterLink>
+        </li>
       </ul>
     </div>
   </div>
