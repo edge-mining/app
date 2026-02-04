@@ -2,6 +2,7 @@
 import { ref } from "vue";
 import type { OptimizationPolicy } from "../../core/models/policy";
 import { PhHash, PhPencil, PhTrash } from "@phosphor-icons/vue";
+import ConfirmDialog from "../ConfirmDialog.vue";
 
 const model = defineModel<OptimizationPolicy>({ required: true });
 const emit = defineEmits<{
@@ -12,6 +13,7 @@ const emit = defineEmits<{
 }>();
 
 const optimizationPolicyTip = ref<string | null>(null);
+const showDeleteConfirm = ref(false);
 
 async function copyToClipboard(text: string) {
   try {
@@ -40,10 +42,17 @@ function handleEdit() {
   emit("edit", model.value);
 }
 
-function handleDelete() {
-  if (confirm(`Are you sure you want to delete policy "${model.value.name}"?`)) {
-    emit("delete", model.value);
-  }
+function handleDeleteClick() {
+  showDeleteConfirm.value = true;
+}
+
+function confirmDelete() {
+  showDeleteConfirm.value = false;
+  emit("delete", model.value);
+}
+
+function cancelDelete() {
+  showDeleteConfirm.value = false;
 }
 
 function handleManageRules() {
@@ -124,8 +133,18 @@ function handleCheck() {
           Check
         </button>
         <button class="btn btn-sm btn-primary" @click="handleEdit" title="Edit optimization policy"><PhPencil :size="15" /></button>
-        <button class="btn btn-sm btn-error" @click="handleDelete" title="Delete optimization policy"><PhTrash :size="15" /></button>
+        <button class="btn btn-sm btn-error" @click="handleDeleteClick" title="Delete optimization policy"><PhTrash :size="15" /></button>
       </div>
     </th>
   </tr>
+
+  <ConfirmDialog
+    :open="showDeleteConfirm"
+    title="Delete Policy"
+    :message="`Are you sure you want to delete policy '${model.name}'?`"
+    confirm-text="Delete"
+    variant="danger"
+    @confirm="confirmDelete"
+    @cancel="cancelDelete"
+  />
 </template>

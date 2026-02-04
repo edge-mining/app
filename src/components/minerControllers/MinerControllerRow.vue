@@ -4,6 +4,7 @@ import type { MinerController } from "../../core/models/minerController";
 import type { Miner } from "../../core/models/miner";
 import { useExternalServiceStore } from "../../core/stores/externalServiceStore";
 import { PhHash, PhPencil, PhTrash } from "@phosphor-icons/vue";
+import ConfirmDialog from "../ConfirmDialog.vue";
 
 const model = defineModel<MinerController>({ required: true });
 const props = defineProps<{
@@ -16,6 +17,7 @@ const emit = defineEmits<{
 }>();
 
 const externalServiceStore = useExternalServiceStore();
+const showDeleteConfirm = ref(false);
 
 const externalService = computed(() => {
   if (!model.value.external_service_id) return null;
@@ -66,10 +68,17 @@ function handleEdit() {
   emit("edit", model.value);
 }
 
-function handleDelete() {
-  if (confirm(`Are you sure you want to delete miner controller "${model.value.name}"?`)) {
-    emit("delete", model.value);
-  }
+function handleDeleteClick() {
+  showDeleteConfirm.value = true;
+}
+
+function confirmDelete() {
+  showDeleteConfirm.value = false;
+  emit("delete", model.value);
+}
+
+function cancelDelete() {
+  showDeleteConfirm.value = false;
 }
 </script>
 
@@ -140,8 +149,18 @@ function handleDelete() {
     <th>
       <div class="flex gap-2">
         <button class="btn btn-sm btn-primary" @click="handleEdit" title="Edit miner controller"><PhPencil :size="15" /></button>
-        <button class="btn btn-sm btn-error" @click="handleDelete" title="Delete miner controller"><PhTrash :size="15" /></button>
+        <button class="btn btn-sm btn-error" @click="handleDeleteClick" title="Delete miner controller"><PhTrash :size="15" /></button>
       </div>
     </th>
   </tr>
+
+  <ConfirmDialog
+    :open="showDeleteConfirm"
+    title="Delete Miner Controller"
+    :message="`Are you sure you want to delete miner controller '${model.name}'?`"
+    confirm-text="Delete"
+    variant="danger"
+    @confirm="confirmDelete"
+    @cancel="cancelDelete"
+  />
 </template>

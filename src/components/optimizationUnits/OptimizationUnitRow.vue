@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { ref } from "vue";
 import type { OptimizationUnit } from "../../core/models/optimizationUnit";
+import { PhPencil, PhTrash } from "@phosphor-icons/vue";
+import ConfirmDialog from "../ConfirmDialog.vue";
 
 const model = defineModel<OptimizationUnit>({ required: true });
 const emit = defineEmits<{
@@ -8,14 +11,23 @@ const emit = defineEmits<{
   toggleEnabled: [unit: OptimizationUnit];
 }>();
 
+const showDeleteConfirm = ref(false);
+
 function handleEdit() {
   emit("edit", model.value);
 }
 
-function handleDelete() {
-  if (confirm(`Are you sure you want to delete optimization unit "${model.value.name}"?`)) {
-    emit("delete", model.value);
-  }
+function handleDeleteClick() {
+  showDeleteConfirm.value = true;
+}
+
+function confirmDelete() {
+  showDeleteConfirm.value = false;
+  emit("delete", model.value);
+}
+
+function cancelDelete() {
+  showDeleteConfirm.value = false;
 }
 
 function handleToggleEnabled() {
@@ -67,12 +79,22 @@ function handleToggleEnabled() {
     <th>
       <div class="flex gap-2">
         <button class="btn btn-sm btn-primary" @click="handleEdit" title="Edit optimization unit">
-          Edit
+          <PhPencil :size="15" />
         </button>
-        <button class="btn btn-sm btn-error" @click="handleDelete" title="Delete optimization unit">
-          Delete
+        <button class="btn btn-sm btn-error" @click="handleDeleteClick" title="Delete optimization unit">
+          <PhTrash :size="15" />
         </button>
       </div>
     </th>
   </tr>
+
+  <ConfirmDialog
+    :open="showDeleteConfirm"
+    title="Delete Optimization Unit"
+    :message="`Are you sure you want to delete optimization unit '${model.name}'?`"
+    confirm-text="Delete"
+    variant="danger"
+    @confirm="confirmDelete"
+    @cancel="cancelDelete"
+  />
 </template>

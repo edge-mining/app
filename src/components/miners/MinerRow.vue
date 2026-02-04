@@ -3,6 +3,7 @@ import type { Miner } from "../../core/models/miner";
 import { computed, ref, watch } from "vue";
 import { useMinerControllerStore } from "../../core/stores/minerControllerStore";
 import { PhHash, PhPlay, PhStop, PhArrowClockwise, PhPencil, PhTrash } from "@phosphor-icons/vue";
+import ConfirmDialog from "../ConfirmDialog.vue";
 
 const model = defineModel<Miner>({ required: true });
 const emit = defineEmits<{
@@ -16,6 +17,7 @@ const emit = defineEmits<{
 }>();
 
 const minerControllerStore = useMinerControllerStore();
+const showDeleteConfirm = ref(false);
 
 const minerController = computed(() => {
   if (!model.value.controller_id) return null;
@@ -67,10 +69,17 @@ function handleEdit() {
   emit("edit", model.value);
 }
 
-function handleDelete() {
-  if (confirm(`Are you sure you want to delete miner "${model.value.name}"?`)) {
-    emit("delete", model.value);
-  }
+function handleDeleteClick() {
+  showDeleteConfirm.value = true;
+}
+
+function confirmDelete() {
+  showDeleteConfirm.value = false;
+  emit("delete", model.value);
+}
+
+function cancelDelete() {
+  showDeleteConfirm.value = false;
 }
 
 function handleStart() {
@@ -251,8 +260,18 @@ function handleDeactivate() {
         </button>
 
         <button class="btn btn-sm btn-primary" @click="handleEdit" title="Edit miner"><PhPencil :size="15" /></button>
-        <button class="btn btn-sm btn-error" @click="handleDelete" title="Delete miner"><PhTrash :size="15" /></button>
+        <button class="btn btn-sm btn-error" @click="handleDeleteClick" title="Delete miner"><PhTrash :size="15" /></button>
       </div>
     </th>
   </tr>
+
+  <ConfirmDialog
+    :open="showDeleteConfirm"
+    title="Delete Miner"
+    :message="`Are you sure you want to delete miner '${model.name}'?`"
+    confirm-text="Delete"
+    variant="danger"
+    @confirm="confirmDelete"
+    @cancel="cancelDelete"
+  />
 </template>

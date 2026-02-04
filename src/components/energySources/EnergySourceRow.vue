@@ -4,6 +4,7 @@ import { useEnergyMonitorStore } from "../../core/stores/energyMonitorStore";
 import { useForecastProviderStore } from "../../core/stores/forecastProviderStore";
 import { computed, ref } from "vue";
 import { PhHash, PhPencil, PhTrash } from "@phosphor-icons/vue";
+import ConfirmDialog from "../ConfirmDialog.vue";
 
 const model = defineModel<EnergySource>({ required: true });
 const emit = defineEmits<{
@@ -13,6 +14,7 @@ const emit = defineEmits<{
 
 const energyMonitorStore = useEnergyMonitorStore();
 const forecastProviderStore = useForecastProviderStore();
+const showDeleteConfirm = ref(false);
 
 const energyMonitor = computed(() => {
   if (!model.value.energy_monitor_id) return null;
@@ -54,10 +56,17 @@ function handleEdit() {
   emit("edit", model.value);
 }
 
-function handleDelete() {
-  if (confirm(`Are you sure you want to delete energy source "${model.value.name}"?`)) {
-    emit("delete", model.value);
-  }
+function handleDeleteClick() {
+  showDeleteConfirm.value = true;
+}
+
+function confirmDelete() {
+  showDeleteConfirm.value = false;
+  emit("delete", model.value);
+}
+
+function cancelDelete() {
+  showDeleteConfirm.value = false;
 }
 </script>
 <template>
@@ -185,8 +194,18 @@ function handleDelete() {
     <th>
       <div class="flex gap-2">
         <button class="btn btn-sm btn-primary" @click="handleEdit" title="Edit energy source"><PhPencil :size="15" /></button>
-        <button class="btn btn-sm btn-error" @click="handleDelete" title="Delete energy source"><PhTrash :size="15" /></button>
+        <button class="btn btn-sm btn-error" @click="handleDeleteClick" title="Delete energy source"><PhTrash :size="15" /></button>
       </div>
     </th>
   </tr>
+
+  <ConfirmDialog
+    :open="showDeleteConfirm"
+    title="Delete Energy Source"
+    :message="`Are you sure you want to delete energy source '${model.name}'?`"
+    confirm-text="Delete"
+    variant="danger"
+    @confirm="confirmDelete"
+    @cancel="cancelDelete"
+  />
 </template>

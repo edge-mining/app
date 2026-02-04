@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import type { AutomationRule } from "../../core/models/policy";
-import { PhHash } from "@phosphor-icons/vue";
+import { PhHash, PhPencil, PhTrash } from "@phosphor-icons/vue";
+import ConfirmDialog from "../ConfirmDialog.vue";
 
 const model = defineModel<AutomationRule>({ required: true });
 const emit = defineEmits<{
@@ -11,6 +12,7 @@ const emit = defineEmits<{
 }>();
 
 const automationRuleTip = ref<string | null>(null);
+const showDeleteConfirm = ref(false);
 
 async function copyToClipboard(text: string) {
   try {
@@ -38,10 +40,17 @@ function handleEdit() {
   emit("edit", model.value);
 }
 
-function handleDelete() {
-  if (confirm(`Are you sure you want to delete rule "${model.value.name}"?`)) {
-    emit("delete", model.value);
-  }
+function handleDeleteClick() {
+  showDeleteConfirm.value = true;
+}
+
+function confirmDelete() {
+  showDeleteConfirm.value = false;
+  emit("delete", model.value);
+}
+
+function cancelDelete() {
+  showDeleteConfirm.value = false;
 }
 
 function handleToggleEnabled() {
@@ -95,12 +104,22 @@ function handleToggleEnabled() {
     <th>
       <div class="flex gap-2">
         <button class="btn btn-sm btn-primary" @click="handleEdit" title="Edit rule">
-          Edit
+          <PhPencil :size="15" />
         </button>
-        <button class="btn btn-sm btn-error" @click="handleDelete" title="Delete rule">
-          Delete
+        <button class="btn btn-sm btn-error" @click="handleDeleteClick" title="Delete rule">
+          <PhTrash :size="15" />
         </button>
       </div>
     </th>
   </tr>
+
+  <ConfirmDialog
+    :open="showDeleteConfirm"
+    title="Delete Rule"
+    :message="`Are you sure you want to delete rule '${model.name}'?`"
+    confirm-text="Delete"
+    variant="danger"
+    @confirm="confirmDelete"
+    @cancel="cancelDelete"
+  />
 </template>

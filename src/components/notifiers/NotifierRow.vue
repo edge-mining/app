@@ -3,6 +3,7 @@ import { ref, computed } from "vue";
 import type { Notifier } from "../../core/models/notifier";
 import { useExternalServiceStore } from "../../core/stores/externalServiceStore";
 import { PhHash, PhPencil, PhTrash, PhPlay } from "@phosphor-icons/vue";
+import ConfirmDialog from "../ConfirmDialog.vue";
 
 const model = defineModel<Notifier>({ required: true });
 const emit = defineEmits<{
@@ -14,6 +15,7 @@ const emit = defineEmits<{
 const externalServiceStore = useExternalServiceStore();
 const notifierTip = ref<string | null>(null);
 const externalServiceIdTip = ref<string | null>(null);
+const showDeleteConfirm = ref(false);
 
 const externalService = computed(() => {
   if (!model.value.external_service_id) return null;
@@ -49,10 +51,17 @@ function handleEdit() {
   emit("edit", model.value);
 }
 
-function handleDelete() {
-  if (confirm(`Are you sure you want to delete notifier "${model.value.name}"?`)) {
-    emit("delete", model.value);
-  }
+function handleDeleteClick() {
+  showDeleteConfirm.value = true;
+}
+
+function confirmDelete() {
+  showDeleteConfirm.value = false;
+  emit("delete", model.value);
+}
+
+function cancelDelete() {
+  showDeleteConfirm.value = false;
 }
 
 function handleTest() {
@@ -126,8 +135,18 @@ const formatAdapterType = (type: string) => {
       <div class="flex gap-2">
         <button class="btn btn-sm btn-info" @click="handleTest" title="Test notifier"><PhPlay :size="15" /></button>
         <button class="btn btn-sm btn-primary" @click="handleEdit" title="Edit notifier"><PhPencil :size="15" /></button>
-        <button class="btn btn-sm btn-error" @click="handleDelete" title="Delete notifier"><PhTrash :size="15" /></button>
+        <button class="btn btn-sm btn-error" @click="handleDeleteClick" title="Delete notifier"><PhTrash :size="15" /></button>
       </div>
     </th>
   </tr>
+
+  <ConfirmDialog
+    :open="showDeleteConfirm"
+    title="Delete Notifier"
+    :message="`Are you sure you want to delete notifier '${model.name}'?`"
+    confirm-text="Delete"
+    variant="danger"
+    @confirm="confirmDelete"
+    @cancel="cancelDelete"
+  />
 </template>
