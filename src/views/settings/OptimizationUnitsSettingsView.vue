@@ -362,11 +362,11 @@ function handleSubmit() {
 
         <!-- Modal actions -->
         <div class="modal-action">
-          <button type="submit" class="btn btn-primary">
-            {{ isEditing ? 'Save' : 'Add' }}
-          </button>
           <button type="button" class="btn btn-secondary" @click="cancelModal">
             Cancel
+          </button>
+          <button type="submit" class="btn btn-primary">
+            {{ isEditing ? 'Save' : 'Add' }}
           </button>
         </div>
       </form>

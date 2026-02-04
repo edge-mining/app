@@ -517,11 +517,11 @@ const filteredAvailableRules = computed(() => {
         </template>
 
         <div class="modal-action">
-          <button type="submit" class="btn btn-primary">
-            {{ isEditingPolicy ? 'Save' : 'Add' }}
-          </button>
           <button type="button" class="btn btn-secondary" @click="cancelPolicyModal">
             Cancel
+          </button>
+          <button type="submit" class="btn btn-primary">
+            {{ isEditingPolicy ? 'Save' : 'Add' }}
           </button>
         </div>
       </form>
@@ -827,11 +827,11 @@ const filteredAvailableRules = computed(() => {
               <span class="font-semibold">Error:</span> {{ ruleAddSaveError }}
             </div>
           </div>
-          <button type="submit" class="btn btn-primary">
-            {{ isEditingRule ? 'Save' : 'Add' }}
-          </button>
           <button type="button" class="btn btn-secondary" @click="cancelRuleModal">
             Cancel
+          </button>
+          <button type="submit" class="btn btn-primary">
+            {{ isEditingRule ? 'Save' : 'Add' }}
           </button>
         </div>
       </form>

@@ -162,19 +162,19 @@ function handleRefresh(miner: Miner) {
               Add Miner
             </button>
             <template v-else-if="newMiner">
-              <button class="btn btn-primary mr-4" @click="confirmAdd">
-                OK
-              </button>
-              <button class="btn btn-secondary" @click="newMiner = undefined">
+              <button class="btn btn-secondary mr-4" @click="newMiner = undefined">
                 Cancel
+              </button>
+              <button class="btn btn-primary" @click="confirmAdd">
+                OK
               </button>
             </template>
             <template v-else-if="editingMiner">
-              <button class="btn btn-primary mr-4" @click="confirmEdit">
-                Save
-              </button>
-              <button class="btn btn-secondary" @click="cancelEdit">
+              <button class="btn btn-secondary mr-4" @click="cancelEdit">
                 Cancel
+              </button>
+              <button class="btn btn-primary" @click="confirmEdit">
+                Save
               </button>
             </template>
           </th>

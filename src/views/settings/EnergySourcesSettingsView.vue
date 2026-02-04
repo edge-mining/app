@@ -123,22 +123,22 @@ function handleDelete(energySource: EnergySource) {
               Add Energy Source
             </button>
             <template v-else-if="newEnergySource">
-              <button class="btn btn-primary mr-4" @click="confirmAdd">
-                OK
-              </button>
               <button
-                class="btn btn-secondary"
+                class="btn btn-secondary mr-4"
                 @click="newEnergySource = undefined"
               >
                 Cancel
               </button>
+              <button class="btn btn-primary" @click="confirmAdd">
+                OK
+              </button>
             </template>
             <template v-else-if="editingEnergySource">
-              <button class="btn btn-primary mr-4" @click="confirmEdit">
-                Save
-              </button>
-              <button class="btn btn-secondary" @click="cancelEdit">
+              <button class="btn btn-secondary mr-4" @click="cancelEdit">
                 Cancel
+              </button>
+              <button class="btn btn-primary" @click="confirmEdit">
+                Save
               </button>
             </template>
           </th>
