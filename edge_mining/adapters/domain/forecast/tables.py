@@ -20,12 +20,14 @@ For a step-by-step example, see: docs/MIGRATION_EXAMPLE.md
 """
 
 import json
+import uuid
 from typing import Optional
 
 from sqlalchemy import Column, ForeignKey, String, Table, event
 
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.common import ConfigurationType
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.registry import mapper_registry, metadata
+from edge_mining.domain.common import EntityId
 from edge_mining.domain.forecast.common import ForecastProviderAdapter
 from edge_mining.domain.forecast.entities import ForecastProvider
 from edge_mining.domain.forecast.exceptions import ForecastProviderConfigurationError
@@ -70,7 +72,31 @@ def _deserialize_forecast_provider_config(
 
 @event.listens_for(ForecastProvider, "load")
 def _receive_forecast_provider_load(target: ForecastProvider, context) -> None:
-    """Event listener that deserializes config after loading from database."""
+    """Event listener that deserializes config after loading from database.
+
+    Args:
+        target: The ForecastProvider instance being loaded
+        context: SQLAlchemy context
+    """
+    # Convert id string to EntityId if needed
+    if hasattr(target, "id") and target.id is not None:
+        if isinstance(target.id, str):  # type: ignore[arg-type,misc]
+            target.id = EntityId(uuid.UUID(target.id))  # type: ignore[assignment]
+
+    # Convert foreign keys to EntityId
+    # NOTE: SQLAlchemy returns strings for UUID columns that need conversion to EntityId
+    if hasattr(target, "external_service_id") and target.external_service_id is not None:
+        if isinstance(target.external_service_id, str):  # type: ignore
+            target.external_service_id = EntityId(uuid.UUID(target.external_service_id))  # type: ignore
+
+    # Convert adapter_type string to enum if needed
+    if isinstance(target.adapter_type, str):
+        try:
+            target.adapter_type = ForecastProviderAdapter(target.adapter_type)
+        except ValueError:
+            # If conversion fails, leave as string (will fail in config deserialization)
+            pass
+
     if target.config and isinstance(target.config, str):
         target.config = _deserialize_forecast_provider_config(target.adapter_type, target.config)
 
