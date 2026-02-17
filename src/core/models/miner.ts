@@ -4,11 +4,13 @@ export interface HashRate {
   unit: string; // e.g., 'TH/s', 'GH/s'
 }
 
+export type MinerStatus = 'unknown' | 'off' | 'on' | 'starting' | 'stopping' | 'error';
+
 export interface Miner {
   id?: string;
   name: string;
   model?: string;
-  status: string; // 'active', 'inactive', 'error'
+  status: MinerStatus;
   hash_rate?: HashRate;
   hash_rate_max?: HashRate;
   power_consumption?: number;

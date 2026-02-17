@@ -31,7 +31,7 @@ export class ForecastProviderService extends BaseService {
     return this.get<ConfigSchema>(`/forecast-providers/types/${adapterType}/config-schema`).getData();
   }
 
-  getExternalServices(adapterType: string): Promise<ExternalServiceAdapter> {
-    return this.get<ExternalServiceAdapter>(`/forecast-providers/types/${adapterType}/external-services`).getData();
+  getExternalServices(adapterType: string): Promise<ExternalServiceAdapter | null> {
+    return this.get<ExternalServiceAdapter | null>(`/forecast-providers/types/${adapterType}/external-services`).getData();
   }
 }

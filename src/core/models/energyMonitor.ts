@@ -5,7 +5,7 @@ export interface EnergyMonitorConfig {
 }
 
 export interface EnergyMonitor {
-  id?: number;
+  id?: string;
   name: string;
   adapter_type: EnergyMonitorAdapter;
   config?: EnergyMonitorConfig;

@@ -1,3 +1,8 @@
+import type { EnergyMonitor } from "./energyMonitor";
+import type { ForecastProvider } from "./forecastProvider";
+import type { MinerController } from "./minerController";
+import type { Notifier } from "./notifier";
+
 export type ExternalServiceAdapter = string;
 
 export interface ExternalServiceConfig {
@@ -5,10 +10,27 @@ export interface ExternalServiceConfig {
 }
 
 export interface ExternalService {
-  id?: number;
+  id?: string;
   name: string;
   adapter_type: ExternalServiceAdapter;
   config?: ExternalServiceConfig;
+}
+
+export type ExternalServiceStatusType = 'connected' | 'disconnected' | 'unauthorized';
+
+export interface ExternalServiceStatus {
+  name: string;
+  status: ExternalServiceStatusType;
+  last_check: string;
+  error_message?: string;
+}
+
+export interface ExternalServiceLinkedEntities {
+  miner_controllers: MinerController[];
+  energy_monitors: EnergyMonitor[];
+  forecast_providers: ForecastProvider[];
+  home_forecast_providers: ForecastProvider[];
+  notifiers: Notifier[];
 }
 
 export interface ConfigSchemaProperty {

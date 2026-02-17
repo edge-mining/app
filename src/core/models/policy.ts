@@ -8,7 +8,7 @@ export type RuleType = "start" | "stop";
 export interface AutomationRule {
   id: string;
   name: string;
-  description: string;
+  description?: string;
   priority: number;
   enabled: boolean;
   conditions: Record<string, any>;

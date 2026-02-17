@@ -1,17 +1,11 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { useExternalServiceStore } from "../../core/stores/externalServiceStore";
-import { useEnergyMonitorStore } from "../../core/stores/energyMonitorStore";
-import { useForecastProviderStore } from "../../core/stores/forecastProviderStore";
-import { useMinerControllerStore } from "../../core/stores/minerControllerStore";
 import ExternalServiceRow from "../../components/externalServices/ExternalServiceRow.vue";
 import type { ExternalService } from "../../core/models/externalService";
 import ExternalServiceConfigForm from "../../components/externalServices/ExternalServiceConfigForm.vue";
 
 const externalServiceStore = useExternalServiceStore();
-const energyMonitorStore = useEnergyMonitorStore();
-const forecastProviderStore = useForecastProviderStore();
-const minerControllerStore = useMinerControllerStore();
 const newExternalService = ref<ExternalService | undefined>(undefined);
 const editingExternalService = ref<ExternalService | undefined>(undefined);
 const showModal = ref(false);
@@ -20,9 +14,6 @@ const isEditing = ref(false);
 onMounted(() => {
   externalServiceStore.loadExternalServices();
   externalServiceStore.loadAdapterTypes();
-  energyMonitorStore.loadEnergyMonitors();
-  forecastProviderStore.loadForecastProviders();
-  minerControllerStore.loadMinerControllers();
 });
 
 function cleanExternalService(
@@ -117,9 +108,8 @@ const formatAdapterType = (type: string) => {
         <tr>
           <th>Name</th>
           <th>Adapter Type</th>
-          <th>Assigned Energy Monitors</th>
-          <th>Assigned Forecast Providers</th>
-          <th>Assigned Miner Controllers</th>
+          <th>Status</th>
+          <th>Linked Entities</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -128,21 +118,18 @@ const formatAdapterType = (type: string) => {
           v-for="(externalService, i) in externalServiceStore.externalServices"
           :key="externalService.id"
           v-model="externalServiceStore.externalServices[i]"
-          :all-energy-monitors="energyMonitorStore.energyMonitors"
-          :all-forecast-providers="forecastProviderStore.forecastProviders"
-          :all-miner-controllers="minerControllerStore.minerControllers"
           @edit="handleEdit"
           @delete="handleDelete"
         />
 
         <tr v-if="externalServiceStore.externalServices.length === 0">
-          <td colspan="6" class="text-center opacity-50">
+          <td colspan="5" class="text-center opacity-50">
             No external services configured yet
           </td>
         </tr>
 
         <tr>
-          <th colspan="6" class="text-center">
+          <th colspan="5" class="text-center">
             <button class="btn btn-primary" @click="addExternalService">
               Add External Service
             </button>

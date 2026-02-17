@@ -49,7 +49,7 @@ const availableControllers = computed(() => {
     <td>
       <div
         class="text-xl"
-        :class="model.status === 'active' ? 'text-green-500' : 'text-red-500'"
+        :class="model.status === 'on' ? 'text-green-500' : model.status === 'starting' || model.status === 'stopping' ? 'text-amber-500' : 'text-red-500'"
       ></div>
     </td>
     <td>

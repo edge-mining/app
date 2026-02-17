@@ -3,7 +3,7 @@
 This document lists all the FastAPI endpoints exposed by the backend and tracks their implementation status in the frontend.
 
 ## API Base URL
-All endpoints are prefixed with the API base URL (typically `/api` or similar).
+All endpoints are prefixed with the API base URL (typically `/api/v1`).
 
 ---
 
@@ -34,6 +34,7 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 | POST | `/energy-monitors` | Create a new energy monitor | `EnergyMonitorService.addEnergyMonitor()` | `EnergyMonitorSettingsView.vue` | ✅ Implemented |
 | GET | `/energy-monitors/types` | Get available energy monitor types | `EnergyMonitorService.getAdapterTypes()` | `EnergyMonitorSettingsView.vue` | ✅ Implemented |
 | GET | `/energy-monitors/types/{adapter_type}/config-schema` | Get config schema for monitor type | `EnergyMonitorService.getConfigSchema()` | `EnergyMonitorSettingsView.vue` | ✅ Implemented |
+| GET | `/energy-monitors/types/{adapter_type}/external-services` | Get compatible external service type for monitor type | `EnergyMonitorService.getExternalServices()` | `EnergyMonitorSettingsView.vue` | ✅ Implemented |
 | GET | `/energy-monitors/{monitor_id}` | Get specific energy monitor | `EnergyMonitorService.getEnergyMonitor()` | - | ✅ Implemented |
 | PUT | `/energy-monitors/{monitor_id}` | Update an energy monitor | `EnergyMonitorService.updateEnergyMonitor()` | - | ✅ Implemented |
 | DELETE | `/energy-monitors/{monitor_id}` | Delete an energy monitor | `EnergyMonitorService.deleteEnergyMonitor()` | - | ✅ Implemented |
@@ -117,7 +118,19 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 
 ---
 
-## 7. Forecast Providers API (`/forecast-providers`)
+## 7. Decisional Context API (`/decisional-context`)
+
+### Endpoints:
+
+| Method | Endpoint | Description | Frontend Service | Frontend Page | Status |
+|--------|----------|-------------|------------------|---------------|---------|
+| GET | `/decisional-context/structure` | Get the complete structure of the DecisionalContext | `PolicyService.getDecisionalContextStructure()` | `PoliciesSettingsView.vue` | ✅ Implemented |
+
+**Location in backend:** `core/edge_mining/adapters/domain/policy/fast_api/router.py`
+
+---
+
+## 8. Forecast Providers API (`/forecast-providers`)
 
 ### Endpoints:
 
@@ -127,6 +140,7 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 | POST | `/forecast-providers` | Create a new forecast provider | `ForecastProviderService.addForecastProvider()` | `ForecastProvidersSettingsView.vue` | ✅ Implemented |
 | GET | `/forecast-providers/types` | Get available provider types | `ForecastProviderService.getAdapterTypes()` | `ForecastProvidersSettingsView.vue` | ✅ Implemented |
 | GET | `/forecast-providers/types/{adapter_type}/config-schema` | Get config schema for provider type | `ForecastProviderService.getConfigSchema()` | `ForecastProvidersSettingsView.vue` | ✅ Implemented |
+| GET | `/forecast-providers/types/{adapter_type}/external-services` | Get compatible external service type for provider type | `ForecastProviderService.getExternalServices()` | `ForecastProvidersSettingsView.vue` | ✅ Implemented |
 | GET | `/forecast-providers/{provider_id}` | Get specific provider | `ForecastProviderService.getForecastProvider()` | - | ✅ Implemented |
 | PUT | `/forecast-providers/{provider_id}` | Update a provider | `ForecastProviderService.updateForecastProvider()` | `ForecastProvidersSettingsView.vue` | ✅ Implemented |
 | DELETE | `/forecast-providers/{provider_id}` | Delete a provider | `ForecastProviderService.deleteForecastProvider()` | `ForecastProvidersSettingsView.vue` | ✅ Implemented |
@@ -135,7 +149,7 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 
 ---
 
-## 8. Notifiers API (`/notifiers`)
+## 9. Notifiers API (`/notifiers`)
 
 ### Endpoints:
 
@@ -145,6 +159,7 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 | POST | `/notifiers` | Create a new notifier | `NotifierService.addNotifier()` | `NotifiersSettingsView.vue` | ✅ Implemented |
 | GET | `/notifiers/types` | Get available notifier types | `NotifierService.getAdapterTypes()` | `NotifiersSettingsView.vue` | ✅ Implemented |
 | GET | `/notifiers/types/{adapter_type}/config-schema` | Get config schema for notifier type | `NotifierService.getConfigSchema()` | `NotifiersSettingsView.vue` | ✅ Implemented |
+| GET | `/notifiers/types/{adapter_type}/external-services` | Get compatible external service type for notifier type | `NotifierService.getExternalServices()` | `NotifiersSettingsView.vue` | ✅ Implemented |
 | GET | `/notifiers/{notifier_id}` | Get specific notifier | `NotifierService.getNotifier()` | - | ✅ Implemented |
 | PUT | `/notifiers/{notifier_id}` | Update a notifier | `NotifierService.updateNotifier()` | `NotifiersSettingsView.vue` | ✅ Implemented |
 | DELETE | `/notifiers/{notifier_id}` | Delete a notifier | `NotifierService.deleteNotifier()` | `NotifiersSettingsView.vue` | ✅ Implemented |
@@ -154,7 +169,7 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 
 ---
 
-## 9. External Services API (`/external-services`)
+## 10. External Services API (`/external-services`)
 
 ### Endpoints:
 
@@ -167,12 +182,14 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 | GET | `/external-services/{service_id}` | Get specific service | `ExternalServiceService.getExternalService()` | - | ✅ Implemented |
 | PUT | `/external-services/{service_id}` | Update a service | `ExternalServiceService.updateExternalService()` | `ExternalServicesSettingsView.vue` | ✅ Implemented |
 | DELETE | `/external-services/{service_id}` | Delete a service | `ExternalServiceService.deleteExternalService()` | `ExternalServicesSettingsView.vue` | ✅ Implemented |
+| GET | `/external-services/{service_id}/status` | Get connection status of a service | `ExternalServiceService.getExternalServiceStatus()` | `ExternalServicesSettingsView.vue` | ✅ Implemented |
+| GET | `/external-services/{service_id}/linked-entities` | Get all entities linked to a service | `ExternalServiceService.getLinkedEntities()` | `ExternalServicesSettingsView.vue` | ✅ Implemented |
 
 **Location in backend:** `core/edge_mining/adapters/infrastructure/external_services/fast_api/router.py`
 
 ---
 
-## 10. Rule Engine API (`/rule-engine`)
+## 11. Rule Engine API (`/rule-engine`)
 
 ### Endpoints:
 
@@ -187,7 +204,7 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 
 ---
 
-## 11. Optimization Units API (`/optimization-units`)
+## 12. Optimization Units API (`/optimization-units`)
 
 ### Endpoints:
 
@@ -217,22 +234,92 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 
 ### By Domain:
 
-- **Energy Sources**: 6/6 endpoints implemented (100%) ✅ **PHASE 1 COMPLETE**
-- **Energy Monitors**: 7/7 endpoints implemented (100%) ✅ **PHASE 1 COMPLETE**
-- **Miners**: 11/11 endpoints implemented (100%) ✅ **PHASE 1 COMPLETE**
-- **Miner Controllers**: 7/7 endpoints implemented (100%) ✅ **PHASE 2 COMPLETE**
-- **Policies**: 6/6 endpoints implemented (100%) ✅ **PHASE 3 COMPLETE**
-- **Policy Rules**: 7/7 endpoints implemented (100%) ✅ **PHASE 3 COMPLETE**
-- **Forecast Providers**: 7/7 endpoints implemented (100%) ✅ **PHASE 4 COMPLETE**
-- **Notifiers**: 8/8 endpoints implemented (100%) ✅ **PHASE 5 COMPLETE**
-- **External Services**: 7/7 endpoints implemented (100%) ✅ **PHASE 6 COMPLETE**
+- **Energy Sources**: 6/6 endpoints implemented (100%) ✅ **COMPLETE**
+- **Energy Monitors**: 8/8 endpoints implemented (100%) ✅ **COMPLETE**
+- **Miners**: 11/11 endpoints implemented (100%) ✅ **COMPLETE**
+- **Miner Controllers**: 7/7 endpoints implemented (100%) ✅ **COMPLETE**
+- **Policies**: 6/6 endpoints implemented (100%) ✅ **COMPLETE**
+- **Policy Rules**: 7/7 endpoints implemented (100%) ✅ **COMPLETE**
+- **Decisional Context**: 1/1 endpoints implemented (100%) ✅ **COMPLETE**
+- **Forecast Providers**: 8/8 endpoints implemented (100%) ✅ **COMPLETE**
+- **Notifiers**: 9/9 endpoints implemented (100%) ✅ **COMPLETE**
+- **External Services**: 9/9 endpoints implemented (100%) ✅ **COMPLETE**
 - **Rule Engine**: 4/4 endpoints implemented (100%) ✅ **COMPLETE**
-- **Optimization Units**: 15/15 endpoints implemented (100%) ✅ **PHASE 7 COMPLETE**
+- **Optimization Units**: 15/15 endpoints implemented (100%) ✅ **COMPLETE**
 
 ### Overall Progress:
-- **Total Endpoints**: 85
-- **Implemented**: 85 (100%)
+- **Total Endpoints**: 91
+- **Implemented**: 91 (100%)
 - **To Implement**: 0 (0%)
+
+---
+
+## Work To Do
+
+### Phase 8: External Services - New Endpoints ✅ COMPLETED
+
+Both endpoints have been fully implemented:
+
+1. ✅ **GET `/external-services/{service_id}/status`** - Get connection status of a specific external service
+   - Added `ExternalServiceStatus` and `ExternalServiceStatusType` models to `externalService.ts`
+   - Added `getExternalServiceStatus()` to `ExternalServiceService.ts`
+   - Added `getServiceStatus()` action and `serviceStatuses` state to `externalServiceStore.ts`
+   - Added status badge with refresh button to `ExternalServiceRow.vue`
+
+2. ✅ **GET `/external-services/{service_id}/linked-entities`** - Get all entities linked to a specific external service
+   - Added `ExternalServiceLinkedEntities` model to `externalService.ts`
+   - Added `getLinkedEntities()` to `ExternalServiceService.ts`
+   - Added `getLinkedEntities()` action and `serviceLinkedEntities` state to `externalServiceStore.ts`
+   - Added linked entities summary text to `ExternalServiceRow.vue`
+
+### UI Enhancement: Optimization Units - performance_tracker_id
+
+The `performance_tracker_id` field exists in the backend OptimizationUnit model and frontend TypeScript model, but is **not yet exposed** in the `OptimizationUnitsSettingsView.vue` form UI. This should be added when the performance tracker feature is ready.
+
+---
+
+## Model Fixes Applied
+
+The following model mismatches between backend and frontend were identified and **fixed**:
+
+### Fixed: ID type mismatches (5 models)
+Backend returns ALL IDs as `str` (UUID strings). These 5 frontend models incorrectly had `id?: number`:
+
+| Model | File | Fix |
+|---|---|---|
+| `EnergySource.id` | `energySource.ts` | `number` -> `string` |
+| `EnergyMonitor.id` | `energyMonitor.ts` | `number` -> `string` |
+| `ForecastProvider.id` | `forecastProvider.ts` | `number` -> `string` |
+| `Notifier.id` | `notifier.ts` | `number` -> `string` |
+| `ExternalService.id` | `externalService.ts` | `number` -> `string` |
+
+### Fixed: MinerStatus enum mismatch
+- **Backend** (`miner/common.py`): `unknown`, `off`, `on`, `starting`, `stopping`, `error`
+- **Frontend** was: `string` with comment `// 'active', 'inactive', 'error'`
+- **Fix**: Added proper `MinerStatus` type union: `'unknown' | 'off' | 'on' | 'starting' | 'stopping' | 'error'`
+- Also fixed `MinerRowEdit.vue` which compared `status === 'active'` (now compares to `'on'`)
+
+### Fixed: RuleEngineService.evaluate() - CRITICAL
+- **Return type**: Backend returns `bool`, frontend expected `EvaluationResult` object -> Fixed to `Promise<boolean>`
+- **Request type**: Backend expects `{ rules, context, optimization_unit }`, frontend sent generic dict -> Fixed to `RuleEvaluationRequest`
+- Removed unused `EvaluationResult` and `EvaluationContext` interfaces
+- Updated `ruleEngineStore.ts` accordingly
+
+### Fixed: AutomationRule.description nullable
+- Backend: `Optional[str]` (can be null)
+- Frontend was: `description: string` (required)
+- Fix: `description?: string` (optional)
+
+### Fixed: RuleEngineConfig type
+- Backend returns: `{ engine_type: RuleEngineType }`
+- Frontend was: `{ [key: string]: any }` (generic)
+- Fix: `{ engine_type: string }`
+
+### Fixed: getExternalServices() nullable return
+Three services return `Optional[ExternalServiceAdapter]` (can be null):
+- `EnergyMonitorService.getExternalServices()` -> return type now `ExternalServiceAdapter | null`
+- `ForecastProviderService.getExternalServices()` -> return type now `ExternalServiceAdapter | null`
+- (`NotifierService.getExternalServices()` was already correct with `string | null`)
 
 ---
 
@@ -241,106 +328,47 @@ All endpoints are prefixed with the API base URL (typically `/api` or similar).
 ### Services (in `src/core/services/`):
 1. ✅ `MinerService.ts` - **COMPLETE** - Full CRUD + control operations (11/11 endpoints)
 2. ✅ `EnergySourceService.ts` - **COMPLETE** - Full CRUD + types (6/6 endpoints)
-3. ✅ `EnergyMonitorService.ts` - **COMPLETE** - Full CRUD + types + config schema (7/7 endpoints)
+3. ✅ `EnergyMonitorService.ts` - **COMPLETE** - Full CRUD + types + config schema + external services (8/8 endpoints)
 4. ✅ `MinerControllerService.ts` - **COMPLETE** - Full CRUD + types + config schema (7/7 endpoints)
-5. ✅ `ForecastProviderService.ts` - **COMPLETE** - Full CRUD + types + config schema (7/7 endpoints)
-6. ✅ `PolicyService.ts` - **COMPLETE** - Full CRUD + rules management + check (13/13 endpoints)
-7. ✅ `NotifierService.ts` - **COMPLETE** - Full CRUD + types + config schema + test (8/8 endpoints)
-8. ✅ `ExternalServiceService.ts` - **COMPLETE** - Full CRUD + types + config schema (7/7 endpoints)
+5. ✅ `ForecastProviderService.ts` - **COMPLETE** - Full CRUD + types + config schema + external services (8/8 endpoints)
+6. ✅ `PolicyService.ts` - **COMPLETE** - Full CRUD + rules management + check + decisional context (14/14 endpoints)
+7. ✅ `NotifierService.ts` - **COMPLETE** - Full CRUD + types + config schema + test + external services (9/9 endpoints)
+8. ✅ `ExternalServiceService.ts` - **COMPLETE** - Full CRUD + types + config schema + status + linked-entities (9/9 endpoints)
 9. ✅ `RuleEngineService.ts` - **COMPLETE** - Config, info, evaluate, validate (4/4 endpoints)
 10. ✅ `OptimizationUnitService.ts` - **COMPLETE** - Full CRUD + enable/disable + assignments (15/15 endpoints)
 11. ✅ `BaseService.ts` - Base HTTP service class with GET, POST, PUT, DELETE methods
 
 ### Views/Pages (in `src/views/`):
 1. ✅ `DashboardView.vue` - Main dashboard
-2. ✅ `settings/MinersSettingsView.vue` - **UPDATED** - Full CRUD + control operations (start/stop/activate/deactivate)
-3. ✅ `settings/EnergySourcesSettingsView.vue` - **UPDATED** - Full CRUD operations (create, read, update, delete)
-4. ✅ `settings/EnergyMonitorSettingsView.vue` - **UPDATED** - Full CRUD operations with modal edit support
-5. ✅ `settings/MinerControllersSettingsView.vue` - **NEW** - Full CRUD operations with modal edit support
-6. ✅ `settings/ForecastProvidersSettingsView.vue` - **NEW** - Full CRUD operations with modal edit support
-7. ✅ `settings/PoliciesSettingsView.vue` - **NEW** - Full CRUD operations with rules management modal
-8. ✅ `settings/NotifiersSettingsView.vue` - **NEW** - Full CRUD operations with test notification feature
-9. ✅ `settings/ExternalServicesSettingsView.vue` - **NEW** - Full CRUD operations with modal edit support
-10. ✅ `settings/OptimizationUnitsSettingsView.vue` - **NEW** - Full CRUD + enable/disable + multi-select assignments
+2. ✅ `settings/MinersSettingsView.vue` - Full CRUD + control operations (start/stop/activate/deactivate)
+3. ✅ `settings/EnergySourcesSettingsView.vue` - Full CRUD operations (create, read, update, delete)
+4. ✅ `settings/EnergyMonitorSettingsView.vue` - Full CRUD operations with modal edit support
+5. ✅ `settings/MinerControllersSettingsView.vue` - Full CRUD operations with modal edit support
+6. ✅ `settings/ForecastProvidersSettingsView.vue` - Full CRUD operations with modal edit support
+7. ✅ `settings/PoliciesSettingsView.vue` - Full CRUD operations with rules management modal
+8. ✅ `settings/NotifiersSettingsView.vue` - Full CRUD operations with test notification feature
+9. ✅ `settings/ExternalServicesSettingsView.vue` - Full CRUD operations with status indicator + linked entities display
+10. ✅ `settings/OptimizationUnitsSettingsView.vue` - Full CRUD + enable/disable + multi-select assignments
 
 ### Components (in `src/components/`):
-1. ✅ `miners/MinerRow.vue` - **UPDATED** - Display miner row with edit/delete/control buttons
+1. ✅ `miners/MinerRow.vue` - Display miner row with edit/delete/control buttons
 2. ✅ `miners/MinerRowEdit.vue` - Edit miner row inline
-3. ✅ `energySources/EnergySourceRow.vue` - **UPDATED** - Display energy source row with edit/delete buttons
+3. ✅ `energySources/EnergySourceRow.vue` - Display energy source row with edit/delete buttons
 4. ✅ `energySources/EnergySourceRowEdit.vue` - Edit energy source row inline
-5. ✅ `energyMonitors/EnergyMonitorRow.vue` - **UPDATED** - Display energy monitor row with edit/delete buttons
+5. ✅ `energyMonitors/EnergyMonitorRow.vue` - Display energy monitor row with edit/delete buttons
 6. ✅ `energyMonitors/EnergyMonitorRowEdit.vue` - Edit energy monitor row (used in modal)
 7. ✅ `energyMonitors/EnergyMonitorConfigForm.vue` - Energy monitor config form
-8. ✅ `minerControllers/MinerControllerRow.vue` - **NEW** - Display miner controller row with edit/delete buttons
-9. ✅ `minerControllers/MinerControllerConfigForm.vue` - **NEW** - Miner controller config form
-10. ✅ `forecastProviders/ForecastProviderRow.vue` - **NEW** - Display forecast provider row with edit/delete buttons
-11. ✅ `forecastProviders/ForecastProviderConfigForm.vue` - **NEW** - Forecast provider config form
-12. ✅ `policies/PolicyRow.vue` - **NEW** - Display policy row with edit/delete/rules/check buttons
-13. ✅ `policies/PolicyRuleRow.vue` - **NEW** - Display policy rule row with edit/delete/toggle enabled
-14. ✅ `notifiers/NotifierRow.vue` - **NEW** - Display notifier row with edit/delete/test buttons
-15. ✅ `notifiers/NotifierConfigForm.vue` - **NEW** - Notifier config form with dynamic schema
-16. ✅ `externalServices/ExternalServiceRow.vue` - **NEW** - Display external service row with edit/delete buttons
-17. ✅ `externalServices/ExternalServiceConfigForm.vue` - **NEW** - External service config form with dynamic schema
-18. ✅ `optimizationUnits/OptimizationUnitRow.vue` - **NEW** - Display optimization unit row with edit/delete/toggle enabled
-
----
-
-## Priority Implementation Plan
-
-### Phase 1: Complete CRUD for Existing Entities ✅ **COMPLETED**
-
-**Backend Services (All endpoints implemented):**
-1. ✅ Complete Miners CRUD operations (update, delete, get by ID)
-2. ✅ Complete Energy Sources CRUD operations (update, delete, get by ID)
-3. ✅ Complete Energy Monitors CRUD operations (update, delete, get by ID)
-4. ✅ Add miner control operations (start/stop/activate/deactivate)
-5. ✅ Add BaseService PUT method
-6. ✅ Add Energy Source types endpoint
-7. ✅ Energy Monitor types and config schema endpoints were already implemented
-
-**Frontend UI (All CRUD operations functional):**
-8. ✅ Add edit/delete buttons to MinerRow component with miner control buttons
-9. ✅ Add edit/delete handlers to MinersSettingsView with inline editing
-10. ✅ Update MinerStore with all CRUD and control operations
-11. ✅ Add edit/delete buttons to EnergySourceRow component
-12. ✅ Add edit/delete handlers to EnergySourcesSettingsView with inline editing
-13. ✅ Update EnergySourceStore with update and delete operations
-14. ✅ Add edit/delete buttons to EnergyMonitorRow component
-15. ✅ Add edit/delete handlers to EnergyMonitorSettingsView with modal editing
-16. ✅ Update EnergyMonitorStore with update and delete operations
-
-### Phase 2: Miner Controllers ✅ **COMPLETED**
-1. ✅ Create MinerControllerService
-2. ✅ Create MinerController views and components
-3. ✅ Implement all CRUD operations
-
-### Phase 3: Policies and Rules ✅ **COMPLETED**
-1. ✅ Create PolicyService
-2. ✅ Create Policy views and components
-3. ✅ Implement rule management UI
-4. ✅ Integrate with Rule Engine validation API (via checkPolicy endpoint)
-
-### Phase 4: Forecast Providers ✅ **COMPLETED**
-1. ✅ Create ForecastProviderService
-2. ✅ Create ForecastProvider views and components
-3. ✅ Implement all CRUD operations
-
-### Phase 5: Notifiers ✅ **COMPLETED**
-1. ✅ Create NotifierService
-2. ✅ Create Notifier views and components
-3. ✅ Implement all CRUD operations
-4. ✅ Add test notification feature
-
-### Phase 6: External Services ✅ **COMPLETED**
-1. ✅ Create ExternalServiceService
-2. ✅ Create ExternalService views and components
-3. ✅ Implement all CRUD operations
-
-### Phase 7: Optimization Units ✅ **COMPLETED**
-1. ✅ Create OptimizationUnitService
-2. ✅ Create OptimizationUnit views and components
-3. ✅ Implement all CRUD operations
-4. ✅ Implement assignment operations (miners, notifiers, energy source, policy)
+8. ✅ `minerControllers/MinerControllerRow.vue` - Display miner controller row with edit/delete buttons
+9. ✅ `minerControllers/MinerControllerConfigForm.vue` - Miner controller config form
+10. ✅ `forecastProviders/ForecastProviderRow.vue` - Display forecast provider row with edit/delete buttons
+11. ✅ `forecastProviders/ForecastProviderConfigForm.vue` - Forecast provider config form
+12. ✅ `policies/PolicyRow.vue` - Display policy row with edit/delete/rules/check buttons
+13. ✅ `policies/PolicyRuleRow.vue` - Display policy rule row with edit/delete/toggle enabled
+14. ✅ `notifiers/NotifierRow.vue` - Display notifier row with edit/delete/test buttons
+15. ✅ `notifiers/NotifierConfigForm.vue` - Notifier config form with dynamic schema
+16. ✅ `externalServices/ExternalServiceRow.vue` - Display external service row with edit/delete buttons
+17. ✅ `externalServices/ExternalServiceConfigForm.vue` - External service config form with dynamic schema
+18. ✅ `optimizationUnits/OptimizationUnitRow.vue` - Display optimization unit row with edit/delete/toggle enabled
 
 ---
 

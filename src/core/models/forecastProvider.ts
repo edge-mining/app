@@ -5,7 +5,7 @@ export interface ForecastProviderConfig {
 }
 
 export interface ForecastProvider {
-  id?: number;
+  id?: string;
   name: string;
   adapter_type: ForecastProviderAdapter;
   config?: ForecastProviderConfig;

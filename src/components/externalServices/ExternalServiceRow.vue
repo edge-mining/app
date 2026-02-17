@@ -1,54 +1,80 @@
 <script setup lang="ts">
-import type { ExternalService } from "../../core/models/externalService";
-import type { EnergyMonitor } from "../../core/models/energyMonitor";
-import type { ForecastProvider } from "../../core/models/forecastProvider";
-import type { MinerController } from "../../core/models/minerController";
-import { computed, ref } from "vue";
-import { PhHash, PhPencil, PhTrash } from "@phosphor-icons/vue";
+import type { ExternalService, ExternalServiceStatus, ExternalServiceLinkedEntities } from "../../core/models/externalService";
+import { computed, ref, onMounted } from "vue";
+import { PhHash, PhPencil, PhTrash, PhArrowClockwise } from "@phosphor-icons/vue";
+import { useExternalServiceStore } from "../../core/stores/externalServiceStore";
 import ConfirmDialog from "../ConfirmDialog.vue";
 
 const model = defineModel<ExternalService>({ required: true });
-const props = defineProps<{
-  allEnergyMonitors?: EnergyMonitor[];
-  allForecastProviders?: ForecastProvider[];
-  allMinerControllers?: MinerController[];
-}>();
 const emit = defineEmits<{
   edit: [externalService: ExternalService];
   delete: [externalService: ExternalService];
 }>();
 
+const externalServiceStore = useExternalServiceStore();
 const showDeleteConfirm = ref(false);
+const statusLoading = ref(false);
 
-const associatedEnergyMonitors = computed(() => {
-  if (!props.allEnergyMonitors || !model.value.id) return [];
-  return props.allEnergyMonitors.filter(em => em.external_service_id === model.value.id?.toString());
+const status = computed<ExternalServiceStatus | undefined>(() => {
+  if (!model.value.id) return undefined;
+  return externalServiceStore.serviceStatuses.get(model.value.id);
 });
 
-const associatedForecastProviders = computed(() => {
-  if (!props.allForecastProviders || !model.value.id) return [];
-  return props.allForecastProviders.filter(fp => fp.external_service_id === model.value.id?.toString());
+const linkedEntities = computed<ExternalServiceLinkedEntities | undefined>(() => {
+  if (!model.value.id) return undefined;
+  return externalServiceStore.serviceLinkedEntities.get(model.value.id);
 });
 
-const associatedMinerControllers = computed(() => {
-  if (!props.allMinerControllers || !model.value.id) return [];
-  return props.allMinerControllers.filter(mc => mc.external_service_id === model.value.id?.toString());
+const linkedEntitiesText = computed(() => {
+  if (!linkedEntities.value) return "-";
+  const parts: string[] = [];
+  if (linkedEntities.value.energy_monitors.length > 0) {
+    parts.push(`${linkedEntities.value.energy_monitors.length} energy monitor(s)`);
+  }
+  if (linkedEntities.value.forecast_providers.length > 0) {
+    parts.push(`${linkedEntities.value.forecast_providers.length} forecast provider(s)`);
+  }
+  if (linkedEntities.value.home_forecast_providers.length > 0) {
+    parts.push(`${linkedEntities.value.home_forecast_providers.length} home forecast provider(s)`);
+  }
+  if (linkedEntities.value.miner_controllers.length > 0) {
+    parts.push(`${linkedEntities.value.miner_controllers.length} miner controller(s)`);
+  }
+  if (linkedEntities.value.notifiers.length > 0) {
+    parts.push(`${linkedEntities.value.notifiers.length} notifier(s)`);
+  }
+  return parts.length > 0 ? parts.join(", ") : "None";
 });
 
-const associatedEnergyMonitorsText = computed(() => {
-  if (associatedEnergyMonitors.value.length === 0) return "-";
-  return associatedEnergyMonitors.value.map(em => em.name).join(", ");
+const statusBadgeClass = computed(() => {
+  if (!status.value) return "badge-ghost";
+  switch (status.value.status) {
+    case "connected": return "badge-success";
+    case "disconnected": return "badge-error";
+    case "unauthorized": return "badge-warning";
+    default: return "badge-ghost";
+  }
 });
 
-const associatedForecastProvidersText = computed(() => {
-  if (associatedForecastProviders.value.length === 0) return "-";
-  return associatedForecastProviders.value.map(fp => fp.name).join(", ");
+const statusText = computed(() => {
+  if (!status.value) return "Unknown";
+  return status.value.status.charAt(0).toUpperCase() + status.value.status.slice(1);
 });
 
-const associatedMinerControllersText = computed(() => {
-  if (associatedMinerControllers.value.length === 0) return "-";
-  return associatedMinerControllers.value.map(mc => mc.name).join(", ");
+onMounted(() => {
+  if (model.value.id) {
+    externalServiceStore.getServiceStatus(model.value.id);
+    externalServiceStore.getLinkedEntities(model.value.id);
+  }
 });
+
+function refreshStatus() {
+  if (!model.value.id) return;
+  statusLoading.value = true;
+  externalServiceStore.getServiceStatus(model.value.id).finally(() => {
+    statusLoading.value = false;
+  });
+}
 
 const externalServiceTip = ref<string | null>(null);
 
@@ -122,13 +148,24 @@ function cancelDelete() {
       <div class="text-sm opacity-70">{{ model.adapter_type }}</div>
     </td>
     <td>
-      <div class="text-sm opacity-70">{{ associatedEnergyMonitorsText }}</div>
+      <div class="flex items-center gap-2">
+        <span class="badge badge-sm" :class="statusBadgeClass">{{ statusText }}</span>
+        <button
+          class="btn btn-xs btn-ghost"
+          :class="{ 'loading loading-spinner loading-xs': statusLoading }"
+          @click="refreshStatus"
+          title="Refresh status"
+          :disabled="statusLoading"
+        >
+          <PhArrowClockwise v-if="!statusLoading" :size="12" />
+        </button>
+      </div>
+      <div v-if="status?.error_message" class="text-xs text-error opacity-70 mt-1">
+        {{ status.error_message }}
+      </div>
     </td>
     <td>
-      <div class="text-sm opacity-70">{{ associatedForecastProvidersText }}</div>
-    </td>
-    <td>
-      <div class="text-sm opacity-70">{{ associatedMinerControllersText }}</div>
+      <div class="text-sm opacity-70">{{ linkedEntitiesText }}</div>
     </td>
     <th>
       <div class="flex gap-2">
