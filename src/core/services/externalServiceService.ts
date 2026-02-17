@@ -1,5 +1,5 @@
 import { BaseService } from "./baseService";
-import type { ExternalService, ConfigSchema } from "../models/externalService";
+import type { ExternalService, ConfigSchema, ExternalServiceStatus } from "../models/externalService";
 
 export class ExternalServiceService extends BaseService {
   getExternalServices(): Promise<ExternalService[]> {
@@ -8,6 +8,10 @@ export class ExternalServiceService extends BaseService {
 
   getExternalService(serviceId: string): Promise<ExternalService> {
     return this.get<ExternalService>(`/external-services/${serviceId}`).getData();
+  }
+
+  getServiceStatus(serviceId: string): Promise<ExternalServiceStatus> {
+    return this.get<ExternalServiceStatus>(`/external-services/${serviceId}/status`).getData();
   }
 
   addExternalService(externalService: ExternalService): Promise<ExternalService> {

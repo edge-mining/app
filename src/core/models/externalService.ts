@@ -11,6 +11,15 @@ export interface ExternalService {
   config?: ExternalServiceConfig;
 }
 
+export type ExternalServiceStatusEnum = 'connected' | 'disconnected' | 'error' | 'unknown';
+
+export interface ExternalServiceStatus {
+  name: string;
+  status: ExternalServiceStatusEnum;
+  last_check: string; // ISO 8601 datetime string
+  error_message?: string;
+}
+
 export interface ConfigSchemaProperty {
   type: string;
   title: string;

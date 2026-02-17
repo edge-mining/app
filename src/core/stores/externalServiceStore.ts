@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import type { ExternalService, ConfigSchema } from "../models/externalService";
+import type { ExternalService, ConfigSchema, ExternalServiceStatus } from "../models/externalService";
 import { ExternalServiceService } from "../services/externalServiceService";
 
 export const useExternalServiceStore = defineStore("externalService", () => {
@@ -8,6 +8,7 @@ export const useExternalServiceStore = defineStore("externalService", () => {
 
   // State
   const externalServices = ref<ExternalService[]>([]);
+  const serviceStatuses = ref<ExternalServiceStatus[]>([]);
   const adapterTypes = ref<string[]>([]);
   const configSchemas = ref<Map<string, ConfigSchema>>(new Map());
 
@@ -16,6 +17,14 @@ export const useExternalServiceStore = defineStore("externalService", () => {
     return service.getExternalServices().then((response) => {
       externalServices.value = response;
     });
+  }
+
+  async function loadServicesStatus() {
+    const statusPromises = externalServices.value.map((svc) => 
+      service.getServiceStatus(String(svc.id))
+    );
+    const statuses = await Promise.all(statusPromises);
+    serviceStatuses.value = statuses;
   }
 
   function loadAdapterTypes() {
@@ -46,10 +55,12 @@ export const useExternalServiceStore = defineStore("externalService", () => {
   return {
     // STATE
     externalServices,
+    serviceStatuses,
     adapterTypes,
     configSchemas,
     // ACTIONS
     loadExternalServices,
+    loadServicesStatus,
     loadAdapterTypes,
     loadConfigSchema,
     addExternalService,
