@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, defineAsyncComponent } from "vue";
 import SidebarMenu from "./components/SidebarMenu.vue";
-import { PhCaretLeft, PhCaretRight } from "@phosphor-icons/vue";
+import TopBar from "./components/TopBar.vue";
+
+const BottomBar = defineAsyncComponent(() => import("./components/BottomBar.vue"));
 
 const showDrawer = ref(true);
 </script>
 
 <template>
-  <div class="drawer">
+  <div class="drawer h-screen" :class="{ 'drawer-open': showDrawer }">
     <input
       id="my-drawer"
       type="checkbox"
@@ -15,25 +17,19 @@ const showDrawer = ref(true);
       v-model="showDrawer"
     />
 
-    <div class="drawer-side relative" :class="showDrawer ? 'w-60' : 'w-0'">
-      <label for="my-drawer" aria-label="close sidebar"></label>
-      <SidebarMenu />
+    <div class="drawer-side">
+      <label for="my-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
+      <div class="w-60 h-full overflow-y-auto bg-base-200 border-r border-base-300/30">
+        <SidebarMenu />
+      </div>
     </div>
 
-    <div class="drawer-content relative pl-12">
-      <!-- Page content here -->
-      <label
-        for="my-drawer"
-        class="absolute top-12 -left-2 rounded border border-base-300 text-base-300 size-6 z-10 flenter"
-      >
-        <div>
-          <PhCaretLeft v-if="showDrawer" />
-          <PhCaretRight v-else />
-        </div>
-      </label>
-      <div class="mt-8">
+    <div class="drawer-content flex flex-col h-screen overflow-hidden">
+      <TopBar :show-drawer="showDrawer" @toggle-drawer="showDrawer = !showDrawer" />
+      <main class="flex-1 overflow-y-auto p-6">
         <RouterView />
-      </div>
+      </main>
+      <BottomBar />
     </div>
   </div>
 </template>
