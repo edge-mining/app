@@ -13,7 +13,6 @@ export const useExternalServiceStore = defineStore("externalService", () => {
 
   // State
   const externalServices = ref<ExternalService[]>([]);
-  const serviceStatuses = ref<ExternalServiceStatus[]>([]);
   const adapterTypes = ref<string[]>([]);
   const configSchemas = ref<Map<string, ConfigSchema>>(new Map());
   const serviceStatuses = ref<Map<string, ExternalServiceStatus>>(new Map());
@@ -31,7 +30,9 @@ export const useExternalServiceStore = defineStore("externalService", () => {
       service.getServiceStatus(String(svc.id))
     );
     const statuses = await Promise.all(statusPromises);
-    serviceStatuses.value = statuses;
+    statuses.forEach((status) => {
+      serviceStatuses.value.set(status.name, status);
+    });
   }
 
   function loadAdapterTypes() {
@@ -76,7 +77,6 @@ export const useExternalServiceStore = defineStore("externalService", () => {
   return {
     // STATE
     externalServices,
-    serviceStatuses,
     adapterTypes,
     configSchemas,
     serviceStatuses,
