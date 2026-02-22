@@ -1,15 +1,11 @@
 export interface RuleEngineConfig {
-  [key: string]: any;
+  engine_type: string;
 }
 
-export interface EvaluationContext {
-  [key: string]: any;
-}
-
-export interface EvaluationResult {
-  success: boolean;
-  results?: any[];
-  errors?: string[];
+export interface RuleEvaluationRequest {
+  rules: any[];
+  context: Record<string, any>;
+  optimization_unit: string;
 }
 
 export interface ValidationResult {

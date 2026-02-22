@@ -31,7 +31,7 @@ export class EnergyMonitorService extends BaseService {
     return this.get<ConfigSchema>(`/energy-monitors/types/${adapterType}/config-schema`).getData();
   }
 
-  getExternalServices(adapterType: string): Promise<ExternalServiceAdapter> {
-    return this.get<ExternalServiceAdapter>(`/energy-monitors/types/${adapterType}/external-services`).getData();
+  getExternalServices(adapterType: string): Promise<ExternalServiceAdapter | null> {
+    return this.get<ExternalServiceAdapter | null>(`/energy-monitors/types/${adapterType}/external-services`).getData();
   }
 }

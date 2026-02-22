@@ -5,7 +5,7 @@ export interface NotifierConfig {
 }
 
 export interface Notifier {
-  id?: number;
+  id?: string;
   name: string;
   adapter_type: NotifierAdapter;
   config?: NotifierConfig;

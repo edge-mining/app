@@ -1,6 +1,11 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import type { ExternalService, ConfigSchema, ExternalServiceStatus } from "../models/externalService";
+import type {
+  ExternalService,
+  ExternalServiceStatus,
+  ExternalServiceLinkedEntities,
+  ConfigSchema,
+} from "../models/externalService";
 import { ExternalServiceService } from "../services/externalServiceService";
 
 export const useExternalServiceStore = defineStore("externalService", () => {
@@ -11,6 +16,8 @@ export const useExternalServiceStore = defineStore("externalService", () => {
   const serviceStatuses = ref<ExternalServiceStatus[]>([]);
   const adapterTypes = ref<string[]>([]);
   const configSchemas = ref<Map<string, ConfigSchema>>(new Map());
+  const serviceStatuses = ref<Map<string, ExternalServiceStatus>>(new Map());
+  const serviceLinkedEntities = ref<Map<string, ExternalServiceLinkedEntities>>(new Map());
 
   // Actions
   function loadExternalServices() {
@@ -52,12 +59,28 @@ export const useExternalServiceStore = defineStore("externalService", () => {
     return service.deleteExternalService(serviceId);
   }
 
+  function getServiceStatus(serviceId: string) {
+    return service.getExternalServiceStatus(serviceId).then((response) => {
+      serviceStatuses.value.set(serviceId, response);
+      return response;
+    });
+  }
+
+  function getLinkedEntities(serviceId: string) {
+    return service.getLinkedEntities(serviceId).then((response) => {
+      serviceLinkedEntities.value.set(serviceId, response);
+      return response;
+    });
+  }
+
   return {
     // STATE
     externalServices,
     serviceStatuses,
     adapterTypes,
     configSchemas,
+    serviceStatuses,
+    serviceLinkedEntities,
     // ACTIONS
     loadExternalServices,
     loadServicesStatus,
@@ -66,5 +89,7 @@ export const useExternalServiceStore = defineStore("externalService", () => {
     addExternalService,
     updateExternalService,
     deleteExternalService,
+    getServiceStatus,
+    getLinkedEntities,
   };
 });

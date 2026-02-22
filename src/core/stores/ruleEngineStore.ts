@@ -3,8 +3,7 @@ import { ref } from "vue";
 import type {
   RuleEngineConfig,
   RuleEngineInfo,
-  EvaluationContext,
-  EvaluationResult,
+  RuleEvaluationRequest,
   RuleValidationRequest,
   RuleValidationResult,
 } from "../models/ruleEngine";
@@ -32,8 +31,8 @@ export const useRuleEngineStore = defineStore("ruleEngine", () => {
     });
   }
 
-  function evaluate(context: EvaluationContext): Promise<EvaluationResult> {
-    return service.evaluate(context);
+  function evaluate(request: RuleEvaluationRequest): Promise<boolean> {
+    return service.evaluate(request);
   }
 
   function validate(request: RuleValidationRequest): Promise<RuleValidationResult> {

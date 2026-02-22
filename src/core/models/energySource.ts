@@ -17,7 +17,7 @@ export interface GridSchema {
 }
 
 export interface EnergySource {
-  id?: number;
+  id?: string;
   name: string;
   type: EnergySourceType;
   nominal_power_max?: number;
