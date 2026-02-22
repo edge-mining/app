@@ -20,12 +20,14 @@ For a step-by-step example, see: docs/MIGRATION_EXAMPLE.md
 """
 
 import json
+import uuid
 from typing import Optional
 
 from sqlalchemy import Column, ForeignKey, String, Table, event
 
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.common import ConfigurationType
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.registry import mapper_registry, metadata
+from edge_mining.domain.common import EntityId
 from edge_mining.domain.notification.common import NotificationAdapter
 from edge_mining.domain.notification.entities import Notifier
 from edge_mining.domain.notification.exceptions import NotifierConfigurationError
@@ -65,6 +67,21 @@ def _deserialize_notifier_config(adapter_type: NotificationAdapter, config_json:
 @event.listens_for(Notifier, "load")
 def _receive_notifier_load(target: Notifier, context) -> None:
     """Event listener that deserializes config after loading from database."""
+
+    # Convert foreign keys to EntityId
+    # NOTE: SQLAlchemy returns strings for UUID columns that need conversion to EntityId
+    if hasattr(target, "external_service_id") and target.external_service_id is not None:
+        if isinstance(target.external_service_id, str):  # type: ignore
+            target.external_service_id = EntityId(uuid.UUID(target.external_service_id))  # type: ignore
+
+    # Convert adapter_type string to enum if needed
+    if isinstance(target.adapter_type, str):
+        try:
+            target.adapter_type = NotificationAdapter(target.adapter_type)
+        except ValueError:
+            # If conversion fails, leave as string (will fail in config deserialization)
+            pass
+
     if target.config and isinstance(target.config, str):
         target.config = _deserialize_notifier_config(target.adapter_type, target.config)
 
