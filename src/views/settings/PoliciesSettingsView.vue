@@ -435,7 +435,8 @@ const filteredAvailableRules = computed(() => {
 </script>
 
 <template>
-  <h1 class="text-3xl font-bold">Optimization Policy Settings</h1>
+  <div class="card bg-base-200 shadow-sm">
+  <h2 class="text-2xl font-bold px-6 pt-5 pb-3">Optimization Policy Settings</h2>
 
   <div class="overflow-x-auto">
     <table class="table">
@@ -469,6 +470,7 @@ const filteredAvailableRules = computed(() => {
         </tr>
       </tbody>
     </table>
+  </div>
   </div>
 
   <!-- Policy Add/Edit Modal -->

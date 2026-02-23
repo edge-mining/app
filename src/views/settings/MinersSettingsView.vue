@@ -122,7 +122,8 @@ function handleRefresh(miner: Miner) {
 </script>
 
 <template>
-  <h1 class="text-3xl font-bold">Miners settings</h1>
+  <div class="card bg-base-200 shadow-sm">
+  <h2 class="text-2xl font-bold px-6 pt-5 pb-3">Miners settings</h2>
 
   <div class="overflow-x-auto">
     <table class="table">
@@ -193,6 +194,7 @@ function handleRefresh(miner: Miner) {
         </tr>
       </tbody>
     </table>
+  </div>
   </div>
 </template>
 
