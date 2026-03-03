@@ -25,31 +25,31 @@ function handleCancel() {
 </script>
 
 <template>
-  <dialog :class="['modal', { 'modal-open': open }]">
+  <dialog :class="['modal', { 'modal-open': props.open }]">
     <div class="modal-box">
       <h3 class="font-bold text-lg flex items-center gap-2">
         <PhWarning
-          v-if="variant === 'danger' || variant === 'warning'"
+          v-if="props.variant === 'danger' || props.variant === 'warning'"
           :size="24"
-          :class="variant === 'danger' ? 'text-error' : 'text-warning'"
+          :class="props.variant === 'danger' ? 'text-error' : 'text-warning'"
         />
-        {{ title || "Confirm" }}
+        {{ props.title || "Confirm" }}
       </h3>
-      <p class="py-4">{{ message }}</p>
+      <p class="py-4">{{ props.message }}</p>
       <div class="modal-action">
         <button class="btn btn-secondary" @click="handleCancel">
-          {{ cancelText || "Cancel" }}
+          {{ props.cancelText || "Cancel" }}
         </button>
         <button
           class="btn"
           :class="{
-            'btn-error': variant === 'danger',
-            'btn-warning': variant === 'warning',
-            'btn-primary': !variant || variant === 'info',
+            'btn-error': props.variant === 'danger',
+            'btn-warning': props.variant === 'warning',
+            'btn-primary': !props.variant || props.variant === 'info',
           }"
           @click="handleConfirm"
         >
-          {{ confirmText || "Confirm" }}
+          {{ props.confirmText || "Confirm" }}
         </button>
       </div>
     </div>

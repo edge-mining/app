@@ -50,7 +50,7 @@ onUnmounted(() => {
 function addMiner() {
   newMiner.value = {
     name: "",
-    status: "",
+    status: "unknown",
     active: false,
     hash_rate_max: { value: 100, unit: "TH/s" },
     power_consumption_max: 3000,
