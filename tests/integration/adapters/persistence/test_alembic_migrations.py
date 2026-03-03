@@ -252,7 +252,9 @@ class TestAlembicMigrations:
             session.commit()
 
             # Query data
-            result = session.execute(text("SELECT name, type FROM energy_sources WHERE id = :id"), {"id": "test-id-123"})
+            result = session.execute(
+                text("SELECT name, type FROM energy_sources WHERE id = :id"), {"id": "test-id-123"}
+            )
             row = result.fetchone()
             assert row is not None
             assert row[0] == "Test Source"
