@@ -232,46 +232,43 @@ const formatAdapterType = (type: string) => {
 </script>
 
 <template>
-  <div class="card bg-base-200 shadow-sm">
-  <h2 class="text-2xl font-bold px-6 pt-5 pb-3">Notifier Settings</h2>
+  <div class="card">
+    <div class="card-header">
+      <h2>Notifier Settings</h2>
+    </div>
+    <div class="card-body">
+      <div class="overflow-x-auto">
+        <table class="table">
+          <!-- head -->
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Adapter Type</th>
+              <th>External Service</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <NotifierRow v-for="(notifier, i) in notifierStore.notifiers" :key="notifier.id"
+              v-model="notifierStore.notifiers[i]" @edit="handleEdit" @delete="handleDelete" @test="handleTest" />
 
-  <div class="overflow-x-auto">
-    <table class="table">
-      <!-- head -->
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Adapter Type</th>
-          <th>External Service</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <NotifierRow
-          v-for="(notifier, i) in notifierStore.notifiers"
-          :key="notifier.id"
-          v-model="notifierStore.notifiers[i]"
-          @edit="handleEdit"
-          @delete="handleDelete"
-          @test="handleTest"
-        />
+            <tr v-if="notifierStore.notifiers.length === 0">
+              <td colspan="4" class="text-center opacity-50">
+                No notifiers configured yet
+              </td>
+            </tr>
 
-        <tr v-if="notifierStore.notifiers.length === 0">
-          <td colspan="4" class="text-center opacity-50">
-            No notifiers configured yet
-          </td>
-        </tr>
-
-        <tr>
-          <th colspan="3" class="text-center">
-            <button class="btn btn-primary" @click="addNotifier">
-              Add Notifier
-            </button>
-          </th>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+            <tr>
+              <th colspan="3" class="text-center">
+                <button class="btn btn-primary" @click="addNotifier">
+                  Add Notifier
+                </button>
+              </th>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <!-- Modal for adding/editing notifier -->
@@ -281,47 +278,27 @@ const formatAdapterType = (type: string) => {
         {{ isEditing ? "Edit Notifier" : "Add Notifier" }}
       </h3>
 
-      <form
-        @submit.prevent="isEditing ? confirmEdit() : confirmAdd()"
-        class="flex flex-col gap-4"
-      >
+      <form @submit.prevent="isEditing ? confirmEdit() : confirmAdd()" class="flex flex-col gap-4">
         <template v-if="isEditing && editingNotifier">
           <!-- Name field -->
           <div class="space-y-1">
             <div class="font-medium">
               Name
-              <span class="text-sm text-error opacity-60 ml-1 font-normal"
-                >(required)</span
-              >
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
             </div>
-            <input
-              v-model="editingNotifier.name"
-              type="text"
-              placeholder="Notifier name"
-              required
-              class="input input-bordered input-sm w-full"
-            />
+            <input v-model="editingNotifier.name" type="text" placeholder="Notifier name" required
+              class="input input-bordered input-sm w-full" />
           </div>
 
           <!-- Adapter Type dropdown -->
           <div class="space-y-1">
             <div class="font-medium">
               Adapter Type
-              <span class="text-sm text-error opacity-60 ml-1 font-normal"
-                >(required)</span
-              >
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
             </div>
-            <select
-              v-model="editingNotifier.adapter_type"
-              required
-              class="select select-bordered select-sm w-full"
-              disabled
-            >
-              <option
-                v-for="adapterType in notifierStore.adapterTypes"
-                :key="adapterType"
-                :value="adapterType"
-              >
+            <select v-model="editingNotifier.adapter_type" required class="select select-bordered select-sm w-full"
+              disabled>
+              <option v-for="adapterType in notifierStore.adapterTypes" :key="adapterType" :value="adapterType">
                 {{ formatAdapterType(adapterType) }}
               </option>
             </select>
@@ -334,21 +311,12 @@ const formatAdapterType = (type: string) => {
           <div v-if="editingRequiresExternalService" class="space-y-1">
             <div class="font-medium">
               External Service
-              <span class="text-sm text-error opacity-60 ml-1 font-normal"
-                >(required)</span
-              >
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
             </div>
-            <select
-              v-model="editingNotifier.external_service_id"
-              required
-              class="select select-bordered select-sm w-full"
-            >
+            <select v-model="editingNotifier.external_service_id" required
+              class="select select-bordered select-sm w-full">
               <option value="">Select external service</option>
-              <option
-                v-for="service in editingCompatibleExternalServices"
-                :key="service.id"
-                :value="service.id"
-              >
+              <option v-for="service in editingCompatibleExternalServices" :key="service.id" :value="service.id">
                 {{ service.name }}
               </option>
             </select>
@@ -361,11 +329,8 @@ const formatAdapterType = (type: string) => {
           <div class="space-y-1">
             <div class="font-medium">Configuration</div>
             <div class="border border-base-300 rounded-lg p-4">
-              <NotifierConfigForm
-                v-if="editingNotifier.config"
-                v-model="editingNotifier.config"
-                :adapter-type="editingNotifier.adapter_type"
-              />
+              <NotifierConfigForm v-if="editingNotifier.config" v-model="editingNotifier.config"
+                :adapter-type="editingNotifier.adapter_type" />
             </div>
           </div>
         </template>
@@ -375,37 +340,20 @@ const formatAdapterType = (type: string) => {
           <div class="space-y-1">
             <div class="font-medium">
               Name
-              <span class="text-sm text-error opacity-60 ml-1 font-normal"
-                >(required)</span
-              >
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
             </div>
-            <input
-              v-model="newNotifier.name"
-              type="text"
-              placeholder="Notifier name"
-              required
-              class="input input-bordered input-sm w-full"
-            />
+            <input v-model="newNotifier.name" type="text" placeholder="Notifier name" required
+              class="input input-bordered input-sm w-full" />
           </div>
 
           <!-- Adapter Type dropdown -->
           <div class="space-y-1">
             <div class="font-medium">
               Adapter Type
-              <span class="text-sm text-error opacity-60 ml-1 font-normal"
-                >(required)</span
-              >
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
             </div>
-            <select
-              v-model="newNotifier.adapter_type"
-              required
-              class="select select-bordered select-sm w-full"
-            >
-              <option
-                v-for="adapterType in notifierStore.adapterTypes"
-                :key="adapterType"
-                :value="adapterType"
-              >
+            <select v-model="newNotifier.adapter_type" required class="select select-bordered select-sm w-full">
+              <option v-for="adapterType in notifierStore.adapterTypes" :key="adapterType" :value="adapterType">
                 {{ formatAdapterType(adapterType) }}
               </option>
             </select>
@@ -418,21 +366,11 @@ const formatAdapterType = (type: string) => {
           <div v-if="newRequiresExternalService" class="space-y-1">
             <div class="font-medium">
               External Service
-              <span class="text-sm text-error opacity-60 ml-1 font-normal"
-                >(required)</span
-              >
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
             </div>
-            <select
-              v-model="newNotifier.external_service_id"
-              required
-              class="select select-bordered select-sm w-full"
-            >
+            <select v-model="newNotifier.external_service_id" required class="select select-bordered select-sm w-full">
               <option value="">Select external service</option>
-              <option
-                v-for="service in newCompatibleExternalServices"
-                :key="service.id"
-                :value="service.id"
-              >
+              <option v-for="service in newCompatibleExternalServices" :key="service.id" :value="service.id">
                 {{ service.name }}
               </option>
             </select>
@@ -445,11 +383,8 @@ const formatAdapterType = (type: string) => {
           <div class="space-y-1">
             <div class="font-medium">Configuration</div>
             <div class="border border-base-300 rounded-lg p-4">
-              <NotifierConfigForm
-                v-if="newNotifier.config"
-                v-model="newNotifier.config"
-                :adapter-type="newNotifier.adapter_type"
-              />
+              <NotifierConfigForm v-if="newNotifier.config" v-model="newNotifier.config"
+                :adapter-type="newNotifier.adapter_type" />
             </div>
           </div>
         </template>
@@ -483,12 +418,8 @@ const formatAdapterType = (type: string) => {
       </div>
 
       <div v-else-if="testResult" class="flex flex-col gap-4">
-        <div
-          class="alert"
-          :class="
-            testResult.status === 'success' ? 'alert-success' : 'alert-error'
-          "
-        >
+        <div class="alert" :class="testResult.status === 'success' ? 'alert-success' : 'alert-error'
+          ">
           <span>{{ testResult.status }}</span>
         </div>
 

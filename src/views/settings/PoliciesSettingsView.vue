@@ -435,42 +435,39 @@ const filteredAvailableRules = computed(() => {
 </script>
 
 <template>
-  <div class="card bg-base-200 shadow-sm">
-  <h2 class="text-2xl font-bold px-6 pt-5 pb-3">Optimization Policy Settings</h2>
+  <div class="card">
+    <div class="card-header">
+      <h2>Optimization Policy Settings</h2>
+    </div>
+    <div class="card-body">
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Name / Description</th>
+              <th>Author</th>
+              <th>Modified</th>
+              <th>Start Rules</th>
+              <th>Stop Rules</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <PolicyRow v-for="(policy, i) in policyStore.policies" :key="policy.id" v-model="policyStore.policies[i]"
+              @edit="handleEditPolicy" @delete="handleDeletePolicy" @manage-rules="handleManageRules"
+              @check="handleCheckPolicy" />
 
-  <div class="overflow-x-auto">
-    <table class="table">
-      <thead>
-        <tr>
-          <th>Name / Description</th>
-          <th>Author</th>
-          <th>Modified</th>
-          <th>Start Rules</th>
-          <th>Stop Rules</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <PolicyRow
-          v-for="(policy, i) in policyStore.policies"
-          :key="policy.id"
-          v-model="policyStore.policies[i]"
-          @edit="handleEditPolicy"
-          @delete="handleDeletePolicy"
-          @manage-rules="handleManageRules"
-          @check="handleCheckPolicy"
-        />
-
-        <tr>
-          <th colspan="6" class="text-center">
-            <button class="btn btn-primary" @click="addPolicy">
-              Add Policy
-            </button>
-          </th>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+            <tr>
+              <th colspan="6" class="text-center">
+                <button class="btn btn-primary" @click="addPolicy">
+                  Add Policy
+                </button>
+              </th>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <!-- Policy Add/Edit Modal -->
@@ -480,38 +477,24 @@ const filteredAvailableRules = computed(() => {
         {{ isEditingPolicy ? "Edit Policy" : "Add Policy" }}
       </h3>
 
-      <form
-        @submit.prevent="
-          isEditingPolicy ? confirmEditPolicy() : confirmAddPolicy()
-        "
-        class="flex flex-col gap-4"
-      >
+      <form @submit.prevent="
+        isEditingPolicy ? confirmEditPolicy() : confirmAddPolicy()
+        " class="flex flex-col gap-4">
         <template v-if="isEditingPolicy && editingPolicy">
           <!-- Name field -->
           <div class="space-y-1">
             <div class="font-medium">
               Name
-              <span class="text-sm text-error opacity-60 ml-1 font-normal"
-                >(required)</span
-              >
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
             </div>
-            <input
-              v-model="editingPolicy.name"
-              type="text"
-              placeholder="Policy name"
-              required
-              class="input input-bordered input-sm w-full"
-            />
+            <input v-model="editingPolicy.name" type="text" placeholder="Policy name" required
+              class="input input-bordered input-sm w-full" />
           </div>
 
           <div class="space-y-1">
             <div class="font-medium">Description</div>
-            <textarea
-              v-model="editingPolicy.description"
-              placeholder="Policy description"
-              class="textarea textarea-bordered textarea-sm w-full"
-              rows="3"
-            ></textarea>
+            <textarea v-model="editingPolicy.description" placeholder="Policy description"
+              class="textarea textarea-bordered textarea-sm w-full" rows="3"></textarea>
           </div>
 
           <!-- Metadata Section -->
@@ -552,36 +535,21 @@ const filteredAvailableRules = computed(() => {
           <div class="space-y-1">
             <div class="font-medium">
               Name
-              <span class="text-sm text-error opacity-60 ml-1 font-normal"
-                >(required)</span
-              >
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
             </div>
-            <input
-              v-model="newPolicy.name"
-              type="text"
-              placeholder="Policy name"
-              required
-              class="input input-bordered input-sm w-full"
-            />
+            <input v-model="newPolicy.name" type="text" placeholder="Policy name" required
+              class="input input-bordered input-sm w-full" />
           </div>
 
           <div class="space-y-1">
             <div class="font-medium">Description</div>
-            <textarea
-              v-model="newPolicy.description"
-              placeholder="Policy description"
-              class="textarea textarea-bordered textarea-sm w-full"
-              rows="3"
-            ></textarea>
+            <textarea v-model="newPolicy.description" placeholder="Policy description"
+              class="textarea textarea-bordered textarea-sm w-full" rows="3"></textarea>
           </div>
         </template>
 
         <div class="modal-action">
-          <button
-            type="button"
-            class="btn btn-secondary"
-            @click="cancelPolicyModal"
-          >
+          <button type="button" class="btn btn-secondary" @click="cancelPolicyModal">
             Cancel
           </button>
           <button type="submit" class="btn btn-primary">
@@ -605,12 +573,7 @@ const filteredAvailableRules = computed(() => {
       <!-- Tabs for Start/Stop Rules -->
       <div class="tabs tabs-lifted justify-center">
         <label class="tab">
-          <input
-            type="radio"
-            name="rule_tabs"
-            :checked="activeRuleTab === 'start'"
-            @change="activeRuleTab = 'start'"
-          />
+          <input type="radio" name="rule_tabs" :checked="activeRuleTab === 'start'" @change="activeRuleTab = 'start'" />
           <PhPlay :size="16" class="me-2" />
           Start Rules
         </label>
@@ -626,20 +589,13 @@ const filteredAvailableRules = computed(() => {
                 </tr>
               </thead>
               <tbody>
-                <template
-                  v-if="
-                    selectedPolicy.start_rules &&
-                    selectedPolicy.start_rules.length > 0
-                  "
-                >
-                  <PolicyRuleRow
-                    v-for="(rule, i) in selectedPolicy.start_rules"
-                    :key="rule.id"
-                    v-model="selectedPolicy.start_rules[i]"
-                    @edit="(r) => handleEditRule(r, 'start')"
-                    @delete="(r) => handleDeleteRule(r)"
-                    @toggle-enabled="(r) => handleToggleRuleEnabled(r)"
-                  />
+                <template v-if="
+                  selectedPolicy.start_rules &&
+                  selectedPolicy.start_rules.length > 0
+                ">
+                  <PolicyRuleRow v-for="(rule, i) in selectedPolicy.start_rules" :key="rule.id"
+                    v-model="selectedPolicy.start_rules[i]" @edit="(r) => handleEditRule(r, 'start')"
+                    @delete="(r) => handleDeleteRule(r)" @toggle-enabled="(r) => handleToggleRuleEnabled(r)" />
                 </template>
                 <tr v-else>
                   <td colspan="4" class="text-center text-base-content/50">
@@ -652,12 +608,7 @@ const filteredAvailableRules = computed(() => {
         </div>
 
         <label class="tab">
-          <input
-            type="radio"
-            name="rule_tabs"
-            :checked="activeRuleTab === 'stop'"
-            @change="activeRuleTab = 'stop'"
-          />
+          <input type="radio" name="rule_tabs" :checked="activeRuleTab === 'stop'" @change="activeRuleTab = 'stop'" />
           <PhStop :size="16" class="me-2" />
           Stop Rules
         </label>
@@ -673,20 +624,13 @@ const filteredAvailableRules = computed(() => {
                 </tr>
               </thead>
               <tbody>
-                <template
-                  v-if="
-                    selectedPolicy.stop_rules &&
-                    selectedPolicy.stop_rules.length > 0
-                  "
-                >
-                  <PolicyRuleRow
-                    v-for="(rule, i) in selectedPolicy.stop_rules"
-                    :key="rule.id"
-                    v-model="selectedPolicy.stop_rules[i]"
-                    @edit="(r) => handleEditRule(r, 'stop')"
-                    @delete="(r) => handleDeleteRule(r)"
-                    @toggle-enabled="(r) => handleToggleRuleEnabled(r)"
-                  />
+                <template v-if="
+                  selectedPolicy.stop_rules &&
+                  selectedPolicy.stop_rules.length > 0
+                ">
+                  <PolicyRuleRow v-for="(rule, i) in selectedPolicy.stop_rules" :key="rule.id"
+                    v-model="selectedPolicy.stop_rules[i]" @edit="(r) => handleEditRule(r, 'stop')"
+                    @delete="(r) => handleDeleteRule(r)" @toggle-enabled="(r) => handleToggleRuleEnabled(r)" />
                 </template>
                 <tr v-else>
                   <td colspan="4" class="text-center text-base-content/50">
@@ -726,57 +670,35 @@ const filteredAvailableRules = computed(() => {
           {{ isEditingRule ? "Edit" : "Add" }}
           {{ currentRuleType === "start" ? "Start" : "Stop" }} Rule
         </h3>
-        <button
-          type="button"
-          class="btn btn-sm btn-outline"
-          @click="openCopyFromModal(isEditingRule ? 'editing' : 'new')"
-          title="Copy from another rule"
-        >
+        <button type="button" class="btn btn-sm btn-outline"
+          @click="openCopyFromModal(isEditingRule ? 'editing' : 'new')" title="Copy from another rule">
           <PhCopy :size="16" />
           Copy From
         </button>
       </div>
 
-      <form
-        @submit.prevent="isEditingRule ? confirmEditRule() : confirmAddRule()"
-        class="flex flex-col gap-4"
-      >
+      <form @submit.prevent="isEditingRule ? confirmEditRule() : confirmAddRule()" class="flex flex-col gap-4">
         <template v-if="isEditingRule && editingRule">
           <div class="space-y-1">
             <div class="font-medium">
               Name
-              <span class="text-sm text-error opacity-60 ml-1 font-normal"
-                >(required)</span
-              >
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
             </div>
-            <input
-              v-model="editingRule.name"
-              type="text"
-              placeholder="Rule name"
-              required
-              class="input input-bordered input-sm w-full"
-            />
+            <input v-model="editingRule.name" type="text" placeholder="Rule name" required
+              class="input input-bordered input-sm w-full" />
           </div>
 
           <div class="space-y-1">
             <div class="font-medium">Description</div>
-            <textarea
-              v-model="editingRule.description"
-              placeholder="Rule description"
-              class="textarea textarea-bordered textarea-sm w-full"
-              rows="2"
-            ></textarea>
+            <textarea v-model="editingRule.description" placeholder="Rule description"
+              class="textarea textarea-bordered textarea-sm w-full" rows="2"></textarea>
           </div>
 
           <div class="grid grid-cols-2 gap-4">
             <div class="space-y-1">
               <div class="font-medium">Priority</div>
-              <input
-                v-model.number="editingRule.priority"
-                type="number"
-                placeholder="Priority (higher = higher priority)"
-                class="input input-bordered input-sm w-full"
-              />
+              <input v-model.number="editingRule.priority" type="number"
+                placeholder="Priority (higher = higher priority)" class="input input-bordered input-sm w-full" />
               <div class="text-sm italic opacity-70">
                 Higher values have higher priority
               </div>
@@ -784,28 +706,18 @@ const filteredAvailableRules = computed(() => {
 
             <div class="space-y-1 flex items-center">
               <label class="label cursor-pointer justify-start gap-4 p-0">
-                <input
-                  v-model="editingRule.enabled"
-                  type="checkbox"
-                  class="toggle toggle-primary toggle-sm"
-                />
+                <input v-model="editingRule.enabled" type="checkbox" class="toggle toggle-primary toggle-sm" />
                 <span class="font-medium">Enabled</span>
               </label>
             </div>
           </div>
 
           <div class="space-y-1">
-            <RuleConditionBuilder
-              ref="editingRuleConditionBuilder"
-              v-model="editingRule.conditions"
-            />
+            <RuleConditionBuilder ref="editingRuleConditionBuilder" v-model="editingRule.conditions" />
           </div>
 
           <!-- Warning about unsaved conditions -->
-          <div
-            v-if="editingRuleHasUnsavedConditions"
-            class="alert alert-warning shadow-lg"
-          >
+          <div v-if="editingRuleHasUnsavedConditions" class="alert alert-warning shadow-lg">
             <PhWarning :size="24" />
             <div class="flex-1">
               <h3 class="font-bold">Unsaved Conditions</h3>
@@ -814,12 +726,8 @@ const filteredAvailableRules = computed(() => {
                 yet. Remember to save the rule to apply all changes.
               </div>
             </div>
-            <button
-              type="button"
-              class="btn btn-sm btn-ghost"
-              @click="restoreEditingRuleConditions()"
-              title="Restore conditions to their original state"
-            >
+            <button type="button" class="btn btn-sm btn-ghost" @click="restoreEditingRuleConditions()"
+              title="Restore conditions to their original state">
               <PhArrowCounterClockwise :size="16" />
               Restore
             </button>
@@ -830,38 +738,23 @@ const filteredAvailableRules = computed(() => {
           <div class="space-y-1">
             <div class="font-medium">
               Name
-              <span class="text-sm text-error opacity-60 ml-1 font-normal"
-                >(required)</span
-              >
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
             </div>
-            <input
-              v-model="newRule.name"
-              type="text"
-              placeholder="Rule name"
-              required
-              class="input input-bordered input-sm w-full"
-            />
+            <input v-model="newRule.name" type="text" placeholder="Rule name" required
+              class="input input-bordered input-sm w-full" />
           </div>
 
           <div class="space-y-1">
             <div class="font-medium">Description</div>
-            <textarea
-              v-model="newRule.description"
-              placeholder="Rule description"
-              class="textarea textarea-bordered textarea-sm w-full"
-              rows="2"
-            ></textarea>
+            <textarea v-model="newRule.description" placeholder="Rule description"
+              class="textarea textarea-bordered textarea-sm w-full" rows="2"></textarea>
           </div>
 
           <div class="grid grid-cols-2 gap-4">
             <div class="space-y-1">
               <div class="font-medium">Priority</div>
-              <input
-                v-model.number="newRule.priority"
-                type="number"
-                placeholder="Priority (higher = higher priority)"
-                class="input input-bordered input-sm w-full"
-              />
+              <input v-model.number="newRule.priority" type="number" placeholder="Priority (higher = higher priority)"
+                class="input input-bordered input-sm w-full" />
               <div class="text-sm italic opacity-70">
                 Higher values have higher priority
               </div>
@@ -869,11 +762,7 @@ const filteredAvailableRules = computed(() => {
 
             <div class="space-y-1 flex items-center">
               <label class="label cursor-pointer justify-start gap-4 p-0">
-                <input
-                  v-model="newRule.enabled"
-                  type="checkbox"
-                  class="toggle toggle-primary toggle-sm"
-                />
+                <input v-model="newRule.enabled" type="checkbox" class="toggle toggle-primary toggle-sm" />
                 <span class="font-medium">Enabled</span>
               </label>
             </div>
@@ -881,17 +770,11 @@ const filteredAvailableRules = computed(() => {
 
           <div class="space-y-1">
             <div class="font-medium mb-2">Conditions</div>
-            <RuleConditionBuilder
-              ref="newRuleConditionBuilder"
-              v-model="newRule.conditions"
-            />
+            <RuleConditionBuilder ref="newRuleConditionBuilder" v-model="newRule.conditions" />
           </div>
 
           <!-- Warning about unsaved conditions -->
-          <div
-            v-if="newRuleHasUnsavedConditions"
-            class="alert alert-warning shadow-lg"
-          >
+          <div v-if="newRuleHasUnsavedConditions" class="alert alert-warning shadow-lg">
             <PhWarning :size="24" />
             <div class="flex-1">
               <h3 class="font-bold">Unsaved Conditions</h3>
@@ -900,12 +783,8 @@ const filteredAvailableRules = computed(() => {
                 yet. Remember to save the rule to apply all changes.
               </div>
             </div>
-            <button
-              type="button"
-              class="btn btn-sm btn-ghost"
-              @click="restoreNewRuleConditions()"
-              title="Restore conditions to their original state"
-            >
+            <button type="button" class="btn btn-sm btn-ghost" @click="restoreNewRuleConditions()"
+              title="Restore conditions to their original state">
               <PhArrowCounterClockwise :size="16" />
               Restore
             </button>
@@ -918,11 +797,7 @@ const filteredAvailableRules = computed(() => {
               <span class="font-semibold">Error:</span> {{ ruleAddSaveError }}
             </div>
           </div>
-          <button
-            type="button"
-            class="btn btn-secondary"
-            @click="cancelRuleModal"
-          >
+          <button type="button" class="btn btn-secondary" @click="cancelRuleModal">
             Cancel
           </button>
           <button type="submit" class="btn btn-primary">
@@ -945,46 +820,28 @@ const filteredAvailableRules = computed(() => {
         <p class="text-sm opacity-70">Select a rule to copy.</p>
         <label class="label cursor-pointer gap-3 ml-auto">
           <span class="label-text font-medium">Copy only conditions</span>
-          <input
-            v-model="copyOnlyConditions"
-            type="checkbox"
-            class="toggle toggle-primary toggle-sm"
-            title="Toggle between copying all rule settings or only conditions"
-          />
+          <input v-model="copyOnlyConditions" type="checkbox" class="toggle toggle-primary toggle-sm"
+            title="Toggle between copying all rule settings or only conditions" />
         </label>
       </div>
 
       <div class="alert alert-info mb-4">
         <div class="text-sm">
-          <strong v-if="copyOnlyConditions"
-            >Only conditions will be copied.</strong
-          >
+          <strong v-if="copyOnlyConditions">Only conditions will be copied.</strong>
           <strong v-else>All rule settings will be copied</strong>
           <span v-if="!copyOnlyConditions">
-            (name, description, priority, enabled status, and conditions).</span
-          >
+            (name, description, priority, enabled status, and conditions).</span>
         </div>
       </div>
 
       <!-- Search Field -->
       <div class="mb-4">
-        <label
-          class="input input-bordered input-sm flex items-center gap-2 w-full"
-        >
+        <label class="input input-bordered input-sm flex items-center gap-2 w-full">
           <PhMagnifyingGlass :size="16" class="opacity-70" />
-          <input
-            v-model="copyFromSearchQuery"
-            type="text"
-            placeholder="Search by policy name, rule name, description, or type..."
-            class="grow"
-          />
-          <button
-            v-if="copyFromSearchQuery"
-            type="button"
-            @click="copyFromSearchQuery = ''"
-            class="opacity-70 hover:opacity-100"
-            title="Clear search"
-          >
+          <input v-model="copyFromSearchQuery" type="text"
+            placeholder="Search by policy name, rule name, description, or type..." class="grow" />
+          <button v-if="copyFromSearchQuery" type="button" @click="copyFromSearchQuery = ''"
+            class="opacity-70 hover:opacity-100" title="Clear search">
             <PhX :size="16" />
           </button>
         </label>
@@ -1005,10 +862,8 @@ const filteredAvailableRules = computed(() => {
           </thead>
           <tbody>
             <template v-if="filteredAvailableRules.length > 0">
-              <tr
-                v-for="({ policy, rule, type }, idx) in filteredAvailableRules"
-                :key="`${policy.id}-${rule.id}-${idx}`"
-              >
+              <tr v-for="({ policy, rule, type }, idx) in filteredAvailableRules"
+                :key="`${policy.id}-${rule.id}-${idx}`">
                 <td>
                   <div class="font-medium">{{ policy.name }}</div>
                   <div class="text-xs opacity-50" v-if="policy.description">
@@ -1016,10 +871,7 @@ const filteredAvailableRules = computed(() => {
                   </div>
                 </td>
                 <td>
-                  <div
-                    class="badge badge-sm"
-                    :class="type === 'start' ? 'badge-success' : 'badge-error'"
-                  >
+                  <div class="badge badge-sm" :class="type === 'start' ? 'badge-success' : 'badge-error'">
                     <PhPlay v-if="type === 'start'" :size="12" />
                     <PhStop v-if="type === 'stop'" :size="12" />
                     {{ type }}
@@ -1037,20 +889,13 @@ const filteredAvailableRules = computed(() => {
                   <div class="text-sm">{{ rule.priority ?? 0 }}</div>
                 </td>
                 <td>
-                  <div
-                    class="badge badge-sm"
-                    :class="rule.enabled ? 'badge-success' : 'badge-ghost'"
-                  >
+                  <div class="badge badge-sm" :class="rule.enabled ? 'badge-success' : 'badge-ghost'">
                     {{ rule.enabled ? "Enabled" : "Disabled" }}
                   </div>
                 </td>
                 <td>
-                  <button
-                    type="button"
-                    class="btn btn-xs btn-primary"
-                    @click="copyFromRule(policy, rule, type)"
-                    title="Copy this rule"
-                  >
+                  <button type="button" class="btn btn-xs btn-primary" @click="copyFromRule(policy, rule, type)"
+                    title="Copy this rule">
                     <PhCopy :size="14" />
                     Copy
                   </button>
@@ -1071,11 +916,7 @@ const filteredAvailableRules = computed(() => {
       </div>
 
       <div class="modal-action">
-        <button
-          type="button"
-          class="btn btn-secondary"
-          @click="closeCopyFromModal"
-        >
+        <button type="button" class="btn btn-secondary" @click="closeCopyFromModal">
           Cancel
         </button>
       </div>
@@ -1093,10 +934,7 @@ const filteredAvailableRules = computed(() => {
       </h3>
 
       <div class="flex flex-col gap-4">
-        <div
-          class="alert"
-          :class="checkResult.valid ? 'alert-success' : 'alert-error'"
-        >
+        <div class="alert" :class="checkResult.valid ? 'alert-success' : 'alert-error'">
           <span>{{
             checkResult.valid
               ? "Policy is valid and can be used"
@@ -1130,11 +968,7 @@ const filteredAvailableRules = computed(() => {
         <div v-if="checkResult.errors && checkResult.errors.length > 0">
           <h4 class="font-semibold text-error mb-2">Errors:</h4>
           <ul class="list-disc list-inside">
-            <li
-              v-for="(error, i) in checkResult.errors"
-              :key="i"
-              class="text-error"
-            >
+            <li v-for="(error, i) in checkResult.errors" :key="i" class="text-error">
               {{ error }}
             </li>
           </ul>
@@ -1143,11 +977,7 @@ const filteredAvailableRules = computed(() => {
         <div v-if="checkResult.warnings && checkResult.warnings.length > 0">
           <h4 class="font-semibold text-warning mb-2">Warnings:</h4>
           <ul class="list-disc list-inside">
-            <li
-              v-for="(warning, i) in checkResult.warnings"
-              :key="i"
-              class="text-warning"
-            >
+            <li v-for="(warning, i) in checkResult.warnings" :key="i" class="text-warning">
               {{ warning }}
             </li>
           </ul>

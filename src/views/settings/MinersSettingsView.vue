@@ -122,79 +122,59 @@ function handleRefresh(miner: Miner) {
 </script>
 
 <template>
-  <div class="card bg-base-200 shadow-sm">
-  <h2 class="text-2xl font-bold px-6 pt-5 pb-3">Miners settings</h2>
-
-  <div class="overflow-x-auto">
-    <table class="table">
-      <!-- head -->
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Model</th>
-          <th>Status</th>
-          <th>Hash Rate (Max)</th>
-          <th>Power Consumption (Max)</th>
-          <th>Miner Controller</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <template v-for="(miner, i) in minerStore.miners" :key="miner.id">
-          <MinerRowEdit
-            v-if="editingMiner && editingMiner.index === i"
-            v-model="editingMiner.miner"
-            :all-miners="minerStore.miners"
-          />
-          <MinerRow
-            v-else
-            v-model="minerStore.miners[i]"
-            @edit="handleEdit(miner, i)"
-            @delete="handleDelete"
-            @start="handleStart"
-            @stop="handleStop"
-            @activate="handleActivate"
-            @deactivate="handleDeactivate"
-            @refresh="handleRefresh"
-          />
-        </template>
-
-        <MinerRowEdit
-          v-if="newMiner"
-          v-model="newMiner"
-          :all-miners="minerStore.miners"
-          edit
-        />
-
-        <tr>
-          <th colspan="7" class="text-center">
-            <button
-              v-if="!newMiner && !editingMiner"
-              class="btn btn-primary"
-              @click="addMiner"
-            >
-              Add Miner
-            </button>
-            <template v-else-if="newMiner">
-              <button
-                class="btn btn-secondary mr-4"
-                @click="newMiner = undefined"
-              >
-                Cancel
-              </button>
-              <button class="btn btn-primary" @click="confirmAdd">OK</button>
+  <div class="card">
+    <div class="card-header">
+      <h2>Miners Settings</h2>
+    </div>
+    <div class="card-body">
+      <div class="overflow-x-auto">
+        <table class="table">
+          <!-- head -->
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Model</th>
+              <th>Status</th>
+              <th>Hash Rate (Max)</th>
+              <th>Power Consumption (Max)</th>
+              <th>Miner Controller</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template v-for="(miner, i) in minerStore.miners" :key="miner.id">
+              <MinerRowEdit v-if="editingMiner && editingMiner.index === i" v-model="editingMiner.miner"
+                :all-miners="minerStore.miners" />
+              <MinerRow v-else v-model="minerStore.miners[i]" @edit="handleEdit(miner, i)" @delete="handleDelete"
+                @start="handleStart" @stop="handleStop" @activate="handleActivate" @deactivate="handleDeactivate"
+                @refresh="handleRefresh" />
             </template>
-            <template v-else-if="editingMiner">
-              <button class="btn btn-secondary mr-4" @click="cancelEdit">
-                Cancel
-              </button>
-              <button class="btn btn-primary" @click="confirmEdit">Save</button>
-            </template>
-          </th>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+
+            <MinerRowEdit v-if="newMiner" v-model="newMiner" :all-miners="minerStore.miners" edit />
+
+            <tr>
+              <th colspan="7" class="text-center">
+                <button v-if="!newMiner && !editingMiner" class="btn btn-primary" @click="addMiner">
+                  Add Miner
+                </button>
+                <template v-else-if="newMiner">
+                  <button class="btn btn-secondary mr-4" @click="newMiner = undefined">
+                    Cancel
+                  </button>
+                  <button class="btn btn-primary" @click="confirmAdd">OK</button>
+                </template>
+                <template v-else-if="editingMiner">
+                  <button class="btn btn-secondary mr-4" @click="cancelEdit">
+                    Cancel
+                  </button>
+                  <button class="btn btn-primary" @click="confirmEdit">Save</button>
+                </template>
+              </th>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </template>
 

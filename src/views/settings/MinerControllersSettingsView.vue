@@ -98,47 +98,45 @@ const formatAdapterType = (type: string) => {
 </script>
 
 <template>
-  <div class="card bg-base-200 shadow-sm">
-  <h2 class="text-2xl font-bold px-6 pt-5 pb-3">Miner Controller Settings</h2>
+  <div class="card">
+    <div class="card-header">
+      <h2>Miner Controller Settings</h2>
+    </div>
+    <div class="card-body">
+      <div class="overflow-x-auto">
+        <table class="table">
+          <!-- head -->
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Controller Type</th>
+              <th>Assigned Miners</th>
+              <th>External Service</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <MinerControllerRow v-for="(minerController, i) in minerControllerStore.minerControllers"
+              :key="minerController.id" v-model="minerControllerStore.minerControllers[i]"
+              :all-miners="minerStore.miners" @edit="handleEdit" @delete="handleDelete" />
 
-  <div class="overflow-x-auto">
-    <table class="table">
-      <!-- head -->
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Controller Type</th>
-          <th>Assigned Miners</th>
-          <th>External Service</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <MinerControllerRow
-          v-for="(minerController, i) in minerControllerStore.minerControllers" 
-          :key="minerController.id"
-          v-model="minerControllerStore.minerControllers[i]"
-          :all-miners="minerStore.miners"
-          @edit="handleEdit"
-          @delete="handleDelete"
-        />
-        
-        <tr v-if="minerControllerStore.minerControllers.length === 0">
-          <td colspan="5" class="text-center opacity-50">
-            No miner controllers configured yet
-          </td>
-        </tr>
+            <tr v-if="minerControllerStore.minerControllers.length === 0">
+              <td colspan="5" class="text-center opacity-50">
+                No miner controllers configured yet
+              </td>
+            </tr>
 
-        <tr>
-          <th colspan="5" class="text-center">
-            <button class="btn btn-primary" @click="addMinerController">
-              Add Miner Controller
-            </button>
-          </th>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+            <tr>
+              <th colspan="5" class="text-center">
+                <button class="btn btn-primary" @click="addMinerController">
+                  Add Miner Controller
+                </button>
+              </th>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <!-- Modal for adding/editing miner controller -->
@@ -148,10 +146,7 @@ const formatAdapterType = (type: string) => {
         {{ isEditing ? 'Edit Miner Controller' : 'Add Miner Controller' }}
       </h3>
 
-      <form
-        @submit.prevent="isEditing ? confirmEdit() : confirmAdd()"
-        class="flex flex-col gap-4"
-      >
+      <form @submit.prevent="isEditing ? confirmEdit() : confirmAdd()" class="flex flex-col gap-4">
         <template v-if="isEditing && editingMinerController">
           <!-- Name field -->
           <div class="space-y-1">
@@ -159,13 +154,8 @@ const formatAdapterType = (type: string) => {
               Name
               <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
             </div>
-            <input
-              v-model="editingMinerController.name"
-              type="text"
-              placeholder="Miner controller name"
-              required
-              class="input input-bordered input-sm w-full"
-            />
+            <input v-model="editingMinerController.name" type="text" placeholder="Miner controller name" required
+              class="input input-bordered input-sm w-full" />
           </div>
 
           <!-- Adapter Type dropdown -->
@@ -174,17 +164,9 @@ const formatAdapterType = (type: string) => {
               Adapter Type
               <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
             </div>
-            <select
-              v-model="editingMinerController.adapter_type"
-              required
-              class="select select-bordered select-sm w-full"
-              disabled
-            >
-              <option
-                v-for="adapterType in minerControllerStore.adapterTypes"
-                :key="adapterType"
-                :value="adapterType"
-              >
+            <select v-model="editingMinerController.adapter_type" required
+              class="select select-bordered select-sm w-full" disabled>
+              <option v-for="adapterType in minerControllerStore.adapterTypes" :key="adapterType" :value="adapterType">
                 {{ formatAdapterType(adapterType) }}
               </option>
             </select>
@@ -192,20 +174,14 @@ const formatAdapterType = (type: string) => {
               Adapter type cannot be changed after creation
             </div>
           </div>
-          
+
           <!-- External Service selection -->
           <div class="space-y-1">
             <div class="font-medium">External Service</div>
-            <select
-              v-model="editingMinerController.external_service_id"
-              class="select select-bordered select-sm w-full"
-            >
+            <select v-model="editingMinerController.external_service_id"
+              class="select select-bordered select-sm w-full">
               <option value="">-- None --</option>
-              <option
-                v-for="svc in externalServiceStore.externalServices"
-                :key="svc.id"
-                :value="svc.id"
-              >
+              <option v-for="svc in externalServiceStore.externalServices" :key="svc.id" :value="svc.id">
                 {{ svc.name }}
               </option>
             </select>
@@ -218,11 +194,8 @@ const formatAdapterType = (type: string) => {
               Configuration
             </div>
             <div class="border border-base-300 rounded-lg p-4">
-              <MinerControllerConfigForm
-                v-if="editingMinerController.config"
-                v-model="editingMinerController.config"
-                :adapter-type="editingMinerController.adapter_type"
-              />
+              <MinerControllerConfigForm v-if="editingMinerController.config" v-model="editingMinerController.config"
+                :adapter-type="editingMinerController.adapter_type" />
             </div>
           </div>
         </template>
@@ -234,13 +207,8 @@ const formatAdapterType = (type: string) => {
               Name
               <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
             </div>
-            <input
-              v-model="newMinerController.name"
-              type="text"
-              placeholder="Miner controller name"
-              required
-              class="input input-bordered input-sm w-full"
-            />
+            <input v-model="newMinerController.name" type="text" placeholder="Miner controller name" required
+              class="input input-bordered input-sm w-full" />
           </div>
 
           <!-- Adapter Type dropdown -->
@@ -249,16 +217,8 @@ const formatAdapterType = (type: string) => {
               Adapter Type
               <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
             </div>
-            <select
-              v-model="newMinerController.adapter_type"
-              required
-              class="select select-bordered select-sm w-full"
-            >
-              <option
-                v-for="adapterType in minerControllerStore.adapterTypes"
-                :key="adapterType"
-                :value="adapterType"
-              >
+            <select v-model="newMinerController.adapter_type" required class="select select-bordered select-sm w-full">
+              <option v-for="adapterType in minerControllerStore.adapterTypes" :key="adapterType" :value="adapterType">
                 {{ formatAdapterType(adapterType) }}
               </option>
             </select>
@@ -270,16 +230,9 @@ const formatAdapterType = (type: string) => {
           <!-- External Service selection -->
           <div class="space-y-1">
             <div class="font-medium">External Service</div>
-            <select
-              v-model="newMinerController.external_service_id"
-              class="select select-bordered select-sm w-full"
-            >
+            <select v-model="newMinerController.external_service_id" class="select select-bordered select-sm w-full">
               <option value="">-- None --</option>
-              <option
-                v-for="svc in externalServiceStore.externalServices"
-                :key="svc.id"
-                :value="svc.id"
-              >
+              <option v-for="svc in externalServiceStore.externalServices" :key="svc.id" :value="svc.id">
                 {{ svc.name }}
               </option>
             </select>
@@ -292,11 +245,8 @@ const formatAdapterType = (type: string) => {
               Configuration
             </div>
             <div class="border border-base-300 rounded-lg p-4">
-              <MinerControllerConfigForm
-                v-if="newMinerController.config"
-                v-model="newMinerController.config"
-                :adapter-type="newMinerController.adapter_type"
-              />
+              <MinerControllerConfigForm v-if="newMinerController.config" v-model="newMinerController.config"
+                :adapter-type="newMinerController.adapter_type" />
             </div>
           </div>
         </template>

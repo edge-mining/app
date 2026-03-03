@@ -3,7 +3,6 @@
 
 @theme {
   --font-sans: "Plus Jakarta Sans", sans-serif;
-  /* --spacing: 0.4375rem; */
 }
 
 @plugin "daisyui/theme" {
@@ -15,7 +14,6 @@
   --color-base-200: oklch(35% 0 0);
   --color-base-300: oklch(50% 0 0);
   --color-base-content: #e8e8e8;
-  /* previously was fffaff */
   --color-primary: #beffa3;
   --color-primary-content: #0c0c0c;
   --color-secondary: #f4b860;
@@ -37,7 +35,7 @@
   --radius-box: 0.5rem;
   --size-selector: 0.25rem;
   --size-field: 0.25rem;
-  --border: 0.5px;
+  --border: 1px;
   --depth: 0;
   --noise: 0;
 }
@@ -57,4 +55,37 @@
   max-width: min(70vw, 36rem);
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Card styling - refined dark theme */
+.card {
+  @apply bg-base-100 border border-base-300/40 rounded-box;
+}
+
+.card-header {
+  @apply px-5 pt-5 pb-3;
+}
+
+.card-header h2,
+.card-header .card-title {
+  @apply text-lg font-semibold tracking-tight text-base-content m-0;
+}
+
+.card-body {
+  @apply px-5 pb-5 pt-0;
+}
+
+/* Modal styling - enhanced visibility */
+.modal-backdrop {
+  background-color: oklch(0% 0 0 / 0.7);
+  backdrop-filter: blur(4px);
+}
+
+.modal-box {
+  @apply bg-base-100 border border-base-300/60;
+  box-shadow: 
+    0 0 0 1px oklch(100% 0 0 / 0.05),
+    0 4px 6px -1px oklch(0% 0 0 / 0.3),
+    0 10px 15px -3px oklch(0% 0 0 / 0.4),
+    0 20px 25px -5px oklch(0% 0 0 / 0.3);
 }

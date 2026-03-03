@@ -37,26 +37,30 @@ const isAutomationOpen = computed(() => {
 
 </script>
 <template>
-  <div class="navbar p-4 h-full">
-    <div class="flex-none h-full">
-      <div class="flex flex-row !py-6">
-        <VectorIcon name="logo" class="inline-block size-10 mr-2" />
-        <div class="flex flex-col">
-          <span class="text-xs text-base-300">EDGE MINING</span>
-          <span>Satoshi Nakamoto</span>
+  <div class="sidebar-container relative h-full">
+    <!-- Top glow effect -->
+    <div class="sidebar-glow"></div>
+    
+    <div class="navbar p-4 h-full relative z-10">
+      <div class="flex-none h-full">
+        <div class="flex flex-row items-center py-4 mb-2">
+          <VectorIcon name="logo" class="inline-block size-9" />
+          <div class="flex flex-col ml-3">
+            <span class="text-[10px] uppercase tracking-wider text-base-300 font-medium">Edge Mining</span>
+            <span class="text-sm font-medium">Satoshi Nakamoto</span>
+          </div>
         </div>
-      </div>
 
-      <ul class="menu px-1 w-full">
-        <!-- Dashboard -->
-        <li class="w-full">
-          <RouterLink
-            to="/"
-            class="w-full text-lg"
-            active-class="active text-primary"
-            exact
-          >
-            <PhPulse />
+        <ul class="menu px-0 w-full gap-0.5">
+          <!-- Dashboard -->
+          <li class="w-full">
+            <RouterLink
+              to="/"
+              class="w-full text-sm font-medium"
+              active-class="active text-primary"
+              exact
+            >
+            <PhPulse :size="18" />
             Dashboard
           </RouterLink>
         </li>
@@ -65,26 +69,26 @@ const isAutomationOpen = computed(() => {
         <li class="w-full">
           <details :open="isAutomationOpen">
             <summary
-              class="text-lg"
-              :class="{ 'text-primary font-semibold': isAutomationOpen }"
+              class="text-sm font-medium"
+              :class="{ 'text-primary': isAutomationOpen }"
             >
-              <PhGraph />
+              <PhGraph :size="18" />
               Optimization
             </summary>
-            <ul class="rounded-t-none p-2 w-full submenu-curved">
-              <li class="w-full submenu-item">
+            <ul class="rounded-t-none p-2 w-full">
+              <li class="w-full">
                 <RouterLink
                   to="/settings/optimization-units"
-                  class="w-full"
+                  class="w-full text-sm"
                   active-class="active text-primary"
                 >
                   Units
                 </RouterLink>
               </li>
-              <li class="w-full submenu-item">
+              <li class="w-full">
                 <RouterLink
                   to="/settings/policies"
-                  class="w-full"
+                  class="w-full text-sm"
                   active-class="active text-primary"
                 >
                   Policies
@@ -98,35 +102,35 @@ const isAutomationOpen = computed(() => {
         <li class="w-full">
           <details :open="isEnergyOpen">
             <summary
-              class="text-lg"
-              :class="{ 'text-primary font-semibold': isEnergyOpen }"
+              class="text-sm font-medium"
+              :class="{ 'text-primary': isEnergyOpen }"
             >
-              <PhLightning />
+              <PhLightning :size="18" />
               Energy
             </summary>
-            <ul class="rounded-t-none p-2 w-full submenu-curved">
-              <li class="w-full submenu-item">
+            <ul class="rounded-t-none p-2 w-full">
+              <li class="w-full">
                 <RouterLink
                   to="/settings/energy-sources"
-                  class="w-full"
+                  class="w-full text-sm"
                   active-class="active text-primary"
                 >
                   Energy Sources
                 </RouterLink>
               </li>
-              <li class="w-full submenu-item">
+              <li class="w-full">
                 <RouterLink
                   to="/settings/energy-monitors"
-                  class="w-full"
-                  active-class="active text-primary "
+                  class="w-full text-sm"
+                  active-class="active text-primary"
                 >
                   Energy Monitors
                 </RouterLink>
               </li>
-              <li class="w-full submenu-item">
+              <li class="w-full">
                 <RouterLink
                   to="/settings/forecast-providers"
-                  class="w-full"
+                  class="w-full text-sm"
                   active-class="active text-primary"
                 >
                   Forecast Providers
@@ -140,26 +144,26 @@ const isAutomationOpen = computed(() => {
         <li class="w-full">
           <details :open="isMiningOpen">
             <summary
-              class="text-lg"
-              :class="{ 'text-primary font-semibold': isMiningOpen }"
+              class="text-sm font-medium"
+              :class="{ 'text-primary': isMiningOpen }"
             >
-              <PhCpu />
+              <PhCpu :size="18" />
               Mining
             </summary>
-            <ul class="rounded-t-none p-2 w-full submenu-curved">
-              <li class="w-full submenu-item">
+            <ul class="rounded-t-none p-2 w-full">
+              <li class="w-full">
                 <RouterLink
                   to="/settings/miners"
-                  class="w-full"
+                  class="w-full text-sm"
                   active-class="active text-primary"
                 >
                   Miners
                 </RouterLink>
               </li>
-              <li class="w-full submenu-item">
+              <li class="w-full">
                 <RouterLink
                   to="/settings/miner-controllers"
-                  class="w-full"
+                  class="w-full text-sm"
                   active-class="active text-primary"
                 >
                   Miner Controllers
@@ -173,10 +177,10 @@ const isAutomationOpen = computed(() => {
         <li class="w-full">
           <RouterLink
             to="/settings/external-services"
-            class="w-full text-lg"
+            class="w-full text-sm font-medium"
             active-class="active text-primary"
           >
-            <PhPlug />
+            <PhPlug :size="18" />
             External Services
           </RouterLink>
         </li>
@@ -185,19 +189,41 @@ const isAutomationOpen = computed(() => {
         <li class="w-full">
           <RouterLink
             to="/settings/notifiers"
-            class="w-full text-lg"
+            class="w-full text-sm font-medium"
             active-class="active text-primary"
           >
-            <PhBell />
+            <PhBell :size="18" />
             Notifiers
           </RouterLink>
         </li>
       </ul>
     </div>
   </div>
+  </div>
 </template>
 
 <style scoped>
+.sidebar-container {
+  overflow: hidden;
+}
+
+.sidebar-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 12rem;
+  background: radial-gradient(
+    ellipse 120% 100% at 50% -30%,
+    oklch(75% 0.25 130 / 0.3) 0%,
+    oklch(75% 0.2 130 / 0.15) 30%,
+    oklch(75% 0.15 130 / 0.05) 50%,
+    transparent 80%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
 .submenu-curved {
   position: relative;
 }
@@ -214,8 +240,8 @@ const isAutomationOpen = computed(() => {
   top: 0;
   bottom: 50%;
   width: 0.75rem;
-  border-left: 2px solid oklch(43% 0 0);
-  border-bottom: 2px solid oklch(43% 0 0);
+  border-left: 2px solid oklch(35% 0 0);
+  border-bottom: 2px solid oklch(35% 0 0);
   border-bottom-left-radius: 0.5rem;
 }
 
@@ -226,6 +252,6 @@ const isAutomationOpen = computed(() => {
   top: 50%;
   bottom: 0;
   width: 2px;
-  background: oklch(43% 0 0);
+  background: oklch(35% 0 0);
 }
 </style>

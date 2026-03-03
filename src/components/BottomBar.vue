@@ -21,7 +21,7 @@ onMounted(async () => {
 
 <template>
   <footer
-    class="h-8 flex-shrink-0 flex items-center justify-end gap-2 px-4 border-t border-base-300/30 bg-base-200 overflow-hidden"
+    class="h-8 flex-shrink-0 flex items-center justify-end gap-2 px-4 border-t border-base-300/40 bg-base-100 overflow-hidden"
   >
     <template v-if="store.serviceStatuses.size > 0">
       <span

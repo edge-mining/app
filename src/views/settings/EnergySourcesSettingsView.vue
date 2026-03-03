@@ -82,78 +82,61 @@ function handleDelete(energySource: EnergySource) {
 </script>
 
 <template>
-  <div class="card bg-base-200 shadow-sm">
-  <h2 class="text-2xl font-bold px-6 pt-5 pb-3">Energy Sources Settings</h2>
-
-  <div class="overflow-x-auto">
-    <table class="table">
-      <!-- head -->
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Type</th>
-          <th>Nominal Power Max</th>
-          <th>Storage Capacity</th>
-          <th>Grid Contracted Power</th>
-          <th>External Source</th>
-          <th>Energy Monitor</th>
-          <th>Forecast Provider</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <template
-          v-for="(energySource, i) in energySourceStore.energySources"
-          :key="energySource.id"
-        >
-          <EnergySourceRowEdit
-            v-if="editingEnergySource && editingEnergySource.index === i"
-            v-model="editingEnergySource.energySource"
-            :all-energy-sources="energySourceStore.energySources"
-          />
-          <EnergySourceRow
-            v-else
-            v-model="energySourceStore.energySources[i]"
-            @edit="handleEdit(energySource, i)"
-            @delete="handleDelete"
-          />
-        </template>
-
-        <EnergySourceRowEdit
-          v-if="newEnergySource"
-          v-model="newEnergySource"
-          edit
-        />
-
-        <tr>
-          <th colspan="7" class="text-center">
-            <button
-              v-if="!newEnergySource && !editingEnergySource"
-              class="btn btn-primary"
-              @click="addEnergySource"
-            >
-              Add Energy Source
-            </button>
-            <template v-else-if="newEnergySource">
-              <button
-                class="btn btn-secondary mr-4"
-                @click="newEnergySource = undefined"
-              >
-                Cancel
-              </button>
-              <button class="btn btn-primary" @click="confirmAdd">OK</button>
+  <div class="card">
+    <div class="card-header">
+      <h2>Energy Sources Settings</h2>
+    </div>
+    <div class="card-body">
+      <div class="overflow-x-auto">
+        <table class="table">
+          <!-- head -->
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Nominal Power Max</th>
+              <th>Storage Capacity</th>
+              <th>Grid Contracted Power</th>
+              <th>External Source</th>
+              <th>Energy Monitor</th>
+              <th>Forecast Provider</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template v-for="(energySource, i) in energySourceStore.energySources" :key="energySource.id">
+              <EnergySourceRowEdit v-if="editingEnergySource && editingEnergySource.index === i"
+                v-model="editingEnergySource.energySource" :all-energy-sources="energySourceStore.energySources" />
+              <EnergySourceRow v-else v-model="energySourceStore.energySources[i]" @edit="handleEdit(energySource, i)"
+                @delete="handleDelete" />
             </template>
-            <template v-else-if="editingEnergySource">
-              <button class="btn btn-secondary mr-4" @click="cancelEdit">
-                Cancel
-              </button>
-              <button class="btn btn-primary" @click="confirmEdit">Save</button>
-            </template>
-          </th>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+
+            <EnergySourceRowEdit v-if="newEnergySource" v-model="newEnergySource" edit />
+
+            <tr>
+              <th colspan="7" class="text-center">
+                <button v-if="!newEnergySource && !editingEnergySource" class="btn btn-primary"
+                  @click="addEnergySource">
+                  Add Energy Source
+                </button>
+                <template v-else-if="newEnergySource">
+                  <button class="btn btn-secondary mr-4" @click="newEnergySource = undefined">
+                    Cancel
+                  </button>
+                  <button class="btn btn-primary" @click="confirmAdd">OK</button>
+                </template>
+                <template v-else-if="editingEnergySource">
+                  <button class="btn btn-secondary mr-4" @click="cancelEdit">
+                    Cancel
+                  </button>
+                  <button class="btn btn-primary" @click="confirmEdit">Save</button>
+                </template>
+              </th>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </template>
 

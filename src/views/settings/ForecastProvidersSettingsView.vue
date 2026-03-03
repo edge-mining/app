@@ -223,102 +223,77 @@ const formatAdapterType = (type: string) => {
 </script>
 
 <template>
-  <div class="card bg-base-200 shadow-sm">
-  <h2 class="text-2xl font-bold px-6 pt-5 pb-3">Forecast Provider Settings</h2>
+  <div class="card">
+    <div class="card-header">
+      <h2>Forecast Provider Settings</h2>
+    </div>
+    <div class="card-body">
+      <div class="overflow-x-auto">
+        <table class="table">
+          <!-- head -->
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Adapter Type</th>
+              <th>Assigned Energy Source</th>
+              <th>External Service</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <ForecastProviderRow v-for="(
+forecastProvider, i
+          ) in forecastProviderStore.forecastProviders" :key="forecastProvider.id"
+              v-model="forecastProviderStore.forecastProviders[i]" :all-energy-sources="energySourceStore.energySources"
+              @edit="handleEdit" @delete="handleDelete" />
 
-  <div class="overflow-x-auto">
-    <table class="table">
-      <!-- head -->
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Adapter Type</th>
-          <th>Assigned Energy Source</th>
-          <th>External Service</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <ForecastProviderRow
-          v-for="(
-            forecastProvider, i
-          ) in forecastProviderStore.forecastProviders"
-          :key="forecastProvider.id"
-          v-model="forecastProviderStore.forecastProviders[i]"
-          :all-energy-sources="energySourceStore.energySources"
-          @edit="handleEdit"
-          @delete="handleDelete"
-        />
+            <tr v-if="forecastProviderStore.forecastProviders.length === 0">
+              <td colspan="5" class="text-center opacity-50">
+                No forecast providers configured yet
+              </td>
+            </tr>
 
-        <tr v-if="forecastProviderStore.forecastProviders.length === 0">
-          <td colspan="5" class="text-center opacity-50">
-            No forecast providers configured yet
-          </td>
-        </tr>
-
-        <tr>
-          <th colspan="5" class="text-center">
-            <button class="btn btn-primary" @click="addForecastProvider">
-              Add Forecast Provider
-            </button>
-          </th>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+            <tr>
+              <th colspan="5" class="text-center">
+                <button class="btn btn-primary" @click="addForecastProvider">
+                  Add Forecast Provider
+                </button>
+              </th>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <!-- Modal for adding/editing forecast provider -->
   <dialog :class="['modal', { 'modal-open': showModal }]">
-    <div
-      v-if="newForecastProvider || editingForecastProvider"
-      class="modal-box max-w-2xl"
-    >
+    <div v-if="newForecastProvider || editingForecastProvider" class="modal-box max-w-2xl">
       <h3 class="font-bold text-lg mb-4">
         {{ isEditing ? "Edit Forecast Provider" : "Add Forecast Provider" }}
       </h3>
 
-      <form
-        @submit.prevent="isEditing ? confirmEdit() : confirmAdd()"
-        class="flex flex-col gap-4"
-      >
+      <form @submit.prevent="isEditing ? confirmEdit() : confirmAdd()" class="flex flex-col gap-4">
         <template v-if="isEditing && editingForecastProvider">
           <!-- Name field -->
           <div class="space-y-1">
             <div class="font-medium">
               Name
-              <span class="text-sm text-error opacity-60 ml-1 font-normal"
-                >(required)</span
-              >
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
             </div>
-            <input
-              v-model="editingForecastProvider.name"
-              type="text"
-              placeholder="Forecast provider name"
-              required
-              class="input input-bordered input-sm w-full"
-            />
+            <input v-model="editingForecastProvider.name" type="text" placeholder="Forecast provider name" required
+              class="input input-bordered input-sm w-full" />
           </div>
 
           <!-- Adapter Type dropdown -->
           <div class="space-y-1">
             <div class="font-medium">
               Adapter Type
-              <span class="text-sm text-error opacity-60 ml-1 font-normal"
-                >(required)</span
-              >
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
             </div>
-            <select
-              v-model="editingForecastProvider.adapter_type"
-              required
-              class="select select-bordered select-sm w-full"
-              disabled
-            >
-              <option
-                v-for="adapterType in forecastProviderStore.adapterTypes"
-                :key="adapterType"
-                :value="adapterType"
-              >
+            <select v-model="editingForecastProvider.adapter_type" required
+              class="select select-bordered select-sm w-full" disabled>
+              <option v-for="adapterType in forecastProviderStore.adapterTypes" :key="adapterType" :value="adapterType">
                 {{ formatAdapterType(adapterType) }}
               </option>
             </select>
@@ -331,26 +306,15 @@ const formatAdapterType = (type: string) => {
           <div v-if="editingRequiresExternalService" class="space-y-1">
             <div class="font-medium">
               External Service
-              <span class="text-sm text-error opacity-60 ml-1 font-normal"
-                >(required by this adapter)</span
-              >
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required by this adapter)</span>
             </div>
-            <select
-              v-model="editingForecastProvider.external_service_id"
-              class="select select-bordered select-sm w-full"
-            >
+            <select v-model="editingForecastProvider.external_service_id"
+              class="select select-bordered select-sm w-full">
               <option value="">-- None --</option>
-              <option
-                v-if="editingCompatibleExternalServices.length === 0"
-                disabled
-              >
+              <option v-if="editingCompatibleExternalServices.length === 0" disabled>
                 No compatible external services available
               </option>
-              <option
-                v-for="svc in editingCompatibleExternalServices"
-                :key="svc.id"
-                :value="svc.id"
-              >
+              <option v-for="svc in editingCompatibleExternalServices" :key="svc.id" :value="svc.id">
                 {{ svc.name }}
               </option>
             </select>
@@ -363,11 +327,8 @@ const formatAdapterType = (type: string) => {
           <div class="space-y-1">
             <div class="font-medium">Configuration</div>
             <div class="border border-base-300 rounded-lg p-4">
-              <ForecastProviderConfigForm
-                v-if="editingForecastProvider.config"
-                v-model="editingForecastProvider.config"
-                :adapter-type="editingForecastProvider.adapter_type"
-              />
+              <ForecastProviderConfigForm v-if="editingForecastProvider.config" v-model="editingForecastProvider.config"
+                :adapter-type="editingForecastProvider.adapter_type" />
             </div>
           </div>
         </template>
@@ -377,37 +338,20 @@ const formatAdapterType = (type: string) => {
           <div class="space-y-1">
             <div class="font-medium">
               Name
-              <span class="text-sm text-error opacity-60 ml-1 font-normal"
-                >(required)</span
-              >
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
             </div>
-            <input
-              v-model="newForecastProvider.name"
-              type="text"
-              placeholder="Forecast provider name"
-              required
-              class="input input-bordered input-sm w-full"
-            />
+            <input v-model="newForecastProvider.name" type="text" placeholder="Forecast provider name" required
+              class="input input-bordered input-sm w-full" />
           </div>
 
           <!-- Adapter Type dropdown -->
           <div class="space-y-1">
             <div class="font-medium">
               Adapter Type
-              <span class="text-sm text-error opacity-60 ml-1 font-normal"
-                >(required)</span
-              >
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
             </div>
-            <select
-              v-model="newForecastProvider.adapter_type"
-              required
-              class="select select-bordered select-sm w-full"
-            >
-              <option
-                v-for="adapterType in forecastProviderStore.adapterTypes"
-                :key="adapterType"
-                :value="adapterType"
-              >
+            <select v-model="newForecastProvider.adapter_type" required class="select select-bordered select-sm w-full">
+              <option v-for="adapterType in forecastProviderStore.adapterTypes" :key="adapterType" :value="adapterType">
                 {{ formatAdapterType(adapterType) }}
               </option>
             </select>
@@ -420,26 +364,14 @@ const formatAdapterType = (type: string) => {
           <div v-if="newRequiresExternalService" class="space-y-1">
             <div class="font-medium">
               External Service
-              <span class="text-sm text-error opacity-60 ml-1 font-normal"
-                >(required by this adapter)</span
-              >
+              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required by this adapter)</span>
             </div>
-            <select
-              v-model="newForecastProvider.external_service_id"
-              class="select select-bordered select-sm w-full"
-            >
+            <select v-model="newForecastProvider.external_service_id" class="select select-bordered select-sm w-full">
               <option value="">-- None --</option>
-              <option
-                v-if="newCompatibleExternalServices.length === 0"
-                disabled
-              >
+              <option v-if="newCompatibleExternalServices.length === 0" disabled>
                 No compatible external services available
               </option>
-              <option
-                v-for="svc in newCompatibleExternalServices"
-                :key="svc.id"
-                :value="svc.id"
-              >
+              <option v-for="svc in newCompatibleExternalServices" :key="svc.id" :value="svc.id">
                 {{ svc.name }}
               </option>
             </select>
@@ -452,11 +384,8 @@ const formatAdapterType = (type: string) => {
           <div class="space-y-1">
             <div class="font-medium">Configuration</div>
             <div class="border border-base-300 rounded-lg p-4">
-              <ForecastProviderConfigForm
-                v-if="newForecastProvider.config"
-                v-model="newForecastProvider.config"
-                :adapter-type="newForecastProvider.adapter_type"
-              />
+              <ForecastProviderConfigForm v-if="newForecastProvider.config" v-model="newForecastProvider.config"
+                :adapter-type="newForecastProvider.adapter_type" />
             </div>
           </div>
         </template>

@@ -19,14 +19,14 @@ const showDrawer = ref(true);
 
     <div class="drawer-side">
       <label for="my-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
-      <div class="w-60 h-full overflow-y-auto bg-base-200 border-r border-base-300/30">
+      <div class="w-60 h-full overflow-y-auto bg-base-100 border-r border-base-300/40">
         <SidebarMenu />
       </div>
     </div>
 
-    <div class="drawer-content flex flex-col h-screen overflow-hidden">
+    <div class="drawer-content flex flex-col h-screen overflow-hidden bg-base-200">
       <TopBar :show-drawer="showDrawer" @toggle-drawer="showDrawer = !showDrawer" />
-      <main class="flex-1 overflow-y-auto p-6">
+      <main class="flex-1 overflow-y-auto p-5">
         <RouterView />
       </main>
       <BottomBar />
