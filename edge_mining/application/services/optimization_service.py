@@ -459,7 +459,8 @@ class OptimizationService(OptimizationServiceInterface):
             except Exception as e:
                 if self.logger:
                     self.logger.error(
-                        f"Error getting mining performance tracker for optimization unit '{optimization_unit.name}': {e}"
+                        "Error getting mining performance tracker "
+                        f"for optimization unit '{optimization_unit.name}': {e}"
                     )
         # Mining performance tracker is optional, so log a warning if it's missing
         # but continue

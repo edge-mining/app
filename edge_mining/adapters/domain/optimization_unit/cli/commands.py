@@ -375,7 +375,8 @@ def delete_single_optimization_unit(
 ) -> bool:
     """Delete a single optimization unit."""
     confirm_delete: bool = click.confirm(
-        f"Are you sure you want to delete the optimization unit '{optimization_unit.name}' (ID: {optimization_unit.id})?",
+        f"Are you sure you want to delete the optimization unit '{optimization_unit.name}' "
+        f"(ID: {optimization_unit.id})?",
         default=False,
         prompt_suffix="",
     )

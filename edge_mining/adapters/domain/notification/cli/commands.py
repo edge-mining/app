@@ -548,7 +548,6 @@ def update_single_notifier(
         updated_notifier = configuration_service.update_notifier(
             notifier_id=new_notifier.id,
             name=new_notifier.name,
-            adapter_type=new_notifier.adapter_type,
             config=new_notifier.config,
             external_service_id=new_notifier.external_service_id,
         )

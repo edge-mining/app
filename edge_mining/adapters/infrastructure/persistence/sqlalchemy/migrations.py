@@ -258,7 +258,8 @@ def has_pending_migrations(
         if head_rev is None:
             if logger:
                 logger.warning(
-                    "No migration files found in alembic/versions. Please create an initial migration with: alembic revision --autogenerate -m 'Initial schema'"
+                    "No migration files found in alembic/versions. "
+                    "Please create an initial migration with: alembic revision --autogenerate -m 'Initial schema'"
                 )
             raise RuntimeError("No Alembic migrations found. Database cannot be initialized without migrations.")
 

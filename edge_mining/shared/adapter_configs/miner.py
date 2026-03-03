@@ -40,9 +40,9 @@ class MinerControllerDummyConfig(MinerControllerConfig):
         """Create a configuration object from a dictionary"""
         hashrate_max = HashRate(90, "TH/s")
         if "hashrate_max" in data:
-            hashrate_dict: dict = data.get("hashrate_max")
+            hashrate_dict: dict = data.get("hashrate_max", None)
             hashrate_max = HashRate(
-                value=hashrate_dict.get("value", 90),
+                value=hashrate_dict.get("value", 0),
                 unit=hashrate_dict.get("unit", "TH/s"),
             )
         return MinerControllerDummyConfig(
