@@ -11,6 +11,12 @@ const badgeClass: Record<ExternalServiceStatusType, string> = {
   unauthorized: "border-warning text-warning bg-warning/10",
 };
 
+const statusClass: Record<ExternalServiceStatusType, string> = {
+  connected: "status-success",
+  disconnected: "status-error",
+  unauthorized: "status-warning",
+};
+
 onMounted(async () => {
   if (store.externalServices.length === 0) {
     await store.loadExternalServices();
@@ -31,7 +37,10 @@ onMounted(async () => {
         :class="badgeClass[status.status] ?? 'border-base-300 text-base-300'"
         :title="status.error_message ?? status.status"
       >
-        <span class="size-1.5 rounded-full bg-current flex-shrink-0" />
+        <div class="inline-grid *:[grid-area:1/1]">
+          <div v-if="status.status === 'connected'" class="status" :class="statusClass[status.status] + ' animate-ping'"></div>
+          <div class="status" :class="statusClass[status.status]"></div>
+        </div>
         {{ status.name }}
       </span>
     </template>
