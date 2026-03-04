@@ -64,7 +64,7 @@ export const useAppStore = defineStore("app", () => {
   }
 
   function updateDocumentTitle() {
-    let title = `EDGE MINING${ coreVersion.value ? " | " + coreVersion.value : "" }`;
+    let title = `Edge Mining`;
     const routeTitle = router.currentRoute.value.meta?.title;
     if (routeTitle) {
       title += ` - ${routeTitle}`;
