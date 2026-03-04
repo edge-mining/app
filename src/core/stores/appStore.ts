@@ -7,6 +7,9 @@ import type { UserNotification } from "../models/userNotification";
 export const useAppStore = defineStore("app", () => {
   // STATE
   const userNotification = ref<UserNotification>();
+  const coreVersion = ref<string>("");
+  const coreName = ref<string>("Edge Mining");
+  const frontendVersion = __APP_VERSION__;
   // The state bound to the loader shown in the App.vue component. Can be used by any component or service that needs to put
   // the user on hold.
   const loader = useLoader();
@@ -46,26 +49,48 @@ export const useAppStore = defineStore("app", () => {
     showToast({ status: "error", message }, reason);
   }
 
-  // WATCHERS
-  watch(router.currentRoute, () => {
-    let title = "EDGE MINING | 0.1.0";
+  async function fetchCoreVersion() {
+    try {
+      const response = await fetch(`${rootUrl.value}/version/core`);
+      if (response.ok) {
+        const data = await response.json();
+        coreVersion.value = data.version;
+        coreName.value = data.name;
+        updateDocumentTitle();
+      }
+    } catch (error) {
+      console.error("Failed to fetch core version:", error);
+    }
+  }
+
+  function updateDocumentTitle() {
+    let title = `EDGE MINING${ coreVersion.value ? " | " + coreVersion.value : "" }`;
     const routeTitle = router.currentRoute.value.meta?.title;
     if (routeTitle) {
       title += ` - ${routeTitle}`;
     }
     document.title = title;
+  }
+
+  // WATCHERS
+  watch(router.currentRoute, () => {
+    updateDocumentTitle();
   });
 
   return {
     // STATE
     userNotification,
     loader,
+    coreVersion,
+    coreName,
+    frontendVersion,
 
     // GETTERS
     // rootUrl,
     apiUrl,
 
     // ACTIONS
+    fetchCoreVersion,
     showSuccessToast,
     showWarningToast,
     showInfoToast,

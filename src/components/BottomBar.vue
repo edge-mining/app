@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { onMounted } from "vue";
 import { useExternalServiceStore } from "../core/stores/externalServiceStore";
+import { useAppStore } from "../core/stores/appStore";
 import type { ExternalServiceStatusType } from "../core/models/externalService";
 
 const store = useExternalServiceStore();
+const appStore = useAppStore();
 
 const badgeClass: Record<ExternalServiceStatusType, string> = {
   connected: "border-success text-success bg-success/10",
@@ -22,6 +24,10 @@ onMounted(async () => {
     await store.loadExternalServices();
   }
   store.loadServicesStatus();
+  
+  if (!appStore.coreVersion) {
+    appStore.fetchCoreVersion();
+  }
 });
 </script>
 
@@ -45,8 +51,11 @@ onMounted(async () => {
       </span>
     </template>
 
-    <span class="inline-flex items-center px-2 py-0.5 rounded border border-primary/40 text-primary/70 bg-primary/10 text-xs">
-      v0.1.0
+    <span 
+      class="inline-flex items-center px-2 py-0.5 rounded border border-primary/40 text-primary/70 bg-primary/10 text-xs"
+      title="Core version"
+    >
+      fe v{{ appStore.frontendVersion }} | core v{{ appStore.coreVersion || '...' }}
     </span>
   </footer>
 </template>
