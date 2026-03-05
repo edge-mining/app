@@ -599,7 +599,6 @@ class SqlAlchemyEnergySourceRepository(EnergySourceRepository):
         try:
             session.add(energy_source)
             session.commit()
-            session.refresh(energy_source)
         finally:
             session.close()
 
@@ -684,7 +683,6 @@ class SqlAlchemyEnergyMonitorRepository(EnergyMonitorRepository):
         try:
             session.add(energy_monitor)
             session.commit()
-            session.refresh(energy_monitor)
         finally:
             session.close()
 

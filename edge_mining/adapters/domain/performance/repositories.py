@@ -343,7 +343,6 @@ class SqlAlchemyMiningPerformanceTrackerRepository(MiningPerformanceTrackerRepos
         try:
             session.add(tracker)
             session.commit()
-            session.refresh(tracker)
         finally:
             session.close()
 

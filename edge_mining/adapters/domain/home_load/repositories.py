@@ -475,7 +475,6 @@ class SqlAlchemyHomeForecastProviderRepository(HomeForecastProviderRepository):
         try:
             session.add(home_forecast_provider)
             session.commit()
-            session.refresh(home_forecast_provider)
         finally:
             session.close()
 

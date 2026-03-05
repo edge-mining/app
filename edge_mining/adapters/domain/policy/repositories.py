@@ -600,7 +600,6 @@ class SqlAlchemyOptimizationPolicyRepository(OptimizationPolicyRepository):
         try:
             session.add(policy)
             session.commit()
-            session.refresh(policy)
         except Exception as e:
             session.rollback()
             if "UNIQUE constraint failed" in str(e) or "already exists" in str(e):

@@ -330,7 +330,6 @@ class SqlAlchemyForecastProviderRepository(ForecastProviderRepository):
         try:
             session.add(forecast_provider)
             session.commit()
-            session.refresh(forecast_provider)
         finally:
             session.close()
 

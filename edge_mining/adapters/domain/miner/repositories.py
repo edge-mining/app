@@ -342,7 +342,6 @@ class SqlAlchemyMinerRepository(MinerRepository):
         try:
             session.add(miner)
             session.commit()
-            session.refresh(miner)
         finally:
             session.close()
 
@@ -756,7 +755,6 @@ class SqlAlchemyMinerControllerRepository(MinerControllerRepository):
         try:
             session.add(miner_controller)
             session.commit()
-            session.refresh(miner_controller)
         except Exception as e:
             session.rollback()
             if "UNIQUE constraint failed" in str(e) or "already exists" in str(e):

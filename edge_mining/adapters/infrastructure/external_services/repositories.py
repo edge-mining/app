@@ -297,7 +297,6 @@ class SqlAlchemyExternalServiceRepository(ExternalServiceRepository):
         try:
             session.add(external_service)
             session.commit()
-            session.refresh(external_service)
         finally:
             session.close()
 

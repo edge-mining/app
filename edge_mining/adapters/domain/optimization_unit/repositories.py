@@ -337,7 +337,6 @@ class SqlAlchemyOptimizationUnitRepository(EnergyOptimizationUnitRepository):
         try:
             session.add(optimization_unit)
             session.commit()
-            session.refresh(optimization_unit)
         finally:
             session.close()
 

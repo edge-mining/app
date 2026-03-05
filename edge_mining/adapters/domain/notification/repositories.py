@@ -321,7 +321,6 @@ class SqlAlchemyNotifierRepository(NotifierRepository):
         try:
             session.add(notifier)
             session.commit()
-            session.refresh(notifier)
         finally:
             session.close()
 
