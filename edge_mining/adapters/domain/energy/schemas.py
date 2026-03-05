@@ -294,19 +294,19 @@ class EnergySourceSchema(BaseModel):
     @classmethod
     def from_model(cls, energy_source: EnergySource) -> "EnergySourceSchema":
         """Create EnergySourceSchema from an EnergySource domain entity."""
+        storage = None
+        if energy_source.storage:
+            storage = BatterySchema(nominal_capacity=float(energy_source.storage.nominal_capacity))
+        grid = None
+        if energy_source.grid:
+            grid = GridSchema(contracted_power=float(energy_source.grid.contracted_power))
         return cls(
             id=str(energy_source.id),
             name=energy_source.name,
             type=energy_source.type,
             nominal_power_max=float(energy_source.nominal_power_max) if energy_source.nominal_power_max else None,
-            storage=(
-                BatterySchema(nominal_capacity=float(energy_source.storage.nominal_capacity))
-                if energy_source.storage
-                else None
-            ),
-            grid=(
-                GridSchema(contracted_power=float(energy_source.grid.contracted_power)) if energy_source.grid else None
-            ),
+            storage=storage,
+            grid=grid,
             external_source=float(energy_source.external_source) if energy_source.external_source else None,
             energy_monitor_id=str(energy_source.energy_monitor_id) if energy_source.energy_monitor_id else None,
             forecast_provider_id=(
