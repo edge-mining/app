@@ -87,9 +87,12 @@ class BaseSQLAlchemyRepository:
         )
 
         # Create session factory
+        # expire_on_commit=False prevents attributes from being marked as expired
+        # after commit, allowing detached objects to retain their values
         BaseSQLAlchemyRepository._SessionLocal = sessionmaker(
             autocommit=False,
             autoflush=False,
+            expire_on_commit=False,
             bind=BaseSQLAlchemyRepository._engine,
         )
 
