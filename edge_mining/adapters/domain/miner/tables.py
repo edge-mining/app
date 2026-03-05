@@ -26,14 +26,15 @@ For a step-by-step example, see: docs/MIGRATION_EXAMPLE.md
 """
 
 import json
-from typing import Optional
+import uuid
+from typing import Any, Optional
 
 from sqlalchemy import Boolean, Column, Float, ForeignKey, String, Table, TypeDecorator, event
 from sqlalchemy.orm import relationship
 
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.common import ConfigurationType
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.registry import mapper_registry, metadata
-from edge_mining.domain.common import Watts
+from edge_mining.domain.common import EntityId, Watts
 from edge_mining.domain.miner.common import MinerControllerAdapter, MinerStatus
 from edge_mining.domain.miner.entities import Miner, MinerController
 from edge_mining.domain.miner.exceptions import MinerControllerConfigurationError
@@ -283,3 +284,55 @@ def _flatten_miner_value_objects(mapper, connection, target: Miner) -> None:
     # Flatten power_consumption_max (Watts) to float
     if hasattr(target, "power_consumption_max") and target.power_consumption_max is not None:
         target.power_consumption_max = float(target.power_consumption_max)  # type: ignore[assignment]
+
+
+@event.listens_for(Miner, "after_insert")
+@event.listens_for(Miner, "after_update")
+def _restore_miner_composites(mapper, connection, target: Any) -> None:
+    """Event listener that restores value objects after persisting.
+
+    Args:
+        mapper: SQLAlchemy mapper
+        connection: Database connection
+        target: The Miner instance that was persisted
+    """
+    # Restore id to EntityId if it was converted to string
+    # NOTE: After SQLAlchemy flush, IDs may be strings and need restoration to EntityId
+    if hasattr(target, "id") and target.id is not None:
+        if isinstance(target.id, str):
+            target.id = EntityId(uuid.UUID(target.id))
+
+    # Restore controller_id to EntityId if needed
+    # NOTE: Foreign key UUIDs may be strings after persist and need conversion
+    if hasattr(target, "controller_id") and target.controller_id is not None:
+        if isinstance(target.controller_id, str):
+            target.controller_id = EntityId(uuid.UUID(target.controller_id))
+
+    # Restore hash_rate from JSON string
+    if hasattr(target, "hash_rate") and target.hash_rate is not None:
+        if isinstance(target.hash_rate, str):
+            try:
+                hash_rate_data = json.loads(target.hash_rate)
+                target.hash_rate = HashRate(value=hash_rate_data.get("value"), unit=hash_rate_data.get("unit", "TH/s"))
+            except (json.JSONDecodeError, TypeError, KeyError):
+                pass
+
+    # Restore hash_rate_max from JSON string
+    if hasattr(target, "hash_rate_max") and target.hash_rate_max is not None:
+        if isinstance(target.hash_rate_max, str):
+            try:
+                hash_rate_max_data = json.loads(target.hash_rate_max)
+                target.hash_rate_max = HashRate(
+                    value=hash_rate_max_data.get("value"), unit=hash_rate_max_data.get("unit", "TH/s")
+                )
+            except (json.JSONDecodeError, TypeError, KeyError):
+                pass
+
+    # Restore Watts values
+    if hasattr(target, "power_consumption") and target.power_consumption is not None:
+        if not isinstance(target.power_consumption, type(Watts(0.0))):
+            target.power_consumption = Watts(float(target.power_consumption))
+
+    if hasattr(target, "power_consumption_max") and target.power_consumption_max is not None:
+        if not isinstance(target.power_consumption_max, type(Watts(0.0))):
+            target.power_consumption_max = Watts(float(target.power_consumption_max))
