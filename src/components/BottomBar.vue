@@ -28,6 +28,7 @@ onMounted(async () => {
   if (!appStore.coreVersion) {
     appStore.fetchCoreVersion();
   }
+  appStore.fetchAppVersion();
 });
 </script>
 
@@ -53,9 +54,11 @@ onMounted(async () => {
 
     <span 
       class="inline-flex items-center px-2 py-0.5 rounded border border-primary/40 text-primary/70 bg-primary/10 text-xs"
-      title="Core version"
+      :title="appStore.appVersion.version ? `fe v${appStore.frontendVersion} | core v${appStore.coreVersion || '...'}` : 'App version not available'"
     >
-      fe v{{ appStore.frontendVersion }} | core v{{ appStore.coreVersion || '...' }}
+      <template v-if="appStore.appVersionLoading">...</template>
+      <template v-else-if="appStore.appVersion.version">v{{ appStore.appVersion.version }}</template>
+      <template v-else>fe v{{ appStore.frontendVersion }} | core v{{ appStore.coreVersion || '...' }}</template>
     </span>
   </footer>
 </template>
