@@ -258,21 +258,12 @@ async function copyId() {
 </script>
 
 <template>
-  <EdgeMiningCard
-    :icon="statusConfig.icon"
-    :icon-size="26"
-    :style-config="statusConfig.styleConfig"
-    :dimmed="!miner.active"
-    :pulse="isOn"
-  >
+  <EdgeMiningCard :icon="statusConfig.icon" :icon-size="26" :style-config="statusConfig.styleConfig"
+    :dimmed="!miner.active" :pulse="isOn">
     <!-- Custom Icon Slot for spinning animation -->
     <template #icon>
-      <component
-        :is="statusConfig.icon"
-        :size="26"
-        weight="duotone"
-        :class="[statusConfig.styleConfig.iconColor, { 'animate-spin': statusConfig.pulse && (isStarting || isStopping) }]"
-      />
+      <component :is="statusConfig.icon" :size="26" weight="duotone"
+        :class="[statusConfig.styleConfig.iconColor, { 'animate-spin': statusConfig.pulse && (isStarting || isStopping) }]" />
     </template>
 
     <!-- Title Slot -->
@@ -293,12 +284,9 @@ async function copyId() {
         Inactive
       </span>
       <!-- ID -->
-      <button
-        v-if="miner.id"
+      <button v-if="miner.id"
         class="tooltip tooltip-top text-xs opacity-50 hover:opacity-100 transition-opacity flex items-center gap-0.5"
-        :data-tip="idCopied ? 'Copied!' : `ID: ${miner.id}`"
-        @click="copyId"
-      >
+        :data-tip="idCopied ? 'Copied!' : `ID: ${miner.id}`" @click="copyId">
         <PhHash :size="12" />
         <span class="font-mono text-left">{{ miner.id.split('-')[0] }}</span>
       </button>
@@ -306,18 +294,10 @@ async function copyId() {
 
     <!-- Actions Slot -->
     <template #actions>
-      <button
-        class="btn btn-ghost btn-sm btn-square hover:bg-primary/20"
-        @click="handleEdit"
-        title="Edit"
-      >
+      <button class="btn btn-ghost btn-sm btn-square hover:bg-primary/20" @click="handleEdit" title="Edit">
         <PhPencil :size="18" class="text-primary" />
       </button>
-      <button
-        class="btn btn-ghost btn-sm btn-square hover:bg-error/20"
-        @click="handleDeleteClick"
-        title="Delete"
-      >
+      <button class="btn btn-ghost btn-sm btn-square hover:bg-error/20" @click="handleDeleteClick" title="Delete">
         <PhTrash :size="18" class="text-error" />
       </button>
     </template>
@@ -344,11 +324,8 @@ async function copyId() {
           </div>
         </div>
         <div class="h-1.5 bg-base-300/50 rounded-full overflow-hidden">
-          <div
-            class="h-full rounded-full transition-all duration-500"
-            :class="isOn ? 'bg-emerald-500' : 'bg-base-content/20'"
-            :style="{ width: `${hashRateProgress}%` }"
-          ></div>
+          <div class="h-full rounded-full transition-all duration-500"
+            :class="isOn ? 'bg-emerald-500' : 'bg-base-content/20'" :style="{ width: `${hashRateProgress}%` }"></div>
         </div>
       </div>
 
@@ -367,18 +344,16 @@ async function copyId() {
           </div>
         </div>
         <div class="h-1.5 bg-base-300/50 rounded-full overflow-hidden">
-          <div
-            class="h-full rounded-full transition-all duration-500"
+          <div class="h-full rounded-full transition-all duration-500"
             :class="powerProgress > 90 ? 'bg-red-500' : powerProgress > 70 ? 'bg-amber-500' : 'bg-sky-500'"
-            :style="{ width: `${powerProgress}%` }"
-          ></div>
+            :style="{ width: `${powerProgress}%` }"></div>
         </div>
       </div>
     </div>
 
     <!-- Footer Slot -->
     <template #footer>
-      <div class="flex items-start justify-between gap-2">
+      <div class="flex items-center gap-2">
         <!-- Controller -->
         <div v-if="minerController" class="flex items-center gap-2 min-w-0 flex-shrink">
           <div class="h-6 w-6 rounded-full bg-info/20 flex items-center justify-center">
@@ -397,68 +372,41 @@ async function copyId() {
 
         <!-- Control Buttons -->
         <div class="flex items-center gap-1 flex-shrink-0 ml-auto">
-          <!-- Activate/Deactivate -->
-          <button
-            v-if="!miner.active"
-            class="btn btn-xs btn-info"
-            @click="handleActivate"
-            title="Activate"
-          >
-            Activate
-          </button>
-          <button
-            v-else
-            class="btn btn-xs btn-ghost"
-            @click="handleDeactivate"
-            title="Deactivate"
-          >
-            Deactivate
-          </button>
+          <div class="divider divider-horizontal mx-1 h-12"></div>
+          <div class="flex flex-col items-end gap-1">
+            <!-- Activate/Deactivate -->
+            <div>
+              <button v-if="!miner.active" class="btn btn-xs btn-info" @click="handleActivate" title="Activate">
+                Activate
+              </button>
+              <button v-else class="btn btn-xs btn-ghost" @click="handleDeactivate" title="Deactivate">
+                Deactivate
+              </button>
+            </div>
 
-          <div class="divider divider-horizontal mx-0.5 h-6"></div>
-
-          <!-- Start/Stop/Refresh -->
-          <div class="join">
-            <button
-              class="btn btn-xs join-item"
-              :class="canStart ? 'btn-success' : 'btn-ghost opacity-40'"
-              :disabled="!canStart"
-              @click="handleStart"
-              title="Start"
-            >
-              <PhPlay :size="14" />
-            </button>
-            <button
-              class="btn btn-xs join-item"
-              :class="canStop ? 'btn-warning' : 'btn-ghost opacity-40'"
-              :disabled="!canStop"
-              @click="handleStop"
-              title="Stop"
-            >
-              <PhStop :size="14" />
-            </button>
-            <button
-              class="btn btn-xs btn-info join-item"
-              @click="handleRefresh"
-              title="Refresh"
-            >
-              <PhArrowClockwise :size="14" />
-            </button>
+            <!-- Start/Stop/Refresh -->
+            <div class="join">
+              <button class="btn btn-xs join-item" :class="canStart ? 'btn-success' : 'btn-ghost opacity-40'"
+                :disabled="!canStart" @click="handleStart" title="Start">
+                <PhPlay :size="14" />
+              </button>
+              <button class="btn btn-xs join-item" :class="canStop ? 'btn-warning' : 'btn-ghost opacity-40'"
+                :disabled="!canStop" @click="handleStop" title="Stop">
+                <PhStop :size="14" />
+              </button>
+              <button class="btn btn-xs btn-info join-item" @click="handleRefresh" title="Refresh">
+                <PhArrowClockwise :size="14" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
     </template>
   </EdgeMiningCard>
 
-  <ConfirmDialog
-    :open="showDeleteConfirm"
-    title="Delete Miner"
-    :message="`Are you sure you want to delete '${miner.name}'? This action cannot be undone.`"
-    confirm-text="Delete"
-    variant="danger"
-    @confirm="confirmDelete"
-    @cancel="cancelDelete"
-  />
+  <ConfirmDialog :open="showDeleteConfirm" title="Delete Miner"
+    :message="`Are you sure you want to delete '${miner.name}'? This action cannot be undone.`" confirm-text="Delete"
+    variant="danger" @confirm="confirmDelete" @cancel="cancelDelete" />
 </template>
 
 <style scoped>
