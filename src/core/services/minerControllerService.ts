@@ -29,4 +29,9 @@ export class MinerControllerService extends BaseService {
   getConfigSchema(adapterType: string): Promise<ConfigSchema> {
     return this.get<ConfigSchema>(`/miner-controllers/types/${adapterType}/config-schema`).getData();
   }
+
+  getExternalServiceType(adapterType: string): Promise<string | null> {
+    return this.get<string>(`/miner-controllers/types/${adapterType}/external-services`).getData()
+      .then((result) => (result === "null" ? null : result));
+  }
 }
