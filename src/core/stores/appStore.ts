@@ -3,6 +3,7 @@ import { computed, ref, watch } from "vue";
 import router from "../../router";
 import { useLoader } from "../composables/useLoader";
 import type { UserNotification } from "../models/userNotification";
+import type { AppVersion } from "../models/appVersion";
 
 export const useAppStore = defineStore("app", () => {
   // STATE
@@ -10,6 +11,12 @@ export const useAppStore = defineStore("app", () => {
   const coreVersion = ref<string>("");
   const coreName = ref<string>("Edge Mining");
   const frontendVersion = __APP_VERSION__;
+  const appVersion = ref<AppVersion>({
+    version: "",
+    buildDate: "",
+    commit: "",
+  });
+  const appVersionLoading = ref(true);
   // The state bound to the loader shown in the App.vue component. Can be used by any component or service that needs to put
   // the user on hold.
   const loader = useLoader();
@@ -63,6 +70,20 @@ export const useAppStore = defineStore("app", () => {
     }
   }
 
+  async function fetchAppVersion() {
+    appVersionLoading.value = true;
+    try {
+      const response = await fetch(`${rootUrl.value}/version/app`);
+      if (response.ok) {
+        appVersion.value = await response.json();
+      }
+    } catch (error) {
+      console.warn("Failed to fetch app version:", error);
+    } finally {
+      appVersionLoading.value = false;
+    }
+  }
+
   function updateDocumentTitle() {
     let title = `Edge Mining`;
     const routeTitle = router.currentRoute.value.meta?.title;
@@ -84,6 +105,8 @@ export const useAppStore = defineStore("app", () => {
     coreVersion,
     coreName,
     frontendVersion,
+    appVersion,
+    appVersionLoading,
 
     // GETTERS
     // rootUrl,
@@ -91,6 +114,7 @@ export const useAppStore = defineStore("app", () => {
 
     // ACTIONS
     fetchCoreVersion,
+    fetchAppVersion,
     showSuccessToast,
     showWarningToast,
     showInfoToast,
