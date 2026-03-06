@@ -254,6 +254,12 @@ class ConfigurationServiceInterface(ABC):
     ) -> Optional[type[MinerControllerConfig]]:
         """Get the configuration class for a specific miner controller adapter type."""
 
+    @abstractmethod
+    def get_miner_controller_external_service_adapter(
+        self, adapter_type: MinerControllerAdapter
+    ) -> Optional[ExternalServiceAdapter]:
+        """Get the external service adapter type for a specific miner controller adapter type."""
+
     # --- Notifier Management ---
     @abstractmethod
     def add_notifier(

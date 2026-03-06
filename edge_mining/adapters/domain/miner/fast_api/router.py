@@ -38,6 +38,7 @@ from edge_mining.domain.miner.exceptions import (
 from edge_mining.domain.notification.exceptions import NotifierNotFoundError
 from edge_mining.domain.notification.ports import NotificationPort
 from edge_mining.domain.optimization_unit.aggregate_roots import EnergyOptimizationUnit
+from edge_mining.shared.external_services.common import ExternalServiceAdapter
 from edge_mining.shared.interfaces.config import Configuration, MinerControllerConfig
 
 router = APIRouter()
@@ -446,6 +447,23 @@ async def get_miner_controller_config_schema(
         return miner_controller_config_schema.model_json_schema()
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get(
+    "/miner-controllers/types/{adapter_type}/external-services",
+    response_model=Optional[ExternalServiceAdapter],
+)
+async def get_miner_controller_type_external_service_types(
+    adapter_type: MinerControllerAdapter,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+) -> Optional[ExternalServiceAdapter]:
+    """Get a list of compatible external service types for a specific miner controller type."""
+    try:
+        needed_external_service = config_service.get_miner_controller_external_service_adapter(adapter_type)
+
+        return needed_external_service
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 

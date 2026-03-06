@@ -68,7 +68,10 @@ from edge_mining.shared.adapter_maps.forecast import (
     FORECAST_PROVIDER_CONFIG_TYPE_MAP,
     FORECAST_PROVIDER_TYPE_EXTERNAL_SERVICE_MAP,
 )
-from edge_mining.shared.adapter_maps.miner import MINER_CONTROLLER_CONFIG_TYPE_MAP
+from edge_mining.shared.adapter_maps.miner import (
+    MINER_CONTROLLER_CONFIG_TYPE_MAP,
+    MINER_CONTROLLER_TYPE_EXTERNAL_SERVICE_MAP,
+)
 from edge_mining.shared.adapter_maps.notification import NOTIFIER_CONFIG_TYPE_MAP, NOTIFIER_TYPE_EXTERNAL_SERVICE_MAP
 from edge_mining.shared.external_services.common import ExternalServiceAdapter
 from edge_mining.shared.external_services.entities import ExternalService
@@ -1488,6 +1491,17 @@ class ConfigurationService(ConfigurationServiceInterface):
             )
 
         return MINER_CONTROLLER_CONFIG_TYPE_MAP.get(adapter_type, None)
+
+    def get_miner_controller_external_service_adapter(
+        self, adapter_type: MinerControllerAdapter
+    ) -> Optional[ExternalServiceAdapter]:
+        """Get the external service adapter type for a specific miner controller adapter type."""
+        self.logger.debug(f"Getting external service adapter for miner controller adapter {adapter_type}")
+        if adapter_type not in MINER_CONTROLLER_TYPE_EXTERNAL_SERVICE_MAP:
+            raise MinerControllerConfigurationError(
+                f"Adapter type {adapter_type} is not supported for miner controller external service mapping."
+            )
+        return MINER_CONTROLLER_TYPE_EXTERNAL_SERVICE_MAP.get(adapter_type, None)
 
     # --- Notifier Management ---
     def add_notifier(
