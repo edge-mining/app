@@ -38,6 +38,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy frontend build into nginx
 COPY --from=frontend-build /frontend/dist /usr/share/nginx/html
 
+# Copy app version file (served statically by nginx at /version/app)
+COPY VERSION.json /usr/share/nginx/html/version.json
+
 EXPOSE 80
 
 # Run both nginx and the Python backend
