@@ -18,6 +18,7 @@ import {
   PhQuestion,
 } from "@phosphor-icons/vue";
 import ConfirmDialog from "../ConfirmDialog.vue";
+import EdgeMiningCard, { type CardStyleConfig } from "../EdgeMiningCard.vue";
 
 const props = defineProps<{
   miner: Miner;
@@ -78,60 +79,83 @@ const statusConfig = computed(() => {
     MinerStatus,
     {
       icon: typeof PhPower;
-      color: string;
-      bgColor: string;
-      borderColor: string;
       label: string;
       pulse: boolean;
+      styleConfig: CardStyleConfig;
+      badgeClass: string;
     }
   > = {
     on: {
       icon: PhPower,
-      color: "text-emerald-400",
-      bgColor: "bg-emerald-500/20",
-      borderColor: "border-l-emerald-500",
       label: "Running",
       pulse: true,
+      badgeClass: "badge-success",
+      styleConfig: {
+        gradient: "hover:from-emerald-500/20 hover:to-green-500/10",
+        iconColor: "text-emerald-400",
+        iconBgColor: "bg-emerald-500/20",
+        accentBorder: "border-l-base-300/50 hover:border-l-emerald-500",
+      },
     },
     off: {
       icon: PhPower,
-      color: "text-slate-400",
-      bgColor: "bg-slate-500/20",
-      borderColor: "border-l-slate-500",
       label: "Off",
       pulse: false,
+      badgeClass: "badge-ghost",
+      styleConfig: {
+        gradient: "hover:from-slate-500/20 hover:to-gray-500/10",
+        iconColor: "text-slate-400",
+        iconBgColor: "bg-slate-500/20",
+        accentBorder: "border-l-base-300/50 hover:border-l-slate-500",
+      },
     },
     starting: {
       icon: PhCircleNotch,
-      color: "text-amber-400",
-      bgColor: "bg-amber-500/20",
-      borderColor: "border-l-amber-500",
       label: "Starting",
       pulse: true,
+      badgeClass: "badge-warning",
+      styleConfig: {
+        gradient: "hover:from-amber-500/20 hover:to-yellow-500/10",
+        iconColor: "text-amber-400",
+        iconBgColor: "bg-amber-500/20",
+        accentBorder: "border-l-base-300/50 hover:border-l-amber-500",
+      },
     },
     stopping: {
       icon: PhCircleNotch,
-      color: "text-orange-400",
-      bgColor: "bg-orange-500/20",
-      borderColor: "border-l-orange-500",
       label: "Stopping",
       pulse: true,
+      badgeClass: "badge-warning",
+      styleConfig: {
+        gradient: "hover:from-orange-500/20 hover:to-amber-500/10",
+        iconColor: "text-orange-400",
+        iconBgColor: "bg-orange-500/20",
+        accentBorder: "border-l-base-300/50 hover:border-l-orange-500",
+      },
     },
     error: {
       icon: PhWarningCircle,
-      color: "text-red-400",
-      bgColor: "bg-red-500/20",
-      borderColor: "border-l-red-500",
       label: "Error",
       pulse: false,
+      badgeClass: "badge-error",
+      styleConfig: {
+        gradient: "hover:from-red-500/20 hover:to-rose-500/10",
+        iconColor: "text-red-400",
+        iconBgColor: "bg-red-500/20",
+        accentBorder: "border-l-base-300/50 hover:border-l-red-500",
+      },
     },
     unknown: {
       icon: PhQuestion,
-      color: "text-gray-400",
-      bgColor: "bg-gray-500/20",
-      borderColor: "border-l-gray-500",
       label: "Unknown",
       pulse: false,
+      badgeClass: "badge-ghost",
+      styleConfig: {
+        gradient: "hover:from-gray-500/20 hover:to-slate-500/10",
+        iconColor: "text-gray-400",
+        iconBgColor: "bg-gray-500/20",
+        accentBorder: "border-l-base-300/50 hover:border-l-gray-500",
+      },
     },
   };
   return configs[props.miner.status] || configs.unknown;
@@ -234,105 +258,77 @@ async function copyId() {
 </script>
 
 <template>
-  <div
-    class="miner-card group relative flex flex-col rounded-xl border border-base-300/50 transition-all duration-300 hover:border-base-300 hover:shadow-lg hover:shadow-black/20"
-    :class="[
-      `border-l-4 border-l-transparent hover:${statusConfig.borderColor}`,
-      { 'opacity-50': !miner.active },
-    ]"
+  <EdgeMiningCard
+    :icon="statusConfig.icon"
+    :icon-size="26"
+    :style-config="statusConfig.styleConfig"
+    :dimmed="!miner.active"
+    :pulse="isOn"
   >
-    <!-- Header with Status Indicator -->
-    <div class="flex items-start justify-between p-4 pb-2">
-      <div class="flex items-center gap-3">
-        <!-- Status Icon -->
-        <div
-          class="relative flex h-12 w-12 items-center justify-center rounded-xl backdrop-blur-sm"
-          :class="statusConfig.bgColor"
-        >
-          <component
-            :is="statusConfig.icon"
-            :size="26"
-            weight="duotone"
-            :class="[statusConfig.color, { 'animate-spin': statusConfig.pulse && (isStarting || isStopping) }]"
-          />
-          <!-- Pulse animation for running -->
-          <span
-            v-if="isOn"
-            class="absolute -top-1 -right-1 h-3 w-3"
-          >
-            <span
-              class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"
-            ></span>
-            <span
-              class="relative inline-flex h-3 w-3 rounded-full bg-emerald-500"
-            ></span>
-          </span>
-        </div>
+    <!-- Custom Icon Slot for spinning animation -->
+    <template #icon>
+      <component
+        :is="statusConfig.icon"
+        :size="26"
+        weight="duotone"
+        :class="[statusConfig.styleConfig.iconColor, { 'animate-spin': statusConfig.pulse && (isStarting || isStopping) }]"
+      />
+    </template>
 
-        <div class="min-w-0">
-          <h3 class="text-lg font-semibold text-base-content leading-tight truncate">
-            {{ miner.name }}
-          </h3>
-          <div class="flex items-center gap-2 mt-1 flex-wrap">
-            <!-- Status Badge -->
-            <span
-              class="badge badge-sm"
-              :class="{
-                'badge-success': isOn,
-                'badge-warning': isStarting || isStopping,
-                'badge-error': miner.status === 'error',
-                'badge-ghost': miner.status === 'off' || miner.status === 'unknown',
-              }"
-            >
-              {{ statusConfig.label }}
-            </span>
-            <!-- Active Badge -->
-            <span
-              v-if="!miner.active"
-              class="badge badge-sm badge-ghost"
-            >
-              Inactive
-            </span>
-            <!-- ID -->
-            <button
-              v-if="miner.id"
-              class="tooltip tooltip-top text-xs opacity-50 hover:opacity-100 transition-opacity flex items-center gap-0.5"
-              :data-tip="idCopied ? 'Copied!' : `ID: ${miner.id}`"
-              @click="copyId"
-            >
-              <PhHash :size="12" />
-              <span class="font-mono text-left">{{ miner.id.split('-')[0] }}</span>
-            </button>
-          </div>
-        </div>
+    <!-- Title Slot -->
+    <template #title>
+      <h3 class="text-lg font-semibold text-base-content leading-tight truncate">
+        {{ miner.name }}
+      </h3>
+    </template>
+
+    <!-- Badges Slot -->
+    <template #badges>
+      <!-- Status Badge -->
+      <span class="badge badge-sm" :class="statusConfig.badgeClass">
+        {{ statusConfig.label }}
+      </span>
+      <!-- Active Badge -->
+      <span v-if="!miner.active" class="badge badge-sm badge-ghost">
+        Inactive
+      </span>
+      <!-- ID -->
+      <button
+        v-if="miner.id"
+        class="tooltip tooltip-top text-xs opacity-50 hover:opacity-100 transition-opacity flex items-center gap-0.5"
+        :data-tip="idCopied ? 'Copied!' : `ID: ${miner.id}`"
+        @click="copyId"
+      >
+        <PhHash :size="12" />
+        <span class="font-mono text-left">{{ miner.id.split('-')[0] }}</span>
+      </button>
+    </template>
+
+    <!-- Actions Slot -->
+    <template #actions>
+      <button
+        class="btn btn-ghost btn-sm btn-square hover:bg-primary/20"
+        @click="handleEdit"
+        title="Edit"
+      >
+        <PhPencil :size="18" class="text-primary" />
+      </button>
+      <button
+        class="btn btn-ghost btn-sm btn-square hover:bg-error/20"
+        @click="handleDeleteClick"
+        title="Delete"
+      >
+        <PhTrash :size="18" class="text-error" />
+      </button>
+    </template>
+
+    <!-- Main Content (default slot) -->
+    <div class="space-y-3">
+      <!-- Model info -->
+      <div v-if="miner.model" class="-mt-2 pb-1">
+        <span class="text-xs text-base-content/50">{{ miner.model }}</span>
       </div>
 
-      <!-- Actions -->
-      <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          class="btn btn-ghost btn-sm btn-square hover:bg-primary/20"
-          @click="handleEdit"
-          title="Edit"
-        >
-          <PhPencil :size="18" class="text-primary" />
-        </button>
-        <button
-          class="btn btn-ghost btn-sm btn-square hover:bg-error/20"
-          @click="handleDeleteClick"
-          title="Delete"
-        >
-          <PhTrash :size="18" class="text-error" />
-        </button>
-      </div>
-    </div>
-
-    <!-- Model info -->
-    <div v-if="miner.model" class="px-4 pb-2">
-      <span class="text-xs text-base-content/50">{{ miner.model }}</span>
-    </div>
-
-    <!-- Metrics -->
-    <div class="px-4 pb-4 space-y-3 flex-grow">
       <!-- Hash Rate -->
       <div class="metric-box bg-base-100/40 rounded-lg px-3 py-2">
         <div class="flex items-center justify-between mb-1.5">
@@ -380,8 +376,8 @@ async function copyId() {
       </div>
     </div>
 
-    <!-- Footer: Controller & Controls -->
-    <div class="border-t border-base-300/30 px-4 py-3 bg-base-100/20 mt-auto">
+    <!-- Footer Slot -->
+    <template #footer>
       <div class="flex items-start justify-between gap-2">
         <!-- Controller -->
         <div v-if="minerController" class="flex items-center gap-2 min-w-0 flex-shrink">
@@ -451,8 +447,8 @@ async function copyId() {
           </div>
         </div>
       </div>
-    </div>
-  </div>
+    </template>
+  </EdgeMiningCard>
 
   <ConfirmDialog
     :open="showDeleteConfirm"
@@ -466,10 +462,6 @@ async function copyId() {
 </template>
 
 <style scoped>
-.miner-card {
-  background-color: oklch(28% 0 0 / 0.8);
-}
-
 .metric-box {
   backdrop-filter: blur(4px);
 }
