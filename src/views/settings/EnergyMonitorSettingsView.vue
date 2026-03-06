@@ -1,25 +1,81 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useEnergyMonitorStore } from "../../core/stores/energyMonitorStore";
 import { useEnergySourceStore } from "../../core/stores/energySourceStore";
 import { useExternalServiceStore } from "../../core/stores/externalServiceStore";
-import EnergyMonitorRow from "../../components/energyMonitors/EnergyMonitorRow.vue";
+import EnergyMonitorCard from "../../components/energyMonitors/EnergyMonitorCard.vue";
+import EnergyMonitorFormModal from "../../components/energyMonitors/EnergyMonitorFormModal.vue";
 import type { EnergyMonitor } from "../../core/models/energyMonitor";
-import EnergyMonitorConfigForm from "../../components/energyMonitors/EnergyMonitorConfigForm.vue";
+import {
+  PhPlus,
+  PhActivity,
+  PhHouse,
+  PhBroadcast,
+} from "@phosphor-icons/vue";
+import DummySolarIcon from "../../components/icons/DummySolarIcon.vue";
 
 const energyMonitorStore = useEnergyMonitorStore();
 const energySourceStore = useEnergySourceStore();
 const externalServiceStore = useExternalServiceStore();
-const newEnergyMonitor = ref<EnergyMonitor | undefined>(undefined);
-const editingEnergyMonitor = ref<EnergyMonitor | undefined>(undefined);
-const showModal = ref(false);
-const isEditing = ref(false);
 
-// External service UI state
-const newRequiresExternalService = ref(false);
-const newCompatibleExternalServices = ref<any[]>([]);
-const editingRequiresExternalService = ref(false);
-const editingCompatibleExternalServices = ref<any[]>([]);
+// Modal state
+const showModal = ref(false);
+const editingEnergyMonitor = ref<EnergyMonitor | undefined>(undefined);
+const isEditMode = ref(false);
+
+// Filter state
+const selectedAdapterFilter = ref<string>("all");
+
+const adapterFilters = computed(() => {
+  const types = energyMonitorStore.adapterTypes;
+  return [
+    { value: "all", label: "All", icon: PhActivity, iconColor: "" },
+    ...types.map((type) => ({
+      value: type,
+      label: formatAdapterType(type),
+      icon: getAdapterIcon(type),
+      iconColor: getAdapterIconColor(type),
+    })),
+  ];
+});
+
+const filteredMonitors = computed(() => {
+  if (selectedAdapterFilter.value === "all") {
+    return energyMonitorStore.energyMonitors;
+  }
+  return energyMonitorStore.energyMonitors.filter(
+    (em) => em.adapter_type === selectedAdapterFilter.value
+  );
+});
+
+// Stats
+const stats = computed(() => {
+  const monitors = energyMonitorStore.energyMonitors;
+  const totalMonitors = monitors.length;
+  
+  // Count monitors with external service linked
+  const linkedMonitors = monitors.filter(
+    (m) => m.external_service_id
+  ).length;
+
+  // Count total assigned energy sources
+  const assignedSourcesCount = energySourceStore.energySources.filter(
+    (es) => es.energy_monitor_id
+  ).length;
+
+  // Count by adapter type
+  const adapterCounts = monitors.reduce((acc, m) => {
+    acc[m.adapter_type] = (acc[m.adapter_type] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  return {
+    totalMonitors,
+    linkedMonitors,
+    assignedSourcesCount,
+    adapterCounts,
+  };
+});
 
 onMounted(() => {
   energyMonitorStore.loadEnergyMonitors();
@@ -28,357 +84,250 @@ onMounted(() => {
   externalServiceStore.loadExternalServices();
 });
 
-// Update compatible external services for 'new' modal
-const updateNewExternalServices = async (adapterType: string) => {
-  if (!adapterType) {
-    newRequiresExternalService.value = false;
-    newCompatibleExternalServices.value = [];
-    return;
-  }
-  try {
-    const resp = await energyMonitorStore.externalServices(adapterType);
-
-    let required = false;
-    let compatibleAdapterTypes: string[] = [];
-
-    if (resp === null || resp === undefined) {
-      required = false;
-      compatibleAdapterTypes = [];
-    } else if (typeof resp === 'string') {
-      // a single adapter type is returned -> external service required and must match this adapter_type
-      required = true;
-      compatibleAdapterTypes = [resp];
-    } else {
-      // fallback: do not require external service
-      required = false;
-      compatibleAdapterTypes = [];
-    }
-
-    newRequiresExternalService.value = required;
-    if (compatibleAdapterTypes.length > 0) {
-      newCompatibleExternalServices.value = externalServiceStore.externalServices.filter((s: any) => compatibleAdapterTypes.includes(s.adapter_type));
-    } else if (required) {
-      // required but no specific adapter types -> allow all external services
-      newCompatibleExternalServices.value = externalServiceStore.externalServices;
-    } else {
-      newCompatibleExternalServices.value = [];
-    }
-  } catch (err) {
-    console.error('Failed to get external services info for adapter:', err);
-    newRequiresExternalService.value = false;
-    newCompatibleExternalServices.value = [];
-  }
-};
-
-// Update compatible external services for 'edit' modal
-const updateEditingExternalServices = async (adapterType: string) => {
-  if (!adapterType) {
-    editingRequiresExternalService.value = false;
-    editingCompatibleExternalServices.value = [];
-    return;
-  }
-  try {
-    const resp = await energyMonitorStore.externalServices(adapterType);
-    // Per OpenAPI: response is string (ExternalServiceAdapter) or null
-    let required = false;
-    let compatibleAdapterTypes: string[] = [];
-
-    if (resp === null || resp === undefined) {
-      required = false;
-      compatibleAdapterTypes = [];
-    } else if (typeof resp === 'string') {
-      required = true;
-      compatibleAdapterTypes = [resp];
-    } else {
-      required = false;
-      compatibleAdapterTypes = [];
-    }
-
-    editingRequiresExternalService.value = required;
-    if (compatibleAdapterTypes.length > 0) {
-      editingCompatibleExternalServices.value = externalServiceStore.externalServices.filter((s: any) => compatibleAdapterTypes.includes(s.adapter_type));
-    } else if (required) {
-      editingCompatibleExternalServices.value = externalServiceStore.externalServices;
-    } else {
-      editingCompatibleExternalServices.value = [];
-    }
-  } catch (err) {
-    console.error('Failed to get external services info for adapter:', err);
-    editingRequiresExternalService.value = false;
-    editingCompatibleExternalServices.value = [];
-  }
-};
-
-// Watch adapter_type changes on new/edit objects
-watch(
-  () => newEnergyMonitor.value?.adapter_type,
-  (val) => {
-    if (val) updateNewExternalServices(val);
-  }
-);
-
-watch(
-  () => editingEnergyMonitor.value?.adapter_type,
-  (val) => {
-    if (val) updateEditingExternalServices(val);
-  }
-);
-
-function cleanEnergyMonitor(energyMonitor: EnergyMonitor): EnergyMonitor {
-  const cleaned = { ...energyMonitor };
-  // Remove empty string values for external_service_id
-  if (cleaned.external_service_id === "") {
-    delete cleaned.external_service_id;
-  }
-  // Remove empty config object if no properties
-  if (cleaned.config && Object.keys(cleaned.config).length === 0) {
-    delete cleaned.config;
-  }
-  return cleaned;
+function formatAdapterType(type: string): string {
+  return type
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 }
 
-function addEnergyMonitor() {
-  newEnergyMonitor.value = {
-    name: "",
-    adapter_type: energyMonitorStore.adapterTypes[0] || "",
-    config: {},
-    external_service_id: "",
+// Get icon for adapter type
+function getAdapterIcon(type: string) {
+  const icons: Record<string, any> = {
+    dummy_solar: DummySolarIcon,
+    home_assistant_api: PhHouse,
+    home_assistant_mqtt: PhBroadcast,
   };
-  isEditing.value = false;
+  return icons[type] || PhActivity;
+}
+
+// Get icon color for adapter type
+function getAdapterIconColor(type: string): string {
+  const colors: Record<string, string> = {
+    dummy_solar: "text-amber-400",
+    home_assistant_api: "text-sky-400",
+    home_assistant_mqtt: "text-purple-400",
+  };
+  return colors[type] || "text-slate-400";
+}
+
+function openAddModal() {
+  editingEnergyMonitor.value = undefined;
+  isEditMode.value = false;
   showModal.value = true;
 }
 
 function handleEdit(energyMonitor: EnergyMonitor) {
   editingEnergyMonitor.value = { ...energyMonitor };
-  isEditing.value = true;
+  isEditMode.value = true;
   showModal.value = true;
-  // update compatible external services for this adapter type
-  if (editingEnergyMonitor.value?.adapter_type) {
-    updateEditingExternalServices(editingEnergyMonitor.value.adapter_type);
+}
+
+function handleCloseModal() {
+  showModal.value = false;
+  editingEnergyMonitor.value = undefined;
+}
+
+function handleSave(energyMonitor: EnergyMonitor) {
+  if (isEditMode.value && energyMonitor.id) {
+    energyMonitorStore
+      .updateEnergyMonitor(energyMonitor.id.toString(), energyMonitor)
+      .then(() => {
+        energyMonitorStore.loadEnergyMonitors();
+        handleCloseModal();
+      });
+  } else {
+    energyMonitorStore.addEnergyMonitor(energyMonitor).then(() => {
+      energyMonitorStore.loadEnergyMonitors();
+      handleCloseModal();
+    });
   }
 }
 
-function cancelAdd() {
-  newEnergyMonitor.value = undefined;
-  editingEnergyMonitor.value = undefined;
-  isEditing.value = false;
-  showModal.value = false;
-}
-
-function confirmAdd() {
-  if (!newEnergyMonitor.value) return;
-  const energyMonitorToAdd = cleanEnergyMonitor(newEnergyMonitor.value);
-  energyMonitorStore.addEnergyMonitor(energyMonitorToAdd).then(() => {
-    energyMonitorStore.loadEnergyMonitors();
-    newEnergyMonitor.value = undefined;
-    showModal.value = false;
-  });
-}
-
-function confirmEdit() {
-  if (!editingEnergyMonitor.value) return;
-  const energyMonitorToUpdate = cleanEnergyMonitor(editingEnergyMonitor.value);
-  energyMonitorStore
-    .updateEnergyMonitor(editingEnergyMonitor.value.id!.toString(), energyMonitorToUpdate)
+function handleDelete(energyMonitor: EnergyMonitor) {
+  energyMonitorStore.deleteEnergyMonitor(energyMonitor.id!.toString())
     .then(() => {
       energyMonitorStore.loadEnergyMonitors();
-      editingEnergyMonitor.value = undefined;
-      isEditing.value = false;
-      showModal.value = false;
-    });
+    })
+    .showToasts(
+      "Energy monitor deleted successfully",
+      "Failed to delete energy monitor"
+    );
 }
 
-function handleDelete(energyMonitor: EnergyMonitor) {
-  energyMonitorStore.deleteEnergyMonitor(energyMonitor.id!.toString()).then(() => {
-    energyMonitorStore.loadEnergyMonitors();
-  });
+function getFilterCount(adapterType: string): number {
+  if (adapterType === "all") return stats.value.totalMonitors;
+  return stats.value.adapterCounts[adapterType] || 0;
 }
-
-// Format adapter type for display
-const formatAdapterType = (type: string) => {
-  return type
-    .split("_")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-};
 </script>
 
 <template>
   <div class="card">
     <div class="card-header">
-      <h2>Energy Monitor Settings</h2>
+      <!-- Header with Stats -->
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <h1 class="text-2xl font-bold text-base-content">Energy Monitors</h1>
+          <p class="text-sm text-base-content/60 mt-1">
+            Configure adapters for monitoring your energy sources
+          </p>
+        </div>
+
+        <button class="btn btn-primary gap-2" @click="openAddModal">
+          <PhPlus :size="20" weight="bold" />
+          Add Monitor
+        </button>
+      </div>
     </div>
     <div class="card-body">
-      <div class="overflow-x-auto">
-        <table class="table">
-          <!-- head -->
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Adapter Type</th>
-              <th>Assigned Energy Source</th>
-              <th>External Service</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <EnergyMonitorRow v-for="(energyMonitor, i) in energyMonitorStore.energyMonitors" :key="energyMonitor.id"
-              v-model="energyMonitorStore.energyMonitors[i]" :all-energy-sources="energySourceStore.energySources"
-              @edit="handleEdit" @delete="handleDelete" />
+      <div class="space-y-6">
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+          <div class="stat-card bg-neutral-800/80 border border-base-300/40 rounded-xl p-3 sm:p-4 min-w-0">
+            <div class="stat-value text-primary">{{ stats.totalMonitors }}</div>
+            <div class="stat-label">Total Monitors</div>
+          </div>
+          <div class="stat-card bg-neutral-800/80 border border-base-300/40 rounded-xl p-3 sm:p-4 min-w-0">
+            <div class="stat-value text-teal-400">{{ stats.assignedSourcesCount }}</div>
+            <div class="stat-label">Monitored Sources</div>
+          </div>
+          <div class="stat-card bg-neutral-800/80 border border-base-300/40 rounded-xl p-3 sm:p-4 min-w-0">
+            <div class="stat-value text-info">{{ stats.linkedMonitors }}</div>
+            <div class="stat-label">With External Service</div>
+          </div>
+          <div class="stat-card bg-neutral-800/80 border border-base-300/40 rounded-xl p-3 sm:p-4 min-w-0 overflow-hidden">
+            <div class="flex flex-wrap gap-2 sm:gap-3 items-center min-h-[2rem] sm:min-h-[2.25rem]">
+              <div
+                v-for="(count, adapterType) in stats.adapterCounts"
+                :key="adapterType"
+                class="flex items-center gap-0.5 sm:gap-1"
+              >
+                <component :is="getAdapterIcon(String(adapterType))" :size="18" :class="[getAdapterIconColor(String(adapterType)), 'flex-shrink-0 sm:w-6 sm:h-6']" />
+                <span class="stat-type-count">{{ count }}</span>
+              </div>
+              <div v-if="Object.keys(stats.adapterCounts).length === 0" class="text-base-content/40">
+                -
+              </div>
+            </div>
+            <div class="stat-label">By Adapter</div>
+          </div>
+        </div>
 
-            <tr v-if="energyMonitorStore.energyMonitors.length === 0">
-              <td colspan="5" class="text-center opacity-50">
-                No energy monitors configured yet
-              </td>
-            </tr>
+        <!-- Filter Tabs -->
+        <div class="flex gap-2 flex-wrap">
+          <button
+            v-for="filter in adapterFilters"
+            :key="filter.value"
+            class="btn btn-sm gap-2 transition-all"
+            :class="[
+              selectedAdapterFilter === filter.value
+                ? 'btn-primary'
+                : 'btn-ghost opacity-70 hover:opacity-100',
+            ]"
+            @click="selectedAdapterFilter = filter.value"
+          >
+            <component :is="filter.icon" :size="16" />
+            {{ filter.label }}
+            <span
+              v-if="getFilterCount(filter.value) > 0"
+              class="badge badge-sm"
+              :class="selectedAdapterFilter === filter.value ? 'bg-white/20 text-neutral-900' : 'badge-neutral'"
+            >
+              {{ getFilterCount(filter.value) }}
+            </span>
+          </button>
+        </div>
 
-            <tr>
-              <th colspan="5" class="text-center">
-                <button class="btn btn-primary" @click="addEnergyMonitor">
-                  Add Energy Monitor
-                </button>
-              </th>
-            </tr>
-          </tbody>
-        </table>
+        <!-- Cards Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <EnergyMonitorCard
+            v-for="monitor in filteredMonitors"
+            :key="monitor.id"
+            :energy-monitor="monitor"
+            :all-energy-sources="energySourceStore.energySources"
+            @edit="handleEdit"
+            @delete="handleDelete"
+          />
+
+          <!-- Empty State -->
+          <div
+            v-if="filteredMonitors.length === 0"
+            class="col-span-full flex flex-col items-center justify-center py-16 text-center"
+          >
+            <div
+              class="w-20 h-20 rounded-full bg-base-200 flex items-center justify-center mb-4"
+            >
+              <PhActivity :size="40" class="text-base-content/30" />
+            </div>
+            <h3 class="text-lg font-semibold text-base-content/80">
+              {{ selectedAdapterFilter === "all" ? "No monitors yet" : "No monitors of this type" }}
+            </h3>
+            <p class="text-sm text-base-content/50 mt-1 max-w-sm">
+              {{
+                selectedAdapterFilter === "all"
+                  ? "Add your first energy monitor to start tracking your energy sources."
+                  : "Try selecting a different filter or add a new monitor."
+              }}
+            </p>
+            <button
+              v-if="selectedAdapterFilter === 'all'"
+              class="btn btn-primary btn-sm mt-4 gap-2"
+              @click="openAddModal"
+            >
+              <PhPlus :size="16" />
+              Add Monitor
+            </button>
+          </div>
+        </div>
+
+        <!-- Form Modal -->
+        <EnergyMonitorFormModal
+          :open="showModal"
+          :energy-monitor="editingEnergyMonitor"
+          :is-edit="isEditMode"
+          @close="handleCloseModal"
+          @save="handleSave"
+        />
       </div>
     </div>
   </div>
-
-  <!-- Modal for adding/editing energy monitor -->
-  <dialog :class="['modal', { 'modal-open': showModal }]">
-    <div v-if="newEnergyMonitor || editingEnergyMonitor" class="modal-box max-w-2xl">
-      <h3 class="font-bold text-lg mb-4">
-        {{ isEditing ? 'Edit Energy Monitor' : 'Add Energy Monitor' }}
-      </h3>
-
-      <form @submit.prevent="isEditing ? confirmEdit() : confirmAdd()" class="flex flex-col gap-4">
-        <template v-if="isEditing && editingEnergyMonitor">
-          <!-- Name field -->
-          <div class="space-y-1">
-            <div class="font-medium">
-              Name
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
-            </div>
-            <input v-model="editingEnergyMonitor.name" type="text" placeholder="Energy monitor name" required
-              class="input input-bordered input-sm w-full" />
-          </div>
-
-          <!-- Adapter Type dropdown -->
-          <div class="space-y-1">
-            <div class="font-medium">
-              Adapter Type
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
-            </div>
-            <select v-model="editingEnergyMonitor.adapter_type" required class="select select-bordered select-sm w-full"
-              disabled>
-              <option v-for="adapterType in energyMonitorStore.adapterTypes" :key="adapterType" :value="adapterType">
-                {{ formatAdapterType(adapterType) }}
-              </option>
-            </select>
-            <div class="text-sm italic opacity-70">
-              Adapter type cannot be changed after creation
-            </div>
-          </div>
-
-          <!-- External Service (only shown if required by adapter) -->
-          <div v-if="editingRequiresExternalService" class="space-y-1">
-            <div class="font-medium">
-              External Service
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required by this adapter)</span>
-            </div>
-            <select v-model="editingEnergyMonitor.external_service_id" class="select select-bordered select-sm w-full">
-              <option value="">-- None --</option>
-              <option v-if="editingCompatibleExternalServices.length === 0" disabled>
-                No compatible external services available
-              </option>
-              <option v-for="svc in editingCompatibleExternalServices" :key="svc.id" :value="svc.id">
-                {{ svc.name }}
-              </option>
-            </select>
-            <div class="text-sm italic opacity-70">Select an external service</div>
-          </div>
-
-          <!-- Dynamic Config Form -->
-          <div class="space-y-1">
-            <div class="font-medium">Configuration</div>
-            <div class="border border-base-300 rounded-lg p-4">
-              <EnergyMonitorConfigForm v-if="editingEnergyMonitor.config" v-model="editingEnergyMonitor.config"
-                :adapter-type="editingEnergyMonitor.adapter_type" />
-            </div>
-          </div>
-        </template>
-
-        <template v-else-if="newEnergyMonitor">
-          <!-- Name field -->
-          <div class="space-y-1">
-            <div class="font-medium">
-              Name
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
-            </div>
-            <input v-model="newEnergyMonitor.name" type="text" placeholder="Energy monitor name" required
-              class="input input-bordered input-sm w-full" />
-          </div>
-
-          <!-- Adapter Type dropdown -->
-          <div class="space-y-1">
-            <div class="font-medium">
-              Adapter Type
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
-            </div>
-            <select v-model="newEnergyMonitor.adapter_type" required class="select select-bordered select-sm w-full">
-              <option v-for="adapterType in energyMonitorStore.adapterTypes" :key="adapterType" :value="adapterType">
-                {{ formatAdapterType(adapterType) }}
-              </option>
-            </select>
-            <div class="text-sm italic opacity-70">
-              Select the type of energy monitor adapter
-            </div>
-          </div>
-
-          <!-- External Service (only shown if required by adapter) -->
-          <div v-if="newRequiresExternalService" class="space-y-1">
-            <div class="font-medium">
-              External Service
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required by this adapter)</span>
-            </div>
-            <select v-model="newEnergyMonitor.external_service_id" class="select select-bordered select-sm w-full">
-              <option value="">-- None --</option>
-              <option v-if="newCompatibleExternalServices.length === 0" disabled>
-                No compatible external services available
-              </option>
-              <option v-for="svc in newCompatibleExternalServices" :key="svc.id" :value="svc.id">
-                {{ svc.name }}
-              </option>
-            </select>
-            <div class="text-sm italic opacity-70">Select an external service</div>
-          </div>
-
-          <!-- Dynamic Config Form -->
-          <div class="space-y-1">
-            <div class="font-medium">Configuration</div>
-            <div class="border border-base-300 rounded-lg p-4">
-              <EnergyMonitorConfigForm v-if="newEnergyMonitor.config" v-model="newEnergyMonitor.config"
-                :adapter-type="newEnergyMonitor.adapter_type" />
-            </div>
-          </div>
-        </template>
-
-        <!-- Modal actions -->
-        <div class="modal-action">
-          <button type="button" class="btn btn-secondary" @click="cancelAdd">
-            Cancel
-          </button>
-          <button type="submit" class="btn btn-primary">
-            {{ isEditing ? 'Save' : 'Add' }}
-          </button>
-        </div>
-      </form>
-    </div>
-    <form method="dialog" class="modal-backdrop">
-      <button @click="cancelAdd">close</button>
-    </form>
-  </dialog>
 </template>
 
-<style scoped></style>
+<style scoped>
+.stat-card {
+  transition: all 0.2s ease;
+}
+
+.stat-card:hover {
+  border-color: oklch(50% 0 0 / 0.5);
+}
+
+/* Responsive stat values */
+.stat-value {
+  font-weight: 700;
+  font-size: clamp(1.25rem, 4vw, 1.875rem);
+  line-height: 1.2;
+}
+
+.stat-label {
+  font-size: clamp(0.7rem, 2vw, 0.875rem);
+  color: oklch(80% 0 0 / 0.6);
+  margin-top: 0.125rem;
+}
+
+.stat-type-count {
+  font-weight: 600;
+  font-size: clamp(0.875rem, 2.5vw, 1.25rem);
+}
+
+/* Ensure text doesn't overflow on small screens */
+@media (max-width: 640px) {
+  .stat-value {
+    font-size: 1.25rem;
+  }
+  
+  .stat-type-count {
+    font-size: 0.875rem;
+  }
+}
+</style>
