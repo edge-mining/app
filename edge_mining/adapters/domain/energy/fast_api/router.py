@@ -277,7 +277,7 @@ async def get_energy_monitor_type_external_service_types(
     adapter_type: EnergyMonitorAdapter,
     config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
 ) -> Optional[ExternalServiceAdapter]:
-    """ "Get a list of compatible external service types for a specific energy monitor type."""
+    """Get a list of compatible external service types for a specific energy monitor type."""
     try:
         needed_external_service = config_service.get_energy_monitor_external_service_adapter(adapter_type)
 
