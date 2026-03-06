@@ -75,7 +75,13 @@ export const useAppStore = defineStore("app", () => {
     try {
       const response = await fetch(`${rootUrl.value}/version/app`);
       if (response.ok) {
-        appVersion.value = await response.json();
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.indexOf("application/json") !== -1) {
+          const data = await response.json();
+          if (data && data.version) {
+            appVersion.value = data;
+          }
+        }
       }
     } catch (error) {
       console.warn("Failed to fetch app version:", error);
