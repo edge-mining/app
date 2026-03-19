@@ -8,6 +8,7 @@ import EnergySourceFormModal from "../../components/energySources/EnergySourceFo
 import type { EnergySource } from "../../core/models/energySource";
 import { EnergySourceType } from "../../core/models/energySource";
 import { PhPlus, PhSun, PhWind, PhPlug, PhDrop, PhLightning } from "@phosphor-icons/vue";
+import { formatPower, formatCapacity } from "../../core/utils/index";
 
 const energySourceStore = useEnergySourceStore();
 const energyMonitorStore = useEnergyMonitorStore();
@@ -134,17 +135,6 @@ function handleDelete(energySource: EnergySource) {
     );
 }
 
-function formatPower(watts: number): string {
-  if (watts >= 1000000) return `${(watts / 1000000).toFixed(1)} MW`;
-  if (watts >= 1000) return `${(watts / 1000).toFixed(1)} kW`;
-  return `${watts} W`;
-}
-
-function formatCapacity(wh: number): string {
-  if (wh >= 1000000) return `${(wh / 1000000).toFixed(1)} MWh`;
-  if (wh >= 1000) return `${(wh / 1000).toFixed(1)} kWh`;
-  return `${wh} Wh`;
-}
 </script>
 
 <template>

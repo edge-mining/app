@@ -103,6 +103,10 @@ const availableForecastProviders = computed(() => {
   );
 });
 
+const selectedTypeIndex = computed(() => {
+  return typeOptions.findIndex((o) => o.value === formData.value.type);
+});
+
 const isFormValid = computed(() => {
   return formData.value.name.trim().length > 0;
 });
@@ -155,9 +159,14 @@ function handleGridPowerInput(e: Event) {
     <div class="modal-box max-w-2xl bg-base-100 border border-base-300/60">
       <!-- Header -->
       <div class="flex items-center justify-between mb-6">
-        <h3 class="text-xl font-bold">
-          {{ isEdit ? "Edit Energy Source" : "Add Energy Source" }}
-        </h3>
+        <div class="flex items-center gap-3">
+          <div class="h-10 w-10 rounded-xl bg-base-200/60 flex items-center justify-center">
+            <PhLightning :size="22" class="text-warning" />
+          </div>
+          <h3 class="text-xl font-bold">
+            {{ isEdit ? "Edit Energy Source" : "Add Energy Source" }}
+          </h3>
+        </div>
         <button class="btn btn-ghost btn-sm btn-square" @click="handleClose">
           <PhX :size="20" />
         </button>
@@ -184,15 +193,24 @@ function handleGridPowerInput(e: Event) {
           <label class="label mb-1">
             <span class="label-text font-medium">Type</span>
           </label>
-          <div class="grid grid-cols-5 gap-2">
+          <div class="type-selector relative grid grid-cols-5 gap-2">
+            <!-- Sliding highlight -->
+            <div
+              class="type-slider absolute rounded-xl border-2 border-primary bg-primary/10 pointer-events-none"
+              :style="{
+                width: `calc((100% - 0.5rem * 4) / 5)`,
+                height: '100%',
+                left: `calc(${selectedTypeIndex} * (100% - 0.5rem * 4) / 5 + ${selectedTypeIndex} * 0.5rem)`,
+              }"
+            />
             <button
               v-for="option in typeOptions"
               :key="option.value"
               type="button"
-              class="flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all"
+              class="relative z-10 flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-colors duration-300"
               :class="[
                 formData.type === option.value
-                  ? 'border-primary bg-primary/10'
+                  ? 'border-transparent'
                   : 'border-base-300/50 hover:border-base-300 bg-base-200/30',
               ]"
               @click="selectType(option.value)"
@@ -202,9 +220,10 @@ function handleGridPowerInput(e: Event) {
                 :size="28"
                 weight="duotone"
                 :class="formData.type === option.value ? option.color : 'text-base-content/50'"
+                class="transition-colors duration-300"
               />
               <span
-                class="text-xs font-medium"
+                class="text-xs font-medium transition-colors duration-300"
                 :class="
                   formData.type === option.value
                     ? 'text-primary'
@@ -371,4 +390,8 @@ function handleGridPowerInput(e: Event) {
   </dialog>
 </template>
 
-<style scoped></style>
+<style scoped>
+.type-slider {
+  transition: left 0.30s cubic-bezier(0.4, 0, 0.2, 1);
+}
+</style>

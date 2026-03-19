@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import type { EnergyMonitor } from "../../core/models/energyMonitor";
+import type { EnergyMonitor, EnergyMonitorAdapter } from "../../core/models/energyMonitor";
 import type { EnergySource } from "../../core/models/energySource";
 import { useExternalServiceStore } from "../../core/stores/externalServiceStore";
+import { formatType } from "../../core/utils/index";
 import { computed, ref } from "vue";
 import {
-  PhHash,
   PhPencil,
   PhTrash,
   PhActivity,
@@ -17,6 +17,7 @@ import {
 } from "@phosphor-icons/vue";
 import ConfirmDialog from "../ConfirmDialog.vue";
 import EdgeMiningCard, { type CardStyleConfig } from "../EdgeMiningCard.vue";
+import ResourceId from "../ResourceId.vue";
 import DummySolarIcon from "../icons/DummySolarIcon.vue";
 
 const props = defineProps<{
@@ -50,17 +51,16 @@ const assignedEnergySources = computed(() => {
 
 // Adapter type configuration for styling
 const adapterConfig = computed(() => {
-  const type = props.energyMonitor.adapter_type?.toLowerCase() || "";
+  const type = props.energyMonitor.adapter_type;
   
   // Define configs for known adapter types
-  const configs: Record<string, { icon: typeof PhActivity; styleConfig: CardStyleConfig }> = {
+  const configs: Record<EnergyMonitorAdapter, { icon: typeof PhActivity; styleConfig: CardStyleConfig }> = {
     dummy_solar: {
       icon: DummySolarIcon as any,
       styleConfig: {
         gradient: "hover:from-amber-500/20 hover:to-orange-500/10",
         iconColor: "text-amber-400",
-        iconBgColor: "bg-amber-500/20",
-        badgeClass: "bg-amber-500/20 text-amber-400",
+        badgeClass: "badge-warning",
         accentBorder: "border-l-base-300/50 hover:border-l-amber-500",
       },
     },
@@ -69,8 +69,7 @@ const adapterConfig = computed(() => {
       styleConfig: {
         gradient: "hover:from-sky-500/20 hover:to-cyan-500/10",
         iconColor: "text-sky-400",
-        iconBgColor: "bg-sky-500/20",
-        badgeClass: "bg-sky-500/20 text-sky-400",
+        badgeClass: "badge-info",
         accentBorder: "border-l-base-300/50 hover:border-l-sky-500",
       },
     },
@@ -79,7 +78,6 @@ const adapterConfig = computed(() => {
       styleConfig: {
         gradient: "hover:from-purple-500/20 hover:to-violet-500/10",
         iconColor: "text-purple-400",
-        iconBgColor: "bg-purple-500/20",
         badgeClass: "bg-purple-500/20 text-purple-400",
         accentBorder: "border-l-base-300/50 hover:border-l-purple-500",
       },
@@ -92,41 +90,12 @@ const adapterConfig = computed(() => {
       styleConfig: {
         gradient: "hover:from-slate-500/20 hover:to-gray-500/10",
         iconColor: "text-slate-400",
-        iconBgColor: "bg-slate-500/20",
         badgeClass: "bg-slate-500/20 text-slate-400",
         accentBorder: "border-l-base-300/50 hover:border-l-slate-500",
       },
     }
   );
 });
-
-// Format adapter type for display
-function formatAdapterType(type: string): string {
-  return type
-    .split("_")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-}
-
-// Copy ID to clipboard
-const idCopied = ref(false);
-async function copyId() {
-  if (!props.energyMonitor.id) return;
-  try {
-    await navigator.clipboard.writeText(String(props.energyMonitor.id));
-    idCopied.value = true;
-    setTimeout(() => (idCopied.value = false), 1500);
-  } catch {
-    const el = document.createElement("textarea");
-    el.value = String(props.energyMonitor.id);
-    document.body.appendChild(el);
-    el.select();
-    document.execCommand("copy");
-    document.body.removeChild(el);
-    idCopied.value = true;
-    setTimeout(() => (idCopied.value = false), 1500);
-  }
-}
 
 function handleEdit() {
   emit("edit", props.energyMonitor);
@@ -154,50 +123,41 @@ function cancelDelete() {
   >
     <!-- Title -->
     <template #title>
-      <h3 class="text-lg font-semibold text-base-content leading-tight truncate">
-        {{ energyMonitor.name }}
-      </h3>
+      {{ energyMonitor.name }}
     </template>
 
     <!-- Badges -->
     <template #badges>
       <!-- Adapter Type Badge -->
-      <span
-        class="badge badge-sm"
-        :class="adapterConfig.styleConfig.badgeClass"
-      >
-        {{ formatAdapterType(energyMonitor.adapter_type) }}
+      <span class="badge badge-sm" :class="adapterConfig.styleConfig.badgeClass">
+        {{ formatType(energyMonitor.adapter_type) }}
       </span>
       
       <!-- ID -->
-      <button v-if="energyMonitor.id"
-        class="tooltip tooltip-top text-xs opacity-50 hover:opacity-100 transition-opacity flex items-center gap-0.5"
-        :data-tip="idCopied ? 'Copied!' : `ID: ${energyMonitor.id}`" @click="copyId">
-        <PhHash :size="12" />
-        <span class="font-mono text-left">{{ energyMonitor.id.split('-')[0] }}</span>
-      </button>
+      <ResourceId v-if="energyMonitor.id" :id="energyMonitor.id" />
     </template>
 
     <!-- Actions -->
     <template #actions>
       <button
-        class="btn btn-xs btn-ghost btn-circle"
+        class="btn btn-ghost btn-sm btn-square hover:bg-primary/20"
         title="Edit"
         @click="handleEdit"
       >
-        <PhPencil :size="16" />
+        <PhPencil :size="18" class="text-primary" />
       </button>
       <button
-        class="btn btn-xs btn-ghost btn-circle text-error"
+        class="btn btn-ghost btn-sm btn-square hover:bg-error/20"
         title="Delete"
         @click="handleDeleteClick"
       >
-        <PhTrash :size="16" />
+        <PhTrash :size="18" class="text-error" />
       </button>
     </template>
 
-    <!-- Main Content: Assigned Energy Sources -->
+    <!-- Main Content -->
     <div class="space-y-3">
+      <!-- Assigned Energy Sources -->
       <div class="flex items-center gap-2">
         <PhLightning :size="16" class="text-base-content/50" />
         <span class="text-sm font-medium text-base-content/70">Assigned Energy Sources</span>
@@ -210,7 +170,7 @@ function cancelDelete() {
           <span class="text-xs text-base-content/50">energy source{{ assignedEnergySources.length !== 1 ? 's' : '' }}</span>
         </div>
 
-        <!-- Energy Source Names (collapsed, show first few) -->
+        <!-- Energy Source Names -->
         <div class="flex flex-wrap gap-1.5">
           <span
             v-for="source in assignedEnergySources.slice(0, 4)"
@@ -233,7 +193,7 @@ function cancelDelete() {
       </div>
     </div>
 
-    <!-- Footer: External Service & Config -->
+    <!-- Footer -->
     <template #footer>
       <div class="flex items-start justify-between gap-2">
         <!-- External Service -->

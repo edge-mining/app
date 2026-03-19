@@ -3,6 +3,7 @@ import type { EnergySource } from "../../core/models/energySource";
 import { EnergySourceType } from "../../core/models/energySource";
 import { useEnergyMonitorStore } from "../../core/stores/energyMonitorStore";
 import { useForecastProviderStore } from "../../core/stores/forecastProviderStore";
+import { formatType, formatPower, formatCapacity } from "../../core/utils/index";
 import { computed, ref } from "vue";
 import {
   PhSun,
@@ -13,12 +14,12 @@ import {
   PhPencil,
   PhTrash,
   PhBatteryFull,
-  PhHash,
   PhChartLine,
   PhActivity,
 } from "@phosphor-icons/vue";
 import ConfirmDialog from "../ConfirmDialog.vue";
 import EdgeMiningCard, { type CardStyleConfig } from "../EdgeMiningCard.vue";
+import ResourceId from "../ResourceId.vue";
 
 const props = defineProps<{
   energySource: EnergySource;
@@ -49,79 +50,70 @@ const forecastProvider = computed(() => {
 
 // Type-specific styling
 const typeConfig = computed(() => {
-  switch (props.energySource.type) {
-    case EnergySourceType.SOLAR:
-      return {
-        icon: PhSun,
-        styleConfig: {
-          gradient: "hover:from-amber-500/20 hover:to-orange-500/10",
-          iconColor: "text-amber-400",
-          iconBgColor: "bg-base-100/60",
-          badgeClass: "badge-warning",
-          accentBorder: "border-l-border-base-300/50 hover:border-l-amber-500",
-        } as CardStyleConfig,
-      };
-    case EnergySourceType.WIND:
-      return {
-        icon: PhWind,
-        styleConfig: {
-          gradient: "hover:from-sky-500/20 hover:to-cyan-500/10",
-          iconColor: "text-sky-400",
-          iconBgColor: "bg-base-100/60",
-          badgeClass: "badge-info",
-          accentBorder: "border-l-border-base-300/50 hover:border-l-sky-500",
-        } as CardStyleConfig,
-      };
-    case EnergySourceType.GRID:
-      return {
-        icon: PhPlug,
-        styleConfig: {
-          gradient: "hover:from-slate-500/20 hover:to-gray-500/10",
-          iconColor: "text-slate-300",
-          iconBgColor: "bg-base-100/60",
-          badgeClass: "badge-neutral",
-          accentBorder: "border-l-border-base-300/50 hover:border-l-slate-500",
-        } as CardStyleConfig,
-      };
-    case EnergySourceType.HYDROELECTRIC:
-      return {
-        icon: PhDrop,
-        styleConfig: {
-          gradient: "hover:from-blue-500/20 hover:to-indigo-500/10",
-          iconColor: "text-blue-400",
-          iconBgColor: "bg-base-100/60",
-          badgeClass: "badge-info",
-          accentBorder: "border-l-border-base-300/50 hover:border-l-blue-500",
-        } as CardStyleConfig,
-      };
-    default:
-      return {
-        icon: PhLightning,
-        styleConfig: {
-          gradient: "hover:from-purple-500/20 hover:to-violet-500/10",
-          iconColor: "text-purple-400",
-          iconBgColor: "bg-base-100/60",
-          badgeClass: "badge-secondary",
-          accentBorder: "border-l-border-base-300/50 hover:border-l-purple-500",
-        } as CardStyleConfig,
-      };
-  }
+  const type = props.energySource.type;
+
+  // Define configs for known energy source types
+  const configs: Record<EnergySourceType, { icon: typeof PhActivity; styleConfig: CardStyleConfig }> = {
+    solar: {
+      icon: PhSun,
+      styleConfig: {
+        gradient: "hover:from-amber-500/20 hover:to-orange-500/10",
+        iconColor: "text-amber-400",
+        badgeClass: "badge-warning",
+        accentBorder: "border-l-border-base-300/50 hover:border-l-amber-500",
+      },
+    },
+    wind: {
+      icon: PhWind,
+      styleConfig: {
+        gradient: "hover:from-sky-500/20 hover:to-cyan-500/10",
+        iconColor: "text-sky-400",
+        badgeClass: "badge-info",
+        accentBorder: "border-l-border-base-300/50 hover:border-l-sky-500",
+      },
+    },
+    grid: {
+      icon: PhPlug,
+      styleConfig: {
+        gradient: "hover:from-slate-500/20 hover:to-gray-500/10",
+        iconColor: "text-slate-300",
+        badgeClass: "badge-neutral",
+        accentBorder: "border-l-border-base-300/50 hover:border-l-slate-500",
+      },
+    },
+    hydroelectric: {
+      icon: PhDrop,
+      styleConfig: {
+        gradient: "hover:from-blue-500/20 hover:to-indigo-500/10",
+        iconColor: "text-blue-400",
+        badgeClass: "badge-info",
+        accentBorder: "border-l-border-base-300/50 hover:border-l-blue-500",
+      },
+    },
+    other: {
+      icon: PhLightning,
+      styleConfig: {
+        gradient: "hover:from-purple-500/20 hover:to-violet-500/10",
+        iconColor: "text-purple-400",
+        badgeClass: "badge-secondary",
+        accentBorder: "border-l-border-base-300/50 hover:border-l-purple-500",
+      },
+    },
+  };
+
+  return (
+    configs[type] || {
+      icon: PhLightning,
+      styleConfig: {
+        gradient: "hover:from-purple-500/20 hover:to-violet-500/10",
+        iconColor: "text-purple-400",
+        iconBgColor: "bg-base-100/60",
+        badgeClass: "badge-secondary",
+        accentBorder: "border-l-border-base-300/50 hover:border-l-purple-500",
+      },
+    }
+  );
 });
-
-// Format power values
-function formatPower(watts: number | undefined): string {
-  if (watts === undefined || watts === null) return "-";
-  if (watts >= 1000000) return `${(watts / 1000000).toFixed(1)} MW`;
-  if (watts >= 1000) return `${(watts / 1000).toFixed(1)} kW`;
-  return `${watts} W`;
-}
-
-function formatCapacity(wh: number | undefined): string {
-  if (wh === undefined || wh === null) return "-";
-  if (wh >= 1000000) return `${(wh / 1000000).toFixed(1)} MWh`;
-  if (wh >= 1000) return `${(wh / 1000).toFixed(1)} kWh`;
-  return `${wh} Wh`;
-}
 
 function handleEdit() {
   emit("edit", props.energySource);
@@ -140,26 +132,7 @@ function cancelDelete() {
   showDeleteConfirm.value = false;
 }
 
-// Copy ID to clipboard
-const idCopied = ref(false);
-async function copyId() {
-  if (!props.energySource.id) return;
-  try {
-    await navigator.clipboard.writeText(String(props.energySource.id));
-    idCopied.value = true;
-    setTimeout(() => (idCopied.value = false), 1500);
-  } catch {
-    // Fallback for older browsers
-    const el = document.createElement("textarea");
-    el.value = String(props.energySource.id);
-    document.body.appendChild(el);
-    el.select();
-    document.execCommand("copy");
-    document.body.removeChild(el);
-    idCopied.value = true;
-    setTimeout(() => (idCopied.value = false), 1500);
-  }
-}
+
 </script>
 
 <template>
@@ -167,30 +140,23 @@ async function copyId() {
     :icon="typeConfig.icon"
     :style-config="typeConfig.styleConfig"
   >
-    <!-- Title Slot -->
+    <!-- Title -->
     <template #title>
-      <h3 class="text-lg font-semibold text-base-content leading-tight">
-        {{ energySource.name }}
-      </h3>
+      {{ energySource.name }}
     </template>
 
-    <!-- Badges Slot -->
+    <!-- Badges -->
     <template #badges>
+      <!-- Adapter Type Badge -->
       <span class="badge badge-sm" :class="typeConfig.styleConfig.badgeClass">
-        {{ energySource.type }}
+        {{ formatType(energySource.type) }}
       </span>
-      <button
-        v-if="energySource.id"
-        class="tooltip tooltip-top text-xs opacity-50 hover:opacity-100 transition-opacity flex items-center gap-0.5"
-        :data-tip="idCopied ? 'Copied!' : `ID: ${energySource.id}`"
-        @click="copyId"
-      >
-        <PhHash :size="12" />
-        <span class="font-mono small text-left">{{ energySource.id.split("-")[0] }}</span>
-      </button>
+
+      <!-- ID -->
+      <ResourceId v-if="energySource.id" :id="energySource.id" />
     </template>
 
-    <!-- Actions Slot -->
+    <!-- Actions -->
     <template #actions>
       <button
         class="btn btn-ghost btn-sm btn-square hover:bg-primary/20"
@@ -208,7 +174,7 @@ async function copyId() {
       </button>
     </template>
 
-    <!-- Main Content (default slot) -->
+    <!-- Main Content -->
     <div class="grid grid-cols-2 gap-3">
       <!-- Nominal Power -->
       <div
@@ -216,7 +182,7 @@ async function copyId() {
         class="metric-box bg-base-100/40 rounded-lg px-3 py-2"
       >
         <div class="flex items-center gap-1.5 text-xs text-base-content/60 mb-1">
-          <PhLightning :size="14" />
+          <PhLightning :size="16" />
           <span>Max Power</span>
         </div>
         <div class="text-lg font-semibold text-base-content">
@@ -230,7 +196,7 @@ async function copyId() {
         class="metric-box bg-base-100/40 rounded-lg px-3 py-2"
       >
         <div class="flex items-center gap-1.5 text-xs text-base-content/60 mb-1">
-          <PhBatteryFull :size="14" />
+          <PhBatteryFull :size="16" />
           <span>Storage</span>
         </div>
         <div class="text-lg font-semibold text-base-content">
@@ -244,8 +210,8 @@ async function copyId() {
         class="metric-box bg-base-100/40 rounded-lg px-3 py-2"
       >
         <div class="flex items-center gap-1.5 text-xs text-base-content/60 mb-1">
-          <PhPlug :size="14" />
-          <span>Contracted</span>
+          <PhPlug :size="16" />
+          <span>Grid Contracted</span>
         </div>
         <div class="text-lg font-semibold text-base-content">
           {{ formatPower(energySource.grid?.contracted_power) }}
@@ -258,8 +224,8 @@ async function copyId() {
         class="metric-box bg-base-100/40 rounded-lg px-3 py-2"
       >
         <div class="flex items-center gap-1.5 text-xs text-base-content/60 mb-1">
-          <PhLightning :size="14" />
-          <span>External</span>
+          <PhLightning :size="16" />
+          <span>External Source</span>
         </div>
         <div class="text-lg font-semibold text-base-content">
           {{ formatPower(energySource.external_source) }}
@@ -280,7 +246,7 @@ async function copyId() {
       </div>
     </div>
 
-    <!-- Footer Slot -->
+    <!-- Footer -->
     <template #footer v-if="energyMonitor || forecastProvider">
       <div class="flex flex-wrap gap-4">
         <!-- Energy Monitor -->

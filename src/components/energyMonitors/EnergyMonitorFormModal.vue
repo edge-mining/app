@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch, toRaw } from "vue";
-import type { EnergyMonitor } from "../../core/models/energyMonitor";
+import { EnergyMonitorAdapter, type EnergyMonitor } from "../../core/models/energyMonitor";
 import { useEnergyMonitorStore } from "../../core/stores/energyMonitorStore";
 import { useExternalServiceStore } from "../../core/stores/externalServiceStore";
 import EnergyMonitorConfigForm from "./EnergyMonitorConfigForm.vue";
+import { formatType } from "../../core/utils/index";
 import {
   PhX,
   PhFloppyDisk,
@@ -33,7 +34,7 @@ const compatibleExternalServices = ref<any[]>([]);
 // Local form state
 const formData = ref<EnergyMonitor>({
   name: "",
-  adapter_type: "",
+  adapter_type: EnergyMonitorAdapter.DUMMY_SOLAR,
   config: {},
   external_service_id: "",
 });
@@ -99,7 +100,7 @@ watch(
       } else {
         formData.value = {
           name: "",
-          adapter_type: energyMonitorStore.adapterTypes[0] || "",
+          adapter_type: energyMonitorStore.adapterTypes[0],
           config: {},
           external_service_id: "",
         };
@@ -129,14 +130,6 @@ const isFormValid = computed(() => {
     formData.value.adapter_type.trim().length > 0
   );
 });
-
-// Format adapter type for display
-function formatAdapterType(type: string): string {
-  return type
-    .split("_")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-}
 
 function handleClose() {
   emit("close");
@@ -171,7 +164,7 @@ function handleSave() {
       <!-- Header -->
       <div class="flex items-center justify-between mb-6">
         <div class="flex items-center gap-3">
-          <div class="h-10 w-10 rounded-xl bg-teal-500/20 flex items-center justify-center">
+          <div class="h-10 w-10 rounded-xl bg-base-200/60 flex items-center justify-center">
             <PhActivity :size="22" class="text-teal-400" />
           </div>
           <h3 class="text-xl font-bold">
@@ -227,7 +220,7 @@ function handleSave() {
                   :key="adapterType"
                   :value="adapterType"
                 >
-                  {{ formatAdapterType(adapterType) }}
+                  {{ formatType(adapterType) }}
                 </option>
               </select>
               <label v-if="isEdit" class="label">

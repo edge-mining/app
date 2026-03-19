@@ -13,6 +13,7 @@ import {
   PhWarningCircle,
   PhQuestion,
 } from "@phosphor-icons/vue";
+import { formatPower } from "../../core/utils/index";
 
 const minerStore = useMinerStore();
 const minerControllerStore = useMinerControllerStore();
@@ -204,12 +205,6 @@ function handleDeactivate(miner: Miner) {
 
 function handleRefresh(miner: Miner) {
   minerStore.getMinerStatus(miner.id!.toString());
-}
-
-function formatPower(watts: number): string {
-  if (watts >= 1000000) return `${(watts / 1000000).toFixed(1)} MW`;
-  if (watts >= 1000) return `${(watts / 1000).toFixed(1)} kW`;
-  return `${watts} W`;
 }
 
 function formatHashRate(value: number, unit: string): string {

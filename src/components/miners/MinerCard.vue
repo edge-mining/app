@@ -19,6 +19,7 @@ import {
 } from "@phosphor-icons/vue";
 import ConfirmDialog from "../ConfirmDialog.vue";
 import EdgeMiningCard, { type CardStyleConfig } from "../EdgeMiningCard.vue";
+import { formatPower } from "../../core/utils/index";
 
 const props = defineProps<{
   miner: Miner;
@@ -185,13 +186,6 @@ const powerProgress = computed(() => {
 function formatHashRate(value?: number, unit?: string): string {
   if (!value) return "-";
   return `${value} ${unit || ""}`;
-}
-
-// Format power
-function formatPower(watts?: number): string {
-  if (!watts) return "-";
-  if (watts >= 1000) return `${(watts / 1000).toFixed(1)} kW`;
-  return `${watts} W`;
 }
 
 // Actions
