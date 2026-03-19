@@ -96,11 +96,11 @@ import { computed } from "vue";
 
         <!-- Title Area -->
         <div class="min-w-0">
-          <slot name="title">
-            <h3 class="text-lg font-semibold text-base-content leading-tight truncate">
-              <!-- Title content via slot -->
-            </h3>
-          </slot>
+          <!-- Title content via slot -->
+          <h3 class="text-lg font-semibold text-base-content leading-tight truncate">
+            <slot name="title"></slot>
+          </h3>
+          <!-- Badges area -->
           <div class="flex items-center gap-2 mt-1 flex-wrap">
             <slot name="badges"></slot>
           </div>
