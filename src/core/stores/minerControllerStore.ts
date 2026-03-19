@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import type { MinerController } from "../models/minerController";
+import type { MinerController, MinerControllerAdapter } from "../models/minerController";
 import { MinerControllerService } from "../services/minerControllerService";
 
 export const useMinerControllerStore = defineStore("minerController", () => {
@@ -8,7 +8,7 @@ export const useMinerControllerStore = defineStore("minerController", () => {
 
   // State
   const minerControllers = ref<MinerController[]>([]);
-  const adapterTypes = ref<string[]>([]);
+  const adapterTypes = ref<MinerControllerAdapter[]>([]);
 
   // Actions
   function loadMinerControllers() {

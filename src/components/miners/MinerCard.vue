@@ -3,7 +3,6 @@ import type { Miner, MinerStatus } from "../../core/models/miner";
 import { useMinerControllerStore } from "../../core/stores/minerControllerStore";
 import { computed, ref, watch } from "vue";
 import {
-  PhHash,
   PhPlay,
   PhStop,
   PhArrowClockwise,
@@ -19,7 +18,8 @@ import {
 } from "@phosphor-icons/vue";
 import ConfirmDialog from "../ConfirmDialog.vue";
 import EdgeMiningCard, { type CardStyleConfig } from "../EdgeMiningCard.vue";
-import { formatPower } from "../../core/utils/index";
+import ResourceId from "../ResourceId.vue";
+import { formatPower, formatHashRate, normalizeHashRate } from "../../core/utils/index";
 
 const props = defineProps<{
   miner: Miner;
@@ -162,14 +162,14 @@ const statusConfig = computed(() => {
   return configs[props.miner.status] || configs.unknown;
 });
 
-// Hash rate progress
+// Hash rate progress (normalize units before comparing)
 const hashRateProgress = computed(() => {
   if (!props.miner.hash_rate?.value || !props.miner.hash_rate_max?.value)
     return 0;
-  return Math.min(
-    (props.miner.hash_rate.value / props.miner.hash_rate_max.value) * 100,
-    100
-  );
+  const current = normalizeHashRate(props.miner.hash_rate.value, props.miner.hash_rate.unit || "TH/s");
+  const max = normalizeHashRate(props.miner.hash_rate_max.value, props.miner.hash_rate_max.unit || "TH/s");
+  if (max === 0) return 0;
+  return Math.min((current / max) * 100, 100);
 });
 
 // Power consumption progress
@@ -181,12 +181,6 @@ const powerProgress = computed(() => {
     100
   );
 });
-
-// Format hash rate
-function formatHashRate(value?: number, unit?: string): string {
-  if (!value) return "-";
-  return `${value} ${unit || ""}`;
-}
 
 // Actions
 function handleEdit() {
@@ -229,26 +223,6 @@ function handleActivate() {
 function handleDeactivate() {
   emit("deactivate", props.miner);
 }
-
-// Copy ID to clipboard
-const idCopied = ref(false);
-async function copyId() {
-  if (!props.miner.id) return;
-  try {
-    await navigator.clipboard.writeText(String(props.miner.id));
-    idCopied.value = true;
-    setTimeout(() => (idCopied.value = false), 1500);
-  } catch {
-    const el = document.createElement("textarea");
-    el.value = String(props.miner.id);
-    document.body.appendChild(el);
-    el.select();
-    document.execCommand("copy");
-    document.body.removeChild(el);
-    idCopied.value = true;
-    setTimeout(() => (idCopied.value = false), 1500);
-  }
-}
 </script>
 
 <template>
@@ -260,14 +234,12 @@ async function copyId() {
         :class="[statusConfig.styleConfig.iconColor, { 'animate-spin': statusConfig.pulse && (isStarting || isStopping) }]" />
     </template>
 
-    <!-- Title Slot -->
+    <!-- Title -->
     <template #title>
-      <h3 class="text-lg font-semibold text-base-content leading-tight truncate">
-        {{ miner.name }}
-      </h3>
+      {{ miner.name }}
     </template>
 
-    <!-- Badges Slot -->
+    <!-- Badges -->
     <template #badges>
       <!-- Status Badge -->
       <span class="badge badge-sm" :class="statusConfig.badgeClass">
@@ -277,16 +249,12 @@ async function copyId() {
       <span v-if="!miner.active" class="badge badge-sm badge-ghost">
         Inactive
       </span>
+
       <!-- ID -->
-      <button v-if="miner.id"
-        class="tooltip tooltip-top text-xs opacity-50 hover:opacity-100 transition-opacity flex items-center gap-0.5"
-        :data-tip="idCopied ? 'Copied!' : `ID: ${miner.id}`" @click="copyId">
-        <PhHash :size="12" />
-        <span class="font-mono text-left">{{ miner.id.split('-')[0] }}</span>
-      </button>
+      <ResourceId v-if="miner.id" :id="miner.id" />
     </template>
 
-    <!-- Actions Slot -->
+    <!-- Actions -->
     <template #actions>
       <button class="btn btn-ghost btn-sm btn-square hover:bg-primary/20" @click="handleEdit" title="Edit">
         <PhPencil :size="18" class="text-primary" />
@@ -296,7 +264,7 @@ async function copyId() {
       </button>
     </template>
 
-    <!-- Main Content (default slot) -->
+    <!-- Main Content -->
     <div class="space-y-3">
       <!-- Model info -->
       <div v-if="miner.model" class="-mt-2 pb-1">
@@ -345,7 +313,7 @@ async function copyId() {
       </div>
     </div>
 
-    <!-- Footer Slot -->
+    <!-- Footer -->
     <template #footer>
       <div class="flex items-center gap-2">
         <!-- Controller -->
@@ -381,14 +349,15 @@ async function copyId() {
             <!-- Start/Stop/Refresh -->
             <div class="join">
               <button class="btn btn-xs join-item" :class="canStart ? 'btn-success' : 'btn-ghost opacity-40'"
-                :disabled="!canStart" @click="handleStart" title="Start">
+                :disabled="!canStart || !minerController" @click="handleStart" title="Start">
                 <PhPlay :size="14" />
               </button>
               <button class="btn btn-xs join-item" :class="canStop ? 'btn-warning' : 'btn-ghost opacity-40'"
-                :disabled="!canStop" @click="handleStop" title="Stop">
+                :disabled="!canStop || !minerController" @click="handleStop" title="Stop">
                 <PhStop :size="14" />
               </button>
-              <button class="btn btn-xs btn-info join-item" @click="handleRefresh" title="Refresh">
+              <button class="btn btn-xs btn-info join-item" 
+                :disabled="!minerController" @click="handleRefresh" title="Refresh">
                 <PhArrowClockwise :size="14" />
               </button>
             </div>

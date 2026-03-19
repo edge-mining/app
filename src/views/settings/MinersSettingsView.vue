@@ -13,7 +13,7 @@ import {
   PhWarningCircle,
   PhQuestion,
 } from "@phosphor-icons/vue";
-import { formatPower } from "../../core/utils/index";
+import { formatPower, normalizeHashRate } from "../../core/utils/index";
 
 const minerStore = useMinerStore();
 const minerControllerStore = useMinerControllerStore();
@@ -91,20 +91,6 @@ const stats = computed(() => {
     statusCounts,
   };
 });
-
-// Helper to normalize hash rate to TH/s
-function normalizeHashRate(value: number, unit: string): number {
-  const multipliers: Record<string, number> = {
-    "H/s": 1e-12,
-    "KH/s": 1e-9,
-    "MH/s": 1e-6,
-    "GH/s": 1e-3,
-    "TH/s": 1,
-    "PH/s": 1e3,
-    "EH/s": 1e6,
-  };
-  return value * (multipliers[unit] || 1);
-}
 
 async function refreshMinersStatus() {
   const activeMiners = minerStore.miners.filter(

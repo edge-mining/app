@@ -1,5 +1,5 @@
 import { BaseService } from "./baseService";
-import type { MinerController, ConfigSchema } from "../models/minerController";
+import type { MinerController, MinerControllerAdapter, ConfigSchema } from "../models/minerController";
 
 export class MinerControllerService extends BaseService {
   getMinerControllers(): Promise<MinerController[]> {
@@ -22,8 +22,8 @@ export class MinerControllerService extends BaseService {
     return this.delete<MinerController>(`/miner-controllers/${controllerId}`).getData();
   }
 
-  getAdapterTypes(): Promise<string[]> {
-    return this.get<string[]>("/miner-controllers/types").getData();
+  getAdapterTypes(): Promise<MinerControllerAdapter[]> {
+    return this.get<MinerControllerAdapter[]>("/miner-controllers/types").getData();
   }
 
   getConfigSchema(adapterType: string): Promise<ConfigSchema> {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { MinerController } from "../../core/models/minerController";
+import type { MinerController, MinerControllerAdapter } from "../../core/models/minerController";
 import type { Miner } from "../../core/models/miner";
 import { useExternalServiceStore } from "../../core/stores/externalServiceStore";
 import { computed, ref } from "vue";
@@ -18,6 +18,9 @@ import {
 } from "@phosphor-icons/vue";
 import ConfirmDialog from "../ConfirmDialog.vue";
 import EdgeMiningCard, { type CardStyleConfig } from "../EdgeMiningCard.vue";
+import DummyMinerIcon from "../icons/DummyMinerIcon.vue";
+import ResourceId from "../ResourceId.vue";
+import { formatType } from "../../core/utils/index";
 
 const props = defineProps<{
   minerController: MinerController;
@@ -58,17 +61,16 @@ const runningAssignedMiners = computed(() => {
 
 // Adapter type configuration for styling
 const adapterConfig = computed(() => {
-  const type = props.minerController.adapter_type?.toLowerCase() || "";
+  const type = props.minerController.adapter_type;
   
   // Define configs for known adapter types
-  const configs: Record<string, { icon: typeof PhGear; styleConfig: CardStyleConfig; badgeClass: string }> = {
+  const configs: Record<MinerControllerAdapter, { icon: typeof PhGear; styleConfig: CardStyleConfig; badgeClass: string }> = {
     dummy: {
-      icon: PhLego,
+      icon: DummyMinerIcon as any,
       badgeClass: "bg-slate-500/20 text-slate-400",
       styleConfig: {
         gradient: "hover:from-slate-500/20 hover:to-gray-500/10",
         iconColor: "text-slate-400",
-        iconBgColor: "bg-slate-500/20",
         accentBorder: "border-l-base-300/50 hover:border-l-slate-500",
       },
     },
@@ -78,7 +80,6 @@ const adapterConfig = computed(() => {
       styleConfig: {
         gradient: "hover:from-emerald-500/20 hover:to-green-500/10",
         iconColor: "text-emerald-400",
-        iconBgColor: "bg-emerald-500/20",
         accentBorder: "border-l-base-300/50 hover:border-l-emerald-500",
       },
     },
@@ -88,48 +89,7 @@ const adapterConfig = computed(() => {
       styleConfig: {
         gradient: "hover:from-sky-500/20 hover:to-blue-500/10",
         iconColor: "text-sky-400",
-        iconBgColor: "bg-sky-500/20",
         accentBorder: "border-l-base-300/50 hover:border-l-sky-500",
-      },
-    },
-    vnish: {
-      icon: PhCircuitry,
-      badgeClass: "bg-cyan-500/20 text-cyan-400",
-      styleConfig: {
-        gradient: "hover:from-cyan-500/20 hover:to-teal-500/10",
-        iconColor: "text-cyan-400",
-        iconBgColor: "bg-cyan-500/20",
-        accentBorder: "border-l-base-300/50 hover:border-l-cyan-500",
-      },
-    },
-    awesome_miner: {
-      icon: PhCpu,
-      badgeClass: "bg-purple-500/20 text-purple-400",
-      styleConfig: {
-        gradient: "hover:from-purple-500/20 hover:to-violet-500/10",
-        iconColor: "text-purple-400",
-        iconBgColor: "bg-purple-500/20",
-        accentBorder: "border-l-base-300/50 hover:border-l-purple-500",
-      },
-    },
-    hiveos: {
-      icon: PhGear,
-      badgeClass: "bg-amber-500/20 text-amber-400",
-      styleConfig: {
-        gradient: "hover:from-amber-500/20 hover:to-yellow-500/10",
-        iconColor: "text-amber-400",
-        iconBgColor: "bg-amber-500/20",
-        accentBorder: "border-l-base-300/50 hover:border-l-amber-500",
-      },
-    },
-    foreman: {
-      icon: PhGear,
-      badgeClass: "bg-blue-500/20 text-blue-400",
-      styleConfig: {
-        gradient: "hover:from-blue-500/20 hover:to-sky-500/10",
-        iconColor: "text-blue-400",
-        iconBgColor: "bg-blue-500/20",
-        accentBorder: "border-l-base-300/50 hover:border-l-blue-500",
       },
     },
   };
@@ -141,40 +101,11 @@ const adapterConfig = computed(() => {
       styleConfig: {
         gradient: "hover:from-slate-500/20 hover:to-gray-500/10",
         iconColor: "text-slate-400",
-        iconBgColor: "bg-slate-500/20",
         accentBorder: "border-l-base-300/50 hover:border-l-slate-500",
       },
     }
   );
 });
-
-// Format adapter type for display
-function formatAdapterType(type: string): string {
-  return type
-    .split("_")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-}
-
-// Copy ID to clipboard
-const idCopied = ref(false);
-async function copyId() {
-  if (!props.minerController.id) return;
-  try {
-    await navigator.clipboard.writeText(String(props.minerController.id));
-    idCopied.value = true;
-    setTimeout(() => (idCopied.value = false), 1500);
-  } catch {
-    const el = document.createElement("textarea");
-    el.value = String(props.minerController.id);
-    document.body.appendChild(el);
-    el.select();
-    document.execCommand("copy");
-    document.body.removeChild(el);
-    idCopied.value = true;
-    setTimeout(() => (idCopied.value = false), 1500);
-  }
-}
 
 function handleEdit() {
   emit("edit", props.minerController);
@@ -197,34 +128,26 @@ function cancelDelete() {
 <template>
   <EdgeMiningCard
     :icon="adapterConfig.icon"
-    :icon-size="26"
     :style-config="adapterConfig.styleConfig"
     card-class="min-h-[220px]"
   >
-    <!-- Title Slot -->
+    <!-- Title -->
     <template #title>
-      <h3 class="text-lg font-semibold text-base-content leading-tight truncate">
-        {{ minerController.name }}
-      </h3>
+      {{ minerController.name }}
     </template>
 
-    <!-- Badges Slot -->
+    <!-- Badges -->
     <template #badges>
       <!-- Adapter Type Badge -->
       <span class="badge badge-sm" :class="adapterConfig.badgeClass">
-        {{ formatAdapterType(minerController.adapter_type) }}
+        {{ formatType(minerController.adapter_type) }}
       </span>
       
       <!-- ID -->
-      <button v-if="minerController.id"
-        class="tooltip tooltip-top text-xs opacity-50 hover:opacity-100 transition-opacity flex items-center gap-0.5"
-        :data-tip="idCopied ? 'Copied!' : `ID: ${minerController.id}`" @click="copyId">
-        <PhHash :size="12" />
-        <span class="font-mono text-left">{{ minerController.id.split('-')[0] }}</span>
-      </button>
+      <ResourceId v-if="minerController.id" :id="minerController.id" />
     </template>
 
-    <!-- Actions Slot -->
+    <!-- Actions -->
     <template #actions>
       <button
         class="btn btn-ghost btn-sm btn-square hover:bg-primary/20"
@@ -242,7 +165,7 @@ function cancelDelete() {
       </button>
     </template>
 
-    <!-- Main Content (default slot) -->
+    <!-- Main Content -->
     <div class="py-1">
       <div class="flex items-center gap-2 mb-2">
         <PhCpu :size="16" class="text-base-content/50" />
@@ -291,7 +214,7 @@ function cancelDelete() {
       </div>
     </div>
 
-    <!-- Footer Slot -->
+    <!-- Footer -->
     <template #footer>
       <div class="flex items-start justify-between gap-2">
         <!-- External Service -->
@@ -338,6 +261,3 @@ function cancelDelete() {
   />
 </template>
 
-<style scoped>
-/* Component uses EdgeMiningCard base styles */
-</style>

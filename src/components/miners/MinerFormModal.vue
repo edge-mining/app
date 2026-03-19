@@ -109,9 +109,14 @@ function handleSave() {
     <div class="modal-box max-w-2xl bg-base-100 border border-base-300/60">
       <!-- Header -->
       <div class="flex items-center justify-between mb-6">
-        <h3 class="text-xl font-bold">
-          {{ isEdit ? "Edit Miner" : "Add Miner" }}
-        </h3>
+        <div class="flex items-center gap-3">
+          <div class="h-10 w-10 rounded-xl bg-base-200/60 flex items-center justify-center">
+            <PhCpu :size="22" class="text-primary" />
+          </div>
+          <h3 class="text-xl font-bold">
+            {{ isEdit ? "Edit Miner" : "Add Miner" }}
+          </h3>
+        </div>
         <button class="btn btn-ghost btn-sm btn-square" @click="handleClose">
           <PhX :size="20" />
         </button>

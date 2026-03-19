@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch, toRaw } from "vue";
-import type { MinerController } from "../../core/models/minerController";
+import { type MinerController, MinerControllerAdapter } from "../../core/models/minerController";
 import { useMinerControllerStore } from "../../core/stores/minerControllerStore";
 import { useExternalServiceStore } from "../../core/stores/externalServiceStore";
 import { MinerControllerService } from "../../core/services/minerControllerService";
@@ -12,6 +12,7 @@ import {
   PhPlugs,
   PhCircuitry,
 } from "@phosphor-icons/vue";
+import { formatType } from "../../core/utils/index";
 
 const props = defineProps<{
   open: boolean;
@@ -35,7 +36,7 @@ const isLoadingExternalServiceType = ref(false);
 // Local form state
 const formData = ref<MinerController>({
   name: "",
-  adapter_type: "",
+  adapter_type: MinerControllerAdapter.DUMMY,
   config: {},
   external_service_id: "",
 });
@@ -56,7 +57,7 @@ watch(
       } else {
         formData.value = {
           name: "",
-          adapter_type: minerControllerStore.adapterTypes[0] || "",
+          adapter_type: minerControllerStore.adapterTypes[0] || MinerControllerAdapter.DUMMY,
           config: {},
           external_service_id: "",
         };
@@ -112,14 +113,6 @@ watch(
   { immediate: true }
 );
 
-// Format adapter type for display
-function formatAdapterType(type: string): string {
-  return type
-    .split("_")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-}
-
 function handleClose() {
   emit("close");
 }
@@ -153,7 +146,7 @@ function handleSave() {
       <!-- Header -->
       <div class="flex items-center justify-between mb-6">
         <div class="flex items-center gap-3">
-          <div class="h-10 w-10 rounded-xl bg-info/20 flex items-center justify-center">
+          <div class="h-10 w-10 rounded-xl bg-base-200/60 flex items-center justify-center">
             <PhCircuitry :size="22" class="text-info" />
           </div>
           <h3 class="text-xl font-bold">
@@ -209,7 +202,7 @@ function handleSave() {
                   :key="adapterType"
                   :value="adapterType"
                 >
-                  {{ formatAdapterType(adapterType) }}
+                  {{ formatType(adapterType) }}
                 </option>
               </select>
               <label v-if="isEdit" class="label">
