@@ -21,7 +21,7 @@ For a step-by-step example, see: docs/MIGRATION_EXAMPLE.md
 
 import json
 import uuid
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy import Column, ForeignKey, String, Table, event
 
@@ -99,6 +99,27 @@ def _receive_forecast_provider_load(target: ForecastProvider, context) -> None:
 
     if target.config and isinstance(target.config, str):
         target.config = _deserialize_forecast_provider_config(target.adapter_type, target.config)
+
+
+@event.listens_for(ForecastProvider, "before_insert")
+@event.listens_for(ForecastProvider, "before_update")
+def _flatten_forecast_provider_composites(mapper, connection, target: Any) -> None:
+    """Convert enum attributes to primitive values before persisting."""
+    if hasattr(target, "adapter_type") and target.adapter_type is not None:
+        if isinstance(target.adapter_type, ForecastProviderAdapter):
+            target.adapter_type = target.adapter_type.value
+
+
+@event.listens_for(ForecastProvider, "after_insert")
+@event.listens_for(ForecastProvider, "after_update")
+def _restore_forecast_provider_composites(mapper, connection, target: Any) -> None:
+    """Restore enum attributes after persist operations."""
+    if hasattr(target, "adapter_type") and target.adapter_type is not None:
+        if isinstance(target.adapter_type, str):
+            try:
+                target.adapter_type = ForecastProviderAdapter(target.adapter_type)
+            except ValueError:
+                pass
 
 
 # Define the forecast_providers table using imperative style
