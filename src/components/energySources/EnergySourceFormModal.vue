@@ -202,7 +202,7 @@ function handleGridPowerInput(e: Event) {
                 height: '100%',
                 left: `calc(${selectedTypeIndex} * (100% - 0.5rem * 4) / 5 + ${selectedTypeIndex} * 0.5rem)`,
               }"
-            />
+            ></div>
             <button
               v-for="option in typeOptions"
               :key="option.value"
