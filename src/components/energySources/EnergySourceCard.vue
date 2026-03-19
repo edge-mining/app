@@ -289,7 +289,7 @@ function cancelDelete() {
   <ConfirmDialog
     :open="showDeleteConfirm"
     title="Delete Energy Source"
-    :message="`Are you sure you want to delete '${energySource.name}'? This action cannot be undone.`"
+    :message="`Are you sure you want to delete '${energySource.name}'?`"
     confirm-text="Delete"
     variant="danger"
     @confirm="confirmDelete"

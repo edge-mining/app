@@ -368,7 +368,7 @@ function handleDeactivate() {
   </EdgeMiningCard>
 
   <ConfirmDialog :open="showDeleteConfirm" title="Delete Miner"
-    :message="`Are you sure you want to delete '${miner.name}'? This action cannot be undone.`" confirm-text="Delete"
+    :message="`Are you sure you want to delete '${miner.name}'?`" confirm-text="Delete"
     variant="danger" @confirm="confirmDelete" @cancel="cancelDelete" />
 </template>
 
