@@ -139,8 +139,8 @@ function cancelDelete() {
     <!-- Badges -->
     <template #badges>
       <!-- Adapter Type Badge -->
-      <span class="badge badge-sm" :class="adapterConfig.badgeClass">
-        {{ formatType(minerController.adapter_type) }}
+      <span class="badge badge-sm max-w-[10rem] px-2 overflow-hidden" :class="adapterConfig.badgeClass" :title="formatType(minerController.adapter_type)">
+        <span class="marquee-on-overflow">{{ formatType(minerController.adapter_type) }}</span>
       </span>
       
       <!-- ID -->

@@ -133,8 +133,8 @@ function handleTest() {
     <!-- Badges -->
     <template #badges>
       <!-- Adapter Type Badge -->
-      <span class="badge badge-sm" :class="adapterConfig.styleConfig.badgeClass">
-        {{ formatType(notifier.adapter_type) }}
+      <span class="badge badge-sm max-w-[10rem] px-2 overflow-hidden" :class="adapterConfig.styleConfig.badgeClass" :title="formatType(notifier.adapter_type)">
+        <span class="marquee-on-overflow">{{ formatType(notifier.adapter_type) }}</span>
       </span>
 
       <!-- ID -->
