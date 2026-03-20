@@ -21,7 +21,7 @@ For a step-by-step example, see: docs/MIGRATION_EXAMPLE.md
 
 import json
 import uuid
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy import Column, ForeignKey, String, Table, event
 
@@ -67,6 +67,10 @@ def _deserialize_notifier_config(adapter_type: NotificationAdapter, config_json:
 @event.listens_for(Notifier, "load")
 def _receive_notifier_load(target: Notifier, context) -> None:
     """Event listener that deserializes config after loading from database."""
+    # Convert id string to EntityId if needed
+    if hasattr(target, "id") and target.id is not None:
+        if isinstance(target.id, str):  # type: ignore[arg-type,misc]
+            target.id = EntityId(uuid.UUID(target.id))  # type: ignore[assignment]
 
     # Convert foreign keys to EntityId
     # NOTE: SQLAlchemy returns strings for UUID columns that need conversion to EntityId
@@ -84,6 +88,27 @@ def _receive_notifier_load(target: Notifier, context) -> None:
 
     if target.config and isinstance(target.config, str):
         target.config = _deserialize_notifier_config(target.adapter_type, target.config)
+
+
+@event.listens_for(Notifier, "before_insert")
+@event.listens_for(Notifier, "before_update")
+def _flatten_notifier_composites(mapper, connection, target: Any) -> None:
+    """Convert enum attributes to primitive values before persisting."""
+    if hasattr(target, "adapter_type") and target.adapter_type is not None:
+        if isinstance(target.adapter_type, NotificationAdapter):
+            target.adapter_type = target.adapter_type.value
+
+
+@event.listens_for(Notifier, "after_insert")
+@event.listens_for(Notifier, "after_update")
+def _restore_notifier_composites(mapper, connection, target: Any) -> None:
+    """Restore enum attributes after persist operations."""
+    if hasattr(target, "adapter_type") and target.adapter_type is not None:
+        if isinstance(target.adapter_type, str):
+            try:
+                target.adapter_type = NotificationAdapter(target.adapter_type)
+            except ValueError:
+                pass
 
 
 # Define the notifiers table using imperative style
