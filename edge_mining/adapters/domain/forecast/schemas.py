@@ -462,6 +462,12 @@ class ForecastProviderCreateSchema(BaseModel):
             config_class = FORECAST_PROVIDER_CONFIG_TYPE_MAP.get(self.adapter_type, None)
             if config_class:
                 configuration = cast(ForecastProviderConfig, config_class.from_dict(self.config))
+        else:
+            if self.adapter_type:
+                # If adapter type is provided but config is not, initialize with default config
+                config_class = FORECAST_PROVIDER_CONFIG_TYPE_MAP.get(self.adapter_type, None)
+                if config_class:
+                    configuration = cast(ForecastProviderConfig, config_class())
 
         return ForecastProvider(
             id=EntityId(uuid.uuid4()),

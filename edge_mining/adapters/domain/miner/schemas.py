@@ -404,6 +404,12 @@ class MinerControllerCreateSchema(BaseModel):
             config_class = MINER_CONTROLLER_CONFIG_TYPE_MAP.get(self.adapter_type, None)
             if config_class:
                 configuration = cast(MinerControllerConfig, config_class.from_dict(self.config))
+        else:
+            if self.adapter_type:
+                # If adapter type is provided but config is not, initialize with default config
+                config_class = MINER_CONTROLLER_CONFIG_TYPE_MAP.get(self.adapter_type, None)
+                if config_class:
+                    configuration = cast(MinerControllerConfig, config_class())
 
         return MinerController(
             id=EntityId(uuid.uuid4()),
