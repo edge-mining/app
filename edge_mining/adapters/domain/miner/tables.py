@@ -134,6 +134,16 @@ def _receive_miner_controller_load(target: MinerController, context) -> None:
         target: The MinerController instance being loaded
         context: SQLAlchemy context
     """
+    # Convert id string to EntityId if needed
+    if hasattr(target, "id") and target.id is not None:
+        if isinstance(target.id, str):
+            target.id = EntityId(uuid.UUID(target.id))
+
+    # Convert foreign keys to EntityId
+    if hasattr(target, "external_service_id") and target.external_service_id is not None:
+        if isinstance(target.external_service_id, str):
+            target.external_service_id = EntityId(uuid.UUID(target.external_service_id))
+
     # Convert adapter_type string to enum if needed
     if isinstance(target.adapter_type, str):
         try:
@@ -144,6 +154,27 @@ def _receive_miner_controller_load(target: MinerController, context) -> None:
 
     if target.config and isinstance(target.config, str):
         target.config = _deserialize_miner_controller_config(target.adapter_type, target.config)
+
+
+@event.listens_for(MinerController, "before_insert")
+@event.listens_for(MinerController, "before_update")
+def _flatten_miner_controller_composites(mapper, connection, target: Any) -> None:
+    """Convert enum attributes to primitive values before persisting."""
+    if hasattr(target, "adapter_type") and target.adapter_type is not None:
+        if isinstance(target.adapter_type, MinerControllerAdapter):
+            target.adapter_type = target.adapter_type.value
+
+
+@event.listens_for(MinerController, "after_insert")
+@event.listens_for(MinerController, "after_update")
+def _restore_miner_controller_composites(mapper, connection, target: Any) -> None:
+    """Restore enum attributes after persist operations."""
+    if hasattr(target, "adapter_type") and target.adapter_type is not None:
+        if isinstance(target.adapter_type, str):
+            try:
+                target.adapter_type = MinerControllerAdapter(target.adapter_type)
+            except ValueError:
+                pass
 
 
 # Define the miner_controllers table using imperative style

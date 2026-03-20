@@ -25,7 +25,8 @@ For a step-by-step example, see: docs/MIGRATION_EXAMPLE.md
 """
 
 import json
-from typing import Optional
+import uuid
+from typing import Any, Optional
 
 from sqlalchemy import JSON, Column, ForeignKey, String, Table, TypeDecorator, event
 
@@ -78,8 +79,46 @@ def _deserialize_home_forecast_provider_config(
 @event.listens_for(HomeForecastProvider, "load")
 def _receive_home_forecast_provider_load(target: HomeForecastProvider, context) -> None:
     """Event listener that deserializes config after loading from database."""
+    # Convert id string to EntityId if needed
+    if hasattr(target, "id") and target.id is not None:
+        if isinstance(target.id, str):  # type: ignore[arg-type,misc]
+            target.id = EntityId(uuid.UUID(target.id))  # type: ignore[assignment]
+
+    # Convert foreign keys to EntityId
+    if hasattr(target, "external_service_id") and target.external_service_id is not None:
+        if isinstance(target.external_service_id, str):  # type: ignore
+            target.external_service_id = EntityId(uuid.UUID(target.external_service_id))  # type: ignore
+
+    # Convert adapter_type string to enum if needed
+    if isinstance(target.adapter_type, str):
+        try:
+            target.adapter_type = HomeForecastProviderAdapter(target.adapter_type)
+        except ValueError:
+            pass
+
     if target.config and isinstance(target.config, str):
         target.config = _deserialize_home_forecast_provider_config(target.adapter_type, target.config)
+
+
+@event.listens_for(HomeForecastProvider, "before_insert")
+@event.listens_for(HomeForecastProvider, "before_update")
+def _flatten_home_forecast_provider_composites(mapper, connection, target: Any) -> None:
+    """Convert enum attributes to primitive values before persisting."""
+    if hasattr(target, "adapter_type") and target.adapter_type is not None:
+        if isinstance(target.adapter_type, HomeForecastProviderAdapter):
+            target.adapter_type = target.adapter_type.value
+
+
+@event.listens_for(HomeForecastProvider, "after_insert")
+@event.listens_for(HomeForecastProvider, "after_update")
+def _restore_home_forecast_provider_composites(mapper, connection, target: Any) -> None:
+    """Restore enum attributes after persist operations."""
+    if hasattr(target, "adapter_type") and target.adapter_type is not None:
+        if isinstance(target.adapter_type, str):
+            try:
+                target.adapter_type = HomeForecastProviderAdapter(target.adapter_type)
+            except ValueError:
+                pass
 
 
 # Define the home_forecast_providers table using imperative style

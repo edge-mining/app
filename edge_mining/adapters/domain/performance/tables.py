@@ -20,12 +20,14 @@ For a step-by-step example, see: docs/MIGRATION_EXAMPLE.md
 """
 
 import json
-from typing import Optional
+import uuid
+from typing import Any, Optional
 
 from sqlalchemy import Column, ForeignKey, String, Table, event
 
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.common import ConfigurationType
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.registry import mapper_registry, metadata
+from edge_mining.domain.common import EntityId
 from edge_mining.domain.performance.common import MiningPerformanceTrackerAdapter
 from edge_mining.domain.performance.entities import MiningPerformanceTracker
 from edge_mining.domain.performance.exceptions import MiningPerformanceTrackerConfigurationError
@@ -73,8 +75,46 @@ def _deserialize_mining_performance_tracker_config(
 @event.listens_for(MiningPerformanceTracker, "load")
 def _receive_mining_performance_tracker_load(target: MiningPerformanceTracker, context) -> None:
     """Event listener that deserializes config after loading from database."""
+    # Convert id string to EntityId if needed
+    if hasattr(target, "id") and target.id is not None:
+        if isinstance(target.id, str):  # type: ignore[arg-type,misc]
+            target.id = EntityId(uuid.UUID(target.id))  # type: ignore[assignment]
+
+    # Convert foreign keys to EntityId
+    if hasattr(target, "external_service_id") and target.external_service_id is not None:
+        if isinstance(target.external_service_id, str):  # type: ignore
+            target.external_service_id = EntityId(uuid.UUID(target.external_service_id))  # type: ignore
+
+    # Convert adapter_type string to enum if needed
+    if isinstance(target.adapter_type, str):
+        try:
+            target.adapter_type = MiningPerformanceTrackerAdapter(target.adapter_type)
+        except ValueError:
+            pass
+
     if target.config and isinstance(target.config, str):
         target.config = _deserialize_mining_performance_tracker_config(target.adapter_type, target.config)
+
+
+@event.listens_for(MiningPerformanceTracker, "before_insert")
+@event.listens_for(MiningPerformanceTracker, "before_update")
+def _flatten_mining_performance_tracker_composites(mapper, connection, target: Any) -> None:
+    """Convert enum attributes to primitive values before persisting."""
+    if hasattr(target, "adapter_type") and target.adapter_type is not None:
+        if isinstance(target.adapter_type, MiningPerformanceTrackerAdapter):
+            target.adapter_type = target.adapter_type.value
+
+
+@event.listens_for(MiningPerformanceTracker, "after_insert")
+@event.listens_for(MiningPerformanceTracker, "after_update")
+def _restore_mining_performance_tracker_composites(mapper, connection, target: Any) -> None:
+    """Restore enum attributes after persist operations."""
+    if hasattr(target, "adapter_type") and target.adapter_type is not None:
+        if isinstance(target.adapter_type, str):
+            try:
+                target.adapter_type = MiningPerformanceTrackerAdapter(target.adapter_type)
+            except ValueError:
+                pass
 
 
 # Define the mining_performance_trackers table using imperative style
