@@ -222,7 +222,7 @@ function handleSave() {
           </div>
 
           <div class="form-control">
-            <label class="label mb-1">
+            <label class="label mb-1 flex justify-between items-center">
               <span class="label-text font-medium">Linked Service</span>
               <span v-if="requiredExternalServiceType" class="label-text-alt badge badge-sm badge-info">
                 {{ requiredExternalServiceType }}
@@ -250,10 +250,10 @@ function handleSave() {
                 External service not required for this adapter type
               </span>
               <span v-else-if="filteredExternalServices.length === 0" class="label-text-alt text-warning italic">
-                No {{ requiredExternalServiceType }} services configured
+                No {{ requiredExternalServiceType ? formatType(requiredExternalServiceType) : '' }} services configured
               </span>
               <span v-else class="label-text-alt text-base-content/50">
-                Link to a {{ requiredExternalServiceType }} service for API connectivity
+                Link to a {{ requiredExternalServiceType ? formatType(requiredExternalServiceType) : '' }} service for API connectivity
               </span>
             </label>
           </div>
