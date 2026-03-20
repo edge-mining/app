@@ -1369,8 +1369,8 @@ class ConfigurationService(ConfigurationServiceInterface):
             external_service_id=external_service_id,
         )
 
-        self.miner_controller_repo.add(controller)
         self.check_miner_controller(controller)
+        self.miner_controller_repo.add(controller)
 
         return controller
 
