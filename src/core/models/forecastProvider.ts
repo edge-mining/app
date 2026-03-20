@@ -1,4 +1,9 @@
-export type ForecastProviderAdapter = string;
+export const ForecastProviderAdapter = {
+  DUMMY_SOLAR: "dummy_solar",
+  HOME_ASSISTANT_API: "home_assistant_api"
+} as const;
+
+export type ForecastProviderAdapter = typeof ForecastProviderAdapter[keyof typeof ForecastProviderAdapter];
 
 export interface ForecastProviderConfig {
   [key: string]: any;

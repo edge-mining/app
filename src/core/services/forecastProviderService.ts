@@ -1,5 +1,5 @@
 import { BaseService } from "./baseService";
-import type { ForecastProvider, ConfigSchema } from "../models/forecastProvider";
+import type { ForecastProvider, ForecastProviderAdapter, ConfigSchema } from "../models/forecastProvider";
 import type { ExternalServiceAdapter } from "../models/externalService";
 
 export class ForecastProviderService extends BaseService {
@@ -23,8 +23,8 @@ export class ForecastProviderService extends BaseService {
     return this.delete<ForecastProvider>(`/forecast-providers/${providerId}`).getData();
   }
 
-  getAdapterTypes(): Promise<string[]> {
-    return this.get<string[]>("/forecast-providers/types").getData();
+  getAdapterTypes(): Promise<ForecastProviderAdapter[]> {
+    return this.get<ForecastProviderAdapter[]>("/forecast-providers/types").getData();
   }
 
   getConfigSchema(adapterType: string): Promise<ConfigSchema> {
