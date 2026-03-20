@@ -372,7 +372,7 @@ function handleGridPowerInput(e: Event) {
       </div>
 
       <!-- Actions -->
-      <div class="modal-action mt-8">
+      <div class="flex justify-end gap-3 pt-4 border-t border-base-300/40 mt-4">
         <button class="btn btn-ghost" @click="handleClose">Cancel</button>
         <button
           class="btn btn-primary"
