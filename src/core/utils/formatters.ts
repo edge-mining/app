@@ -63,3 +63,16 @@ export function normalizeHashRate(value: number, unit: string): number {
   return value * (multipliers[unit] || 1);
 }
 
+export function formatDate(date?: string): string {
+  if (!date) return "";
+  try {
+    return new Date(date).toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  } catch {
+    return date;
+  }
+}
+

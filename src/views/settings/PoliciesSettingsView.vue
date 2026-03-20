@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from "vue";
 import { usePolicyStore } from "../../core/stores/policyStore";
-import PolicyRow from "../../components/policies/PolicyRow.vue";
-import PolicyRuleRow from "../../components/policies/PolicyRuleRow.vue";
+import PolicyCard from "../../components/policies/PolicyCard.vue";
+import PolicyFormModal from "../../components/policies/PolicyFormModal.vue";
 import RuleConditionBuilder from "../../components/policies/RuleConditionBuilder.vue";
+import ConfirmDialog from "../../components/ConfirmDialog.vue";
+import ResourceId from "../../components/ResourceId.vue";
 import type {
   OptimizationPolicy,
   AutomationRule,
@@ -11,6 +13,7 @@ import type {
   RuleType,
 } from "../../core/models/policy";
 import {
+  PhPlus,
   PhPlay,
   PhStop,
   PhWarning,
@@ -18,15 +21,23 @@ import {
   PhCopy,
   PhMagnifyingGlass,
   PhX,
+  PhGitBranch,
+  PhCheckCircle,
+  PhXCircle,
+  PhShieldCheck,
+  PhListChecks,
+  PhPencil,
+  PhTrash,
+  PhLightningSlash,
+  PhLightning,
 } from "@phosphor-icons/vue";
 
 const policyStore = usePolicyStore();
 
 // Policy modal state
-const newPolicy = ref<OptimizationPolicy | undefined>(undefined);
-const editingPolicy = ref<OptimizationPolicy | undefined>(undefined);
 const showPolicyModal = ref(false);
-const isEditingPolicy = ref(false);
+const editingPolicy = ref<OptimizationPolicy | undefined>(undefined);
+const isEditMode = ref(false);
 
 // Rule modal state
 const selectedPolicy = ref<OptimizationPolicy | undefined>(undefined);
@@ -52,6 +63,10 @@ const checkingPolicyName = ref("");
 // Rule error state
 const ruleDeleteError = ref("");
 const ruleAddSaveError = ref("");
+
+// Rule delete confirmation
+const ruleToDelete = ref<AutomationRule | null>(null);
+const showRuleDeleteConfirm = ref(false);
 
 // Reference to RuleConditionBuilder components
 const editingRuleConditionBuilder = ref<InstanceType<
@@ -82,26 +97,42 @@ const newRuleHasUnsavedConditions = computed(() => {
   );
 });
 
+// Stats
+const stats = computed(() => {
+  const policies = policyStore.policies;
+  const totalPolicies = policies.length;
+
+  let totalStartRules = 0;
+  let totalStopRules = 0;
+  let enabledStartRules = 0;
+  let enabledStopRules = 0;
+
+  policies.forEach((p) => {
+    totalStartRules += p.start_rules?.length ?? 0;
+    totalStopRules += p.stop_rules?.length ?? 0;
+    enabledStartRules += p.start_rules?.filter((r) => r.enabled).length ?? 0;
+    enabledStopRules += p.stop_rules?.filter((r) => r.enabled).length ?? 0;
+  });
+
+  return {
+    totalPolicies,
+    totalStartRules,
+    totalStopRules,
+    totalRules: totalStartRules + totalStopRules,
+    enabledStartRules,
+    enabledStopRules,
+    enabledRules: enabledStartRules + enabledStopRules,
+  };
+});
+
 onMounted(() => {
   policyStore.loadPolicies();
 });
 
 // Policy CRUD handlers
-function addPolicy() {
-  newPolicy.value = {
-    id: "",
-    name: "",
-    description: "",
-    start_rules: [],
-    stop_rules: [],
-    metadata: {
-      author: undefined,
-      version: undefined,
-      created: undefined,
-      last_modified: undefined,
-    },
-  };
-  isEditingPolicy.value = false;
+function openAddModal() {
+  editingPolicy.value = undefined;
+  isEditMode.value = false;
   showPolicyModal.value = true;
 }
 
@@ -115,42 +146,51 @@ function handleEditPolicy(policy: OptimizationPolicy) {
       last_modified: undefined,
     },
   };
-  isEditingPolicy.value = true;
+  isEditMode.value = true;
   showPolicyModal.value = true;
 }
 
-function cancelPolicyModal() {
-  newPolicy.value = undefined;
-  editingPolicy.value = undefined;
-  isEditingPolicy.value = false;
+function handleCloseModal() {
   showPolicyModal.value = false;
+  editingPolicy.value = undefined;
 }
 
-function confirmAddPolicy() {
-  if (!newPolicy.value) return;
-  policyStore.addPolicy(newPolicy.value).then(() => {
-    policyStore.loadPolicies();
-    newPolicy.value = undefined;
-    showPolicyModal.value = false;
-  });
-}
-
-function confirmEditPolicy() {
-  if (!editingPolicy.value) return;
-  policyStore
-    .updatePolicy(editingPolicy.value.id!.toString(), editingPolicy.value)
-    .then(() => {
-      policyStore.loadPolicies();
-      editingPolicy.value = undefined;
-      isEditingPolicy.value = false;
-      showPolicyModal.value = false;
-    });
+function handleSavePolicy(policy: OptimizationPolicy) {
+  if (isEditMode.value && policy.id) {
+    policyStore
+      .updatePolicy(policy.id.toString(), policy)
+      .then(() => {
+        policyStore.loadPolicies();
+        handleCloseModal();
+      })
+      .showToasts(
+        "Policy updated successfully",
+        "Failed to update policy"
+      );
+  } else {
+    policyStore
+      .addPolicy(policy)
+      .then(() => {
+        policyStore.loadPolicies();
+        handleCloseModal();
+      })
+      .showToasts(
+        "Policy created successfully",
+        "Failed to create policy"
+      );
+  }
 }
 
 function handleDeletePolicy(policy: OptimizationPolicy) {
-  policyStore.deletePolicy(policy.id!.toString()).then(() => {
-    policyStore.loadPolicies();
-  });
+  policyStore
+    .deletePolicy(policy.id!.toString())
+    .then(() => {
+      policyStore.loadPolicies();
+    })
+    .showToasts(
+      "Policy deleted successfully",
+      "Failed to delete policy"
+    );
 }
 
 function handleCheckPolicy(policy: OptimizationPolicy) {
@@ -231,7 +271,6 @@ function confirmAddRule() {
       newRule.value,
     )
     .then(() => {
-      // Reload the policy to get updated rules
       policyStore
         .loadPolicy(selectedPolicy.value!.id!.toString())
         .then((updatedPolicy) => {
@@ -287,7 +326,19 @@ function confirmEditRule() {
     });
 }
 
+function requestDeleteRule(rule: AutomationRule) {
+  ruleToDelete.value = rule;
+  showRuleDeleteConfirm.value = true;
+}
+
+function cancelDeleteRule() {
+  ruleToDelete.value = null;
+  showRuleDeleteConfirm.value = false;
+}
+
 function handleDeleteRule(rule: AutomationRule) {
+  showRuleDeleteConfirm.value = false;
+  ruleToDelete.value = null;
   if (!selectedPolicy.value) return;
   policyStore
     .deleteRule(selectedPolicy.value.id!.toString(), rule.id!.toString())
@@ -370,20 +421,16 @@ function copyFromRule(
   if (!targetRule) return;
 
   if (copyOnlyConditions.value) {
-    // Copy only conditions
     targetRule.conditions = JSON.parse(JSON.stringify(sourceRule.conditions));
   } else {
-    // Copy all fields except id (keep the target's id or empty for new)
     const targetId = targetRule.id;
     Object.assign(targetRule, {
       ...sourceRule,
       id: targetId,
-      // Deep clone conditions to avoid reference issues
       conditions: JSON.parse(JSON.stringify(sourceRule.conditions)),
     });
   }
 
-  // Update original conditions tracking
   if (copyTargetRule.value === "new") {
     originalNewRuleConditions.value = JSON.parse(
       JSON.stringify(targetRule.conditions),
@@ -437,230 +484,395 @@ const filteredAvailableRules = computed(() => {
 <template>
   <div class="card">
     <div class="card-header">
-      <h2>Optimization Policy Settings</h2>
+      <!-- Header -->
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <h1 class="text-2xl font-bold text-base-content">Optimization Policies</h1>
+          <p class="text-sm text-base-content/60 mt-1">
+            Define automation rules that control mining start/stop behavior
+          </p>
+        </div>
+
+        <button class="btn btn-primary gap-2" @click="openAddModal">
+          <PhPlus :size="20" weight="bold" />
+          Add Policy
+        </button>
+      </div>
     </div>
     <div class="card-body">
-      <div class="overflow-x-auto">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Name / Description</th>
-              <th>Author</th>
-              <th>Modified</th>
-              <th>Start Rules</th>
-              <th>Stop Rules</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <PolicyRow v-for="(policy, i) in policyStore.policies" :key="policy.id" v-model="policyStore.policies[i]"
-              @edit="handleEditPolicy" @delete="handleDeletePolicy" @manage-rules="handleManageRules"
-              @check="handleCheckPolicy" />
+      <div class="space-y-6">
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+          <div class="stat-card bg-neutral-800/80 border border-base-300/40 rounded-xl p-3 sm:p-4 min-w-0">
+            <div class="stat-value text-primary flex items-center gap-2">
+              {{ stats.totalPolicies }}
+              <PhGitBranch :size="20" class="opacity-60" />
+            </div>
+            <div class="stat-label">Policies</div>
+          </div>
+          <div class="stat-card bg-neutral-800/80 border border-base-300/40 rounded-xl p-3 sm:p-4 min-w-0">
+            <div class="stat-value text-base-content flex items-center gap-2">
+              {{ stats.totalRules }}
+              <PhListChecks :size="20" class="opacity-40" />
+            </div>
+            <div class="stat-label">Total Rules</div>
+          </div>
+          <div class="stat-card bg-neutral-800/80 border border-base-300/40 rounded-xl p-3 sm:p-4 min-w-0">
+            <div class="flex gap-4 items-center min-h-[2rem] sm:min-h-[2.25rem]">
+              <div class="flex items-center gap-1.5">
+                <PhPlay :size="16" class="text-emerald-400" weight="fill" />
+                <span class="stat-type-count text-emerald-400">{{ stats.totalStartRules }}</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <PhStop :size="16" class="text-red-400" weight="fill" />
+                <span class="stat-type-count text-red-400">{{ stats.totalStopRules }}</span>
+              </div>
+            </div>
+            <div class="stat-label">Start / Stop</div>
+          </div>
+          <div class="stat-card bg-neutral-800/80 border border-base-300/40 rounded-xl p-3 sm:p-4 min-w-0">
+            <div class="stat-value text-emerald-400 flex items-center gap-2">
+              {{ stats.enabledRules }}
+              <PhCheckCircle :size="20" class="opacity-60" />
+            </div>
+            <div class="stat-label">Enabled Rules</div>
+          </div>
+        </div>
 
-            <tr>
-              <th colspan="6" class="text-center">
-                <button class="btn btn-primary" @click="addPolicy">
-                  Add Policy
-                </button>
-              </th>
-            </tr>
-          </tbody>
-        </table>
+        <!-- Cards Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <PolicyCard
+            v-for="policy in policyStore.policies"
+            :key="policy.id"
+            :policy="policy"
+            @edit="handleEditPolicy"
+            @delete="handleDeletePolicy"
+            @manage-rules="handleManageRules"
+            @check="handleCheckPolicy"
+          />
+
+          <!-- Empty State -->
+          <div
+            v-if="policyStore.policies.length === 0"
+            class="col-span-full flex flex-col items-center justify-center py-16 text-center"
+          >
+            <div
+              class="w-20 h-20 rounded-full bg-base-200 flex items-center justify-center mb-4"
+            >
+              <PhGitBranch :size="40" class="text-base-content/30" />
+            </div>
+            <h3 class="text-lg font-semibold text-base-content/80">
+              No policies yet
+            </h3>
+            <p class="text-sm text-base-content/50 mt-1 max-w-sm">
+              Create your first optimization policy to automate mining start/stop decisions.
+            </p>
+            <button
+              class="btn btn-primary btn-sm mt-4 gap-2"
+              @click="openAddModal"
+            >
+              <PhPlus :size="16" />
+              Add Policy
+            </button>
+          </div>
+        </div>
+
+        <!-- Policy Form Modal -->
+        <PolicyFormModal
+          :open="showPolicyModal"
+          :policy="editingPolicy"
+          :is-edit="isEditMode"
+          @close="handleCloseModal"
+          @save="handleSavePolicy"
+        />
       </div>
     </div>
   </div>
 
-  <!-- Policy Add/Edit Modal -->
-  <dialog :class="['modal', { 'modal-open': showPolicyModal }]">
-    <div v-if="newPolicy || editingPolicy" class="modal-box max-w-2xl">
-      <h3 class="font-bold text-lg mb-4">
-        {{ isEditingPolicy ? "Edit Policy" : "Add Policy" }}
-      </h3>
-
-      <form @submit.prevent="
-        isEditingPolicy ? confirmEditPolicy() : confirmAddPolicy()
-        " class="flex flex-col gap-4">
-        <template v-if="isEditingPolicy && editingPolicy">
-          <!-- Name field -->
-          <div class="space-y-1">
-            <div class="font-medium">
-              Name
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
-            </div>
-            <input v-model="editingPolicy.name" type="text" placeholder="Policy name" required
-              class="input input-bordered input-sm w-full" />
-          </div>
-
-          <div class="space-y-1">
-            <div class="font-medium">Description</div>
-            <textarea v-model="editingPolicy.description" placeholder="Policy description"
-              class="textarea textarea-bordered textarea-sm w-full" rows="3"></textarea>
-          </div>
-
-          <!-- Metadata Section -->
-          <div class="divider text-sm">Metadata</div>
-
-          <div class="grid grid-cols-4 gap-4">
-            <div class="space-y-1">
-              <div class="font-medium">Author</div>
-              <div class="text-sm opacity-70">
-                {{ editingPolicy.metadata?.author || "—" }}
-              </div>
-            </div>
-
-            <div class="space-y-1">
-              <div class="font-medium">Version</div>
-              <div class="text-sm opacity-70">
-                {{ editingPolicy.metadata?.version || "—" }}
-              </div>
-            </div>
-
-            <div class="space-y-1">
-              <div class="font-medium">Created</div>
-              <div class="text-sm opacity-70">
-                {{ editingPolicy.metadata?.created || "—" }}
-              </div>
-            </div>
-
-            <div class="space-y-1">
-              <div class="font-medium">Last Modified</div>
-              <div class="text-sm opacity-70">
-                {{ editingPolicy.metadata?.last_modified || "—" }}
-              </div>
-            </div>
-          </div>
-        </template>
-
-        <template v-else-if="newPolicy">
-          <div class="space-y-1">
-            <div class="font-medium">
-              Name
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
-            </div>
-            <input v-model="newPolicy.name" type="text" placeholder="Policy name" required
-              class="input input-bordered input-sm w-full" />
-          </div>
-
-          <div class="space-y-1">
-            <div class="font-medium">Description</div>
-            <textarea v-model="newPolicy.description" placeholder="Policy description"
-              class="textarea textarea-bordered textarea-sm w-full" rows="3"></textarea>
-          </div>
-        </template>
-
-        <div class="modal-action">
-          <button type="button" class="btn btn-secondary" @click="cancelPolicyModal">
-            Cancel
-          </button>
-          <button type="submit" class="btn btn-primary">
-            {{ isEditingPolicy ? "Save" : "Add" }}
-          </button>
-        </div>
-      </form>
-    </div>
-    <form method="dialog" class="modal-backdrop">
-      <button @click="cancelPolicyModal">close</button>
-    </form>
-  </dialog>
-
   <!-- Rules Management Modal -->
   <dialog :class="['modal', { 'modal-open': showRulesModal }]">
-    <div v-if="selectedPolicy" class="modal-box max-w-4xl">
-      <h3 class="font-bold text-lg mb-4">
-        Rules for "{{ selectedPolicy.name }}"
-      </h3>
-
-      <!-- Tabs for Start/Stop Rules -->
-      <div class="tabs tabs-lifted justify-center">
-        <label class="tab">
-          <input type="radio" name="rule_tabs" :checked="activeRuleTab === 'start'" @change="activeRuleTab = 'start'" />
-          <PhPlay :size="16" class="me-2" />
-          Start Rules
-        </label>
-        <div class="tab-content bg-base-100 border-base-300 p-6">
-          <div class="overflow-x-auto">
-            <table class="table table-sm">
-              <thead>
-                <tr>
-                  <th>Enabled</th>
-                  <th>Name / Description</th>
-                  <th>Priority</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <template v-if="
-                  selectedPolicy.start_rules &&
-                  selectedPolicy.start_rules.length > 0
-                ">
-                  <PolicyRuleRow v-for="(rule, i) in selectedPolicy.start_rules" :key="rule.id"
-                    v-model="selectedPolicy.start_rules[i]" @edit="(r) => handleEditRule(r, 'start')"
-                    @delete="(r) => handleDeleteRule(r)" @toggle-enabled="(r) => handleToggleRuleEnabled(r)" />
-                </template>
-                <tr v-else>
-                  <td colspan="4" class="text-center text-base-content/50">
-                    No start rules defined for this policy
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+    <div v-if="selectedPolicy" class="modal-box max-w-4xl bg-base-100 border border-base-300/60 p-0 overflow-hidden">
+      <!-- Modal Header -->
+      <div class="px-6 pt-6 pb-4 border-b border-base-300/40">
+        <div class="flex items-start justify-between gap-4">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="h-11 w-11 rounded-xl bg-indigo-500/15 flex items-center justify-center flex-shrink-0">
+              <PhGitBranch :size="24" class="text-indigo-400" weight="duotone" />
+            </div>
+            <div class="min-w-0">
+              <h3 class="text-lg font-bold text-base-content truncate">{{ selectedPolicy.name }}</h3>
+              <p v-if="selectedPolicy.description" class="text-sm text-base-content/50 truncate mt-0.5">{{ selectedPolicy.description }}</p>
+            </div>
           </div>
+          <button class="btn btn-ghost btn-sm btn-square flex-shrink-0" @click="closeRulesModal">
+            <PhX :size="20" />
+          </button>
         </div>
 
-        <label class="tab">
-          <input type="radio" name="rule_tabs" :checked="activeRuleTab === 'stop'" @change="activeRuleTab = 'stop'" />
-          <PhStop :size="16" class="me-2" />
-          Stop Rules
-        </label>
-        <div class="tab-content bg-base-100 border-base-300 p-6">
-          <div class="overflow-x-auto">
-            <table class="table table-sm">
-              <thead>
-                <tr>
-                  <th>Enabled</th>
-                  <th>Name / Description</th>
-                  <th>Priority</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <template v-if="
-                  selectedPolicy.stop_rules &&
-                  selectedPolicy.stop_rules.length > 0
-                ">
-                  <PolicyRuleRow v-for="(rule, i) in selectedPolicy.stop_rules" :key="rule.id"
-                    v-model="selectedPolicy.stop_rules[i]" @edit="(r) => handleEditRule(r, 'stop')"
-                    @delete="(r) => handleDeleteRule(r)" @toggle-enabled="(r) => handleToggleRuleEnabled(r)" />
-                </template>
-                <tr v-else>
-                  <td colspan="4" class="text-center text-base-content/50">
-                    No stop rules defined for this policy
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+        <!-- Mini stats -->
+        <div class="flex items-center gap-4 mt-4">
+          <div class="flex items-center gap-1.5 text-sm">
+            <PhPlay :size="14" class="text-emerald-400" weight="fill" />
+            <span class="font-semibold text-emerald-400">{{ selectedPolicy.start_rules?.length ?? 0 }}</span>
+            <span class="text-base-content/40">start</span>
+          </div>
+          <div class="flex items-center gap-1.5 text-sm">
+            <PhStop :size="14" class="text-red-400" weight="fill" />
+            <span class="font-semibold text-red-400">{{ selectedPolicy.stop_rules?.length ?? 0 }}</span>
+            <span class="text-base-content/40">stop</span>
+          </div>
+          <div class="flex items-center gap-1.5 text-sm ml-auto">
+            <PhCheckCircle :size="14" class="text-emerald-400/60" />
+            <span class="text-base-content/50">{{ (selectedPolicy.start_rules?.filter(r => r.enabled).length ?? 0) + (selectedPolicy.stop_rules?.filter(r => r.enabled).length ?? 0) }} enabled</span>
           </div>
         </div>
       </div>
 
-      <div class="modal-action">
-        <div v-if="ruleDeleteError" class="flex-1 mr-auto">
-          <div class="text-error text-sm">
-            <span class="font-semibold">Error:</span> {{ ruleDeleteError }}
+      <!-- Tab Switcher -->
+      <div class="px-6 pt-4">
+        <div class="flex bg-base-200/60 rounded-lg p-1 gap-1">
+          <button
+            class="flex-1 flex items-center justify-center gap-2 rounded-md py-2 px-3 text-sm font-medium transition-all duration-200"
+            :class="activeRuleTab === 'start'
+              ? 'bg-emerald-500/20 text-emerald-400 shadow-sm border border-emerald-500/30'
+              : 'text-base-content/50 hover:text-base-content/80 hover:bg-base-300/40 border border-transparent'"
+            @click="activeRuleTab = 'start'"
+          >
+            <PhPlay :size="16" weight="fill" />
+            Start Rules
+            <span class="badge badge-sm" :class="activeRuleTab === 'start' ? 'bg-emerald-500/30 text-emerald-300 border-0' : 'badge-ghost'">
+              {{ selectedPolicy.start_rules?.length ?? 0 }}
+            </span>
+          </button>
+          <button
+            class="flex-1 flex items-center justify-center gap-2 rounded-md py-2 px-3 text-sm font-medium transition-all duration-200"
+            :class="activeRuleTab === 'stop'
+              ? 'bg-red-500/20 text-red-400 shadow-sm border border-red-500/30'
+              : 'text-base-content/50 hover:text-base-content/80 hover:bg-base-300/40 border border-transparent'"
+            @click="activeRuleTab = 'stop'"
+          >
+            <PhStop :size="16" weight="fill" />
+            Stop Rules
+            <span class="badge badge-sm" :class="activeRuleTab === 'stop' ? 'bg-red-500/30 text-red-300 border-0' : 'badge-ghost'">
+              {{ selectedPolicy.stop_rules?.length ?? 0 }}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Rules List -->
+      <div class="px-6 py-4 max-h-[50vh] overflow-y-auto rules-scroll">
+        <!-- Start Rules Tab -->
+        <div v-if="activeRuleTab === 'start'" class="space-y-2">
+          <template v-if="selectedPolicy.start_rules && selectedPolicy.start_rules.length > 0">
+            <div
+              v-for="rule in selectedPolicy.start_rules"
+              :key="rule.id"
+              class="rule-card group/rule flex items-center gap-3 rounded-lg border border-base-300/40 p-3 transition-all duration-200 hover:border-emerald-500/30 hover:bg-emerald-500/5"
+            >
+              <!-- Toggle -->
+              <div class="flex-shrink-0">
+                <input
+                  type="checkbox"
+                  class="toggle toggle-success toggle-sm"
+                  :checked="rule.enabled"
+                  @change="handleToggleRuleEnabled(rule)"
+                  title="Toggle rule enabled/disabled"
+                />
+              </div>
+
+              <!-- Rule Info -->
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="font-semibold text-sm text-base-content truncate">{{ rule.name }}</span>
+                  <ResourceId v-if="rule.id" :id="rule.id" />
+                </div>
+                <p class="text-xs text-base-content/40 truncate mt-0.5">
+                  {{ rule.description || 'No description' }}
+                </p>
+              </div>
+
+              <!-- Priority -->
+              <div class="flex-shrink-0">
+                <div
+                  class="flex items-center gap-1 rounded-md bg-base-200/60 px-2 py-1 text-xs font-mono"
+                  :title="`Priority: ${rule.priority ?? 0}`"
+                >
+                  <PhLightning :size="12" class="text-amber-400/70" />
+                  <span class="text-base-content/60">{{ rule.priority ?? 0 }}</span>
+                </div>
+              </div>
+
+              <!-- Status indicator -->
+              <div class="flex-shrink-0">
+                <span
+                  v-if="rule.enabled"
+                  class="badge badge-sm bg-emerald-500/20 text-emerald-400 border-0 gap-1"
+                >
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                  Active
+                </span>
+                <span v-else class="badge badge-sm badge-ghost gap-1">
+                  <PhLightningSlash :size="10" />
+                  Disabled
+                </span>
+              </div>
+
+              <!-- Actions -->
+              <div class="flex gap-1 opacity-0 group-hover/rule:opacity-100 transition-opacity flex-shrink-0">
+                <button
+                  class="btn btn-ghost btn-xs btn-square hover:bg-primary/20"
+                  title="Edit rule"
+                  @click="handleEditRule(rule, 'start')"
+                >
+                  <PhPencil :size="14" class="text-primary" />
+                </button>
+                <button
+                  class="btn btn-ghost btn-xs btn-square hover:bg-error/20"
+                  title="Delete rule"
+                  @click="requestDeleteRule(rule)"
+                >
+                  <PhTrash :size="14" class="text-error" />
+                </button>
+              </div>
+            </div>
+          </template>
+
+          <!-- Empty Start Rules -->
+          <div v-else class="flex flex-col items-center justify-center py-10 text-center">
+            <div class="w-14 h-14 rounded-full bg-emerald-500/10 flex items-center justify-center mb-3">
+              <PhPlay :size="28" class="text-emerald-400/40" />
+            </div>
+            <p class="text-sm font-medium text-base-content/60">No start rules defined</p>
+            <p class="text-xs text-base-content/35 mt-1">Add a start rule to automate mining activation</p>
           </div>
         </div>
-        <button class="btn btn-primary" @click="addRule">
-          Add {{ activeRuleTab === "start" ? "Start" : "Stop" }} Rule
-        </button>
-        <button class="btn btn-secondary" @click="closeRulesModal">
-          Close
-        </button>
+
+        <!-- Stop Rules Tab -->
+        <div v-if="activeRuleTab === 'stop'" class="space-y-2">
+          <template v-if="selectedPolicy.stop_rules && selectedPolicy.stop_rules.length > 0">
+            <div
+              v-for="rule in selectedPolicy.stop_rules"
+              :key="rule.id"
+              class="rule-card group/rule flex items-center gap-3 rounded-lg border border-base-300/40 p-3 transition-all duration-200 hover:border-red-500/30 hover:bg-red-500/5"
+            >
+              <!-- Toggle -->
+              <div class="flex-shrink-0">
+                <input
+                  type="checkbox"
+                  class="toggle toggle-error toggle-sm"
+                  :checked="rule.enabled"
+                  @change="handleToggleRuleEnabled(rule)"
+                  title="Toggle rule enabled/disabled"
+                />
+              </div>
+
+              <!-- Rule Info -->
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="font-semibold text-sm text-base-content truncate">{{ rule.name }}</span>
+                  <ResourceId v-if="rule.id" :id="rule.id" />
+                </div>
+                <p class="text-xs text-base-content/40 truncate mt-0.5">
+                  {{ rule.description || 'No description' }}
+                </p>
+              </div>
+
+              <!-- Priority -->
+              <div class="flex-shrink-0">
+                <div
+                  class="flex items-center gap-1 rounded-md bg-base-200/60 px-2 py-1 text-xs font-mono"
+                  :title="`Priority: ${rule.priority ?? 0}`"
+                >
+                  <PhLightning :size="12" class="text-amber-400/70" />
+                  <span class="text-base-content/60">{{ rule.priority ?? 0 }}</span>
+                </div>
+              </div>
+
+              <!-- Status indicator -->
+              <div class="flex-shrink-0">
+                <span
+                  v-if="rule.enabled"
+                  class="badge badge-sm bg-red-500/20 text-red-400 border-0 gap-1"
+                >
+                  <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+                  Active
+                </span>
+                <span v-else class="badge badge-sm badge-ghost gap-1">
+                  <PhLightningSlash :size="10" />
+                  Disabled
+                </span>
+              </div>
+
+              <!-- Actions -->
+              <div class="flex gap-1 opacity-0 group-hover/rule:opacity-100 transition-opacity flex-shrink-0">
+                <button
+                  class="btn btn-ghost btn-xs btn-square hover:bg-primary/20"
+                  title="Edit rule"
+                  @click="handleEditRule(rule, 'stop')"
+                >
+                  <PhPencil :size="14" class="text-primary" />
+                </button>
+                <button
+                  class="btn btn-ghost btn-xs btn-square hover:bg-error/20"
+                  title="Delete rule"
+                  @click="requestDeleteRule(rule)"
+                >
+                  <PhTrash :size="14" class="text-error" />
+                </button>
+              </div>
+            </div>
+          </template>
+
+          <!-- Empty Stop Rules -->
+          <div v-else class="flex flex-col items-center justify-center py-10 text-center">
+            <div class="w-14 h-14 rounded-full bg-red-500/10 flex items-center justify-center mb-3">
+              <PhStop :size="28" class="text-red-400/40" />
+            </div>
+            <p class="text-sm font-medium text-base-content/60">No stop rules defined</p>
+            <p class="text-xs text-base-content/35 mt-1">Add a stop rule to automate mining shutdown</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="px-6 py-4 border-t border-base-300/40 bg-base-200/20">
+        <div v-if="ruleDeleteError" class="mb-3">
+          <div class="rounded-lg bg-error/10 border border-error/20 px-3 py-2 text-sm text-error flex items-center gap-2">
+            <PhXCircle :size="16" class="flex-shrink-0" />
+            <span>{{ ruleDeleteError }}</span>
+          </div>
+        </div>
+        <div class="flex items-center justify-between">
+          <button
+            class="btn btn-sm gap-2"
+            :class="activeRuleTab === 'start' ? 'btn-success' : 'btn-error'"
+            @click="addRule"
+          >
+            <PhPlus :size="16" weight="bold" />
+            Add {{ activeRuleTab === "start" ? "Start" : "Stop" }} Rule
+          </button>
+          <button class="btn btn-ghost btn-sm" @click="closeRulesModal">
+            Close
+          </button>
+        </div>
       </div>
     </div>
-    <form method="dialog" class="modal-backdrop">
+    <form method="dialog" class="modal-backdrop bg-black/50">
       <button @click="closeRulesModal">close</button>
     </form>
   </dialog>
+
+  <!-- Rule Delete Confirmation -->
+  <ConfirmDialog
+    :open="showRuleDeleteConfirm"
+    title="Delete Rule"
+    :message="`Are you sure you want to delete rule '${ruleToDelete?.name ?? ''}'?`"
+    confirm-text="Delete"
+    variant="danger"
+    @confirm="() => { if (ruleToDelete) handleDeleteRule(ruleToDelete); }"
+    @cancel="cancelDeleteRule"
+  />
 
   <!-- Rule Add/Edit Modal -->
   <dialog :class="['modal', { 'modal-open': showRuleEditModal }]">
@@ -927,71 +1139,144 @@ const filteredAvailableRules = computed(() => {
   </dialog>
 
   <!-- Policy Check Result Modal -->
-  <dialog :class="['modal', { 'modal-open': showCheckModal }]">
-    <div v-if="checkResult" class="modal-box max-w-2xl">
-      <h3 class="font-bold text-lg mb-4">
-        Policy Check: {{ checkResult.policy_name || checkingPolicyName }}
-      </h3>
-
-      <div class="flex flex-col gap-4">
-        <div class="alert" :class="checkResult.valid ? 'alert-success' : 'alert-error'">
-          <span>{{
-            checkResult.valid
-              ? "Policy is valid and can be used"
-              : "Policy has issues"
-          }}</span>
-        </div>
-
-        <!-- Policy Statistics -->
-        <div class="stats shadow">
-          <div class="stat">
-            <div class="stat-title">Total Start Rules</div>
-            <div class="stat-value text-sm">
-              {{ checkResult.start_rules_count }}
-            </div>
-            <div class="stat-desc">
-              {{ checkResult.enabled_start_rules_count }} enabled
-            </div>
+  <dialog class="modal" :class="{ 'modal-open': showCheckModal }">
+    <div v-if="checkResult" class="modal-box max-w-2xl bg-base-100 border border-base-300/60">
+      <!-- Header -->
+      <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center gap-3">
+          <div class="h-10 w-10 rounded-xl bg-base-200/60 flex items-center justify-center">
+            <PhShieldCheck :size="22" class="text-indigo-400" />
           </div>
-
-          <div class="stat">
-            <div class="stat-title">Total Stop Rules</div>
-            <div class="stat-value text-sm">
-              {{ checkResult.stop_rules_count }}
-            </div>
-            <div class="stat-desc">
-              {{ checkResult.enabled_stop_rules_count }} enabled
-            </div>
+          <div>
+            <h3 class="text-lg font-bold">Policy Check</h3>
+            <p class="text-sm text-base-content/60">{{ checkResult.policy_name || checkingPolicyName }}</p>
           </div>
         </div>
+        <button class="btn btn-ghost btn-sm btn-square" @click="closeCheckModal">
+          <PhX :size="20" />
+        </button>
+      </div>
 
-        <div v-if="checkResult.errors && checkResult.errors.length > 0">
-          <h4 class="font-semibold text-error mb-2">Errors:</h4>
-          <ul class="list-disc list-inside">
-            <li v-for="(error, i) in checkResult.errors" :key="i" class="text-error">
-              {{ error }}
-            </li>
-          </ul>
+      <div class="space-y-4">
+        <!-- Validity Status -->
+        <div
+          class="flex flex-col items-center gap-3 py-6"
+        >
+          <div
+            class="w-16 h-16 rounded-full flex items-center justify-center"
+            :class="checkResult.valid ? 'bg-success/20' : 'bg-error/20'"
+          >
+            <PhCheckCircle v-if="checkResult.valid" :size="36" class="text-success" />
+            <PhXCircle v-else :size="36" class="text-error" />
+          </div>
+          <p
+            class="text-lg font-semibold"
+            :class="checkResult.valid ? 'text-success' : 'text-error'"
+          >
+            {{ checkResult.valid ? "Policy is Valid" : "Policy Has Issues" }}
+          </p>
         </div>
 
-        <div v-if="checkResult.warnings && checkResult.warnings.length > 0">
-          <h4 class="font-semibold text-warning mb-2">Warnings:</h4>
-          <ul class="list-disc list-inside">
-            <li v-for="(warning, i) in checkResult.warnings" :key="i" class="text-warning">
-              {{ warning }}
-            </li>
-          </ul>
+        <!-- Rule Stats -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="flex flex-col items-center gap-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3">
+            <div class="flex items-center gap-1.5">
+              <PhPlay :size="14" class="text-emerald-400" weight="fill" />
+              <span class="text-xl font-bold text-emerald-400">{{ checkResult.start_rules_count }}</span>
+            </div>
+            <span class="text-[11px] text-emerald-400/70 uppercase tracking-wider">Start Rules</span>
+            <span class="text-[10px] text-base-content/40">{{ checkResult.enabled_start_rules_count }} enabled</span>
+          </div>
+          <div class="flex flex-col items-center gap-1 rounded-lg bg-red-500/10 border border-red-500/20 p-3">
+            <div class="flex items-center gap-1.5">
+              <PhStop :size="14" class="text-red-400" weight="fill" />
+              <span class="text-xl font-bold text-red-400">{{ checkResult.stop_rules_count }}</span>
+            </div>
+            <span class="text-[11px] text-red-400/70 uppercase tracking-wider">Stop Rules</span>
+            <span class="text-[10px] text-base-content/40">{{ checkResult.enabled_stop_rules_count }} enabled</span>
+          </div>
+        </div>
+
+        <!-- Errors -->
+        <div v-if="checkResult.errors && checkResult.errors.length > 0" class="space-y-2">
+          <h4 class="font-semibold text-error text-sm flex items-center gap-2">
+            <PhXCircle :size="16" />
+            Errors ({{ checkResult.errors.length }})
+          </h4>
+          <div
+            v-for="(error, i) in checkResult.errors"
+            :key="i"
+            class="rounded-lg bg-error/10 border border-error/20 px-3 py-2 text-sm text-error"
+          >
+            {{ error }}
+          </div>
+        </div>
+
+        <!-- Warnings -->
+        <div v-if="checkResult.warnings && checkResult.warnings.length > 0" class="space-y-2">
+          <h4 class="font-semibold text-warning text-sm flex items-center gap-2">
+            <PhWarning :size="16" />
+            Warnings ({{ checkResult.warnings.length }})
+          </h4>
+          <div
+            v-for="(warning, i) in checkResult.warnings"
+            :key="i"
+            class="rounded-lg bg-warning/10 border border-warning/20 px-3 py-2 text-sm text-warning"
+          >
+            {{ warning }}
+          </div>
         </div>
       </div>
 
-      <div class="modal-action">
-        <button class="btn btn-primary" @click="closeCheckModal">Close</button>
+      <div class="flex justify-end pt-4 border-t border-base-300/40 mt-4">
+        <button class="btn btn-primary btn-sm" @click="closeCheckModal">Close</button>
       </div>
     </div>
-    <form method="dialog" class="modal-backdrop">
+    <form method="dialog" class="modal-backdrop bg-black/50">
       <button @click="closeCheckModal">close</button>
     </form>
   </dialog>
 </template>
 
-<style scoped></style>
+<style scoped>
+.stat-card {
+  transition: all 0.2s ease;
+}
+
+.stat-card:hover {
+  border-color: oklch(50% 0 0 / 0.5);
+}
+
+.stat-value {
+  font-weight: 700;
+  font-size: clamp(1.25rem, 4vw, 1.875rem);
+  line-height: 1.2;
+}
+
+.stat-label {
+  font-size: clamp(0.7rem, 2vw, 0.875rem);
+  color: oklch(80% 0 0 / 0.6);
+  margin-top: 0.125rem;
+}
+
+.rule-card {
+  background-color: oklch(28% 0 0 / 0.6);
+}
+
+.rules-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.rules-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.rules-scroll::-webkit-scrollbar-thumb {
+  background: oklch(50% 0 0 / 0.3);
+  border-radius: 3px;
+}
+
+.rules-scroll::-webkit-scrollbar-thumb:hover {
+  background: oklch(50% 0 0 / 0.5);
+}
+</style>
