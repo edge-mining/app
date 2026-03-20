@@ -157,6 +157,38 @@ function handleSave() {
           </div>
         </div>
 
+        <!-- Controller -->
+        <div class="divider text-xs text-base-content/50 my-4">
+          CONTROLLER
+        </div>
+
+        <div class="form-control">
+          <label class="label mb-1">
+            <span class="label-text flex items-center gap-2">
+              <PhGear :size="16" class="text-info" />
+              Miner Controller
+            </span>
+          </label>
+          <select
+            v-model="formData.controller_id"
+            class="select select-bordered w-full"
+          >
+            <option :value="undefined">None</option>
+            <option
+              v-for="controller in availableControllers"
+              :key="controller.id"
+              :value="controller.id"
+            >
+              {{ controller.name }}
+            </option>
+          </select>
+          <label class="label mt-1">
+            <span class="label-text-alt text-base-content/50">
+              Controllers manage remote start/stop operations
+            </span>
+          </label>
+        </div>
+
         <!-- Performance Settings -->
         <div class="divider text-xs text-base-content/50 my-4">
           PERFORMANCE LIMITS
@@ -213,40 +245,8 @@ function handleSave() {
           </div>
         </div>
 
-        <!-- Controller -->
-        <div class="divider text-xs text-base-content/50 my-4">
-          CONTROLLER
-        </div>
-
-        <div class="form-control">
-          <label class="label mb-1">
-            <span class="label-text flex items-center gap-2">
-              <PhGear :size="16" class="text-info" />
-              Miner Controller
-            </span>
-          </label>
-          <select
-            v-model="formData.controller_id"
-            class="select select-bordered w-full"
-          >
-            <option :value="undefined">None</option>
-            <option
-              v-for="controller in availableControllers"
-              :key="controller.id"
-              :value="controller.id"
-            >
-              {{ controller.name }}
-            </option>
-          </select>
-          <label class="label mt-1">
-            <span class="label-text-alt text-base-content/50">
-              Controllers manage remote start/stop operations
-            </span>
-          </label>
-        </div>
-
         <!-- Actions -->
-        <div class="modal-action mt-8">
+        <div class="flex justify-end gap-3 pt-4 border-t border-base-300/40">
           <button type="button" class="btn btn-ghost" @click="handleClose">Cancel</button>
           <button
             type="submit"
