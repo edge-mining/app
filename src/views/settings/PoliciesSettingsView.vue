@@ -48,6 +48,13 @@ const showRuleEditModal = ref(false);
 const isEditingRule = ref(false);
 const activeRuleTab = ref<RuleType>("start");
 const currentRuleType = ref<RuleType>("start");
+const slideDirection = ref<"left" | "right">("right");
+
+function switchRuleTab(tab: RuleType) {
+  if (tab === activeRuleTab.value) return;
+  slideDirection.value = tab === "stop" ? "left" : "right";
+  activeRuleTab.value = tab;
+}
 
 // Copy From modal state
 const showCopyFromModal = ref(false);
@@ -630,13 +637,21 @@ const filteredAvailableRules = computed(() => {
 
       <!-- Tab Switcher -->
       <div class="px-6 pt-4">
-        <div class="flex bg-base-200/60 rounded-lg p-1 gap-1">
-          <button
-            class="flex-1 flex items-center justify-center gap-2 rounded-md py-2 px-3 text-sm font-medium transition-all duration-200"
+        <div class="relative flex bg-base-200/60 rounded-lg p-1 gap-1">
+          <!-- Sliding indicator -->
+          <div
+            class="tab-indicator absolute top-1 bottom-1 rounded-md transition-all duration-300 ease-in-out"
             :class="activeRuleTab === 'start'
-              ? 'bg-emerald-500/20 text-emerald-400 shadow-sm border border-emerald-500/30'
-              : 'text-base-content/50 hover:text-base-content/80 hover:bg-base-300/40 border border-transparent'"
-            @click="activeRuleTab = 'start'"
+              ? 'bg-emerald-500/20 border border-emerald-500/30 shadow-sm'
+              : 'bg-red-500/20 border border-red-500/30 shadow-sm'"
+            :style="{ left: activeRuleTab === 'start' ? 'calc(0.25rem)' : 'calc(50% + 0.125rem)', width: 'calc(50% - 0.375rem)' }"
+          ></div>
+          <button
+            class="relative z-[1] flex-1 flex items-center justify-center gap-2 rounded-md py-2 px-3 text-sm font-medium transition-colors duration-200"
+            :class="activeRuleTab === 'start'
+              ? 'text-emerald-400'
+              : 'text-base-content/50 hover:text-base-content/80'"
+            @click="switchRuleTab('start')"
           >
             <PhPlay :size="16" weight="fill" />
             Start Rules
@@ -645,11 +660,11 @@ const filteredAvailableRules = computed(() => {
             </span>
           </button>
           <button
-            class="flex-1 flex items-center justify-center gap-2 rounded-md py-2 px-3 text-sm font-medium transition-all duration-200"
+            class="relative z-[1] flex-1 flex items-center justify-center gap-2 rounded-md py-2 px-3 text-sm font-medium transition-colors duration-200"
             :class="activeRuleTab === 'stop'
-              ? 'bg-red-500/20 text-red-400 shadow-sm border border-red-500/30'
-              : 'text-base-content/50 hover:text-base-content/80 hover:bg-base-300/40 border border-transparent'"
-            @click="activeRuleTab = 'stop'"
+              ? 'text-red-400'
+              : 'text-base-content/50 hover:text-base-content/80'"
+            @click="switchRuleTab('stop')"
           >
             <PhStop :size="16" weight="fill" />
             Stop Rules
@@ -662,8 +677,9 @@ const filteredAvailableRules = computed(() => {
 
       <!-- Rules List -->
       <div class="px-6 py-4 max-h-[50vh] overflow-y-auto rules-scroll">
+        <Transition :name="slideDirection === 'left' ? 'slide-left' : 'slide-right'" mode="out-in">
         <!-- Start Rules Tab -->
-        <div v-if="activeRuleTab === 'start'" class="space-y-2">
+        <div v-if="activeRuleTab === 'start'" key="start" class="space-y-2">
           <template v-if="selectedPolicy.start_rules && selectedPolicy.start_rules.length > 0">
             <div
               v-for="rule in selectedPolicy.start_rules"
@@ -749,7 +765,7 @@ const filteredAvailableRules = computed(() => {
         </div>
 
         <!-- Stop Rules Tab -->
-        <div v-if="activeRuleTab === 'stop'" class="space-y-2">
+        <div v-else key="stop" class="space-y-2">
           <template v-if="selectedPolicy.stop_rules && selectedPolicy.stop_rules.length > 0">
             <div
               v-for="rule in selectedPolicy.stop_rules"
@@ -833,6 +849,7 @@ const filteredAvailableRules = computed(() => {
             <p class="text-xs text-base-content/35 mt-1">Add a stop rule to automate mining shutdown</p>
           </div>
         </div>
+        </Transition>
       </div>
 
       <!-- Footer -->
@@ -1278,5 +1295,31 @@ const filteredAvailableRules = computed(() => {
 
 .rules-scroll::-webkit-scrollbar-thumb:hover {
   background: oklch(50% 0 0 / 0.5);
+}
+
+/* Slide left: content exits left, new enters from right */
+.slide-left-enter-active,
+.slide-left-leave-active,
+.slide-right-enter-active,
+.slide-right-leave-active {
+  transition: all 0.25s ease;
+}
+
+.slide-left-enter-from {
+  opacity: 0;
+  transform: translateX(30px);
+}
+.slide-left-leave-to {
+  opacity: 0;
+  transform: translateX(-30px);
+}
+
+.slide-right-enter-from {
+  opacity: 0;
+  transform: translateX(-30px);
+}
+.slide-right-leave-to {
+  opacity: 0;
+  transform: translateX(30px);
 }
 </style>
