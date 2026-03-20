@@ -125,12 +125,22 @@ function handleSave(minerController: MinerController) {
       .then(() => {
         minerControllerStore.loadMinerControllers();
         handleCloseModal();
-      });
+      })
+      .showToasts(
+        "Controller updated successfully",
+        "Failed to update controller"
+      );
   } else {
-    minerControllerStore.addMinerController(minerController).then(() => {
-      minerControllerStore.loadMinerControllers();
-      handleCloseModal();
-    });
+    minerControllerStore
+      .addMinerController(minerController)
+      .then(() => {
+        minerControllerStore.loadMinerControllers();
+        handleCloseModal();
+      })
+      .showToasts(
+        "Controller created successfully",
+        "Failed to create controller"
+      );
   }
 }
 

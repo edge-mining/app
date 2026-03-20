@@ -138,19 +138,28 @@ function handleCloseModal() {
 }
 
 function handleSave(miner: Miner) {
-  console.log("MinersSettingsView handleSave received", miner);
   if (isEditMode.value && miner.id) {
-    console.log("Updating miner", miner.id);
-    minerStore.updateMiner(miner.id.toString(), miner).then(() => {
-      minerStore.loadMiners();
-      handleCloseModal();
-    });
+    minerStore
+      .updateMiner(miner.id.toString(), miner)
+      .then(() => {
+        minerStore.loadMiners();
+        handleCloseModal();
+      })
+      .showToasts(
+        "Miner updated successfully",
+        "Failed to update miner"
+      );
   } else {
-    console.log("Adding new miner", miner);
-    minerStore.addMiner(miner).then(() => {
-      minerStore.loadMiners();
-      handleCloseModal();
-    });
+    minerStore
+      .addMiner(miner)
+      .then(() => {
+        minerStore.loadMiners();
+        handleCloseModal();
+      })
+      .showToasts(
+        "Miner created successfully",
+        "Failed to create miner"
+      );
   }
 }
 

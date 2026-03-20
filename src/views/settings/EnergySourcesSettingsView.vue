@@ -115,12 +115,22 @@ function handleSave(energySource: EnergySource) {
       .then(() => {
         energySourceStore.loadEnergySources();
         handleCloseModal();
-      });
+      })
+      .showToasts(
+        "Energy source updated successfully",
+        "Failed to update energy source"
+      );
   } else {
-    energySourceStore.addEnergySource(cleaned).then(() => {
-      energySourceStore.loadEnergySources();
-      handleCloseModal();
-    });
+    energySourceStore
+      .addEnergySource(cleaned)
+      .then(() => {
+        energySourceStore.loadEnergySources();
+        handleCloseModal();
+      })
+      .showToasts(
+        "Energy source created successfully",
+        "Failed to create energy source"
+      );
   }
 }
 

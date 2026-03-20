@@ -135,12 +135,22 @@ function handleSave(energyMonitor: EnergyMonitor) {
       .then(() => {
         energyMonitorStore.loadEnergyMonitors();
         handleCloseModal();
-      });
+      })
+      .showToasts(
+        "Energy monitor updated successfully",
+        "Failed to update energy monitor"
+      );
   } else {
-    energyMonitorStore.addEnergyMonitor(energyMonitor).then(() => {
-      energyMonitorStore.loadEnergyMonitors();
-      handleCloseModal();
-    });
+    energyMonitorStore
+      .addEnergyMonitor(energyMonitor)
+      .then(() => {
+        energyMonitorStore.loadEnergyMonitors();
+        handleCloseModal();
+      })
+      .showToasts(
+        "Energy monitor created successfully",
+        "Failed to create energy monitor"
+      );
   }
 }
 

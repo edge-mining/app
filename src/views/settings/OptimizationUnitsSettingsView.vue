@@ -92,11 +92,17 @@ function confirmAdd() {
     home_forecast_provider_id: formData.value.home_forecast_provider_id,
     notifier_ids: selectedNotifierIds.value,
   };
-  optimizationUnitStore.addOptimizationUnit(unitToAdd).then(() => {
-    optimizationUnitStore.loadOptimizationUnits();
-    resetForm();
-    showModal.value = false;
-  });
+  optimizationUnitStore
+    .addOptimizationUnit(unitToAdd)
+    .then(() => {
+      optimizationUnitStore.loadOptimizationUnits();
+      resetForm();
+      showModal.value = false;
+    })
+    .showToasts(
+      "Optimization unit created successfully",
+      "Failed to create optimization unit"
+    );
 }
 
 function confirmEdit() {
@@ -117,13 +123,23 @@ function confirmEdit() {
       resetForm();
       isEditing.value = false;
       showModal.value = false;
-    });
+    })
+    .showToasts(
+      "Optimization unit updated successfully",
+      "Failed to update optimization unit"
+    );
 }
 
 function handleDelete(unit: OptimizationUnit) {
-  optimizationUnitStore.deleteOptimizationUnit(unit.id!).then(() => {
-    optimizationUnitStore.loadOptimizationUnits();
-  });
+  optimizationUnitStore
+    .deleteOptimizationUnit(unit.id!)
+    .then(() => {
+      optimizationUnitStore.loadOptimizationUnits();
+    })
+    .showToasts(
+      "Optimization unit deleted successfully",
+      "Failed to delete optimization unit"
+    );
 }
 
 function handleToggleEnabled(unit: OptimizationUnit) {
