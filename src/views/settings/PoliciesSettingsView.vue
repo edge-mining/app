@@ -647,7 +647,7 @@ const filteredAvailableRules = computed(() => {
             :style="{ left: activeRuleTab === 'start' ? 'calc(0.25rem)' : 'calc(50% + 0.125rem)', width: 'calc(50% - 0.375rem)' }"
           ></div>
           <button
-            class="relative z-[1] flex-1 flex items-center justify-center gap-2 rounded-md py-2 px-3 text-sm font-medium transition-colors duration-200"
+            class="relative z-[1] flex-1 flex items-center justify-center gap-2 rounded-md py-2 px-3 text-sm font-medium transition-colors duration-200 cursor-pointer"
             :class="activeRuleTab === 'start'
               ? 'text-emerald-400'
               : 'text-base-content/50 hover:text-base-content/80'"
@@ -660,7 +660,7 @@ const filteredAvailableRules = computed(() => {
             </span>
           </button>
           <button
-            class="relative z-[1] flex-1 flex items-center justify-center gap-2 rounded-md py-2 px-3 text-sm font-medium transition-colors duration-200"
+            class="relative z-[1] flex-1 flex items-center justify-center gap-2 rounded-md py-2 px-3 text-sm font-medium transition-colors duration-200 cursor-pointer"
             :class="activeRuleTab === 'stop'
               ? 'text-red-400'
               : 'text-base-content/50 hover:text-base-content/80'"
@@ -676,7 +676,7 @@ const filteredAvailableRules = computed(() => {
       </div>
 
       <!-- Rules List -->
-      <div class="px-6 py-4 max-h-[50vh] overflow-y-auto rules-scroll">
+      <div class="px-6 py-4 max-h-[50vh] overflow-y-auto overflow-x-hidden rules-scroll">
         <Transition :name="slideDirection === 'left' ? 'slide-left' : 'slide-right'" mode="out-in">
         <!-- Start Rules Tab -->
         <div v-if="activeRuleTab === 'start'" key="start" class="space-y-2">
@@ -708,17 +708,6 @@ const filteredAvailableRules = computed(() => {
                 </p>
               </div>
 
-              <!-- Priority -->
-              <div class="flex-shrink-0">
-                <div
-                  class="flex items-center gap-1 rounded-md bg-base-200/60 px-2 py-1 text-xs font-mono"
-                  :title="`Priority: ${rule.priority ?? 0}`"
-                >
-                  <PhLightning :size="12" class="text-amber-400/70" />
-                  <span class="text-base-content/60">{{ rule.priority ?? 0 }}</span>
-                </div>
-              </div>
-
               <!-- Status indicator -->
               <div class="flex-shrink-0">
                 <span
@@ -734,17 +723,28 @@ const filteredAvailableRules = computed(() => {
                 </span>
               </div>
 
+              <!-- Priority -->
+              <div class="flex-shrink-0">
+                <div
+                  class="flex items-center gap-1 rounded-md bg-base-200/60 px-2 py-1 text-xs font-mono"
+                  :title="`Priority: ${rule.priority ?? 0}`"
+                >
+                  <PhLightning :size="12" class="text-amber-400/70" />
+                  <span class="text-base-content/60">{{ rule.priority ?? 0 }}</span>
+                </div>
+              </div>
+
               <!-- Actions -->
               <div class="flex gap-1 opacity-0 group-hover/rule:opacity-100 transition-opacity flex-shrink-0">
                 <button
-                  class="btn btn-ghost btn-xs btn-square hover:bg-primary/20"
+                  class="btn btn-ghost btn-sm btn-square hover:bg-primary/20"
                   title="Edit rule"
                   @click="handleEditRule(rule, 'start')"
                 >
                   <PhPencil :size="14" class="text-primary" />
                 </button>
                 <button
-                  class="btn btn-ghost btn-xs btn-square hover:bg-error/20"
+                  class="btn btn-ghost btn-sm btn-square hover:bg-error/20"
                   title="Delete rule"
                   @click="requestDeleteRule(rule)"
                 >
@@ -862,14 +862,14 @@ const filteredAvailableRules = computed(() => {
         </div>
         <div class="flex items-center justify-between">
           <button
-            class="btn btn-sm gap-2"
+            class="btn gap-2"
             :class="activeRuleTab === 'start' ? 'btn-success' : 'btn-error'"
             @click="addRule"
           >
             <PhPlus :size="16" weight="bold" />
             Add {{ activeRuleTab === "start" ? "Start" : "Stop" }} Rule
           </button>
-          <button class="btn btn-ghost btn-sm" @click="closeRulesModal">
+          <button class="btn btn-ghost" @click="closeRulesModal">
             Close
           </button>
         </div>
