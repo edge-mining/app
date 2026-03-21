@@ -9,7 +9,7 @@ import { computed, ref } from "vue";
 import {
   PhPencil,
   PhTrash,
-  PhGear,
+  PhGraph,
   PhCpu,
   PhLightning,
   PhChartLine,
@@ -126,7 +126,7 @@ function handleToggleEnabled() {
 
 <template>
   <EdgeMiningCard
-    :icon="PhGear"
+    :icon="PhGraph"
     :icon-size="26"
     :style-config="styleConfig"
     :dimmed="!unit.is_enabled"

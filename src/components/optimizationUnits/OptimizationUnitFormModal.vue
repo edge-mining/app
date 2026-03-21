@@ -9,7 +9,7 @@ import { useNotifierStore } from "../../core/stores/notifierStore";
 import {
   PhX,
   PhFloppyDisk,
-  PhGear,
+  PhGraph,
   PhCpu,
   PhLightning,
   PhChartLine,
@@ -124,7 +124,7 @@ function handleSave() {
       <div class="flex items-center justify-between mb-6">
         <div class="flex items-center gap-3">
           <div class="h-10 w-10 rounded-xl bg-teal-500/20 flex items-center justify-center">
-            <PhGear :size="22" class="text-teal-400" />
+            <PhGraph :size="22" class="text-teal-400" />
           </div>
           <h3 class="text-xl font-bold">
             {{ isEdit ? "Edit Optimization Unit" : "Add Optimization Unit" }}
