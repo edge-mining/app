@@ -507,6 +507,12 @@ const parseValue = (val: string, operator: OperatorType): string | number | bool
 
 // Helper methods for input handling
 const dropdownButtonRef = ref<HTMLElement | null>(null);
+const fieldDropdownRef = ref<HTMLElement | null>(null);
+
+// Add menu state (teleported to escape modal overflow clipping)
+const showAddMenu = ref(false);
+const addMenuBtnRef = ref<HTMLElement | null>(null);
+const addMenuPosition = ref({ top: '0px', left: '0px' });
 
 const handleFieldSelect = (path: string) => {
   if (isCondition(workingValue.value)) {
@@ -526,11 +532,24 @@ const toggleFieldSelector = (index: number | null) => {
     showFieldSelector.value = index;
     fieldSearchQuery.value = '';
     
-    // Calculate dropdown position on next tick
+    // Calculate dropdown position with smart direction (above/below)
     setTimeout(() => {
       if (dropdownButtonRef.value) {
         const rect = dropdownButtonRef.value.getBoundingClientRect();
-        document.documentElement.style.setProperty('--dropdown-top', `${rect.bottom + 4}px`);
+        const estimatedDropdownHeight = 560; // max-h-[500px] + header/search
+        const spaceBelow = window.innerHeight - rect.bottom - 8;
+        const spaceAbove = rect.top - 8;
+        
+        let top: number;
+        if (spaceBelow >= estimatedDropdownHeight) {
+          top = rect.bottom + 4;
+        } else if (spaceAbove > spaceBelow) {
+          top = Math.max(4, rect.top - estimatedDropdownHeight);
+        } else {
+          top = rect.bottom + 4;
+        }
+        
+        document.documentElement.style.setProperty('--dropdown-top', `${top}px`);
         document.documentElement.style.setProperty('--dropdown-left', `${rect.left}px`);
       }
     }, 0);
@@ -554,27 +573,63 @@ const closeFieldSelector = () => {
   fieldSearchQuery.value = '';
 };
 
+// Add menu methods
+const toggleAddMenu = () => {
+  if (showAddMenu.value) {
+    showAddMenu.value = false;
+    return;
+  }
+  if (addMenuBtnRef.value) {
+    const rect = addMenuBtnRef.value.getBoundingClientRect();
+    const menuHeight = 180;
+    const spaceBelow = window.innerHeight - rect.bottom - 8;
+    
+    let top: number;
+    if (spaceBelow >= menuHeight) {
+      top = rect.bottom + 4;
+    } else {
+      top = Math.max(4, rect.top - menuHeight);
+    }
+    const left = Math.max(4, rect.right - 208);
+    
+    addMenuPosition.value = { top: `${top}px`, left: `${left}px` };
+    showAddMenu.value = true;
+  }
+};
+
+const closeAddMenu = () => {
+  showAddMenu.value = false;
+};
+
 // Add click outside listener
 onMounted(() => {
   const handleClickOutside = (event: MouseEvent) => {
+    const target = event.target as HTMLElement;
+    
+    // Handle field selector click outside
     if (showFieldSelector.value !== null) {
-      const dropdown = document.querySelector('.fixed.z-\\[9999\\]');
+      const dropdown = fieldDropdownRef.value;
       const button = dropdownButtonRef.value;
       
-      // Use HTMLElement type for DOM nodes to avoid conflict with VueFlow Node type
-      if (dropdown && !dropdown.contains(event.target as HTMLElement) && 
-          button && !button.contains(event.target as HTMLElement)) {
+      if ((!dropdown || !dropdown.contains(target)) && 
+          (!button || !button.contains(target))) {
         closeFieldSelector();
+      }
+    }
+    
+    // Handle add menu click outside
+    if (showAddMenu.value) {
+      const menu = document.querySelector('[data-add-menu]');
+      const button = addMenuBtnRef.value;
+      
+      if ((!menu || !menu.contains(target)) &&
+          (!button || !button.contains(target))) {
+        closeAddMenu();
       }
     }
   };
   
   document.addEventListener('click', handleClickOutside);
-  
-  // Cleanup on unmount
-  return () => {
-    document.removeEventListener('click', handleClickOutside);
-  };
 });
 
 // Expose hasUnsavedChanges and restoreOriginal to parent component
@@ -811,6 +866,7 @@ defineExpose({
               <!-- Dropdown Menu -->
               <Teleport to="body">
                 <div
+                  ref="fieldDropdownRef"
                   v-if="showFieldSelector === 0"
                   class="fixed z-[9999] w-[700px] max-w-[95vw] shadow-2xl bg-base-100 border border-base-300 rounded-lg"
                   :style="{ top: 'var(--dropdown-top, 0px)', left: 'var(--dropdown-left, 0px)' }"
@@ -1008,7 +1064,7 @@ defineExpose({
       </div>
 
       <!-- Group (parent node) -->
-      <div v-else-if="isGroup(workingValue)" class="card bg-base-200 shadow-sm" :class="`ml-${depth * 4}`">
+      <div v-else-if="isGroup(workingValue)" class="card bg-base-200 shadow-sm pt-4" :class="`ml-${depth * 4}`">
         <div class="card-body p-4 gap-3">
           <!-- Group header -->
           <div class="flex items-center justify-between gap-2">
@@ -1034,18 +1090,29 @@ defineExpose({
             </div>
             
             <div v-if="isGodModeEnabled" class="flex gap-1">
-              <div class="dropdown dropdown-end">
-                <label tabindex="0" class="btn btn-sm btn-ghost">
-                  <PhPlus :size="16" />
-                  Add
-                </label>
-                <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
-                  <li><a @click="addCondition">Add Condition</a></li>
-                  <li><a @click="addGroup('all_of')">Add ALL OF Group</a></li>
-                  <li><a @click="addGroup('any_of')">Add ANY OF Group</a></li>
-                  <li><a @click="addGroup('not_')">Add NOT Group</a></li>
+              <button
+                ref="addMenuBtnRef"
+                type="button"
+                @click.stop="toggleAddMenu"
+                class="btn btn-sm btn-ghost"
+              >
+                <PhPlus :size="16" />
+                Add
+              </button>
+              <Teleport to="body">
+                <ul
+                  v-if="showAddMenu"
+                  data-add-menu
+                  class="fixed z-[9999] menu p-2 shadow-lg bg-base-100 border border-base-300 rounded-box w-52"
+                  :style="addMenuPosition"
+                  @click.stop
+                >
+                  <li><a @click="addCondition(); closeAddMenu()">Add Condition</a></li>
+                  <li><a @click="addGroup('all_of'); closeAddMenu()">Add ALL OF Group</a></li>
+                  <li><a @click="addGroup('any_of'); closeAddMenu()">Add ANY OF Group</a></li>
+                  <li><a @click="addGroup('not_'); closeAddMenu()">Add NOT Group</a></li>
                 </ul>
-              </div>
+              </Teleport>
             </div>
           </div>
 
