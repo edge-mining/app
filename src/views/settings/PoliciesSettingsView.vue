@@ -860,17 +860,17 @@ const filteredAvailableRules = computed(() => {
             <span>{{ ruleDeleteError }}</span>
           </div>
         </div>
-        <div class="flex items-center justify-between">
+        <div class="flex items-center justify-end gap-2">
+          <button class="btn btn-ghost" @click="closeRulesModal">
+            Close
+          </button>
           <button
             class="btn gap-2"
-            :class="activeRuleTab === 'start' ? 'btn-primary' : 'btn-error'"
+            :class="activeRuleTab === 'start' ? 'btn-primary' : 'bg-rose-300/50 text-primary-content hover:bg-rose-300/47'"
             @click="addRule"
           >
             <PhPlus :size="16" weight="bold" />
             Add {{ activeRuleTab === "start" ? "Start" : "Stop" }} Rule
-          </button>
-          <button class="btn btn-ghost" @click="closeRulesModal">
-            Close
           </button>
         </div>
       </div>
@@ -1020,13 +1020,13 @@ const filteredAvailableRules = computed(() => {
           </div>
         </template>
 
-        <div class="modal-action">
+        <div class="flex justify-end gap-3 pt-4 border-t border-base-300/40 mt-4">
           <div v-if="ruleAddSaveError" class="flex-1 mr-auto">
             <div class="text-error text-sm">
               <span class="font-semibold">Error:</span> {{ ruleAddSaveError }}
             </div>
           </div>
-          <button type="button" class="btn btn-secondary" @click="cancelRuleModal">
+          <button type="button" class="btn btn-ghost" @click="cancelRuleModal">
             Cancel
           </button>
           <button type="submit" class="btn btn-primary">
@@ -1144,7 +1144,7 @@ const filteredAvailableRules = computed(() => {
         </table>
       </div>
 
-      <div class="modal-action">
+      <div class="flex justify-end gap-3 pt-4 border-t border-base-300/40 mt-4">
         <button type="button" class="btn btn-secondary" @click="closeCopyFromModal">
           Cancel
         </button>
