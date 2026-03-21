@@ -141,6 +141,10 @@ class MinerActionServiceInterface(ABC):
     async def sync_all_miners(self, include_inactive: bool = False) -> None:
         """Synchronizes the status of all miners from their controllers."""
 
+    @abstractmethod
+    async def get_miner_details_from_controller(self, controller_id: EntityId) -> Optional[Miner]:
+        """Get details of a miner from its controller."""
+
 
 class ConfigurationServiceInterface(ABC):
     """Base interface for configuration services in the Edge Mining application."""

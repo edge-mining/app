@@ -6,7 +6,11 @@ from edge_mining.application.interfaces import AdapterServiceInterface, MinerAct
 from edge_mining.domain.common import EntityId, Watts
 from edge_mining.domain.miner.common import MinerStatus
 from edge_mining.domain.miner.entities import Miner
-from edge_mining.domain.miner.exceptions import MinerControllerConfigurationError, MinerNotFoundError
+from edge_mining.domain.miner.exceptions import (
+    MinerControllerConfigurationError,
+    MinerControllerNotFoundError,
+    MinerNotFoundError,
+)
 from edge_mining.domain.miner.ports import MinerRepository
 from edge_mining.domain.miner.value_objects import HashRate
 from edge_mining.domain.notification.ports import NotificationPort
@@ -309,3 +313,68 @@ class MinerActionService(MinerActionServiceInterface):
 
         if self.logger:
             self.logger.info(f"Miners status synchronization completed: {synced_count} synced, {error_count} errors.")
+
+    async def get_miner_details_from_controller(self, controller_id: EntityId) -> Miner:
+        """Get details of a miner from its controller."""
+        if self.logger:
+            self.logger.info(f"Getting miner details from controller {controller_id}")
+
+        # Create a temporary miner to hold the details retrieved from the controller
+        temp_miner = Miner(
+            name="Unknown",
+            model="Unknown",
+            status=MinerStatus.UNKNOWN,
+            hash_rate_max=None,
+            power_consumption_max=None,
+            controller_id=controller_id,
+            active=True,
+        )
+
+        # Get the miner controller from the adapter service
+        miner_controller = self.adapter_service.get_miner_controller(temp_miner)
+
+        if not miner_controller:
+            raise MinerControllerNotFoundError(f"Controller with ID {controller_id} not found.")
+
+        # Retrieve details from the controller
+        current_model = miner_controller.get_model()
+        current_status = miner_controller.get_miner_status()
+        current_hashrate = miner_controller.get_miner_hashrate()
+        current_power = miner_controller.get_miner_power()
+
+        has_no_details = all(
+            (
+                not current_model,
+                current_status == MinerStatus.UNKNOWN,
+                current_hashrate is None,
+                current_power is None,
+            )
+        )
+
+        if has_no_details:
+            if self.logger:
+                self.logger.warning(
+                    "No details retrieved from controller "
+                    f"{controller_id}. Check controller connectivity and configuration."
+                )
+            raise MinerControllerConfigurationError(
+                "Failed to retrieve details from controller "
+                f"{controller_id}. Check controller connectivity and configuration."
+            )
+
+        miner = Miner(
+            name="",
+            model=current_model,
+            status=current_status,
+            hash_rate_max=None,
+            hash_rate=current_hashrate,
+            power_consumption_max=None,
+            power_consumption=current_power,
+            controller_id=controller_id,
+            active=True,
+        )
+
+        if self.logger:
+            self.logger.debug(f"Retrieved miner details for controller {controller_id}")
+
+        return miner

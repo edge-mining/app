@@ -489,6 +489,29 @@ async def get_miner_controller(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+@router.get("/miner-controllers/{controller_id}/miner-details", response_model=MinerSchema)
+async def get_miner_details_from_controller(
+    controller_id: EntityId,
+    action_service: Annotated[MinerActionServiceInterface, Depends(get_miner_action_service)],
+) -> MinerSchema:
+    """Get miner details directly from a specific controller."""
+    try:
+        miner = await action_service.get_miner_details_from_controller(controller_id)
+
+        if miner is None:
+            raise MinerControllerNotFoundError(f"Miner controller with ID {controller_id} not found")
+
+        response = MinerSchema.from_model(miner)
+
+        return response
+    except MinerControllerNotFoundError as e:
+        raise HTTPException(status_code=404, detail="Miner controller not found") from e
+    except MinerControllerConfigurationError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 @router.put("/miner-controllers/{controller_id}", response_model=MinerControllerSchema)
 async def update_miner_controller(
     controller_id: EntityId,
