@@ -33,6 +33,8 @@ import {
   PhGear,
   PhFloppyDisk,
   PhTreeStructure,
+  PhCaretUp,
+  PhCaretDown,
 } from "@phosphor-icons/vue";
 
 const policyStore = usePolicyStore();
@@ -401,6 +403,20 @@ function restoreActiveRuleConditions() {
   else restoreNewRuleConditions();
 }
 
+function handleChangePriority(rule: AutomationRule, delta: number) {
+  if (!selectedPolicy.value) return;
+  const policyId = selectedPolicy.value.id!.toString();
+  const updatedRule = { ...rule, priority: (rule.priority ?? 0) + delta };
+  policyStore
+    .updateRule(policyId, rule.id!.toString(), updatedRule)
+    .then(() => {
+      policyStore.loadPolicy(policyId).then((updatedPolicy) => {
+        selectedPolicy.value = updatedPolicy;
+      });
+      policyStore.loadPolicies();
+    });
+}
+
 function handleToggleRuleEnabled(rule: AutomationRule) {
   if (!selectedPolicy.value) return;
   const policyId = selectedPolicy.value.id!.toString();
@@ -696,7 +712,7 @@ const filteredAvailableRules = computed(() => {
         <div v-if="activeRuleTab === 'start'" key="start" class="space-y-2">
           <template v-if="selectedPolicy.start_rules && selectedPolicy.start_rules.length > 0">
             <div
-              v-for="rule in selectedPolicy.start_rules"
+              v-for="(rule, idx) in selectedPolicy.start_rules"
               :key="rule.id"
               class="rule-card group/rule flex items-center gap-3 rounded-lg border border-base-300/40 p-3 transition-all duration-200 hover:border-primary/30 hover:bg-primary/5"
             >
@@ -737,8 +753,17 @@ const filteredAvailableRules = computed(() => {
                 </span>
               </div>
 
-              <!-- Priority -->
-              <div class="flex-shrink-0">
+              <!-- Priority with arrows -->
+              <div class="flex items-center gap-0.5 flex-shrink-0">
+                <button
+                  v-if="idx > 0"
+                  class="btn btn-ghost btn-xs btn-square opacity-0 group-hover/rule:opacity-100 transition-opacity hover:bg-primary/20"
+                  title="Increase priority"
+                  @click.stop="handleChangePriority(rule, 1)"
+                >
+                  <PhCaretUp :size="14" class="text-amber-400/70" />
+                </button>
+                <div class="w-5" v-else></div>
                 <div
                   class="flex items-center gap-1 rounded-md bg-base-200/60 px-2 py-1 text-xs font-mono"
                   :title="`Priority: ${rule.priority ?? 0}`"
@@ -746,6 +771,15 @@ const filteredAvailableRules = computed(() => {
                   <PhLightning :size="12" class="text-amber-400/70" />
                   <span class="text-base-content/60">{{ rule.priority ?? 0 }}</span>
                 </div>
+                <button
+                  v-if="idx < (selectedPolicy.start_rules?.length ?? 0) - 1"
+                  class="btn btn-ghost btn-xs btn-square opacity-0 group-hover/rule:opacity-100 transition-opacity hover:bg-primary/20"
+                  title="Decrease priority"
+                  @click.stop="handleChangePriority(rule, -1)"
+                >
+                  <PhCaretDown :size="14" class="text-amber-400/70" />
+                </button>
+                <div class="w-5" v-else></div>
               </div>
 
               <!-- Actions -->
@@ -782,7 +816,7 @@ const filteredAvailableRules = computed(() => {
         <div v-else key="stop" class="space-y-2">
           <template v-if="selectedPolicy.stop_rules && selectedPolicy.stop_rules.length > 0">
             <div
-              v-for="rule in selectedPolicy.stop_rules"
+              v-for="(rule, idx) in selectedPolicy.stop_rules"
               :key="rule.id"
               class="rule-card group/rule flex items-center gap-3 rounded-lg border border-base-300/40 p-3 transition-all duration-200 hover:border-rose-300/30 hover:bg-rose-300/5"
             >
@@ -823,8 +857,17 @@ const filteredAvailableRules = computed(() => {
                 </span>
               </div>
 
-              <!-- Priority -->
-              <div class="flex-shrink-0">
+              <!-- Priority with arrows -->
+              <div class="flex items-center gap-0.5 flex-shrink-0">
+                <button
+                  v-if="idx > 0"
+                  class="btn btn-ghost btn-xs btn-square opacity-0 group-hover/rule:opacity-100 transition-opacity hover:bg-rose-300/20"
+                  title="Increase priority"
+                  @click.stop="handleChangePriority(rule, 1)"
+                >
+                  <PhCaretUp :size="14" class="text-amber-400/70" />
+                </button>
+                <div class="w-5" v-else></div>
                 <div
                   class="flex items-center gap-1 rounded-md bg-base-200/60 px-2 py-1 text-xs font-mono"
                   :title="`Priority: ${rule.priority ?? 0}`"
@@ -832,6 +875,15 @@ const filteredAvailableRules = computed(() => {
                   <PhLightning :size="12" class="text-amber-400/70" />
                   <span class="text-base-content/60">{{ rule.priority ?? 0 }}</span>
                 </div>
+                <button
+                  v-if="idx < (selectedPolicy.stop_rules?.length ?? 0) - 1"
+                  class="btn btn-ghost btn-xs btn-square opacity-0 group-hover/rule:opacity-100 transition-opacity hover:bg-rose-300/20"
+                  title="Decrease priority"
+                  @click.stop="handleChangePriority(rule, -1)"
+                >
+                  <PhCaretDown :size="14" class="text-amber-400/70" />
+                </button>
+                <div class="w-5" v-else></div>
               </div>
 
               <!-- Actions -->
@@ -1107,115 +1159,163 @@ const filteredAvailableRules = computed(() => {
 
   <!-- Copy From Rule Modal -->
   <dialog :class="['modal', { 'modal-open': showCopyFromModal }]">
-    <div class="modal-box max-w-4xl">
-      <h3 class="font-bold text-lg mb-4">Copy From Rule</h3>
+    <div class="modal-box max-w-4xl bg-base-100 border border-base-300/60 p-0 overflow-hidden flex flex-col max-h-[80vh]">
+      <!-- Header -->
+      <div class="px-6 pt-6 pb-4 border-b border-base-300/40 flex-shrink-0">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="h-11 w-11 rounded-xl bg-indigo-500/15 flex items-center justify-center flex-shrink-0">
+              <PhCopy :size="24" class="text-indigo-400" weight="duotone" />
+            </div>
+            <div class="min-w-0">
+              <h3 class="text-xl font-bold text-base-content">Copy From Rule</h3>
+              <p class="text-sm text-base-content/50 mt-0.5">Select a rule to use as template</p>
+            </div>
+          </div>
+          <button class="btn btn-ghost btn-sm btn-square flex-shrink-0" @click="closeCopyFromModal">
+            <PhX :size="20" />
+          </button>
+        </div>
 
-      <div class="mb-4 flex items-center gap-4">
-        <p class="text-sm opacity-70">Select a rule to copy.</p>
-        <label class="label cursor-pointer gap-3 ml-auto">
-          <span class="label-text font-medium">Copy only conditions</span>
-          <input v-model="copyOnlyConditions" type="checkbox" class="toggle toggle-primary toggle-sm"
-            title="Toggle between copying all rule settings or only conditions" />
-        </label>
-      </div>
+        <!-- Copy mode toggle + Search -->
+        <div class="mt-4 space-y-3">
+          <!-- Copy mode -->
+          <div class="flex items-center justify-between bg-base-200/50 rounded-lg px-4 py-2.5 border border-base-300/40">
+            <div class="flex items-center gap-2 min-w-0">
+              <PhTreeStructure :size="16" class="text-base-content/50 flex-shrink-0" />
+              <span class="text-sm text-base-content/70">
+                <template v-if="copyOnlyConditions">Copying <strong class="text-base-content">conditions only</strong></template>
+                <template v-else>Copying <strong class="text-base-content">all settings</strong>
+                  <span class="text-xs text-base-content/40 ml-1">(name, description, priority, status, conditions)</span>
+                </template>
+              </span>
+            </div>
+            <label class="cursor-pointer flex items-center gap-2 flex-shrink-0">
+              <span class="text-xs text-base-content/50">Conditions only</span>
+              <input v-model="copyOnlyConditions" type="checkbox" class="toggle toggle-primary toggle-xs"
+                title="Toggle between copying all rule settings or only conditions" />
+            </label>
+          </div>
 
-      <div class="alert alert-info mb-4">
-        <div class="text-sm">
-          <strong v-if="copyOnlyConditions">Only conditions will be copied.</strong>
-          <strong v-else>All rule settings will be copied</strong>
-          <span v-if="!copyOnlyConditions">
-            (name, description, priority, enabled status, and conditions).</span>
+          <!-- Search -->
+          <div class="relative">
+            <PhMagnifyingGlass :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/40" />
+            <input
+              v-model="copyFromSearchQuery"
+              type="text"
+              placeholder="Search rules by name, policy, description..."
+              class="input input-bordered input-sm w-full pl-9 pr-8"
+            />
+            <button
+              v-if="copyFromSearchQuery"
+              type="button"
+              class="absolute right-2 top-1/2 -translate-y-1/2 text-base-content/40 hover:text-base-content/70 transition-colors"
+              @click="copyFromSearchQuery = ''"
+              title="Clear search"
+            >
+              <PhX :size="14" />
+            </button>
+          </div>
         </div>
       </div>
 
-      <!-- Search Field -->
-      <div class="mb-4">
-        <label class="input input-bordered input-sm flex items-center gap-2 w-full">
-          <PhMagnifyingGlass :size="16" class="opacity-70" />
-          <input v-model="copyFromSearchQuery" type="text"
-            placeholder="Search by policy name, rule name, description, or type..." class="grow" />
-          <button v-if="copyFromSearchQuery" type="button" @click="copyFromSearchQuery = ''"
-            class="opacity-70 hover:opacity-100" title="Clear search">
-            <PhX :size="16" />
+      <!-- Rules List -->
+      <div class="flex-1 overflow-y-auto px-6 py-4 space-y-2 rules-scroll">
+        <template v-if="filteredAvailableRules.length > 0">
+          <div
+            v-for="({ policy, rule, type }, idx) in filteredAvailableRules"
+            :key="`${policy.id}-${rule.id}-${idx}`"
+            class="group/copy flex items-center gap-3 rounded-lg border border-base-300/40 p-3 transition-all duration-200 cursor-pointer"
+            :class="type === 'start'
+              ? 'hover:border-primary/30 hover:bg-primary/5'
+              : 'hover:border-rose-300/30 hover:bg-rose-300/5'"
+            @click="copyFromRule(policy, rule, type)"
+          >
+            <!-- Type Badge -->
+            <div class="flex-shrink-0">
+              <div
+                class="w-8 h-8 rounded-lg flex items-center justify-center"
+                :class="type === 'start' ? 'bg-primary/15' : 'bg-rose-300/15'"
+              >
+                <PhPlay v-if="type === 'start'" :size="14" class="text-primary" weight="fill" />
+                <PhStop v-else :size="14" class="text-rose-300" weight="fill" />
+              </div>
+            </div>
+
+            <!-- Rule Info -->
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="font-semibold text-sm text-base-content truncate">{{ rule.name }}</span>
+                <span
+                  class="badge badge-sm border-0 gap-1"
+                  :class="type === 'start' ? 'bg-primary/15 text-primary' : 'bg-rose-300/15 text-rose-300'"
+                >
+                  {{ type }}
+                </span>
+              </div>
+              <div class="flex items-center gap-2 mt-0.5">
+                <span class="text-xs text-base-content/40 truncate">{{ policy.name }}</span>
+                <span v-if="rule.description" class="text-xs text-base-content/30">·</span>
+                <span v-if="rule.description" class="text-xs text-base-content/40 truncate">{{ rule.description }}</span>
+              </div>
+            </div>
+
+            <!-- Priority -->
+            <div class="flex-shrink-0">
+              <div class="flex items-center gap-1 rounded-md bg-base-200/60 px-2 py-1 text-xs font-mono">
+                <PhLightning :size="12" class="text-amber-400/70" />
+                <span class="text-base-content/60">{{ rule.priority ?? 0 }}</span>
+              </div>
+            </div>
+
+            <!-- Status -->
+            <div class="flex-shrink-0">
+              <span v-if="rule.enabled" class="badge badge-sm bg-success/20 text-success border-0 gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-success"></span>
+                On
+              </span>
+              <span v-else class="badge badge-sm badge-ghost gap-1">
+                <PhLightningSlash :size="10" />
+                Off
+              </span>
+            </div>
+
+            <!-- Copy action -->
+            <div class="flex-shrink-0 opacity-0 group-hover/copy:opacity-100 transition-opacity">
+              <div class="btn btn-ghost btn-sm btn-square">
+                <PhCopy :size="14" class="text-indigo-400" />
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- Empty State -->
+        <div v-else class="flex flex-col items-center justify-center py-12 text-center">
+          <div class="w-14 h-14 rounded-full bg-base-200/60 flex items-center justify-center mb-3">
+            <PhCopy :size="28" class="text-base-content/25" />
+          </div>
+          <p class="text-sm font-medium text-base-content/60">
+            {{ copyFromSearchQuery ? 'No rules match your search' : 'No rules available' }}
+          </p>
+          <p class="text-xs text-base-content/35 mt-1">
+            {{ copyFromSearchQuery ? 'Try a different search term' : 'Create rules first to copy from them' }}
+          </p>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="px-6 py-4 border-t border-base-300/40 bg-base-200/20 flex-shrink-0">
+        <div class="flex items-center justify-between">
+          <span class="text-xs text-base-content/40">
+            {{ filteredAvailableRules.length }} rule{{ filteredAvailableRules.length !== 1 ? 's' : '' }} available
+          </span>
+          <button type="button" class="btn btn-ghost" @click="closeCopyFromModal">
+            Cancel
           </button>
-        </label>
-      </div>
-
-      <div class="overflow-x-auto max-h-96">
-        <table class="table table-sm table-pin-rows">
-          <thead>
-            <tr>
-              <th>Policy</th>
-              <th>Type</th>
-              <th>Rule Name</th>
-              <th>Description</th>
-              <th>Priority</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <template v-if="filteredAvailableRules.length > 0">
-              <tr v-for="({ policy, rule, type }, idx) in filteredAvailableRules"
-                :key="`${policy.id}-${rule.id}-${idx}`">
-                <td>
-                  <div class="font-medium">{{ policy.name }}</div>
-                  <div class="text-xs opacity-50" v-if="policy.description">
-                    {{ policy.description }}
-                  </div>
-                </td>
-                <td>
-                  <div class="badge badge-sm" :class="type === 'start' ? 'badge-success' : 'badge-error'">
-                    <PhPlay v-if="type === 'start'" :size="12" />
-                    <PhStop v-if="type === 'stop'" :size="12" />
-                    {{ type }}
-                  </div>
-                </td>
-                <td>
-                  <div class="font-medium">{{ rule.name }}</div>
-                </td>
-                <td>
-                  <div class="text-sm opacity-70">
-                    {{ rule.description || "—" }}
-                  </div>
-                </td>
-                <td>
-                  <div class="text-sm">{{ rule.priority ?? 0 }}</div>
-                </td>
-                <td>
-                  <div class="badge badge-sm" :class="rule.enabled ? 'badge-success' : 'badge-ghost'">
-                    {{ rule.enabled ? "Enabled" : "Disabled" }}
-                  </div>
-                </td>
-                <td>
-                  <button type="button" class="btn btn-xs btn-primary" @click="copyFromRule(policy, rule, type)"
-                    title="Copy this rule">
-                    <PhCopy :size="14" />
-                    Copy
-                  </button>
-                </td>
-              </tr>
-            </template>
-            <tr v-else>
-              <td colspan="7" class="text-center text-base-content/50">
-                {{
-                  copyFromSearchQuery
-                    ? "No rules found matching your search"
-                    : "No rules available to copy from"
-                }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="flex justify-end gap-3 pt-4 border-t border-base-300/40 mt-4">
-        <button type="button" class="btn btn-ghost" @click="closeCopyFromModal">
-          Cancel
-        </button>
+        </div>
       </div>
     </div>
-    <form method="dialog" class="modal-backdrop">
+    <form method="dialog" class="modal-backdrop bg-black/50">
       <button @click="closeCopyFromModal">close</button>
     </form>
   </dialog>
