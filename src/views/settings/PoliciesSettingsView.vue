@@ -1145,7 +1145,7 @@ const filteredAvailableRules = computed(() => {
       </div>
 
       <div class="flex justify-end gap-3 pt-4 border-t border-base-300/40 mt-4">
-        <button type="button" class="btn btn-secondary" @click="closeCopyFromModal">
+        <button type="button" class="btn btn-ghost" @click="closeCopyFromModal">
           Cancel
         </button>
       </div>
