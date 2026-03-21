@@ -527,18 +527,18 @@ const filteredAvailableRules = computed(() => {
           <div class="stat-card bg-neutral-800/80 border border-base-300/40 rounded-xl p-3 sm:p-4 min-w-0">
             <div class="flex gap-4 items-center min-h-[2rem] sm:min-h-[2.25rem]">
               <div class="flex items-center gap-1.5">
-                <PhPlay :size="16" class="text-emerald-400" weight="fill" />
-                <span class="stat-type-count text-emerald-400">{{ stats.totalStartRules }}</span>
+                <PhPlay :size="16" class="text-primary" weight="fill" />
+                <span class="stat-type-count text-primary">{{ stats.totalStartRules }}</span>
               </div>
               <div class="flex items-center gap-1.5">
-                <PhStop :size="16" class="text-red-400" weight="fill" />
-                <span class="stat-type-count text-red-400">{{ stats.totalStopRules }}</span>
+                <PhStop :size="16" class="text-rose-300" weight="fill" />
+                <span class="stat-type-count text-rose-300">{{ stats.totalStopRules }}</span>
               </div>
             </div>
             <div class="stat-label">Start / Stop</div>
           </div>
           <div class="stat-card bg-neutral-800/80 border border-base-300/40 rounded-xl p-3 sm:p-4 min-w-0">
-            <div class="stat-value text-emerald-400 flex items-center gap-2">
+            <div class="stat-value text-primary flex items-center gap-2">
               {{ stats.enabledRules }}
               <PhCheckCircle :size="20" class="opacity-60" />
             </div>
@@ -619,17 +619,17 @@ const filteredAvailableRules = computed(() => {
         <!-- Mini stats -->
         <div class="flex items-center gap-4 mt-4">
           <div class="flex items-center gap-1.5 text-sm">
-            <PhPlay :size="14" class="text-emerald-400" weight="fill" />
-            <span class="font-semibold text-emerald-400">{{ selectedPolicy.start_rules?.length ?? 0 }}</span>
+            <PhPlay :size="14" class="text-primary" weight="fill" />
+            <span class="font-semibold text-primary">{{ selectedPolicy.start_rules?.length ?? 0 }}</span>
             <span class="text-base-content/40">start</span>
           </div>
           <div class="flex items-center gap-1.5 text-sm">
-            <PhStop :size="14" class="text-red-400" weight="fill" />
-            <span class="font-semibold text-red-400">{{ selectedPolicy.stop_rules?.length ?? 0 }}</span>
+            <PhStop :size="14" class="text-rose-300" weight="fill" />
+            <span class="font-semibold text-rose-300">{{ selectedPolicy.stop_rules?.length ?? 0 }}</span>
             <span class="text-base-content/40">stop</span>
           </div>
           <div class="flex items-center gap-1.5 text-sm ml-auto">
-            <PhCheckCircle :size="14" class="text-emerald-400/60" />
+            <PhCheckCircle :size="14" class="text-primary/60" />
             <span class="text-base-content/50">{{ (selectedPolicy.start_rules?.filter(r => r.enabled).length ?? 0) + (selectedPolicy.stop_rules?.filter(r => r.enabled).length ?? 0) }} enabled</span>
           </div>
         </div>
@@ -642,33 +642,33 @@ const filteredAvailableRules = computed(() => {
           <div
             class="tab-indicator absolute top-1 bottom-1 rounded-md transition-all duration-300 ease-in-out"
             :class="activeRuleTab === 'start'
-              ? 'bg-emerald-500/20 border border-emerald-500/30 shadow-sm'
-              : 'bg-red-500/20 border border-red-500/30 shadow-sm'"
+              ? 'bg-primary/20 border border-primary/30 shadow-sm'
+              : 'bg-rose-300/20 border border-rose-300/30 shadow-sm'"
             :style="{ left: activeRuleTab === 'start' ? 'calc(0.25rem)' : 'calc(50% + 0.125rem)', width: 'calc(50% - 0.375rem)' }"
           ></div>
           <button
             class="relative z-[1] flex-1 flex items-center justify-center gap-2 rounded-md py-2 px-3 text-sm font-medium transition-colors duration-200 cursor-pointer"
             :class="activeRuleTab === 'start'
-              ? 'text-emerald-400'
+              ? 'text-primary'
               : 'text-base-content/50 hover:text-base-content/80'"
             @click="switchRuleTab('start')"
           >
             <PhPlay :size="16" weight="fill" />
             Start Rules
-            <span class="badge badge-sm" :class="activeRuleTab === 'start' ? 'bg-emerald-500/30 text-emerald-300 border-0' : 'badge-ghost'">
+            <span class="badge badge-sm" :class="activeRuleTab === 'start' ? 'bg-primary/30 text-primary border-0' : 'badge-ghost'">
               {{ selectedPolicy.start_rules?.length ?? 0 }}
             </span>
           </button>
           <button
             class="relative z-[1] flex-1 flex items-center justify-center gap-2 rounded-md py-2 px-3 text-sm font-medium transition-colors duration-200 cursor-pointer"
             :class="activeRuleTab === 'stop'
-              ? 'text-red-400'
+              ? 'text-rose-300'
               : 'text-base-content/50 hover:text-base-content/80'"
             @click="switchRuleTab('stop')"
           >
             <PhStop :size="16" weight="fill" />
             Stop Rules
-            <span class="badge badge-sm" :class="activeRuleTab === 'stop' ? 'bg-red-500/30 text-red-300 border-0' : 'badge-ghost'">
+            <span class="badge badge-sm" :class="activeRuleTab === 'stop' ? 'bg-rose-300/30 text-rose-300 border-0' : 'badge-ghost'">
               {{ selectedPolicy.stop_rules?.length ?? 0 }}
             </span>
           </button>
@@ -684,7 +684,7 @@ const filteredAvailableRules = computed(() => {
             <div
               v-for="rule in selectedPolicy.start_rules"
               :key="rule.id"
-              class="rule-card group/rule flex items-center gap-3 rounded-lg border border-base-300/40 p-3 transition-all duration-200 hover:border-emerald-500/30 hover:bg-emerald-500/5"
+              class="rule-card group/rule flex items-center gap-3 rounded-lg border border-base-300/40 p-3 transition-all duration-200 hover:border-primary/30 hover:bg-primary/5"
             >
               <!-- Toggle -->
               <div class="flex-shrink-0">
@@ -712,9 +712,9 @@ const filteredAvailableRules = computed(() => {
               <div class="flex-shrink-0">
                 <span
                   v-if="rule.enabled"
-                  class="badge badge-sm bg-emerald-500/20 text-emerald-400 border-0 gap-1"
+                  class="badge badge-sm bg-primary/20 text-primary border-0 gap-1"
                 >
-                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                  <span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
                   Active
                 </span>
                 <span v-else class="badge badge-sm badge-ghost gap-1">
@@ -756,8 +756,8 @@ const filteredAvailableRules = computed(() => {
 
           <!-- Empty Start Rules -->
           <div v-else class="flex flex-col items-center justify-center py-10 text-center">
-            <div class="w-14 h-14 rounded-full bg-emerald-500/10 flex items-center justify-center mb-3">
-              <PhPlay :size="28" class="text-emerald-400/40" />
+            <div class="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+              <PhPlay :size="28" class="text-primary/40" />
             </div>
             <p class="text-sm font-medium text-base-content/60">No start rules defined</p>
             <p class="text-xs text-base-content/35 mt-1">Add a start rule to automate mining activation</p>
@@ -770,7 +770,7 @@ const filteredAvailableRules = computed(() => {
             <div
               v-for="rule in selectedPolicy.stop_rules"
               :key="rule.id"
-              class="rule-card group/rule flex items-center gap-3 rounded-lg border border-base-300/40 p-3 transition-all duration-200 hover:border-red-500/30 hover:bg-red-500/5"
+              class="rule-card group/rule flex items-center gap-3 rounded-lg border border-base-300/40 p-3 transition-all duration-200 hover:border-rose-300/30 hover:bg-rose-300/5"
             >
               <!-- Toggle -->
               <div class="flex-shrink-0">
@@ -809,9 +809,9 @@ const filteredAvailableRules = computed(() => {
               <div class="flex-shrink-0">
                 <span
                   v-if="rule.enabled"
-                  class="badge badge-sm bg-red-500/20 text-red-400 border-0 gap-1"
+                  class="badge badge-sm bg-rose-300/20 text-rose-300 border-0 gap-1"
                 >
-                  <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+                  <span class="w-1.5 h-1.5 rounded-full bg-rose-300"></span>
                   Active
                 </span>
                 <span v-else class="badge badge-sm badge-ghost gap-1">
@@ -842,8 +842,8 @@ const filteredAvailableRules = computed(() => {
 
           <!-- Empty Stop Rules -->
           <div v-else class="flex flex-col items-center justify-center py-10 text-center">
-            <div class="w-14 h-14 rounded-full bg-red-500/10 flex items-center justify-center mb-3">
-              <PhStop :size="28" class="text-red-400/40" />
+            <div class="w-14 h-14 rounded-full bg-rose-300/10 flex items-center justify-center mb-3">
+              <PhStop :size="28" class="text-rose-300/40" />
             </div>
             <p class="text-sm font-medium text-base-content/60">No stop rules defined</p>
             <p class="text-xs text-base-content/35 mt-1">Add a stop rule to automate mining shutdown</p>
@@ -863,7 +863,7 @@ const filteredAvailableRules = computed(() => {
         <div class="flex items-center justify-between">
           <button
             class="btn gap-2"
-            :class="activeRuleTab === 'start' ? 'btn-success' : 'btn-error'"
+            :class="activeRuleTab === 'start' ? 'btn-primary' : 'btn-error'"
             @click="addRule"
           >
             <PhPlus :size="16" weight="bold" />
@@ -1196,20 +1196,20 @@ const filteredAvailableRules = computed(() => {
 
         <!-- Rule Stats -->
         <div class="grid grid-cols-2 gap-3">
-          <div class="flex flex-col items-center gap-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3">
+          <div class="flex flex-col items-center gap-1 rounded-lg bg-primary/10 border border-primary/20 p-3">
             <div class="flex items-center gap-1.5">
-              <PhPlay :size="14" class="text-emerald-400" weight="fill" />
-              <span class="text-xl font-bold text-emerald-400">{{ checkResult.start_rules_count }}</span>
+              <PhPlay :size="14" class="text-primary" weight="fill" />
+              <span class="text-xl font-bold text-primary">{{ checkResult.start_rules_count }}</span>
             </div>
-            <span class="text-[11px] text-emerald-400/70 uppercase tracking-wider">Start Rules</span>
+            <span class="text-[11px] text-primary/70 uppercase tracking-wider">Start Rules</span>
             <span class="text-[10px] text-base-content/40">{{ checkResult.enabled_start_rules_count }} enabled</span>
           </div>
-          <div class="flex flex-col items-center gap-1 rounded-lg bg-red-500/10 border border-red-500/20 p-3">
+          <div class="flex flex-col items-center gap-1 rounded-lg bg-rose-300/10 border border-rose-300/20 p-3">
             <div class="flex items-center gap-1.5">
-              <PhStop :size="14" class="text-red-400" weight="fill" />
-              <span class="text-xl font-bold text-red-400">{{ checkResult.stop_rules_count }}</span>
+              <PhStop :size="14" class="text-rose-300" weight="fill" />
+              <span class="text-xl font-bold text-rose-300">{{ checkResult.stop_rules_count }}</span>
             </div>
-            <span class="text-[11px] text-red-400/70 uppercase tracking-wider">Stop Rules</span>
+            <span class="text-[11px] text-rose-300/70 uppercase tracking-wider">Stop Rules</span>
             <span class="text-[10px] text-base-content/40">{{ checkResult.enabled_stop_rules_count }} enabled</span>
           </div>
         </div>
