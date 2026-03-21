@@ -794,17 +794,6 @@ const filteredAvailableRules = computed(() => {
                 </p>
               </div>
 
-              <!-- Priority -->
-              <div class="flex-shrink-0">
-                <div
-                  class="flex items-center gap-1 rounded-md bg-base-200/60 px-2 py-1 text-xs font-mono"
-                  :title="`Priority: ${rule.priority ?? 0}`"
-                >
-                  <PhLightning :size="12" class="text-amber-400/70" />
-                  <span class="text-base-content/60">{{ rule.priority ?? 0 }}</span>
-                </div>
-              </div>
-
               <!-- Status indicator -->
               <div class="flex-shrink-0">
                 <span
@@ -820,17 +809,28 @@ const filteredAvailableRules = computed(() => {
                 </span>
               </div>
 
+              <!-- Priority -->
+              <div class="flex-shrink-0">
+                <div
+                  class="flex items-center gap-1 rounded-md bg-base-200/60 px-2 py-1 text-xs font-mono"
+                  :title="`Priority: ${rule.priority ?? 0}`"
+                >
+                  <PhLightning :size="12" class="text-amber-400/70" />
+                  <span class="text-base-content/60">{{ rule.priority ?? 0 }}</span>
+                </div>
+              </div>
+
               <!-- Actions -->
               <div class="flex gap-1 opacity-0 group-hover/rule:opacity-100 transition-opacity flex-shrink-0">
                 <button
-                  class="btn btn-ghost btn-xs btn-square hover:bg-primary/20"
+                  class="btn btn-ghost btn-sm btn-square hover:bg-primary/20"
                   title="Edit rule"
                   @click="handleEditRule(rule, 'stop')"
                 >
                   <PhPencil :size="14" class="text-primary" />
                 </button>
                 <button
-                  class="btn btn-ghost btn-xs btn-square hover:bg-error/20"
+                  class="btn btn-ghost btn-sm btn-square hover:bg-error/20"
                   title="Delete rule"
                   @click="requestDeleteRule(rule)"
                 >
