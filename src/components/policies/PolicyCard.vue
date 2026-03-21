@@ -53,11 +53,11 @@ const healthStatus = computed(() => {
 
 const healthConfig = computed(() => {
   const configs: Record<string, { label: string; color: string; dotColor: string }> = {
-    ok: { label: "Balanced", color: "text-emerald-400", dotColor: "bg-emerald-400" },
+    ok: { label: "Balanced", color: "text-primary", dotColor: "bg-primary" },
     empty: { label: "No rules", color: "text-base-content/40", dotColor: "bg-base-content/30" },
     "no-start": { label: "Missing start rules", color: "text-amber-400", dotColor: "bg-amber-400" },
     "no-stop": { label: "Missing stop rules", color: "text-amber-400", dotColor: "bg-amber-400" },
-    "all-disabled": { label: "All rules disabled", color: "text-red-400", dotColor: "bg-red-400" },
+    "all-disabled": { label: "All rules disabled", color: "text-rose-300", dotColor: "bg-rose-300" },
   };
   return configs[healthStatus.value] || configs["empty"];
 });
@@ -104,7 +104,7 @@ function handleCheck() {
           <span class="absolute -top-1 -right-1 flex h-3 w-3">
             <span
               v-if="healthStatus === 'ok'"
-              class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"
+              class="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75"
             ></span>
             <span
               class="relative inline-flex h-3 w-3 rounded-full border-2 border-base-100"
@@ -177,15 +177,15 @@ function handleCheck() {
       <div class="grid grid-cols-2 gap-2">
         <!-- Start Rules -->
         <button
-          class="flex flex-col items-center gap-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 hover:bg-emerald-500/20 transition-colors cursor-pointer"
+          class="flex flex-col items-center gap-1 rounded-lg bg-primary/10 border border-primary/20 p-3 hover:bg-primary/20 transition-colors cursor-pointer"
           @click="handleManageRules"
           title="Manage start rules"
         >
           <div class="flex items-center gap-1.5">
-            <PhPlay :size="16" class="text-emerald-400" weight="fill" />
-            <span class="text-2xl font-bold text-emerald-400">{{ startRulesCount }}</span>
+            <PhPlay :size="16" class="text-primary" weight="fill" />
+            <span class="text-2xl font-bold text-primary">{{ startRulesCount }}</span>
           </div>
-          <span class="text-[11px] text-emerald-400/70 uppercase tracking-wider font-medium">
+          <span class="text-[11px] text-primary/70 uppercase tracking-wider font-medium">
             Start Rules
           </span>
           <span
@@ -198,15 +198,15 @@ function handleCheck() {
 
         <!-- Stop Rules -->
         <button
-          class="flex flex-col items-center gap-1 rounded-lg bg-red-500/10 border border-red-500/20 p-3 hover:bg-red-500/20 transition-colors cursor-pointer"
+          class="flex flex-col items-center gap-1 rounded-lg bg-rose-300/10 border border-rose-300/20 p-3 hover:bg-rose-300/20 transition-colors cursor-pointer"
           @click="handleManageRules"
           title="Manage stop rules"
         >
           <div class="flex items-center gap-1.5">
-            <PhStop :size="16" class="text-red-400" weight="fill" />
-            <span class="text-2xl font-bold text-red-400">{{ stopRulesCount }}</span>
+            <PhStop :size="16" class="text-rose-300" weight="fill" />
+            <span class="text-2xl font-bold text-rose-300">{{ stopRulesCount }}</span>
           </div>
-          <span class="text-[11px] text-red-400/70 uppercase tracking-wider font-medium">
+          <span class="text-[11px] text-rose-300/70 uppercase tracking-wider font-medium">
             Stop Rules
           </span>
           <span
