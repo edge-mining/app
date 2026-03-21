@@ -30,6 +30,9 @@ import {
   PhTrash,
   PhLightningSlash,
   PhLightning,
+  PhGear,
+  PhFloppyDisk,
+  PhTreeStructure,
 } from "@phosphor-icons/vue";
 
 const policyStore = usePolicyStore();
@@ -103,6 +106,12 @@ const newRuleHasUnsavedConditions = computed(() => {
     JSON.stringify(originalNewRuleConditions.value)
   );
 });
+
+// Unified active rule computed (avoids template duplication)
+const activeRule = computed(() => isEditingRule.value ? editingRule.value : newRule.value);
+const activeRuleHasUnsavedConditions = computed(() =>
+  isEditingRule.value ? editingRuleHasUnsavedConditions.value : newRuleHasUnsavedConditions.value
+);
 
 // Stats
 const stats = computed(() => {
@@ -385,6 +394,11 @@ function restoreNewRuleConditions() {
       JSON.stringify(originalNewRuleConditions.value),
     );
   }
+}
+
+function restoreActiveRuleConditions() {
+  if (isEditingRule.value) restoreEditingRuleConditions();
+  else restoreNewRuleConditions();
 }
 
 function handleToggleRuleEnabled(rule: AutomationRule) {
@@ -893,149 +907,200 @@ const filteredAvailableRules = computed(() => {
 
   <!-- Rule Add/Edit Modal -->
   <dialog :class="['modal', { 'modal-open': showRuleEditModal }]">
-    <div v-if="newRule || editingRule" class="modal-box max-w-5xl">
-      <div class="flex justify-between items-center mb-4">
-        <h3 class="font-bold text-lg">
-          {{ isEditingRule ? "Edit" : "Add" }}
-          {{ currentRuleType === "start" ? "Start" : "Stop" }} Rule
-        </h3>
-        <button type="button" class="btn btn-sm btn-outline"
-          @click="openCopyFromModal(isEditingRule ? 'editing' : 'new')" title="Copy from another rule">
-          <PhCopy :size="16" />
-          Copy From
-        </button>
+    <div v-if="activeRule" class="modal-box max-w-5xl bg-base-100 border border-base-300/60 p-0 overflow-hidden flex flex-col max-h-[85vh]">
+      <!-- Header -->
+      <div class="px-6 pt-6 pb-4 border-b border-base-300/40 flex-shrink-0">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div
+              class="h-11 w-11 rounded-xl flex items-center justify-center flex-shrink-0"
+              :class="currentRuleType === 'start' ? 'bg-primary/15' : 'bg-rose-300/15'"
+            >
+              <PhPlay v-if="currentRuleType === 'start'" :size="24" class="text-primary" weight="duotone" />
+              <PhStop v-else :size="24" class="text-rose-300" weight="duotone" />
+            </div>
+            <div class="min-w-0">
+              <h3 class="text-xl font-bold text-base-content">
+                {{ isEditingRule ? 'Edit' : 'Add' }}
+                {{ currentRuleType === 'start' ? 'Start' : 'Stop' }} Rule
+              </h3>
+              <p v-if="selectedPolicy" class="text-sm text-base-content/50 truncate mt-0.5">
+                {{ selectedPolicy.name }}
+              </p>
+            </div>
+          </div>
+          <button class="btn btn-ghost btn-sm btn-square flex-shrink-0" @click="cancelRuleModal">
+            <PhX :size="20" />
+          </button>
+        </div>
       </div>
 
-      <form @submit.prevent="isEditingRule ? confirmEditRule() : confirmAddRule()" class="flex flex-col gap-4">
-        <template v-if="isEditingRule && editingRule">
-          <div class="space-y-1">
-            <div class="font-medium">
-              Name
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
-            </div>
-            <input v-model="editingRule.name" type="text" placeholder="Rule name" required
-              class="input input-bordered input-sm w-full" />
+      <!-- Scrollable Body -->
+      <div class="flex-1 overflow-y-auto px-6 py-5 space-y-6 rules-scroll">
+        <!-- Required fields note -->
+        <p class="text-xs text-base-content/50">* Required fields</p>
+
+        <!-- Basic Information Section -->
+        <div class="space-y-4">
+          <div class="flex items-center gap-2 text-sm font-semibold text-base-content/70 uppercase tracking-wider">
+            <PhGear :size="16" />
+            Basic Information
           </div>
 
-          <div class="space-y-1">
-            <div class="font-medium">Description</div>
-            <textarea v-model="editingRule.description" placeholder="Rule description"
-              class="textarea textarea-bordered textarea-sm w-full" rows="2"></textarea>
+          <!-- Name Input -->
+          <div class="form-control">
+            <label class="label mb-1">
+              <span class="label-text font-medium">Name *</span>
+            </label>
+            <input
+              v-model="activeRule.name"
+              type="text"
+              placeholder="Enter rule name"
+              class="input input-bordered w-full"
+              required
+            />
           </div>
 
-          <div class="grid grid-cols-2 gap-4">
-            <div class="space-y-1">
-              <div class="font-medium">Priority</div>
-              <input v-model.number="editingRule.priority" type="number"
-                placeholder="Priority (higher = higher priority)" class="input input-bordered input-sm w-full" />
-              <div class="text-sm italic opacity-70">
-                Higher values have higher priority
+          <!-- Description -->
+          <div class="form-control">
+            <label class="label mb-1">
+              <span class="label-text font-medium">Description</span>
+            </label>
+            <textarea
+              v-model="activeRule.description"
+              placeholder="Brief description of this rule"
+              class="textarea textarea-bordered w-full resize-none"
+              rows="2"
+            ></textarea>
+          </div>
+        </div>
+
+        <!-- Priority & Status Section -->
+        <div class="space-y-4">
+          <div class="flex items-center gap-2 text-sm font-semibold text-base-content/70 uppercase tracking-wider">
+            <PhLightning :size="16" />
+            Priority & Status
+          </div>
+
+          <div class="bg-base-200/50 rounded-xl p-4 border border-base-300/40">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+              <!-- Priority Input -->
+              <div class="form-control">
+                <label class="label mb-1">
+                  <span class="label-text font-medium">Priority</span>
+                </label>
+                <div class="relative">
+                  <input
+                    v-model.number="activeRule.priority"
+                    type="number"
+                    placeholder="10"
+                    class="input input-bordered w-full pl-9"
+                  />
+                  <PhLightning :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-amber-400/70" />
+                </div>
+                <label class="label">
+                  <span class="label-text-alt text-base-content/50 italic">Higher values = higher priority</span>
+                </label>
+              </div>
+
+              <!-- Enabled Toggle -->
+              <div class="flex items-center justify-between md:justify-start md:gap-6 bg-base-300/30 rounded-lg px-4 py-3">
+                <label class="cursor-pointer flex items-center gap-3">
+                  <input
+                    v-model="activeRule.enabled"
+                    type="checkbox"
+                    class="toggle"
+                    :class="currentRuleType === 'start' ? 'toggle-success' : 'toggle-error'"
+                  />
+                  <span class="font-medium">Enabled</span>
+                </label>
               </div>
             </div>
-
-            <div class="space-y-1 flex items-center">
-              <label class="label cursor-pointer justify-start gap-4 p-0">
-                <input v-model="editingRule.enabled" type="checkbox" class="toggle toggle-primary toggle-sm" />
-                <span class="font-medium">Enabled</span>
-              </label>
-            </div>
           </div>
+        </div>
 
-          <div class="space-y-1">
-            <RuleConditionBuilder ref="editingRuleConditionBuilder" v-model="editingRule.conditions" />
-          </div>
-
-          <!-- Warning about unsaved conditions -->
-          <div v-if="editingRuleHasUnsavedConditions" class="alert alert-warning shadow-lg">
-            <PhWarning :size="24" />
-            <div class="flex-1">
-              <h3 class="font-bold">Unsaved Conditions</h3>
-              <div class="text-sm">
-                Conditions have been modified but the rule has not been saved
-                yet. Remember to save the rule to apply all changes.
-              </div>
+        <!-- Conditions Section -->
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2 text-sm font-semibold text-base-content/70 uppercase tracking-wider">
+              <PhTreeStructure :size="16" />
+              Conditions
             </div>
-            <button type="button" class="btn btn-sm btn-ghost" @click="restoreEditingRuleConditions()"
-              title="Restore conditions to their original state">
-              <PhArrowCounterClockwise :size="16" />
-              Restore
+            <button
+              type="button"
+              class="btn btn-ghost btn-xs gap-1.5 text-base-content/60 hover:text-base-content"
+              @click="openCopyFromModal(isEditingRule ? 'editing' : 'new')"
+              title="Copy conditions from another rule"
+            >
+              <PhCopy :size="14" />
+              Copy From
             </button>
           </div>
-        </template>
 
-        <template v-else-if="newRule">
-          <div class="space-y-1">
-            <div class="font-medium">
-              Name
-              <span class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
-            </div>
-            <input v-model="newRule.name" type="text" placeholder="Rule name" required
-              class="input input-bordered input-sm w-full" />
+          <div class="bg-base-200/30 rounded-xl p-4 border border-base-300/40">
+            <RuleConditionBuilder
+              v-if="isEditingRule"
+              ref="editingRuleConditionBuilder"
+              v-model="activeRule.conditions"
+            />
+            <RuleConditionBuilder
+              v-else
+              ref="newRuleConditionBuilder"
+              v-model="activeRule.conditions"
+            />
           </div>
+        </div>
 
-          <div class="space-y-1">
-            <div class="font-medium">Description</div>
-            <textarea v-model="newRule.description" placeholder="Rule description"
-              class="textarea textarea-bordered textarea-sm w-full" rows="2"></textarea>
+        <!-- Unsaved Conditions Warning -->
+        <div
+          v-if="activeRuleHasUnsavedConditions"
+          class="rounded-xl bg-warning/10 border border-warning/20 px-4 py-3 flex items-center gap-3"
+        >
+          <PhWarning :size="20" class="text-warning flex-shrink-0" />
+          <div class="flex-1 min-w-0">
+            <p class="font-semibold text-sm text-warning">Unsaved Conditions</p>
+            <p class="text-xs text-base-content/50 mt-0.5">
+              Conditions have been modified. Save the rule to apply changes.
+            </p>
           </div>
+          <button
+            type="button"
+            class="btn btn-ghost btn-xs gap-1"
+            @click="restoreActiveRuleConditions"
+            title="Restore conditions to original state"
+          >
+            <PhArrowCounterClockwise :size="14" />
+            Restore
+          </button>
+        </div>
+      </div>
 
-          <div class="grid grid-cols-2 gap-4">
-            <div class="space-y-1">
-              <div class="font-medium">Priority</div>
-              <input v-model.number="newRule.priority" type="number" placeholder="Priority (higher = higher priority)"
-                class="input input-bordered input-sm w-full" />
-              <div class="text-sm italic opacity-70">
-                Higher values have higher priority
-              </div>
-            </div>
-
-            <div class="space-y-1 flex items-center">
-              <label class="label cursor-pointer justify-start gap-4 p-0">
-                <input v-model="newRule.enabled" type="checkbox" class="toggle toggle-primary toggle-sm" />
-                <span class="font-medium">Enabled</span>
-              </label>
-            </div>
+      <!-- Footer -->
+      <div class="px-6 py-4 border-t border-base-300/40 bg-base-200/20 flex-shrink-0">
+        <div v-if="ruleAddSaveError" class="mb-3">
+          <div class="rounded-lg bg-error/10 border border-error/20 px-3 py-2 text-sm text-error flex items-center gap-2">
+            <PhXCircle :size="16" class="flex-shrink-0" />
+            <span>{{ ruleAddSaveError }}</span>
           </div>
-
-          <div class="space-y-1">
-            <div class="font-medium mb-2">Conditions</div>
-            <RuleConditionBuilder ref="newRuleConditionBuilder" v-model="newRule.conditions" />
-          </div>
-
-          <!-- Warning about unsaved conditions -->
-          <div v-if="newRuleHasUnsavedConditions" class="alert alert-warning shadow-lg">
-            <PhWarning :size="24" />
-            <div class="flex-1">
-              <h3 class="font-bold">Unsaved Conditions</h3>
-              <div class="text-sm">
-                Conditions have been modified but the rule has not been saved
-                yet. Remember to save the rule to apply all changes.
-              </div>
-            </div>
-            <button type="button" class="btn btn-sm btn-ghost" @click="restoreNewRuleConditions()"
-              title="Restore conditions to their original state">
-              <PhArrowCounterClockwise :size="16" />
-              Restore
-            </button>
-          </div>
-        </template>
-
-        <div class="flex justify-end gap-3 pt-4 border-t border-base-300/40 mt-4">
-          <div v-if="ruleAddSaveError" class="flex-1 mr-auto">
-            <div class="text-error text-sm">
-              <span class="font-semibold">Error:</span> {{ ruleAddSaveError }}
-            </div>
-          </div>
+        </div>
+        <div class="flex items-center justify-end gap-3">
           <button type="button" class="btn btn-ghost" @click="cancelRuleModal">
             Cancel
           </button>
-          <button type="submit" class="btn btn-primary">
-            {{ isEditingRule ? "Save" : "Add" }}
+          <button
+            type="button"
+            class="btn gap-2"
+            :class="currentRuleType === 'start' ? 'btn-primary' : 'bg-rose-300/80 text-primary-content hover:bg-rose-300/70'"
+            :disabled="!activeRule.name?.trim()"
+            @click="isEditingRule ? confirmEditRule() : confirmAddRule()"
+          >
+            <PhFloppyDisk :size="18" />
+            {{ isEditingRule ? 'Save Changes' : 'Create Rule' }}
           </button>
         </div>
-      </form>
+      </div>
     </div>
-    <form method="dialog" class="modal-backdrop">
+    <form method="dialog" class="modal-backdrop bg-black/50">
       <button @click="cancelRuleModal">close</button>
     </form>
   </dialog>
