@@ -2,12 +2,15 @@
 import { computed, ref, watch, toRaw } from "vue";
 import type { Miner } from "../../core/models/miner";
 import { useMinerControllerStore } from "../../core/stores/minerControllerStore";
+import { MinerControllerService } from "../../core/services/minerControllerService";
 import {
   PhX,
   PhFloppyDisk,
   PhCpu,
   PhLightning,
   PhGear,
+  PhDownloadSimple,
+  PhCheck,
 } from "@phosphor-icons/vue";
 
 const props = defineProps<{
@@ -23,6 +26,7 @@ const emit = defineEmits<{
 }>();
 
 const minerControllerStore = useMinerControllerStore();
+const minerControllerService = new MinerControllerService();
 
 // Hash rate unit options
 const hashRateUnits = ["H/s", "KH/s", "MH/s", "GH/s", "TH/s", "PH/s", "EH/s"];
@@ -95,6 +99,60 @@ function handleClose() {
   emit("close");
 }
 
+const isFetchingDetails = ref(false);
+const fetchSuccess = ref(false);
+const fetchError = ref<string | null>(null);
+const highlightedFields = ref<Set<string>>(new Set());
+
+function isNonEmpty(value: any): boolean {
+  return value !== null && value !== undefined && value !== "";
+}
+
+function typewriterEffect(
+  target: (char: string) => void,
+  text: string,
+  speed = 30
+): Promise<void> {
+  return new Promise((resolve) => {
+    target("");
+    let i = 0;
+    const interval = setInterval(() => {
+      target(text.slice(0, ++i));
+      if (i >= text.length) {
+        clearInterval(interval);
+        resolve();
+      }
+    }, speed);
+  });
+}
+
+async function fetchMinerDetails() {
+  const controllerId = formData.value.controller_id;
+  if (!controllerId) return;
+  isFetchingDetails.value = true;
+  fetchError.value = null;
+  fetchSuccess.value = false;
+  highlightedFields.value = new Set();
+  try {
+    const details = await minerControllerService.getMinerDetails(controllerId);
+    const updated = new Set<string>();
+    if (isNonEmpty(details.model)) {
+      updated.add("model");
+      highlightedFields.value = updated;
+      await typewriterEffect((v) => (formData.value.model = v), details.model!);
+    }
+    fetchSuccess.value = true;
+    setTimeout(() => {
+      fetchSuccess.value = false;
+      highlightedFields.value = new Set();
+    }, 3000);
+  } catch (error: any) {
+    fetchError.value = error?.response?.data?.detail || error?.message || "Failed to fetch miner details from controller";
+  } finally {
+    isFetchingDetails.value = false;
+  }
+}
+
 function handleSave() {
   if (isFormValid.value) {
     // Deep clone to remove Vue reactive proxies
@@ -152,7 +210,8 @@ function handleSave() {
               v-model="formData.model"
               type="text"
               placeholder="e.g., Antminer S19 Pro"
-              class="input input-bordered w-full"
+              class="input input-bordered w-full transition-colors duration-500"
+              :class="{ 'input-success border-success': highlightedFields.has('model') }"
             />
           </div>
         </div>
@@ -169,24 +228,41 @@ function handleSave() {
               Miner Controller
             </span>
           </label>
-          <select
-            v-model="formData.controller_id"
-            class="select select-bordered w-full"
-          >
-            <option :value="undefined">None</option>
-            <option
-              v-for="controller in availableControllers"
-              :key="controller.id"
-              :value="controller.id"
+          <div class="flex gap-2">
+            <select
+              v-model="formData.controller_id"
+              class="select select-bordered flex-1"
             >
-              {{ controller.name }}
-            </option>
-          </select>
+              <option :value="undefined">None</option>
+              <option
+                v-for="controller in availableControllers"
+                :key="controller.id"
+                :value="controller.id"
+              >
+                {{ controller.name }}
+              </option>
+            </select>
+            <button
+              type="button"
+              class="btn btn-outline"
+              :class="fetchSuccess ? 'btn-success' : 'btn-primary'"
+              :disabled="!formData.controller_id || isFetchingDetails"
+              @click="fetchMinerDetails"
+              title="Fetch Miner Details"
+            >
+              <PhCheck v-if="fetchSuccess" :size="18" />
+              <PhDownloadSimple v-else :size="18" :class="{ 'animate-bounce': isFetchingDetails }" />
+            </button>
+          </div>
           <label class="label mt-1">
             <span class="label-text-alt text-base-content/50">
               Controllers manage remote start/stop operations
             </span>
           </label>
+          <div v-if="fetchError" class="alert alert-error alert-sm mt-2 py-2 text-sm">
+            <PhX :size="16" class="cursor-pointer shrink-0" @click="fetchError = null" />
+            <span>{{ fetchError }}</span>
+          </div>
         </div>
 
         <!-- Performance Settings -->
@@ -265,4 +341,19 @@ function handleSave() {
   </dialog>
 </template>
 
-<style scoped></style>
+<style scoped>
+.input-success {
+  animation: highlight-fade 3s ease-out;
+}
+
+@keyframes highlight-fade {
+  0%, 60% {
+    border-color: oklch(var(--su));
+    background-color: oklch(var(--su) / 0.05);
+  }
+  100% {
+    border-color: initial;
+    background-color: initial;
+  }
+}
+</style>
