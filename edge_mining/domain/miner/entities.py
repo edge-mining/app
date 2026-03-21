@@ -77,6 +77,12 @@ class Miner(Entity):
     def deactivate(self):
         """Deactivate the miner."""
         self.active = False
+
+        # Deactivate logic: reset status and properties
+        self.status = MinerStatus.UNKNOWN
+        self.hash_rate = None
+        self.power_consumption = None
+
         print(f"Domain: Miner {self.id} deactivated")
 
 
