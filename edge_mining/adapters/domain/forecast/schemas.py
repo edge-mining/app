@@ -17,6 +17,8 @@ from edge_mining.shared.adapter_configs.forecast import (
 )
 from edge_mining.shared.adapter_maps.forecast import FORECAST_PROVIDER_CONFIG_TYPE_MAP
 from edge_mining.shared.interfaces.config import ForecastProviderConfig
+from edge_mining.shared.timezone import get_timezone
+from edge_mining.shared.timezone import now as timezone_now
 
 
 class ForecastPowerPointSchema(BaseModel):
@@ -24,6 +26,14 @@ class ForecastPowerPointSchema(BaseModel):
 
     timestamp: datetime = Field(..., description="Timestamp for the power prediction")
     power: float = Field(..., ge=0, description="Predicted power output in Watts")
+
+    @field_validator("timestamp")
+    @classmethod
+    def ensure_aware_timestamp(cls, v: datetime) -> datetime:
+        """Ensure timestamp is timezone-aware."""
+        if v.tzinfo is None:
+            return v.replace(tzinfo=get_timezone())
+        return v
 
     @field_validator("power")
     @classmethod
@@ -59,6 +69,14 @@ class ForecastIntervalSchema(BaseModel):
     power_points: List[ForecastPowerPointSchema] = Field(
         default_factory=list, description="Power predictions within interval"
     )
+
+    @field_validator("start", "end")
+    @classmethod
+    def ensure_aware_timestamps(cls, v: datetime) -> datetime:
+        """Ensure timestamps are timezone-aware."""
+        if v.tzinfo is None:
+            return v.replace(tzinfo=get_timezone())
+        return v
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -122,33 +140,43 @@ class SunSchema(BaseModel):
     zenith: Optional[float] = Field(None, description="Sun zenith in degrees")
     elevation: Optional[float] = Field(None, description="Sun elevation in degrees")
 
+    @field_validator("dawn", "sunrise", "noon", "midnight", "sunset", "dusk")
+    @classmethod
+    def ensure_aware_timestamps(cls, v: datetime) -> datetime:
+        """Ensure timestamps are timezone-aware."""
+        if v.tzinfo is None:
+            return v.replace(tzinfo=get_timezone())
+        return v
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def time_before_sunrise(self) -> Optional[float]:
         """Returns the time remaining until sunrise in seconds."""
-        if self.sunrise < datetime.now():
+        now = timezone_now()
+        if self.sunrise < now:
             return None
-        return (self.sunrise - datetime.now()).total_seconds()
+        return (self.sunrise - now).total_seconds()
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def time_after_sunrise(self) -> float:
         """Returns the time elapsed since sunrise in seconds."""
-        return (datetime.now() - self.sunrise).total_seconds()
+        return (timezone_now() - self.sunrise).total_seconds()
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def time_before_sunset(self) -> Optional[float]:
         """Returns the time remaining until sunset in seconds."""
-        if self.sunset < datetime.now():
+        now = timezone_now()
+        if self.sunset < now:
             return None
-        return (self.sunset - datetime.now()).total_seconds()
+        return (self.sunset - now).total_seconds()
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def time_after_sunset(self) -> float:
         """Returns the time elapsed since sunset in seconds."""
-        return (datetime.now() - self.sunset).total_seconds()
+        return (timezone_now() - self.sunset).total_seconds()
 
     @classmethod
     def from_model(cls, sun: Sun) -> "SunSchema":
@@ -193,6 +221,14 @@ class ForecastSchema(BaseModel):
     timestamp: datetime = Field(..., description="When this forecast was generated or last updated")
     intervals: List[ForecastIntervalSchema] = Field(default_factory=list, description="Forecast intervals")
 
+    @field_validator("timestamp")
+    @classmethod
+    def ensure_aware_timestamp(cls, v: datetime) -> datetime:
+        """Ensure timestamp is timezone-aware."""
+        if v.tzinfo is None:
+            return v.replace(tzinfo=get_timezone())
+        return v
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def next_hour_power(self) -> Optional[float]:
@@ -204,7 +240,7 @@ class ForecastSchema(BaseModel):
         sorted_intervals = sorted(self.intervals, key=lambda i: i.start)
 
         # Find the first interval that starts in the next hour
-        next_hour_start = datetime.now() + timedelta(hours=1)
+        next_hour_start = timezone_now() + timedelta(hours=1)
 
         for interval in sorted_intervals:
             if interval.start <= next_hour_start < interval.end:
@@ -227,7 +263,7 @@ class ForecastSchema(BaseModel):
         count = 0
 
         # Calculate average power over the next 4 hours
-        now = datetime.now()
+        now = timezone_now()
         four_hours_later = now + timedelta(hours=4)
 
         for interval in sorted_intervals:
@@ -248,7 +284,7 @@ class ForecastSchema(BaseModel):
         if not self.intervals:
             return 0.0
 
-        now = datetime.now()
+        now = timezone_now()
         one_hour_later = now + timedelta(hours=1)
 
         total_energy = 0.0
