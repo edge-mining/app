@@ -31,7 +31,7 @@ const emit = defineEmits<{
 const policyStore = usePolicyStore();
 const minerStore = useMinerStore();
 const energySourceStore = useEnergySourceStore();
-const forecastProviderStore = useForecastProviderStore();
+//const forecastProviderStore = useForecastProviderStore();
 const notifierStore = useNotifierStore();
 
 // Local form state
@@ -216,23 +216,23 @@ function handleSave() {
             </select>
           </div>
 
-          <!-- Forecast Provider -->
+          <!-- Home Forecast Provider -->
           <div class="form-control">
             <label class="label mb-1">
               <span class="label-text flex items-center gap-2">
                 <PhChartLine :size="16" class="text-info" />
-                Forecast Provider
+                Home Forecast Provider
               </span>
             </label>
-            <select v-model="formData.home_forecast_provider_id" class="select select-bordered w-full">
-              <option :value="undefined">None</option>
-              <option
-                v-for="provider in forecastProviderStore.forecastProviders"
+            <select v-model="formData.home_forecast_provider_id" class="select select-bordered w-full" disabled>
+              <option :value="null">None</option>
+              <!-- <option
+                v-for="provider in homeForecastProviderStore.forecastProviders"
                 :key="provider.id"
                 :value="provider.id?.toString()"
               >
                 {{ provider.name }}
-              </option>
+              </option> -->
             </select>
           </div>
         </div>
