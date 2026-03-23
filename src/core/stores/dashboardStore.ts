@@ -1,5 +1,7 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
+import type { DecisionalContext } from "../models/policy";
+import type { ForecastPowerPoint } from "../models/forecast";
 
 export interface DashboardEvent {
   id: string;
@@ -27,18 +29,39 @@ const MAX_ONOFF_EVENTS = 100;
 export const useDashboardStore = defineStore("dashboard", () => {
   const hashRateSeries = ref<TimeSeriesPoint[]>([]);
   const powerSeries = ref<TimeSeriesPoint[]>([]);
+  const energyProductionSeries = ref<TimeSeriesPoint[]>([]);
+  const batterySOCSeries = ref<TimeSeriesPoint[]>([]);
+  const batteryPowerSeries = ref<TimeSeriesPoint[]>([]);
+  const gridPowerSeries = ref<TimeSeriesPoint[]>([]);
+  const consumptionSeries = ref<TimeSeriesPoint[]>([]);
   const events = ref<DashboardEvent[]>([]);
   const minerOnOffEvents = ref<MinerOnOffEvent[]>([]);
   const previousMinerStatuses = ref<Map<string, string>>(new Map());
+  const latestDecisionalContexts = ref<Map<string, DecisionalContext>>(new Map());
+  const forecastPowerPoints = ref<ForecastPowerPoint[]>([]);
   let eventCounter = 0;
 
+  type SeriesName = "hashRate" | "power" | "energyProduction" | "batterySOC" | "batteryPower" | "gridPower" | "consumption";
+
+  const seriesMap: Record<SeriesName, typeof hashRateSeries> = {
+    hashRate: hashRateSeries,
+    power: powerSeries,
+    energyProduction: energyProductionSeries,
+    batterySOC: batterySOCSeries,
+    batteryPower: batteryPowerSeries,
+    gridPower: gridPowerSeries,
+    consumption: consumptionSeries,
+  };
+
   function addSeriesPoint(
-    series: "hashRate" | "power",
+    series: SeriesName,
     point: TimeSeriesPoint
   ) {
-    const target =
-      series === "hashRate" ? hashRateSeries : powerSeries;
-    target.value = [...target.value, point].slice(-MAX_POINTS);
+    const target = seriesMap[series];
+    const existing = target.value;
+    // Skip duplicate timestamps to prevent all points collapsing at the same x position
+    if (existing.length > 0 && existing[existing.length - 1].time === point.time) return;
+    target.value = [...existing, point].slice(-MAX_POINTS);
   }
 
   function addEvent(event: Omit<DashboardEvent, "id">) {
@@ -59,9 +82,16 @@ export const useDashboardStore = defineStore("dashboard", () => {
   return {
     hashRateSeries,
     powerSeries,
+    energyProductionSeries,
+    batterySOCSeries,
+    batteryPowerSeries,
+    gridPowerSeries,
+    consumptionSeries,
     events,
     minerOnOffEvents,
     previousMinerStatuses,
+    latestDecisionalContexts,
+    forecastPowerPoints,
     addSeriesPoint,
     addEvent,
     addMinerOnOffEvent,

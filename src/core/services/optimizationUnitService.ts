@@ -1,5 +1,6 @@
 import { BaseService } from "./baseService";
 import type { OptimizationUnit, OptimizationUnitCreate, OptimizationUnitUpdate } from "../models/optimizationUnit";
+import type { DecisionalContext } from "../models/policy";
 
 export class OptimizationUnitService extends BaseService {
   // Basic CRUD operations
@@ -65,5 +66,10 @@ export class OptimizationUnitService extends BaseService {
 
   removeNotifier(unitId: string, notifierId: string): Promise<OptimizationUnit> {
     return this.delete<OptimizationUnit>(`/optimization-units/${unitId}/notifiers/${notifierId}`).getData();
+  }
+
+  // Decisional context
+  getDecisionalContext(unitId: string): Promise<DecisionalContext> {
+    return this.get<DecisionalContext>(`/optimization-units/${unitId}/decisional-context`).getData();
   }
 }

@@ -14,6 +14,10 @@ const props = withDefaults(
     formatValue?: (v: number) => string;
     minerEvents?: MinerOnOffEvent[];
     showMinerEvents?: boolean;
+    secondaryData?: TimeSeriesPoint[];
+    secondarySeriesName?: string;
+    secondaryLineColor?: string;
+    secondaryFormatValue?: (v: number) => string;
   }>(),
 
   {
@@ -22,16 +26,29 @@ const props = withDefaults(
     lineColor: "rgba(38, 198, 218, 1)",
     range: 10 * 60 * 1000,
     showMinerEvents: true,
+    secondarySeriesName: "Secondary",
+    secondaryLineColor: "rgba(129, 140, 248, 0.9)",
   }
 );
 
 
-const series = computed(() => [
-  {
-    name: props.seriesName,
-    data: props.data.map((p) => ({ x: p.time * 1000, y: p.value })),
-  },
-]);
+const hasSecondary = computed(() => !!props.secondaryData?.length);
+
+const series = computed(() => {
+  const result = [
+    {
+      name: props.seriesName,
+      data: props.data.map((p) => ({ x: p.time * 1000, y: p.value })),
+    },
+  ];
+  if (hasSecondary.value && props.secondaryData) {
+    result.push({
+      name: props.secondarySeriesName!,
+      data: props.secondaryData.map((p) => ({ x: p.time * 1000, y: p.value })),
+    });
+  }
+  return result;
+});
 
 const annotations = computed(() => {
   if (!props.showMinerEvents || !props.minerEvents?.length) return {};
@@ -57,7 +74,7 @@ const annotations = computed(() => {
 
 const chartOptions = computed(() => ({
   chart: {
-    id: props.seriesName?.replace(/\s+/g, '-').toLowerCase() || 'realtime-chart',
+    id: props.seriesName?.replace(/\s+/g, '-').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'realtime-chart',
     type: "line" as const,
     height: props.height,
     toolbar: { show: false },
@@ -79,7 +96,9 @@ const chartOptions = computed(() => ({
     width: 2,
   },
   fill: { opacity: 0 },
-  colors: [props.lineColor],
+  colors: hasSecondary.value
+    ? [props.lineColor, props.secondaryLineColor]
+    : [props.lineColor],
   grid: {
     borderColor: "rgba(255,255,255,0.04)",
     strokeDashArray: 3,
@@ -99,36 +118,76 @@ const chartOptions = computed(() => ({
     axisTicks: { show: false },
     tooltip: { enabled: false } // Disable x-axis tooltip (crosshair label) to cleaner look
   },
-  yaxis: {
-    labels: {
-      show: true,
-      style: { colors: "rgba(255,255,255,0.3)", fontSize: "10px" },
-      formatter: props.formatValue ?? ((v: number) => v.toFixed(1)),
-    },
-  },
+  yaxis: hasSecondary.value
+    ? [
+        {
+          labels: {
+            show: true,
+            style: { colors: "rgba(255,255,255,0.3)", fontSize: "10px" },
+            formatter: props.formatValue ?? ((v: number) => v.toFixed(1)),
+          },
+          title: { text: undefined },
+        },
+        {
+          opposite: true,
+          labels: {
+            show: true,
+            style: { colors: "rgba(255,255,255,0.3)", fontSize: "10px" },
+            formatter: props.secondaryFormatValue ?? ((v: number) => v.toFixed(1)),
+          },
+          title: { text: undefined },
+        },
+      ]
+    : {
+        labels: {
+          show: true,
+          style: { colors: "rgba(255,255,255,0.3)", fontSize: "10px" },
+          formatter: props.formatValue ?? ((v: number) => v.toFixed(1)),
+        },
+      },
   dataLabels: { enabled: false },
   tooltip: {
     enabled: true,
-    shared: false,
+    shared: true,
     intersect: false,
+    followCursor: true,
     theme: "dark" as const,
     x: { show: true, format: "HH:mm:ss" },
-    y: {
-      formatter: props.formatValue ?? ((v: number) => v.toFixed(1)),
-    },
+    y: hasSecondary.value
+      ? {
+          formatter: (v: number, opts: { seriesIndex: number }) => {
+            if (opts.seriesIndex === 1) {
+              return (props.secondaryFormatValue ?? ((val: number) => val.toFixed(1)))(v);
+            }
+            return (props.formatValue ?? ((val: number) => val.toFixed(1)))(v);
+          },
+        }
+      : {
+          formatter: props.formatValue ?? ((v: number) => v.toFixed(1)),
+        },
     marker: { show: true },
   },
 
 
 
   annotations: annotations.value,
-  legend: { show: false },
+  legend: {
+    show: hasSecondary.value,
+    position: 'top' as const,
+    horizontalAlign: 'right' as const,
+    fontSize: '10px',
+    labels: { colors: 'rgba(255,255,255,0.5)' },
+    markers: { size: 6, shape: 'circle' as const },
+    itemMargin: { horizontal: 8 },
+  },
   markers: {
-    size: 0, // No markers by default
-    colors: [props.lineColor],
+    size: 0,
+    colors: hasSecondary.value
+      ? [props.lineColor, props.secondaryLineColor]
+      : [props.lineColor],
     strokeColors: '#fff',
     strokeWidth: 1,
-    hover: { size: 4, sizeOffset: 2 }, // Visible on hover
+    hover: { size: 4, sizeOffset: 2 },
   },
 }));
 

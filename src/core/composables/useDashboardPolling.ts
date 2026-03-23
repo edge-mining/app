@@ -5,6 +5,9 @@ import { useEnergySourceStore } from "../stores/energySourceStore";
 import { usePolicyStore } from "../stores/policyStore";
 import { useDashboardStore } from "../stores/dashboardStore";
 import { normalizeHashRate } from "../utils/index";
+import { OptimizationUnitService } from "../services/optimizationUnitService";
+import type { DecisionalContext } from "../models/policy";
+import type { ForecastPowerPoint } from "../models/forecast";
 
 // Re-export types from the store for backward compatibility
 export type { DashboardEvent, TimeSeriesPoint, MinerOnOffEvent } from "../stores/dashboardStore";
@@ -15,6 +18,7 @@ export function useDashboardPolling(intervalMs = 5000) {
   const energySourceStore = useEnergySourceStore();
   const policyStore = usePolicyStore();
   const dashboardStore = useDashboardStore();
+  const ouService = new OptimizationUnitService();
 
   const lastUpdated = ref<Date>(new Date());
   const isPolling = ref(false);
@@ -22,8 +26,15 @@ export function useDashboardPolling(intervalMs = 5000) {
   // Computed refs that stay reactive to store changes
   const hashRateSeries = computed(() => dashboardStore.hashRateSeries);
   const powerSeries = computed(() => dashboardStore.powerSeries);
+  const energyProductionSeries = computed(() => dashboardStore.energyProductionSeries);
+  const batterySOCSeries = computed(() => dashboardStore.batterySOCSeries);
+  const batteryPowerSeries = computed(() => dashboardStore.batteryPowerSeries);
+  const gridPowerSeries = computed(() => dashboardStore.gridPowerSeries);
+  const consumptionSeries = computed(() => dashboardStore.consumptionSeries);
   const events = computed(() => dashboardStore.events);
   const minerOnOffEvents = computed(() => dashboardStore.minerOnOffEvents);
+  const latestDecisionalContexts = computed(() => dashboardStore.latestDecisionalContexts);
+  const forecastPowerPoints = computed(() => dashboardStore.forecastPowerPoints);
 
   let pollTimer: number | undefined;
 
@@ -96,10 +107,101 @@ export function useDashboardPolling(intervalMs = 5000) {
     dashboardStore.addSeriesPoint("power", { time: now, value: totalPower });
   }
 
+  async function fetchDecisionalContexts() {
+    const units = optimizationUnitStore.optimizationUnits.filter((u) => u.id);
+    if (units.length === 0) return;
+
+    const results = await Promise.allSettled(
+      units.map((u) => ouService.getDecisionalContext(u.id!))
+    );
+
+    const now = Math.floor(Date.now() / 1000);
+    let totalProduction = 0;
+    let totalConsumption = 0;
+    let batterySOCSum = 0;
+    let batteryPowerSum = 0;
+    let batteryCount = 0;
+    let totalGridPower = 0;
+    let hasEnergyData = false;
+    const allForecastPoints: ForecastPowerPoint[] = [];
+
+    for (let i = 0; i < results.length; i++) {
+      const result = results[i];
+      if (result.status !== "fulfilled") {
+        console.warn(
+          `[Dashboard] Failed to fetch decisional context for unit ${units[i].id}:`,
+          result.reason
+        );
+        continue;
+      }
+      const ctx: DecisionalContext = result.value;
+      const unitId = units[i].id!;
+      dashboardStore.latestDecisionalContexts.set(unitId, ctx);
+
+      if (ctx.energy_state) {
+        hasEnergyData = true;
+        totalProduction += ctx.energy_state.production ?? 0;
+
+        if (ctx.energy_state.consumption) {
+          totalConsumption += ctx.energy_state.consumption.current_power ?? 0;
+        }
+
+        if (ctx.energy_state.battery != null) {
+          batterySOCSum += ctx.energy_state.battery.state_of_charge ?? 0;
+          batteryPowerSum += ctx.energy_state.battery.current_power ?? 0;
+          batteryCount++;
+        }
+
+        if (ctx.energy_state.grid != null) {
+          totalGridPower += ctx.energy_state.grid.current_power ?? 0;
+        }
+      }
+
+      if (ctx.forecast?.intervals) {
+        for (const interval of ctx.forecast.intervals) {
+          if (interval.power_points?.length) {
+            allForecastPoints.push(...interval.power_points);
+          }
+        }
+      }
+    }
+
+    if (hasEnergyData) {
+      dashboardStore.addSeriesPoint("energyProduction", { time: now, value: totalProduction });
+      dashboardStore.addSeriesPoint("consumption", { time: now, value: totalConsumption });
+      dashboardStore.addSeriesPoint("gridPower", { time: now, value: totalGridPower });
+      if (batteryCount > 0) {
+        dashboardStore.addSeriesPoint("batterySOC", {
+          time: now,
+          value: batterySOCSum / batteryCount,
+        });
+        dashboardStore.addSeriesPoint("batteryPower", {
+          time: now,
+          value: batteryPowerSum / batteryCount,
+        });
+      }
+    }
+
+    // Deduplicate and sort forecast points by timestamp
+    if (allForecastPoints.length > 0) {
+      const seen = new Set<string>();
+      const unique = allForecastPoints.filter((p) => {
+        if (seen.has(p.timestamp)) return false;
+        seen.add(p.timestamp);
+        return true;
+      });
+      unique.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+      dashboardStore.forecastPowerPoints = unique;
+    }
+  }
+
   async function poll() {
     isPolling.value = true;
     try {
-      await refreshMinerStatuses();
+      await Promise.all([
+        refreshMinerStatuses(),
+        fetchDecisionalContexts(),
+      ]);
       detectMinerChanges();
       recordSnapshot();
       lastUpdated.value = new Date();
@@ -149,6 +251,13 @@ export function useDashboardPolling(intervalMs = 5000) {
     events,
     hashRateSeries,
     powerSeries,
+    energyProductionSeries,
+    batterySOCSeries,
+    batteryPowerSeries,
+    gridPowerSeries,
+    consumptionSeries,
     minerOnOffEvents,
+    latestDecisionalContexts,
+    forecastPowerPoints,
   };
 }
