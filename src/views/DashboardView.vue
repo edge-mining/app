@@ -19,6 +19,7 @@ import ChartPanel from "../components/dashboard/ChartPanel.vue";
 import RealtimeChart from "../components/dashboard/RealtimeChart.vue";
 import ActivityFeed from "../components/dashboard/ActivityFeed.vue";
 import SunCard from "../components/dashboard/SunCard.vue";
+import ForecastSummaryCard from "../components/dashboard/ForecastSummaryCard.vue";
 import {
   PhCpu,
   PhLightning,
@@ -144,44 +145,6 @@ const forecastSeries = computed(() => {
 });
 
 
-// Forecast summary: today, remaining today, tomorrow
-const forecastSummary = computed(() => {
-  const ctxs = latestDecisionalContexts.value;
-  let todayEnergy = 0;
-  let remainingToday = 0;
-  let tomorrowEnergy = 0;
-  let hasData = false;
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const dayAfter = new Date(tomorrow);
-  dayAfter.setDate(dayAfter.getDate() + 1);
-
-  for (const ctx of ctxs.values()) {
-    if (!ctx.forecast?.intervals) continue;
-    hasData = true;
-    for (const interval of ctx.forecast.intervals) {
-      const start = new Date(interval.start).getTime();
-      if (start >= today.getTime() && start < tomorrow.getTime()) {
-        todayEnergy += interval.energy ?? 0;
-        remainingToday += interval.energy_remaining ?? 0;
-      } else if (start >= tomorrow.getTime() && start < dayAfter.getTime()) {
-        tomorrowEnergy += interval.energy ?? 0;
-      }
-    }
-  }
-
-  return hasData ? { todayEnergy, remainingToday, tomorrowEnergy } : null;
-});
-
-function formatEnergy(wh: number): string {
-  if (wh <= 0) return '0 Wh';
-  if (wh >= 1000000) return `${(wh / 1000000).toFixed(1)} MWh`;
-  if (wh >= 1000) return `${(wh / 1000).toFixed(1)} kWh`;
-  return `${wh.toFixed(0)} Wh`;
-}
 </script>
 
 <template>
@@ -454,32 +417,10 @@ function formatEnergy(wh: number): string {
               />
             </ChartPanel>
             <!-- Forecast Summary Card -->
-            <div class="rounded-xl border border-base-300/20 bg-base-100/30 backdrop-blur-sm p-4">
-              <div class="flex items-center gap-2 mb-4">
-                <div class="w-7 h-7 rounded-lg bg-indigo-400/15 flex items-center justify-center">
-                  <PhChartLine :size="14" class="text-indigo-400" />
-                </div>
-                <span class="text-sm font-medium text-base-content/70">Forecast Summary</span>
-              </div>
-              <div v-if="forecastSummary" class="grid grid-cols-3 gap-2">
-                <div class="flex flex-col items-center gap-1 rounded-lg bg-base-content/5 p-3">
-                  <span class="text-base font-bold text-indigo-400 leading-tight">{{ formatEnergy(forecastSummary.todayEnergy) }}</span>
-                  <span class="text-[10px] text-base-content/40 uppercase tracking-wider mt-0.5">Today</span>
-                </div>
-                <div class="flex flex-col items-center gap-1 rounded-lg bg-base-content/5 p-3">
-                  <span class="text-base font-bold text-indigo-300 leading-tight">{{ formatEnergy(forecastSummary.remainingToday) }}</span>
-                  <span class="text-[10px] text-base-content/40 uppercase tracking-wider mt-0.5">Remaining</span>
-                </div>
-                <div class="flex flex-col items-center gap-1 rounded-lg bg-base-content/5 p-3">
-                  <span class="text-base font-bold text-indigo-400/70 leading-tight">{{ formatEnergy(forecastSummary.tomorrowEnergy) }}</span>
-                  <span class="text-[10px] text-base-content/40 uppercase tracking-wider mt-0.5">Tomorrow</span>
-                </div>
-              </div>
-              <div v-else class="flex flex-col items-center justify-center py-6 text-center">
-                <PhCloudSun :size="28" class="text-base-content/15 mb-2" />
-                <span class="text-sm text-base-content/30">No forecast data</span>
-              </div>
-            </div>
+            <ForecastSummaryCard
+              :latest-decisional-contexts="latestDecisionalContexts"
+              :forecast-power-points="forecastPowerPoints"
+            />
           </div>
         </div>
       </div>
