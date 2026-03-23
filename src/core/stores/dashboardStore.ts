@@ -59,8 +59,8 @@ export const useDashboardStore = defineStore("dashboard", () => {
   ) {
     const target = seriesMap[series];
     const existing = target.value;
-    // Skip duplicate timestamps to prevent all points collapsing at the same x position
-    if (existing.length > 0 && existing[existing.length - 1].time === point.time) return;
+    // Skip if any existing point already has this timestamp
+    if (existing.some((p) => p.time === point.time)) return;
     target.value = [...existing, point].slice(-MAX_POINTS);
   }
 

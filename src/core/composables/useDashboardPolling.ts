@@ -37,6 +37,7 @@ export function useDashboardPolling(intervalMs = 5000) {
   const forecastPowerPoints = computed(() => dashboardStore.forecastPowerPoints);
 
   let pollTimer: number | undefined;
+  let pollInProgress = false;
 
   function detectMinerChanges() {
     for (const miner of minerStore.miners) {
@@ -196,6 +197,8 @@ export function useDashboardPolling(intervalMs = 5000) {
   }
 
   async function poll() {
+    if (pollInProgress) return; // Prevent overlapping polls
+    pollInProgress = true;
     isPolling.value = true;
     try {
       await Promise.all([
@@ -209,6 +212,7 @@ export function useDashboardPolling(intervalMs = 5000) {
       console.warn("[Dashboard] polling error:", err);
     } finally {
       isPolling.value = false;
+      pollInProgress = false;
     }
   }
 
