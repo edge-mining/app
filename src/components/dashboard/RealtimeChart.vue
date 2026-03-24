@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import VueApexCharts from "vue3-apexcharts";
+import type { ApexFormatterOpts } from "apexcharts";
 import type { TimeSeriesPoint } from "../../core/composables/useDashboardPolling";
 import type { MinerOnOffEvent } from "../../core/stores/dashboardStore";
 
@@ -72,7 +73,15 @@ const annotations = computed(() => {
   };
 });
 
-const chartOptions = computed(() => ({
+const chartOptions = computed(() => {
+  // Access reactive data props so this computed re-evaluates when series change.
+  // This forces vue3-apexcharts to use updateOptions (full DOM cleanup) instead
+  // of updateSeries (fast path), preventing an ApexCharts 5.x bug where
+  // fastUpdate accumulates tooltip DOM elements without removing old ones.
+  void props.data;
+  void props.secondaryData;
+
+  return {
   chart: {
     id: props.seriesName?.replace(/\s+/g, '-').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'realtime-chart',
     type: "line" as const,
@@ -155,8 +164,8 @@ const chartOptions = computed(() => ({
     x: { show: true, format: "HH:mm:ss" },
     y: hasSecondary.value
       ? {
-          formatter: (v: number, opts: { seriesIndex: number }) => {
-            if (opts.seriesIndex === 1) {
+          formatter: (v: number, opts?: ApexFormatterOpts) => {
+            if (opts?.seriesIndex === 1) {
               return (props.secondaryFormatValue ?? ((val: number) => val.toFixed(1)))(v);
             }
             return (props.formatValue ?? ((val: number) => val.toFixed(1)))(v);
@@ -189,7 +198,8 @@ const chartOptions = computed(() => ({
     strokeWidth: 1,
     hover: { size: 4, sizeOffset: 2 },
   },
-}));
+};
+});
 
 </script>
 

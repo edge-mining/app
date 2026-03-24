@@ -11,7 +11,6 @@ const CHART_COLOR_SOLAR = 'rgba(250, 204, 21, 0.9)';     // yellow-400
 const CHART_COLOR_BATTERY = 'rgba(45, 212, 191, 0.9)';   // teal-400
 const CHART_COLOR_BATTERY_POWER = 'rgba(129, 140, 248, 0.9)'; // indigo-400
 const CHART_COLOR_GRID = 'rgba(56, 189, 248, 0.9)';      // sky-400
-const CHART_COLOR_FORECAST = 'rgba(129, 140, 248, 0.9)'; // indigo-400
 const CHART_COLOR_CONSUMPTION = 'rgba(251, 146, 60, 0.9)'; // orange-400
 import KpiCard from "../components/dashboard/KpiCard.vue";
 import MinerTile from "../components/dashboard/MinerTile.vue";
@@ -20,6 +19,8 @@ import RealtimeChart from "../components/dashboard/RealtimeChart.vue";
 import ActivityFeed from "../components/dashboard/ActivityFeed.vue";
 import SunCard from "../components/dashboard/SunCard.vue";
 import ForecastSummaryCard from "../components/dashboard/ForecastSummaryCard.vue";
+import ForecastChart from "../components/dashboard/ForecastChart.vue";
+import type { ForecastIntervalData } from "../components/dashboard/ForecastChart.vue";
 import {
   PhCpu,
   PhLightning,
@@ -95,23 +96,27 @@ const lastUpdateLabel = computed(() => {
 });
 
 function formatHashRateValue(v: number): string {
-  if (v <= 0) return "0 TH/s";
-  if (v >= 1000) return `${(v / 1000).toFixed(2)} PH/s`;
-  if (v >= 1) return `${v.toFixed(2)} TH/s`;
-  if (v >= 0.001) return `${(v * 1000).toFixed(2)} GH/s`;
-  return `${(v * 1000000).toFixed(2)} MH/s`;
+  if (v === 0) return "0";
+  const abs = Math.abs(v);
+  if (abs >= 1000) return `${(v / 1000).toFixed(1)} PH/s`;
+  if (abs >= 1) return `${v.toFixed(1)} TH/s`;
+  if (abs >= 0.001) return `${(v * 1000).toFixed(0)} GH/s`;
+  return `${(v * 1000000).toFixed(0)} MH/s`;
 }
 
 function formatPowerValue(v: number): string {
-  if (v <= 0) return "0 W";
-  if (v >= 1000000) return `${(v / 1000000).toFixed(2)} MW`;
-  if (v >= 1000) return `${(v / 1000).toFixed(2)} kW`;
-  return `${v.toFixed(0)} W`;
+  if (v === 0) return "0 W";
+  const abs = Math.abs(v);
+  const sign = v < 0 ? "-" : "";
+  if (abs >= 1000000) return `${sign}${(abs / 1000000).toFixed(1)} MW`;
+  if (abs >= 1000) return `${sign}${(abs / 1000).toFixed(1)} kW`;
+  return `${sign}${Math.round(abs)} W`;
 }
 
 function formatBatteryValue(v: number): string {
-  return `${v.toFixed(1)}%`;
+  return `${Math.round(v)}%`;
 }
+
 
 // Energy KPIs from latest decisional contexts
 const latestEnergyProduction = computed(() => {
@@ -134,14 +139,36 @@ const latestConsumption = computed(() => {
   return last.length > 0 ? last[last.length - 1].value : 0;
 });
 
-// Forecast chart data converted to TimeSeriesPoint format
-const forecastSeries = computed(() => {
-  return forecastPowerPoints.value
-    .filter((p) => p.power > 0 || forecastPowerPoints.value.indexOf(p) === 0 || forecastPowerPoints.value.indexOf(p) === forecastPowerPoints.value.length - 1)
-    .map((p) => ({
-      time: Math.floor(new Date(p.timestamp).getTime() / 1000),
-      value: p.power,
-    }));
+// Forecast chart data: energy (Wh) per interval + max power per interval
+// Uses raw intervals without aggregation
+const forecastIntervalData = computed<ForecastIntervalData[]>(() => {
+  const ctxs = latestDecisionalContexts.value;
+  if (!ctxs || ctxs.size === 0) return [];
+
+  const intervals: ForecastIntervalData[] = [];
+
+  for (const ctx of ctxs.values()) {
+    if (!ctx.forecast?.intervals) continue;
+    for (const interval of ctx.forecast.intervals) {
+      const startMs = new Date(interval.start).getTime();
+      const energy = interval.energy ?? 0;
+      const maxPower = interval.power_points?.length
+        ? Math.max(...interval.power_points.map((p) => p.power))
+        : 0;
+
+      intervals.push({ time: startMs, energy, maxPower });
+    }
+  }
+
+  // Deduplicate by time (multiple units may share same intervals)
+  const seen = new Set<number>();
+  return intervals
+    .filter((item) => {
+      if (seen.has(item.time)) return false;
+      seen.add(item.time);
+      return true;
+    })
+    .sort((a, b) => a.time - b.time);
 });
 
 
@@ -402,18 +429,13 @@ const forecastSeries = computed(() => {
               :icon="PhChartLine"
               icon-color="text-indigo-400"
               :chart-height="160"
-              :has-data="forecastSeries.length > 1"
+              :has-data="forecastIntervalData.length > 1"
               v-slot="{ expanded, expandedHeight }"
             >
-              <RealtimeChart
-                v-if="forecastSeries.length > 1"
-                :data="forecastSeries"
+              <ForecastChart
+                v-if="forecastIntervalData.length > 1"
+                :data="forecastIntervalData"
                 :height="expanded ? expandedHeight : 136"
-                class="w-full h-full"
-                series-name="Forecast"
-                :line-color="CHART_COLOR_FORECAST"
-                :format-value="formatPowerValue"
-                :range="24 * 60 * 60 * 1000"
               />
             </ChartPanel>
             <!-- Forecast Summary Card -->
