@@ -173,23 +173,6 @@ class OptimizationService(OptimizationServiceInterface):
                     "not found. Skipping forecast provider."
                 )
 
-        # --- Mining Performance Tracker ---
-        mining_performance_tracker: Optional[MiningPerformanceTrackerPort] = None
-        if optimization_unit.performance_tracker_id:
-            mining_performance_tracker = self.adapter_service.get_mining_performance_tracker(
-                optimization_unit.performance_tracker_id
-            )
-        # Mining performance tracker is optional, so log a warning if it's missing
-        # but continue
-        if not mining_performance_tracker:
-            if self.logger:
-                self.logger.warning(
-                    f"Mining performance tracker for optimization unit "
-                    f"'{optimization_unit.name}' "
-                    f"(Config ID: {optimization_unit.performance_tracker_id}) not found. "
-                    f"Skipping mining performance tracker."
-                )
-
         # --- Energy State ---
         if energy_monitor:
             try:
@@ -236,30 +219,15 @@ class OptimizationService(OptimizationServiceInterface):
                 )
 
         # --- Target Miners ---
-        # Process each target miner in this optimization unit
+        # Process only the first enabled miner in the optimization unit
         if not optimization_unit.target_miner_ids:
             if self.logger:
                 self.logger.info(f"No target miners configured for optimization unit '{optimization_unit.name}'.")
+        else:
+            miner_ids = optimization_unit.target_miner_ids
 
-        # --- Mining Performance Tracker ---
-        tracker_current_hashrate: Optional[HashRate] = None
-        if optimization_unit.target_miner_ids and mining_performance_tracker:
-            try:
-                # TODO: Provide parameters if needed
-                miner_ids = optimization_unit.target_miner_ids
-                tracker_current_hashrate = mining_performance_tracker.get_current_hashrate(miner_ids=miner_ids)
-            except Exception as e:
-                if self.logger:
-                    self.logger.warning(
-                        f"Error getting mining performance tracker "
-                        f"for optimization unit '{optimization_unit.name}': {e}"
-                    )
-                tracker_current_hashrate = None
-
-            # If the Optimization unit has only one miner, use it
             miner: Optional[Miner] = None
-            if len(miner_ids) == 1:
-                miner_id = miner_ids[0]
+            for miner_id in miner_ids:
                 # --- Miner ---
                 miner = self.miner_repo.get_by_id(miner_id)
                 if not miner:
@@ -267,34 +235,83 @@ class OptimizationService(OptimizationServiceInterface):
                         self.logger.error(
                             f"Miner {miner_id} in optimization unit '{optimization_unit.name}' not found in repository."
                         )
-                # --- Miner Controller ---
-                miner_controller: Optional[MinerControlPort] = None
-                if miner and miner.controller_id:
-                    miner_controller = self.adapter_service.get_miner_controller(miner)
-                    if not miner_controller:
-                        if self.logger:
-                            self.logger.error(
-                                f"Controller for miner {miner_id} "
-                                f"(Config ID: {miner.controller_id}) not found/initialized. "
-                                f"Using default."
-                            )
-                    if miner_controller:
-                        # Update miner status using controller
-                        current_status = miner_controller.get_miner_status()
-                        current_hashrate = miner_controller.get_miner_hashrate()
-                        current_power = miner_controller.get_miner_power()
+                    continue  # Try next miner if available
 
-                        # Update the domain model
-                        miner.update_status(
-                            new_status=current_status,
-                            hash_rate=current_hashrate,
-                            power=current_power,
+                if not miner.active:
+                    if self.logger:
+                        self.logger.warning(
+                            f"Miner {miner_id} in optimization unit '{optimization_unit.name}' is not active. Skipping miner."
                         )
+                    continue  # Try next miner if available
 
-                        # Update model if available and it has changed
-                        current_model = miner_controller.get_model()
-                        if current_model and miner.model != current_model:
-                            miner.model = current_model
+                if not miner.controller_id:
+                    if self.logger:
+                        self.logger.warning(
+                            f"Miner {miner_id} in optimization unit '{optimization_unit.name}' does not have a controller ID. Skipping miner."
+                        )
+                    continue  # Try next miner if available
+
+                # --- Miner Controller ---
+                miner_controller = self.adapter_service.get_miner_controller(miner)
+                if not miner_controller:
+                    if self.logger:
+                        self.logger.error(
+                            f"Controller for miner {miner_id} "
+                            f"(Config ID: {miner.controller_id}) not found/initialized. "
+                            f"Using default."
+                        )
+                    continue  # Try next miner if available
+
+                # Update miner status using controller
+                current_status = miner_controller.get_miner_status()
+                current_hashrate = miner_controller.get_miner_hashrate()
+                current_power = miner_controller.get_miner_power()
+
+                # Update the domain model
+                miner.update_status(
+                    new_status=current_status,
+                    hash_rate=current_hashrate,
+                    power=current_power,
+                )
+
+                # Update model if available and it has changed
+                current_model = miner_controller.get_model()
+                if current_model and miner.model != current_model:
+                    miner.model = current_model
+
+                break  # We found a valid miner and controller, we can stop looking for more miners
+
+        # --- Mining Performance Tracker ---
+        tracker_current_hashrate: Optional[HashRate] = None
+        mining_performance_tracker: Optional[MiningPerformanceTrackerPort] = None
+        if optimization_unit.performance_tracker_id:
+            mining_performance_tracker = self.adapter_service.get_mining_performance_tracker(
+                optimization_unit.performance_tracker_id
+            )
+        # Mining performance tracker is optional, so log a warning if it's missing
+        # but continue
+        if not mining_performance_tracker:
+            if self.logger:
+                self.logger.warning(
+                    f"Mining performance tracker for optimization unit "
+                    f"'{optimization_unit.name}' "
+                    f"(Config ID: {optimization_unit.performance_tracker_id}) not found. "
+                    f"Skipping mining performance tracker."
+                )
+        else:
+            # --- Mining Performance Tracker ---
+            if optimization_unit.target_miner_ids and mining_performance_tracker:
+                try:
+                    # TODO: Provide parameters if needed
+                    miner_ids = optimization_unit.target_miner_ids
+                    tracker_current_hashrate = mining_performance_tracker.get_current_hashrate(miner_ids=miner_ids)
+                except Exception as e:
+                    if self.logger:
+                        self.logger.warning(
+                            f"Error getting mining performance tracker "
+                            f"for optimization unit '{optimization_unit.name}': {e}"
+                        )
+                    tracker_current_hashrate = None
 
         # Creates the Sun object for the current date.
         sun: Sun = self.sun_factory.create_sun_for_date()

@@ -10,10 +10,11 @@ from edge_mining.adapters.domain.optimization_unit.schemas import (
     EnergyOptimizationUnitSchema,
     EnergyOptimizationUnitUpdateSchema,
 )
+from edge_mining.adapters.domain.policy.schemas import DecisionalContextSchema
 
 # Import dependency injection setup functions
-from edge_mining.adapters.infrastructure.api.setup import get_config_service
-from edge_mining.application.interfaces import ConfigurationServiceInterface
+from edge_mining.adapters.infrastructure.api.setup import get_config_service, get_optimization_service
+from edge_mining.application.interfaces import ConfigurationServiceInterface, OptimizationServiceInterface
 from edge_mining.domain.common import EntityId
 from edge_mining.domain.optimization_unit.aggregate_roots import EnergyOptimizationUnit
 from edge_mining.domain.optimization_unit.exceptions import (
@@ -414,5 +415,24 @@ async def remove_notifier(
         return response
     except OptimizationUnitNotFoundError as e:
         raise HTTPException(status_code=404, detail="Optimization Unit not found") from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/optimization-units/{unit_id}/decisional-context", response_model=DecisionalContextSchema)
+async def get_decisional_context(
+    unit_id: EntityId,
+    optimization_service: Annotated[OptimizationServiceInterface, Depends(get_optimization_service)],
+) -> DecisionalContextSchema:
+    """Get the current decisional context for an optimization unit."""
+    try:
+        context = optimization_service.get_decisional_context(unit_id)
+
+        if context is None:
+            raise OptimizationUnitNotFoundError(f"Optimization Unit with ID {unit_id} not found")
+
+        return DecisionalContextSchema.from_model(context)
+    except OptimizationUnitNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
