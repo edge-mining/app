@@ -14,14 +14,12 @@ import {
   PhPlugs,
   PhGear,
   PhLink,
-  PhCircle,
   PhActivity,
   PhChartLine,
   PhCpu,
   PhBell,
   PhHouse,
   PhWifiHigh,
-  PhCloud,
 } from "@phosphor-icons/vue";
 import ConfirmDialog from "../ConfirmDialog.vue";
 import EdgeMiningCard, { type CardStyleConfig } from "../EdgeMiningCard.vue";

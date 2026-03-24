@@ -4,15 +4,12 @@ import type { Miner } from "../../core/models/miner";
 import { useExternalServiceStore } from "../../core/stores/externalServiceStore";
 import { computed, ref } from "vue";
 import {
-  PhHash,
   PhPencil,
   PhTrash,
   PhGear,
   PhCpu,
   PhLink,
-  PhCircuitry,
   PhPlugs,
-  PhLego,
   PhHardDrive,
   PhPlug,
 } from "@phosphor-icons/vue";

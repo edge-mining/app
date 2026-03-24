@@ -4,7 +4,6 @@ import type { OptimizationUnit, OptimizationUnitCreate } from "../../core/models
 import { usePolicyStore } from "../../core/stores/policyStore";
 import { useMinerStore } from "../../core/stores/minerStore";
 import { useEnergySourceStore } from "../../core/stores/energySourceStore";
-import { useForecastProviderStore } from "../../core/stores/forecastProviderStore";
 import { useNotifierStore } from "../../core/stores/notifierStore";
 import {
   PhX,

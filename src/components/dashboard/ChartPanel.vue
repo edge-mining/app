@@ -3,7 +3,7 @@ import { ref, computed, type Component } from "vue";
 import { PhChartLine, PhArrowsOutSimple, PhArrowsInSimple, PhMapPin } from "@phosphor-icons/vue";
 import { useWindowSize } from "../../core/composables/useWindowSize";
 
-const props = withDefaults(
+withDefaults(
   defineProps<{
     title: string;
     icon?: Component;

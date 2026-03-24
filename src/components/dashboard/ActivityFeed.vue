@@ -7,7 +7,7 @@ import {
   PhShieldCheck,
 } from "@phosphor-icons/vue";
 
-const props = defineProps<{
+defineProps<{
   events: DashboardEvent[];
 }>();
 
