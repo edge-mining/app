@@ -192,7 +192,32 @@ git pull origin develop
 cd ..
 ```
 
-**Note:** After updating submodules, if you want to commit the new submodule references to the parent repository:
+
+## 7. Updating the Application Version
+
+After updating the `core` and `frontend` submodules (see above), **but before committing changes to the main `app` repository**, you need to update the `VERSION.json` file with the new application version. This file is served statically by Nginx and must be updated whenever there is a change involving the backend or frontend.
+
+**Procedure:**
+
+1. Update the `core` and `frontend` submodules as described above.
+2. Edit the `VERSION.json` file and enter the desired new version (for example, by incrementing the version number or adding a date/commit).
+3. Only after updating `VERSION.json`, commit the changes in the `app` repository.
+
+**Example of an update:**
+
+```bash
+# Edit VERSION.json (for example with nano or vim)
+nano VERSION.json
+# ... update the version ...
+git add core frontend VERSION.json
+git commit -m "Update core, frontend and VERSION.json"
+```
+
+**Note:** It is important to keep `VERSION.json` aligned with the actual state of backend and frontend for correct traceability of the distributed version.
+
+---
+
+**Note:** After updating the submodules, if you want to commit the new submodule references in the main repository:
 
 ```bash
 git add core frontend
