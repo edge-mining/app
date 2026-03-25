@@ -98,10 +98,10 @@ const lastUpdateLabel = computed(() => {
 function formatHashRateValue(v: number): string {
   if (v === 0) return "0";
   const abs = Math.abs(v);
-  if (abs >= 1000) return `${(v / 1000).toFixed(1)} PH/s`;
-  if (abs >= 1) return `${v.toFixed(1)} TH/s`;
-  if (abs >= 0.001) return `${(v * 1000).toFixed(0)} GH/s`;
-  return `${(v * 1000000).toFixed(0)} MH/s`;
+  if (abs >= 1000) return `${Math.round(v / 1000)} PH/s`;
+  if (abs >= 1) return `${Math.round(v)} TH/s`;
+  if (abs >= 0.001) return `${Math.round(v * 1000)} GH/s`;
+  return `${Math.round(v * 1000000)} MH/s`;
 }
 
 function formatPowerValue(v: number): string {

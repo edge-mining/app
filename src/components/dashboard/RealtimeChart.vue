@@ -130,28 +130,31 @@ const chartOptions = computed(() => {
   yaxis: hasSecondary.value
     ? [
         {
+          decimalsInFloat: 0,
           labels: {
             show: true,
             style: { colors: "rgba(255,255,255,0.3)", fontSize: "10px" },
-            formatter: props.formatValue ?? ((v: number) => v.toFixed(1)),
+            formatter: props.formatValue ?? ((v: number) => String(Math.round(v))),
           },
           title: { text: undefined },
         },
         {
           opposite: true,
+          decimalsInFloat: 0,
           labels: {
             show: true,
             style: { colors: "rgba(255,255,255,0.3)", fontSize: "10px" },
-            formatter: props.secondaryFormatValue ?? ((v: number) => v.toFixed(1)),
+            formatter: props.secondaryFormatValue ?? ((v: number) => String(Math.round(v))),
           },
           title: { text: undefined },
         },
       ]
     : {
+        decimalsInFloat: 0,
         labels: {
           show: true,
           style: { colors: "rgba(255,255,255,0.3)", fontSize: "10px" },
-          formatter: props.formatValue ?? ((v: number) => v.toFixed(1)),
+          formatter: props.formatValue ?? ((v: number) => String(Math.round(v))),
         },
       },
   dataLabels: { enabled: false },
@@ -166,13 +169,13 @@ const chartOptions = computed(() => {
       ? {
           formatter: (v: number, opts?: ApexFormatterOpts) => {
             if (opts?.seriesIndex === 1) {
-              return (props.secondaryFormatValue ?? ((val: number) => val.toFixed(1)))(v);
+              return (props.secondaryFormatValue ?? ((val: number) => String(Math.round(val))))(v);
             }
-            return (props.formatValue ?? ((val: number) => val.toFixed(1)))(v);
+            return (props.formatValue ?? ((val: number) => String(Math.round(val))))(v);
           },
         }
       : {
-          formatter: props.formatValue ?? ((v: number) => v.toFixed(1)),
+          formatter: props.formatValue ?? ((v: number) => String(Math.round(v))),
         },
     marker: { show: true },
   },
