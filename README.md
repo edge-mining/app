@@ -115,14 +115,16 @@ docker compose exec edge-mining python -m edge_mining cli --help
 
 ## 3. Configuration & Data
 
-User-specific data lives in the `user_data/` folder:
+User-specific data lives in the `user_data/` folder of the this application folder. This is where you can place your own configuration files, policies, and where the backend will store its database.:
 
-- `user_data/optimization_policies/` – example optimization policy YAML files
-- `user_data/edgemining.db` – SQLite database file used by the backend
+- `user_data/policies/` – optimization policy YAML files (automatically copied from `core/data/policies/` on first run if missing)
+- `user_data/examples/` – example rules files (copied from `core/data/examples/` on first run)
+- `user_data/db/edgemining.db` – SQLite database file used by the backend
 
 On first run you can:
-- Copy or adjust example policies from `optimization_policies/` into `user_data/optimization_policies/`
-- Let the backend create `user_data/edgemining.db` automatically, or pre-populate it if you know what you are doing
+- Copy or adjust default policies from `core/data/policies/` into `user_data/policies/`
+- Copy example rules files from `core/data/examples/` into `user_data/examples/` if you want to use them as templates
+- Let the backend create `user_data/db/edgemining.db` automatically, or pre-populate it if you know what you are doing
 
 ### 3.1 Initialize user data (recommended)
 
@@ -136,8 +138,9 @@ If you prefer to manage things yourself, you can still run the helper script dir
 
 This script:
 - Creates the `user_data/` structure if missing
-- Copies example optimization policies into `user_data/optimization_policies/`
-- Ensures a `user_data/edgemining.db` file exists (copying one from `core/` if present, or creating an empty file otherwise)
+- Copies example optimization policies into `user_data/policies/`
+- Copies example rules files into `user_data/examples/`
+- Ensures a `user_data/db/edgemining.db` file exists (copying one from `core/` if present, or creating an empty file otherwise)
 
 You may want to re-run it if you intentionally delete the `user_data/` folder and want to restore the default structure.
 

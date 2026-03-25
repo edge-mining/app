@@ -2,28 +2,38 @@
 set -e
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CORE_DIR="$ROOT_DIR/core"
-USER_DATA_DIR="$ROOT_DIR/user_data"
+APP_CORE_DIR="$ROOT_DIR/core"
+APP_CORE_DATA_DIR="$APP_CORE_DIR/data"
+APP_USER_DATA_DIR="$ROOT_DIR/user_data"
 
-mkdir -p "$USER_DATA_DIR"
-mkdir -p "$USER_DATA_DIR/optimization_policies"
+mkdir -p "$APP_USER_DATA_DIR"
+mkdir -p "$APP_USER_DATA_DIR/policies"
+mkdir -p "$APP_USER_DATA_DIR/examples"
+mkdir -p "$APP_USER_DATA_DIR/db"
 
-# Copy optimization_policies only if missing
-if [ -d "$CORE_DIR/optimization_policies" ]; then
-  if [ ! -d "$USER_DATA_DIR/optimization_policies" ] || [ -z "$(ls -A "$USER_DATA_DIR/optimization_policies" 2>/dev/null)" ]; then
-    cp -r "$CORE_DIR/optimization_policies/"* "$USER_DATA_DIR/optimization_policies"/ || true
+# Copy policies only if missing
+if [ -d "$APP_CORE_DATA_DIR/policies" ]; then
+  if [ ! -d "$APP_USER_DATA_DIR/policies" ] || [ -z "$(ls -A "$APP_USER_DATA_DIR/policies" 2>/dev/null)" ]; then
+    cp -r "$APP_CORE_DATA_DIR/policies/"* "$APP_USER_DATA_DIR/policies"/ || true
+  fi
+fi
+
+# Copy examples only if missing
+if [ -d "$APP_CORE_DATA_DIR/examples" ]; then
+  if [ ! -d "$APP_USER_DATA_DIR/examples" ] || [ -z "$(ls -A "$APP_USER_DATA_DIR/examples" 2>/dev/null)" ]; then
+    cp -r "$APP_CORE_DATA_DIR/examples/"* "$APP_USER_DATA_DIR/examples"/ || true
   fi
 fi
 
 # Handle edgemining.db
 # If a pre-existing database exists under core/, copy it once.
 # Otherwise, create an empty file in user_data so the app can initialize it.
-if [ -f "$CORE_DIR/edgemining.db" ]; then
-  if [ ! -f "$USER_DATA_DIR/edgemining.db" ]; then
-    cp "$CORE_DIR/edgemining.db" "$USER_DATA_DIR/edgemining.db"
+if [ -f "$APP_CORE_DATA_DIR/db/edgemining.db" ]; then
+  if [ ! -f "$APP_USER_DATA_DIR/db/edgemining.db" ]; then
+    cp "$APP_CORE_DATA_DIR/db/edgemining.db" "$APP_USER_DATA_DIR/db/edgemining.db"
   fi
 else
-  if [ ! -f "$USER_DATA_DIR/edgemining.db" ]; then
-    touch "$USER_DATA_DIR/edgemining.db"
+  if [ ! -f "$APP_USER_DATA_DIR/db/edgemining.db" ]; then
+    touch "$APP_USER_DATA_DIR/db/edgemining.db"
   fi
 fi
