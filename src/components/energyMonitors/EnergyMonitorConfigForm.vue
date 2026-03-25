@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, watch, computed } from "vue";
 import type {
 	ConfigSchema,
 	EnergyMonitorConfig,
 } from "../../core/models/energyMonitor";
 import { EnergyMonitorService } from "../../core/services/energyMonitorService";
+import { EnergyMonitorAdapter } from "../../core/models/energyMonitor";
 import { PhEye, PhEyeSlash } from "@phosphor-icons/vue";
 
 const props = defineProps<{
@@ -168,6 +169,59 @@ const togglePasswordVisibility = (fieldKey: string) => {
 const isPasswordField = (fieldName: string): boolean => {
 	return String(fieldName).toLowerCase().includes('password');
 };
+
+// Check if field is an entity field
+const isEntityField = (fieldName: string): boolean => {
+	return String(fieldName).toLowerCase().includes('entity');
+};
+
+// Check if current adapter is Home Assistant
+const isHomeAssistantAdapter = computed(() => {
+	return props.adapterType === EnergyMonitorAdapter.HOME_ASSISTANT_API
+		|| props.adapterType === EnergyMonitorAdapter.HOME_ASSISTANT_MQTT;
+});
+
+const SENSOR_PREFIX = 'sensor.';
+
+// Check if field should show sensor prefix
+const isSensorEntityField = (fieldName: string): boolean => {
+	return isHomeAssistantAdapter.value && isEntityField(fieldName);
+};
+
+// Get display value without sensor. prefix
+const getEntityDisplayValue = (fieldName: string): string => {
+	const val = config.value[fieldName] ?? '';
+	return String(val).startsWith(SENSOR_PREFIX) ? String(val).slice(SENSOR_PREFIX.length) : String(val);
+};
+
+// Set value with sensor. prefix
+const setEntityValue = (fieldName: string, displayValue: string) => {
+	config.value[fieldName] = displayValue ? SENSOR_PREFIX + displayValue : '';
+};
+
+// Get nested entity display value
+const getNestedEntityDisplayValue = (parentKey: string, nestedKey: string): string => {
+	const val = config.value[parentKey]?.[nestedKey] ?? '';
+	return String(val).startsWith(SENSOR_PREFIX) ? String(val).slice(SENSOR_PREFIX.length) : String(val);
+};
+
+// Set nested entity value
+const setNestedEntityValue = (parentKey: string, nestedKey: string, displayValue: string) => {
+	if (config.value[parentKey]) {
+		config.value[parentKey][nestedKey] = displayValue ? SENSOR_PREFIX + displayValue : '';
+	}
+};
+
+// Input event handlers for entity fields (avoids 'as' in template)
+const onEntityInput = (fieldName: string, event: Event) => {
+	const input = event.target as HTMLInputElement;
+	setEntityValue(fieldName, input.value);
+};
+
+const onNestedEntityInput = (parentKey: string, nestedKey: string, event: Event) => {
+	const input = event.target as HTMLInputElement;
+	setNestedEntityValue(parentKey, nestedKey, input.value);
+};
 </script>
 
 <template>
@@ -220,9 +274,24 @@ const isPasswordField = (fieldName: string): boolean => {
 						{{ nestedProp.title || formatFieldName(String(nestedKey)) }}
 					</div>
           
+					<!-- Nested string with sensor. prefix for HA entity fields -->
+					<div
+						v-if="nestedProp.type === 'string' && isSensorEntityField(String(nestedKey))"
+						class="join w-full"
+					>
+						<span class="join-item flex items-center px-2 bg-base-200 border border-base-300 text-xs opacity-70 select-none">sensor.</span>
+						<input
+							:value="getNestedEntityDisplayValue(String(fieldName), String(nestedKey))"
+							@input="onNestedEntityInput(String(fieldName), String(nestedKey), $event)"
+							type="text"
+							:placeholder="'entity_id'"
+							class="input input-bordered input-xs join-item flex-1"
+						/>
+					</div>
+
 					<!-- Nested string -->
 					<div
-						v-if="nestedProp.type === 'string'"
+						v-else-if="nestedProp.type === 'string'"
 						class="relative"
 					>
 						<input
@@ -261,6 +330,22 @@ const isPasswordField = (fieldName: string): boolean => {
 						{{ nestedProp.description }}
 					</div>
 				</div>
+			</div>
+
+			<!-- String input with sensor. prefix for HA entity fields -->
+			<div 
+				v-else-if="getFieldType(property, schema) === 'string' && isSensorEntityField(String(fieldName))"
+				class="join w-full"
+			>
+				<span class="join-item flex items-center px-3 bg-base-200 border border-base-300 text-sm opacity-70 select-none">sensor.</span>
+				<input
+					:value="getEntityDisplayValue(String(fieldName))"
+					@input="onEntityInput(String(fieldName), $event)"
+					type="text"
+					:placeholder="'entity_id'"
+					:required="isRequired(String(fieldName))"
+					class="input input-bordered input-sm join-item flex-1"
+				/>
 			</div>
 
 			<!-- String input -->
