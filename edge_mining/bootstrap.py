@@ -124,6 +124,11 @@ def configure_persistence(logger: LoggerPort, settings: AppSettings) -> Persiste
         policies_persistence_adapter,
     ]:
         db_url = settings.db_path
+        if db_url.startswith("sqlite:///"):
+            db_dir = os.path.dirname(db_url.replace("sqlite:///", ""))
+            if db_dir and not os.path.exists(db_dir):
+                logger.debug(f"Creating database directory: {db_dir}")
+                os.makedirs(db_dir, exist_ok=True)
 
         logger.debug(f"Using SQLAlchemy persistence adapter (DB URL: {db_url}).")
         sqlalchemy_db = BaseSQLAlchemyRepository(
