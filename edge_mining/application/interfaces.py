@@ -151,7 +151,7 @@ class ConfigurationServiceInterface(ABC):
 
     # --- Miner Management ---
     @abstractmethod
-    def add_miner(
+    async def add_miner(
         self,
         name: str,
         model: Optional[str] = None,
@@ -172,11 +172,11 @@ class ConfigurationServiceInterface(ABC):
         """List all miners in the system."""
 
     @abstractmethod
-    def remove_miner(self, miner_id: EntityId) -> Miner:
+    async def remove_miner(self, miner_id: EntityId) -> Miner:
         """Remove a miner from the system."""
 
     @abstractmethod
-    def update_miner(
+    async def update_miner(
         self,
         miner_id: EntityId,
         name: str,
@@ -189,11 +189,11 @@ class ConfigurationServiceInterface(ABC):
         """Update a miner in the system."""
 
     @abstractmethod
-    def activate_miner(self, miner_id: EntityId) -> Miner:
+    async def activate_miner(self, miner_id: EntityId) -> Miner:
         """Activate a miner in the system."""
 
     @abstractmethod
-    def deactivate_miner(self, miner_id: EntityId) -> Miner:
+    async def deactivate_miner(self, miner_id: EntityId) -> Miner:
         """Deactivate a miner in the system."""
 
     @abstractmethod
@@ -205,7 +205,7 @@ class ConfigurationServiceInterface(ABC):
         """Check if a miner is valid and can be used."""
 
     @abstractmethod
-    def add_miner_controller(
+    async def add_miner_controller(
         self,
         name: str,
         adapter: MinerControllerAdapter,
@@ -223,15 +223,15 @@ class ConfigurationServiceInterface(ABC):
         """List all miner controllers in the system."""
 
     @abstractmethod
-    def unlink_miner_controller(self, miner_controller_id: EntityId) -> None:
+    async def unlink_miner_controller(self, miner_controller_id: EntityId) -> None:
         """Unlink a miner controller from all miners."""
 
     @abstractmethod
-    def remove_miner_controller(self, controller_id: EntityId) -> MinerController:
+    async def remove_miner_controller(self, controller_id: EntityId) -> MinerController:
         """Remove a miner controller from the system."""
 
     @abstractmethod
-    def update_miner_controller(
+    async def update_miner_controller(
         self,
         controller_id: EntityId,
         name: str,
@@ -245,7 +245,7 @@ class ConfigurationServiceInterface(ABC):
         """
 
     @abstractmethod
-    def set_miner_controller(self, controller_id: EntityId, miner_id: EntityId) -> None:
+    async def set_miner_controller(self, controller_id: EntityId, miner_id: EntityId) -> None:
         """Set a miner controller to a miner."""
 
     @abstractmethod
@@ -266,7 +266,7 @@ class ConfigurationServiceInterface(ABC):
 
     # --- Notifier Management ---
     @abstractmethod
-    def add_notifier(
+    async def add_notifier(
         self,
         name: str,
         adapter_type: NotificationAdapter,
@@ -284,11 +284,11 @@ class ConfigurationServiceInterface(ABC):
         """List all notifiers in the system."""
 
     @abstractmethod
-    def remove_notifier(self, notifier_id: EntityId) -> Notifier:
+    async def remove_notifier(self, notifier_id: EntityId) -> Notifier:
         """Remove a notifier from the system."""
 
     @abstractmethod
-    def update_notifier(
+    async def update_notifier(
         self,
         notifier_id: EntityId,
         name: str,
@@ -313,7 +313,7 @@ class ConfigurationServiceInterface(ABC):
 
     # --- Policy Management ---
     @abstractmethod
-    def create_policy(self, name: str, description: str = "") -> OptimizationPolicy:
+    async def create_policy(self, name: str, description: str = "") -> OptimizationPolicy:
         """Create a new policy."""
 
     @abstractmethod
@@ -325,7 +325,7 @@ class ConfigurationServiceInterface(ABC):
         """List all policies in the system."""
 
     @abstractmethod
-    def add_rule_to_policy(
+    async def add_rule_to_policy(
         self,
         policy_id: EntityId,
         rule_type: RuleType,
@@ -345,7 +345,7 @@ class ConfigurationServiceInterface(ABC):
         """Get a rule by its ID."""
 
     @abstractmethod
-    def update_policy_rule(
+    async def update_policy_rule(
         self,
         policy_id: EntityId,
         rule_id: EntityId,
@@ -358,19 +358,19 @@ class ConfigurationServiceInterface(ABC):
         """Update a rule in a policy."""
 
     @abstractmethod
-    def delete_policy_rule(self, policy_id: EntityId, rule_id: EntityId) -> AutomationRule:
+    async def delete_policy_rule(self, policy_id: EntityId, rule_id: EntityId) -> AutomationRule:
         """Delete a rule from a policy."""
 
     @abstractmethod
-    def enable_policy_rule(self, policy_id: EntityId, rule_id: EntityId) -> AutomationRule:
+    async def enable_policy_rule(self, policy_id: EntityId, rule_id: EntityId) -> AutomationRule:
         """Set a rule as enabled."""
 
     @abstractmethod
-    def disable_policy_rule(self, policy_id: EntityId, rule_id: EntityId) -> AutomationRule:
+    async def disable_policy_rule(self, policy_id: EntityId, rule_id: EntityId) -> AutomationRule:
         """Set a rule as disabled."""
 
     @abstractmethod
-    def delete_policy(self, policy_id: EntityId) -> Optional[OptimizationPolicy]:
+    async def delete_policy(self, policy_id: EntityId) -> Optional[OptimizationPolicy]:
         """Delete a policy from the system."""
 
     @abstractmethod
@@ -378,7 +378,7 @@ class ConfigurationServiceInterface(ABC):
         """Check if a policy is valid and can be used."""
 
     @abstractmethod
-    def update_policy(
+    async def update_policy(
         self,
         policy_id: EntityId,
         name: str,
@@ -387,7 +387,7 @@ class ConfigurationServiceInterface(ABC):
         """Update a policy in the system."""
 
     @abstractmethod
-    def sort_policy_rules(self, policy_id: EntityId) -> None:
+    async def sort_policy_rules(self, policy_id: EntityId) -> None:
         """Sort the rules of a policy by priority."""
 
     @abstractmethod
@@ -404,7 +404,7 @@ class ConfigurationServiceInterface(ABC):
 
     # --- Optimization Unit Management ---
     @abstractmethod
-    def create_optimization_unit(
+    async def create_optimization_unit(
         self,
         name: str,
         description: Optional[str] = None,
@@ -439,11 +439,11 @@ class ConfigurationServiceInterface(ABC):
         """Filter optimization units based on various criteria."""
 
     @abstractmethod
-    def remove_optimization_unit(self, unit_id: EntityId) -> EnergyOptimizationUnit:
+    async def remove_optimization_unit(self, unit_id: EntityId) -> EnergyOptimizationUnit:
         """Remove an optimization unit from the system."""
 
     @abstractmethod
-    def update_optimization_unit(
+    async def update_optimization_unit(
         self,
         unit_id: EntityId,
         name: str,
@@ -459,61 +459,67 @@ class ConfigurationServiceInterface(ABC):
         """Update an optimization unit in the system."""
 
     @abstractmethod
-    def activate_optimization_unit(self, unit_id: EntityId) -> EnergyOptimizationUnit:
+    async def activate_optimization_unit(self, unit_id: EntityId) -> EnergyOptimizationUnit:
         """Activate an optimization unit in the system."""
 
     @abstractmethod
-    def deactivate_optimization_unit(self, unit_id: EntityId) -> EnergyOptimizationUnit:
+    async def deactivate_optimization_unit(self, unit_id: EntityId) -> EnergyOptimizationUnit:
         """Deactivate an optimization unit in the system."""
 
     @abstractmethod
-    def assign_miners_to_optimization_unit(
+    async def assign_miners_to_optimization_unit(
         self, unit_id: EntityId, miner_ids: List[EntityId]
     ) -> EnergyOptimizationUnit:
         """Assign target miners to an optimization unit."""
 
     @abstractmethod
-    def add_miner_to_optimization_unit(self, unit_id: EntityId, miner_id: EntityId) -> EnergyOptimizationUnit:
+    async def add_miner_to_optimization_unit(self, unit_id: EntityId, miner_id: EntityId) -> EnergyOptimizationUnit:
         """Add a miner to an optimization unit."""
 
     @abstractmethod
-    def remove_miner_from_optimization_unit(self, unit_id: EntityId, miner_id: EntityId) -> EnergyOptimizationUnit:
+    async def remove_miner_from_optimization_unit(
+        self, unit_id: EntityId, miner_id: EntityId
+    ) -> EnergyOptimizationUnit:
         """Remove a miner from an optimization unit."""
 
     @abstractmethod
-    def assign_policy_to_optimization_unit(self, unit_id: EntityId, policy_id: EntityId) -> EnergyOptimizationUnit:
+    async def assign_policy_to_optimization_unit(
+        self, unit_id: EntityId, policy_id: EntityId
+    ) -> EnergyOptimizationUnit:
         """Assign a policy to an optimization unit."""
 
     @abstractmethod
-    def assign_energy_source_to_optimization_unit(
+    async def assign_energy_source_to_optimization_unit(
         self, unit_id: EntityId, energy_source_id: EntityId
     ) -> EnergyOptimizationUnit:
         """Assign an energy source to an optimization unit."""
 
     @abstractmethod
-    def assign_home_forecast_provider_to_optimization_unit(
+    async def assign_home_forecast_provider_to_optimization_unit(
         self, unit_id: EntityId, home_forecast_provider_id: EntityId
     ) -> EnergyOptimizationUnit:
         """Assign a home forecast provider to an optimization unit."""
 
     @abstractmethod
-    def assign_performance_tracker_to_optimization_unit(
+    async def assign_performance_tracker_to_optimization_unit(
         self, unit_id: EntityId, performance_tracker_id: EntityId
     ) -> EnergyOptimizationUnit:
         """Assign a performance tracker to an optimization unit."""
 
     @abstractmethod
-    def assign_notifiers_to_optimization_unit(
+    async def assign_notifiers_to_optimization_unit(
         self, unit_id: EntityId, notifier_ids: List[EntityId]
     ) -> EnergyOptimizationUnit:
         """Assign notifiers to an optimization unit."""
 
     @abstractmethod
-    def add_notifier_to_optimization_unit(self, unit_id: EntityId, notifier_id: EntityId) -> EnergyOptimizationUnit:
+    async def add_notifier_to_optimization_unit(
+        self, unit_id: EntityId, notifier_id: EntityId
+    ) -> EnergyOptimizationUnit:
         """Add a notifier to an optimization unit."""
 
     @abstractmethod
-    def remove_notifier_from_optimization_unit(
+    async def remove_notifier_from_optimization_unit(
         self, unit_id: EntityId, notifier_id: EntityId
     ) -> EnergyOptimizationUnit:
         """Remove a notifier from an optimization unit."""
@@ -524,7 +530,7 @@ class ConfigurationServiceInterface(ABC):
 
     # --- External Service Management ---
     @abstractmethod
-    def create_external_service(
+    async def create_external_service(
         self,
         name: str,
         adapter_type: ExternalServiceAdapter,
@@ -545,15 +551,15 @@ class ConfigurationServiceInterface(ABC):
         """Get entities associated with this external service"""
 
     @abstractmethod
-    def unlink_external_service(self, service_id: EntityId) -> None:
+    async def unlink_external_service(self, service_id: EntityId) -> None:
         """Remove the association of an external service from all entities."""
 
     @abstractmethod
-    def remove_external_service(self, service_id: EntityId) -> ExternalService:
+    async def remove_external_service(self, service_id: EntityId) -> ExternalService:
         """Remove an external service from the system."""
 
     @abstractmethod
-    def update_external_service(
+    async def update_external_service(
         self,
         service_id: EntityId,
         name: str,
@@ -576,7 +582,7 @@ class ConfigurationServiceInterface(ABC):
 
     # --- Energy Source Management ---
     @abstractmethod
-    def create_energy_source(
+    async def create_energy_source(
         self,
         name: str,
         source_type: EnergySourceType,
@@ -598,11 +604,11 @@ class ConfigurationServiceInterface(ABC):
         """List all energy sources in the system."""
 
     @abstractmethod
-    def remove_energy_source(self, source_id: EntityId) -> EnergySource:
+    async def remove_energy_source(self, source_id: EntityId) -> EnergySource:
         """Remove an energy source from the system."""
 
     @abstractmethod
-    def update_energy_source(
+    async def update_energy_source(
         self,
         source_id: EntityId,
         name: str,
@@ -621,7 +627,7 @@ class ConfigurationServiceInterface(ABC):
         """Check if an energy source is valid and can be used."""
 
     @abstractmethod
-    def create_energy_monitor(
+    async def create_energy_monitor(
         self,
         name: str,
         adapter_type: EnergyMonitorAdapter,
@@ -639,15 +645,15 @@ class ConfigurationServiceInterface(ABC):
         """List all energy monitors in the system."""
 
     @abstractmethod
-    def unlink_energy_monitor(self, monitor_id: EntityId) -> None:
+    async def unlink_energy_monitor(self, monitor_id: EntityId) -> None:
         """Unlink an energy monitor from all associated energy sources."""
 
     @abstractmethod
-    def remove_energy_monitor(self, monitor_id: EntityId) -> EnergyMonitor:
+    async def remove_energy_monitor(self, monitor_id: EntityId) -> EnergyMonitor:
         """Remove an energy monitor from the system."""
 
     @abstractmethod
-    def update_energy_monitor(
+    async def update_energy_monitor(
         self,
         monitor_id: EntityId,
         name: str,
@@ -657,13 +663,13 @@ class ConfigurationServiceInterface(ABC):
         """Update an energy monitor in the system."""
 
     @abstractmethod
-    def set_energy_monitor_to_energy_source(
+    async def set_energy_monitor_to_energy_source(
         self, energy_source_id: EntityId, energy_monitor_id: EntityId
     ) -> EnergySource:
         """Set an energy monitor to an energy source."""
 
     @abstractmethod
-    def set_forecast_provider_to_energy_source(
+    async def set_forecast_provider_to_energy_source(
         self, energy_source_id: EntityId, forecast_provider_id: EntityId
     ) -> EnergySource:
         """Set a forecast provider to an energy source."""
@@ -694,7 +700,7 @@ class ConfigurationServiceInterface(ABC):
 
     # --- Forecast Provider Management ---
     @abstractmethod
-    def create_forecast_provider(
+    async def create_forecast_provider(
         self,
         name: str,
         adapter_type: ForecastProviderAdapter,
@@ -712,11 +718,11 @@ class ConfigurationServiceInterface(ABC):
         """List all forecast providers in the system."""
 
     @abstractmethod
-    def remove_forecast_provider(self, provider_id: EntityId) -> ForecastProvider:
+    async def remove_forecast_provider(self, provider_id: EntityId) -> ForecastProvider:
         """Remove a forecast provider from the system."""
 
     @abstractmethod
-    def update_forecast_provider(
+    async def update_forecast_provider(
         self,
         provider_id: EntityId,
         name: str,
@@ -748,7 +754,7 @@ class ConfigurationServiceInterface(ABC):
         """Get all settings."""
 
     @abstractmethod
-    def update_setting(self, key: str, value: Any) -> None:
+    async def update_setting(self, key: str, value: Any) -> None:
         """Update a setting."""
 
 

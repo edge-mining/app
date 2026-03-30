@@ -18,6 +18,8 @@ from edge_mining.domain.policy.entities import AutomationRule
 from edge_mining.domain.policy.exceptions import PolicyError, PolicyNotFoundError
 from edge_mining.shared.logging.port import LoggerPort
 
+from edge_mining.adapters.utils import run_async_func
+
 
 def select_mining_decision() -> Optional[MiningDecision]:
     """Select a mining decision from the available options."""
@@ -106,7 +108,7 @@ def handle_add_optimization_policy(configuration_service: ConfigurationServiceIn
     description: str = click.prompt("Description (optional)", type=str, default="")
 
     try:
-        new_policy = configuration_service.create_policy(name=name, description=description)
+        new_policy = run_async_func(configuration_service.create_policy(name=name, description=description))
 
         if not new_policy:
             click.echo(click.style("Failed to create optimization policy.", fg="red"))
@@ -146,13 +148,15 @@ def handle_add_optimization_policy(configuration_service: ConfigurationServiceIn
                 conditions = create_rule_conditions()
 
                 if conditions:
-                    configuration_service.add_rule_to_policy(
-                        policy_id=new_policy.id,
-                        rule_type=RuleType.START,
-                        name=rule_name,
-                        priority=rule_priority,
-                        conditions=conditions,
-                        description=rule_description,
+                    run_async_func(
+                        configuration_service.add_rule_to_policy(
+                            policy_id=new_policy.id,
+                            rule_type=RuleType.START,
+                            name=rule_name,
+                            priority=rule_priority,
+                            conditions=conditions,
+                            description=rule_description,
+                        )
                     )
                     click.echo(click.style(f"Start rule '{rule_name}' added!", fg="green"))
 
@@ -171,13 +175,15 @@ def handle_add_optimization_policy(configuration_service: ConfigurationServiceIn
                 conditions = create_rule_conditions()
 
                 if conditions:
-                    configuration_service.add_rule_to_policy(
-                        policy_id=new_policy.id,
-                        rule_type=RuleType.STOP,
-                        name=rule_name,
-                        priority=rule_priority,
-                        conditions=conditions,
-                        description=rule_description,
+                    run_async_func(
+                        configuration_service.add_rule_to_policy(
+                            policy_id=new_policy.id,
+                            rule_type=RuleType.STOP,
+                            name=rule_name,
+                            priority=rule_priority,
+                            conditions=conditions,
+                            description=rule_description,
+                        )
                     )
                     click.echo(click.style(f"Stop rule '{rule_name}' added!", fg="green"))
 
@@ -370,7 +376,7 @@ def delete_single_optimization_policy(
         return False
 
     try:
-        configuration_service.delete_policy(policy.id)
+        run_async_func(configuration_service.delete_policy(policy.id))
         click.echo(click.style("Optimization policy deleted successfully!", fg="green"))
         return True
     except (PolicyError, PolicyNotFoundError) as e:
@@ -416,7 +422,7 @@ def manage_single_optimization_policy_menu(
                 return "q"
         elif choice == "2":
             try:
-                configuration_service.sort_policy_rules(policy.id)
+                run_async_func(configuration_service.sort_policy_rules(policy.id))
                 click.echo(
                     click.style(
                         f"Rules of Policy '{policy.name}' sorted by priority.",
@@ -520,13 +526,15 @@ def add_rule_to_policy(
         return
 
     try:
-        configuration_service.add_rule_to_policy(
-            policy_id=policy.id,
-            rule_type=rule_type,
-            name=rule_name,
-            priority=rule_priority,
-            conditions=conditions,
-            description=rule_description,
+        run_async_func(
+            configuration_service.add_rule_to_policy(
+                policy_id=policy.id,
+                rule_type=rule_type,
+                name=rule_name,
+                priority=rule_priority,
+                conditions=conditions,
+                description=rule_description,
+            )
         )
         click.echo(
             click.style(
@@ -591,14 +599,16 @@ def edit_policy_rule(
             click.echo(click.style("No conditions specified. Rule not updated.", fg="red"))
             return
 
-        configuration_service.update_policy_rule(
-            policy_id=policy.id,
-            rule_id=selected_rule.id,
-            name=new_name,
-            priority=new_rule_priority,
-            conditions=new_conditions,
-            description=new_description,
-            enabled=rule_enabled,
+        run_async_func(
+            configuration_service.update_policy_rule(
+                policy_id=policy.id,
+                rule_id=selected_rule.id,
+                name=new_name,
+                priority=new_rule_priority,
+                conditions=new_conditions,
+                description=new_description,
+                enabled=rule_enabled,
+            )
         )
         click.echo(click.style(f"Rule '{new_name}' updated successfully!", fg="green"))
 
@@ -646,7 +656,7 @@ def delete_policy_rule(
         ):
             return
 
-        configuration_service.delete_policy_rule(policy_id=policy.id, rule_id=selected_rule.id)
+        run_async_func(configuration_service.delete_policy_rule(policy_id=policy.id, rule_id=selected_rule.id))
         click.echo(
             click.style(
                 f"Rule '{selected_rule.name}' deleted successfully!",

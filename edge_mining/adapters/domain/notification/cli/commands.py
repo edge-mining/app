@@ -28,6 +28,8 @@ from edge_mining.shared.external_services.entities import ExternalService
 from edge_mining.shared.interfaces.config import NotificationConfig
 from edge_mining.shared.logging.port import LoggerPort
 
+from edge_mining.adapters.utils import run_async_func
+
 
 def select_notifier_adapter() -> Optional[NotificationAdapter]:
     """Select a notifier adapter type from the list."""
@@ -149,11 +151,13 @@ def handle_add_notifier(configuration_service: ConfigurationServiceInterface, lo
 
     added: Optional[Notifier] = None
     try:
-        added = configuration_service.add_notifier(
-            name=new_notifier.name,
-            adapter_type=new_notifier.adapter_type,
-            config=new_notifier.config,
-            external_service_id=new_notifier.external_service_id,
+        added = run_async_func(
+            configuration_service.add_notifier(
+                name=new_notifier.name,
+                adapter_type=new_notifier.adapter_type,
+                config=new_notifier.config,
+                external_service_id=new_notifier.external_service_id,
+            )
         )
         click.echo(
             click.style(
@@ -545,11 +549,13 @@ def update_single_notifier(
                 return None
 
     try:
-        updated_notifier = configuration_service.update_notifier(
-            notifier_id=new_notifier.id,
-            name=new_notifier.name,
-            config=new_notifier.config,
-            external_service_id=new_notifier.external_service_id,
+        updated_notifier = run_async_func(
+            configuration_service.update_notifier(
+                notifier_id=new_notifier.id,
+                name=new_notifier.name,
+                config=new_notifier.config,
+                external_service_id=new_notifier.external_service_id,
+            )
         )
         click.echo(
             click.style(
@@ -585,7 +591,7 @@ def delete_single_notifier(
         return False
 
     try:
-        removed = configuration_service.remove_notifier(notifier_id=notifier.id)
+        removed = run_async_func(configuration_service.remove_notifier(notifier_id=notifier.id))
         logger.info(f"Notifier '{removed.name}' (ID: {removed.id}) successfully removed.")
         click.echo(
             click.style(

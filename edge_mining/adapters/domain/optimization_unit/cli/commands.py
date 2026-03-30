@@ -20,6 +20,8 @@ from edge_mining.domain.optimization_unit.aggregate_roots import EnergyOptimizat
 from edge_mining.domain.policy.aggregate_roots import OptimizationPolicy
 from edge_mining.shared.logging.port import LoggerPort
 
+from edge_mining.adapters.utils import run_async_func
+
 
 def handle_add_optimization_unit(configuration_service: ConfigurationServiceInterface, logger: LoggerPort):
     """Menu to add a new optimization unit."""
@@ -80,15 +82,17 @@ def handle_add_optimization_unit(configuration_service: ConfigurationServiceInte
         target_miner_ids = [m.id for m in selected_miners] if selected_miners else []
         notifier_ids = [n.id for n in selected_notifiers] if selected_notifiers else []
 
-        created = configuration_service.create_optimization_unit(
-            name=name,
-            description=description if description else None,
-            energy_source_id=selected_energy_source.id if selected_energy_source else None,
-            target_miner_ids=target_miner_ids,
-            policy_id=selected_policy.id if selected_policy else None,
-            home_forecast_provider_id=home_forecast_provider_id,
-            performance_tracker_id=performance_tracker_id,
-            notifier_ids=notifier_ids,
+        created = run_async_func(
+            configuration_service.create_optimization_unit(
+                name=name,
+                description=description if description else None,
+                energy_source_id=selected_energy_source.id if selected_energy_source else None,
+                target_miner_ids=target_miner_ids,
+                policy_id=selected_policy.id if selected_policy else None,
+                home_forecast_provider_id=home_forecast_provider_id,
+                performance_tracker_id=performance_tracker_id,
+                notifier_ids=notifier_ids,
+            )
         )
         if not created:
             raise ValueError("Failed to create the optimization unit.")
@@ -233,7 +237,7 @@ def handle_activate_optimization_unit(
         return
 
     try:
-        configuration_service.activate_optimization_unit(optimization_unit.id)
+        run_async_func(configuration_service.activate_optimization_unit(optimization_unit.id))
         click.echo(click.style("Optimization unit activated successfully.", fg="green"))
     except Exception as e:
         click.echo(click.style(f"Error activating optimization unit: {e}", fg="red"))
@@ -252,7 +256,7 @@ def handle_deactivate_optimization_unit(
         return
 
     try:
-        configuration_service.deactivate_optimization_unit(optimization_unit.id)
+        run_async_func(configuration_service.deactivate_optimization_unit(optimization_unit.id))
         click.echo(click.style("Optimization unit deactivated successfully.", fg="green"))
     except Exception as e:
         click.echo(click.style(f"Error deactivating optimization unit: {e}", fg="red"))
@@ -340,17 +344,19 @@ def update_optimization_unit(
     # Home forecast provider and performance tracker updates will be implemented in the next release
 
     try:
-        updated = configuration_service.update_optimization_unit(
-            unit_id=optimization_unit.id,
-            name=new_optimization_unit.name,
-            description=new_optimization_unit.description,
-            energy_source_id=new_optimization_unit.energy_source_id,
-            target_miner_ids=new_optimization_unit.target_miner_ids,
-            policy_id=new_optimization_unit.policy_id,
-            home_forecast_provider_id=new_optimization_unit.home_forecast_provider_id,
-            performance_tracker_id=new_optimization_unit.performance_tracker_id,
-            notifier_ids=new_optimization_unit.notifier_ids,
-            is_enabled=new_optimization_unit.is_enabled,
+        updated = run_async_func(
+            configuration_service.update_optimization_unit(
+                unit_id=optimization_unit.id,
+                name=new_optimization_unit.name,
+                description=new_optimization_unit.description,
+                energy_source_id=new_optimization_unit.energy_source_id,
+                target_miner_ids=new_optimization_unit.target_miner_ids,
+                policy_id=new_optimization_unit.policy_id,
+                home_forecast_provider_id=new_optimization_unit.home_forecast_provider_id,
+                performance_tracker_id=new_optimization_unit.performance_tracker_id,
+                notifier_ids=new_optimization_unit.notifier_ids,
+                is_enabled=new_optimization_unit.is_enabled,
+            )
         )
         click.echo(
             click.style(
@@ -385,7 +391,7 @@ def delete_single_optimization_unit(
         return False
 
     try:
-        configuration_service.remove_optimization_unit(optimization_unit.id)
+        run_async_func(configuration_service.remove_optimization_unit(optimization_unit.id))
         click.echo(click.style("Optimization unit deleted successfully.", fg="green"))
         return True
     except Exception as e:
@@ -408,8 +414,10 @@ def manage_assign_energy_source(
         return
 
     try:
-        configuration_service.assign_energy_source_to_optimization_unit(
-            unit_id=optimization_unit.id, energy_source_id=selected_energy_source.id
+        run_async_func(
+            configuration_service.assign_energy_source_to_optimization_unit(
+                unit_id=optimization_unit.id, energy_source_id=selected_energy_source.id
+            )
         )
         click.echo(click.style(f"Energy source '{selected_energy_source.name}' assigned successfully.", fg="green"))
     except Exception as e:
@@ -432,8 +440,10 @@ def manage_assign_optimization_policy(
         return
 
     try:
-        configuration_service.assign_policy_to_optimization_unit(
-            unit_id=optimization_unit.id, policy_id=selected_policy.id
+        run_async_func(
+            configuration_service.assign_policy_to_optimization_unit(
+                unit_id=optimization_unit.id, policy_id=selected_policy.id
+            )
         )
         click.echo(click.style(f"Optimization policy '{selected_policy.name}' assigned successfully.", fg="green"))
     except Exception as e:
@@ -461,8 +471,10 @@ def manage_assign_target_miners(
 
     try:
         target_miner_ids = [m.id for m in selected_miners]
-        configuration_service.assign_miners_to_optimization_unit(
-            unit_id=optimization_unit.id, miner_ids=target_miner_ids
+        run_async_func(
+            configuration_service.assign_miners_to_optimization_unit(
+                unit_id=optimization_unit.id, miner_ids=target_miner_ids
+            )
         )
         click.echo(click.style(f"{len(selected_miners)} Target miners assigned successfully.", fg="green"))
     except Exception as e:
@@ -504,7 +516,11 @@ def manage_add_target_miner(
         return
 
     try:
-        configuration_service.add_miner_to_optimization_unit(unit_id=optimization_unit.id, miner_id=selected_miner.id)
+        run_async_func(
+            configuration_service.add_miner_to_optimization_unit(
+                unit_id=optimization_unit.id, miner_id=selected_miner.id
+            )
+        )
         click.echo(click.style(f"Target miner '{selected_miner.name}' added successfully.", fg="green"))
     except Exception as e:
         logger.error(f"Error adding target miner: {e}")
@@ -540,8 +556,10 @@ def manage_remove_target_miner(
         selected_miner = selected_miner[0]
 
     try:
-        configuration_service.remove_miner_from_optimization_unit(
-            unit_id=optimization_unit.id, miner_id=selected_miner.id
+        run_async_func(
+            configuration_service.remove_miner_from_optimization_unit(
+                unit_id=optimization_unit.id, miner_id=selected_miner.id
+            )
         )
         click.echo(click.style(f"Target miner '{selected_miner.name}' removed successfully.", fg="green"))
     except Exception as e:
@@ -569,8 +587,10 @@ def manage_assign_notifiers(
 
     try:
         notifier_ids = [n.id for n in selected_notifiers] if selected_notifiers else []
-        configuration_service.assign_notifiers_to_optimization_unit(
-            unit_id=optimization_unit.id, notifier_ids=notifier_ids
+        run_async_func(
+            configuration_service.assign_notifiers_to_optimization_unit(
+                unit_id=optimization_unit.id, notifier_ids=notifier_ids
+            )
         )
         click.echo(click.style(f"{len(notifier_ids)} Notifiers assigned successfully.", fg="green"))
     except Exception as e:
@@ -602,8 +622,10 @@ def manage_add_notifier(
         selected_notifier = selected_notifier[0]
 
     try:
-        configuration_service.add_notifier_to_optimization_unit(
-            unit_id=optimization_unit.id, notifier_id=selected_notifier.id
+        run_async_func(
+            configuration_service.add_notifier_to_optimization_unit(
+                unit_id=optimization_unit.id, notifier_id=selected_notifier.id
+            )
         )
         click.echo(click.style(f"Notifier '{selected_notifier.name}' added successfully.", fg="green"))
     except Exception as e:
@@ -641,8 +663,10 @@ def manage_remove_notifier(
         return
 
     try:
-        configuration_service.remove_notifier_from_optimization_unit(
-            unit_id=optimization_unit.id, notifier_id=selected_notifier.id
+        run_async_func(
+            configuration_service.remove_notifier_from_optimization_unit(
+                unit_id=optimization_unit.id, notifier_id=selected_notifier.id
+            )
         )
         click.echo(click.style(f"Notifier '{selected_notifier.name}' removed successfully.", fg="green"))
     except Exception as e:

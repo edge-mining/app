@@ -4,7 +4,9 @@ Configuration service for managing all domain entities of edge mining applicatio
 
 from typing import Any, Dict, List, Optional
 
+from edge_mining.application.events.configuration_events import ConfigurationUpdatedEvent
 from edge_mining.application.interfaces import ConfigurationServiceInterface
+from edge_mining.application.ports.event_bus import EventBus
 from edge_mining.domain.common import EntityId, Watts
 from edge_mining.domain.energy.common import EnergyMonitorAdapter, EnergySourceType
 from edge_mining.domain.energy.entities import EnergyMonitor, EnergySource
@@ -96,7 +98,7 @@ from edge_mining.shared.settings.ports import SettingsRepository
 class ConfigurationService(ConfigurationServiceInterface):
     """Handles configuration of miners, policies, and system settings."""
 
-    def __init__(self, persistence_settings: PersistenceSettings, logger: LoggerPort):
+    def __init__(self, persistence_settings: PersistenceSettings, event_bus: EventBus, logger: LoggerPort):
         # Domains
         self.external_service_repo: ExternalServiceRepository = persistence_settings.external_service_repo
         self.energy_source_repo: EnergySourceRepository = persistence_settings.energy_source_repo
@@ -116,10 +118,11 @@ class ConfigurationService(ConfigurationServiceInterface):
         self.settings_repo: SettingsRepository = persistence_settings.settings_repo
 
         # Infrastructure
+        self._event_bus = event_bus
         self.logger = logger
 
     # --- External Service Management ---
-    def create_external_service(
+    async def create_external_service(
         self,
         name: str,
         adapter_type: ExternalServiceAdapter,
@@ -133,6 +136,14 @@ class ConfigurationService(ConfigurationServiceInterface):
         self.check_external_service(external_service)
 
         self.external_service_repo.add(external_service)
+
+        await self._event_bus.publish(
+            ConfigurationUpdatedEvent(
+                entity_type="external_service",
+                entity_id=external_service.id,
+                action="created",
+            )
+        )
 
         return external_service
 
@@ -168,7 +179,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         )
         return external_service_linked_entities
 
-    def unlink_external_service(self, service_id: EntityId) -> None:
+    async def unlink_external_service(self, service_id: EntityId) -> None:
         """Remove the association of an external service from all entities."""
         self.logger.debug(f"Unlinking external service {service_id}")
 
@@ -215,7 +226,7 @@ class ConfigurationService(ConfigurationServiceInterface):
             notifier.external_service_id = None
             self.notifier_repo.update(notifier)
 
-    def remove_external_service(self, service_id: EntityId) -> ExternalService:
+    async def remove_external_service(self, service_id: EntityId) -> ExternalService:
         """Remove an external service from the system."""
         self.logger.debug(f"Removing external service {service_id}")
 
@@ -225,13 +236,21 @@ class ConfigurationService(ConfigurationServiceInterface):
             raise ExternalServiceNotFoundError(f"External Service with ID {service_id} not found.")
 
         # Unlink the external service from all associated entities before removal
-        self.unlink_external_service(service_id)
+        await self.unlink_external_service(service_id)
 
         self.external_service_repo.remove(service_id)
 
+        await self._event_bus.publish(
+            ConfigurationUpdatedEvent(
+                entity_type="external_service",
+                entity_id=service_id,
+                action="removed",
+            )
+        )
+
         return external_service
 
-    def update_external_service(
+    async def update_external_service(
         self,
         service_id: EntityId,
         name: str,
@@ -255,6 +274,14 @@ class ConfigurationService(ConfigurationServiceInterface):
         self.check_external_service(external_service)
 
         self.external_service_repo.update(external_service)
+
+        await self._event_bus.publish(
+            ConfigurationUpdatedEvent(
+                entity_type="external_service",
+                entity_id=service_id,
+                action="updated",
+            )
+        )
 
         return external_service
 
@@ -288,7 +315,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         return EXTERNAL_SERVICE_CONFIG_TYPE_MAP.get(adapter_type, None)
 
     # --- Energy Source Management ---
-    def create_energy_source(
+    async def create_energy_source(
         self,
         name: str,
         source_type: EnergySourceType,
@@ -332,7 +359,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         """List all energy sources in the system."""
         return self.energy_source_repo.get_all()
 
-    def remove_energy_source(self, source_id: EntityId) -> EnergySource:
+    async def remove_energy_source(self, source_id: EntityId) -> EnergySource:
         """Remove an energy source from the system."""
         self.logger.debug(f"Removing energy source {source_id}")
 
@@ -345,7 +372,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         return energy_source
 
-    def update_energy_source(
+    async def update_energy_source(
         self,
         source_id: EntityId,
         name: str,
@@ -433,7 +460,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         self.logger.debug(f"Energy Source {energy_source.id} ({energy_source.name}) is valid.")
         return True
 
-    def create_energy_monitor(
+    async def create_energy_monitor(
         self,
         name: str,
         adapter_type: EnergyMonitorAdapter,
@@ -454,6 +481,14 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         self.energy_monitor_repo.add(energy_monitor)
 
+        await self._event_bus.publish(
+            ConfigurationUpdatedEvent(
+                entity_type="energy_monitor",
+                entity_id=energy_monitor.id,
+                action="created",
+            )
+        )
+
         return energy_monitor
 
     def get_energy_monitor(self, monitor_id: EntityId) -> Optional[EnergyMonitor]:
@@ -469,7 +504,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         """List all energy monitors in the system."""
         return self.energy_monitor_repo.get_all()
 
-    def unlink_energy_monitor(self, monitor_id: EntityId) -> None:
+    async def unlink_energy_monitor(self, monitor_id: EntityId) -> None:
         """Unlink an energy monitor from all associated energy sources."""
         self.logger.debug(f"Unlinking energy monitor {monitor_id}")
 
@@ -482,7 +517,7 @@ class ConfigurationService(ConfigurationServiceInterface):
                 source.energy_monitor_id = None
                 self.energy_source_repo.update(source)
 
-    def remove_energy_monitor(self, monitor_id: EntityId) -> EnergyMonitor:
+    async def remove_energy_monitor(self, monitor_id: EntityId) -> EnergyMonitor:
         """Remove an energy monitor from the system."""
 
         energy_monitor = self.energy_monitor_repo.get_by_id(monitor_id)
@@ -491,13 +526,21 @@ class ConfigurationService(ConfigurationServiceInterface):
             raise EnergyMonitorNotFoundError(f"Energy Monitor with ID {monitor_id} not found.")
 
         # Unlink the energy monitor from all associated energy sources before delete
-        self.unlink_energy_monitor(monitor_id)
+        await self.unlink_energy_monitor(monitor_id)
 
         self.energy_monitor_repo.remove(monitor_id)
 
+        await self._event_bus.publish(
+            ConfigurationUpdatedEvent(
+                entity_type="energy_monitor",
+                entity_id=monitor_id,
+                action="removed",
+            )
+        )
+
         return energy_monitor
 
-    def update_energy_monitor(
+    async def update_energy_monitor(
         self,
         monitor_id: EntityId,
         name: str,
@@ -529,9 +572,17 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         self.energy_monitor_repo.update(energy_monitor)
 
+        await self._event_bus.publish(
+            ConfigurationUpdatedEvent(
+                entity_type="energy_monitor",
+                entity_id=monitor_id,
+                action="updated",
+            )
+        )
+
         return energy_monitor
 
-    def set_energy_monitor_to_energy_source(
+    async def set_energy_monitor_to_energy_source(
         self, energy_source_id: EntityId, energy_monitor_id: EntityId
     ) -> EnergySource:
         """Set an energy monitor to an energy source."""
@@ -553,7 +604,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         return energy_source
 
-    def set_forecast_provider_to_energy_source(
+    async def set_forecast_provider_to_energy_source(
         self, energy_source_id: EntityId, forecast_provider_id: EntityId
     ) -> EnergySource:
         """Set a forecast provider to an energy source."""
@@ -646,7 +697,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         return ENERGY_MONITOR_TYPE_EXTERNAL_SERVICE_MAP.get(adapter_type, None)
 
     # --- Forecast Provider Management ---
-    def create_forecast_provider(
+    async def create_forecast_provider(
         self,
         name: str,
         adapter_type: ForecastProviderAdapter,
@@ -667,6 +718,14 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         self.forecast_provider_repo.add(forecast_provider)
 
+        await self._event_bus.publish(
+            ConfigurationUpdatedEvent(
+                entity_type="forecast_provider",
+                entity_id=forecast_provider.id,
+                action="created",
+            )
+        )
+
         return forecast_provider
 
     def get_forecast_provider(self, provider_id: EntityId) -> Optional[ForecastProvider]:
@@ -682,7 +741,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         """List all forecast providers in the system."""
         return self.forecast_provider_repo.get_all()
 
-    def remove_forecast_provider(self, provider_id: EntityId) -> ForecastProvider:
+    async def remove_forecast_provider(self, provider_id: EntityId) -> ForecastProvider:
         """Remove a forecast provider from the system."""
         self.logger.debug(f"Removing forecast provider {provider_id}")
 
@@ -693,9 +752,17 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         self.forecast_provider_repo.remove(provider_id)
 
+        await self._event_bus.publish(
+            ConfigurationUpdatedEvent(
+                entity_type="forecast_provider",
+                entity_id=provider_id,
+                action="removed",
+            )
+        )
+
         return forecast_provider
 
-    def update_forecast_provider(
+    async def update_forecast_provider(
         self,
         provider_id: EntityId,
         name: str,
@@ -719,6 +786,14 @@ class ConfigurationService(ConfigurationServiceInterface):
         self.check_forecast_provider(forecast_provider)
 
         self.forecast_provider_repo.update(forecast_provider)
+
+        await self._event_bus.publish(
+            ConfigurationUpdatedEvent(
+                entity_type="forecast_provider",
+                entity_id=provider_id,
+                action="updated",
+            )
+        )
 
         return forecast_provider
 
@@ -775,7 +850,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         return FORECAST_PROVIDER_TYPE_EXTERNAL_SERVICE_MAP.get(adapter_type, None)
 
     # --- Optimization Unit Management ---
-    def create_optimization_unit(
+    async def create_optimization_unit(
         self,
         name: str,
         description: Optional[str] = None,
@@ -848,7 +923,7 @@ class ConfigurationService(ConfigurationServiceInterface):
             eous = [eou for eou in eous if set(eou.notifier_ids).intersection(filter_by_notifiers)]
         return eous
 
-    def remove_optimization_unit(self, unit_id: EntityId) -> EnergyOptimizationUnit:
+    async def remove_optimization_unit(self, unit_id: EntityId) -> EnergyOptimizationUnit:
         """Remove an optimization unit from the system."""
         self.logger.info(f"Removing optimization unit {unit_id}")
 
@@ -861,7 +936,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         return optimization_unit
 
-    def update_optimization_unit(
+    async def update_optimization_unit(
         self,
         unit_id: EntityId,
         name: str,
@@ -911,7 +986,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         return optimization_unit
 
-    def activate_optimization_unit(self, unit_id: EntityId) -> EnergyOptimizationUnit:
+    async def activate_optimization_unit(self, unit_id: EntityId) -> EnergyOptimizationUnit:
         """Activate an optimization unit in the system."""
         self.logger.info(f"Activating optimization unit {unit_id}")
 
@@ -934,7 +1009,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         return optimization_unit
 
-    def deactivate_optimization_unit(self, unit_id: EntityId) -> EnergyOptimizationUnit:
+    async def deactivate_optimization_unit(self, unit_id: EntityId) -> EnergyOptimizationUnit:
         """Deactivate an optimization unit in the system."""
         self.logger.info(f"Deactivating optimization unit {unit_id}")
 
@@ -949,7 +1024,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         return optimization_unit
 
-    def assign_miners_to_optimization_unit(
+    async def assign_miners_to_optimization_unit(
         self, unit_id: EntityId, miner_ids: List[EntityId]
     ) -> EnergyOptimizationUnit:
         """Assign target miners to an optimization unit."""
@@ -968,7 +1043,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         return optimization_unit
 
-    def add_miner_to_optimization_unit(self, unit_id: EntityId, miner_id: EntityId) -> EnergyOptimizationUnit:
+    async def add_miner_to_optimization_unit(self, unit_id: EntityId, miner_id: EntityId) -> EnergyOptimizationUnit:
         """Add a miner to an optimization unit."""
         self.logger.info(f"Adding miner {miner_id} to optimization unit {unit_id}")
 
@@ -988,7 +1063,9 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         return optimization_unit
 
-    def remove_miner_from_optimization_unit(self, unit_id: EntityId, miner_id: EntityId) -> EnergyOptimizationUnit:
+    async def remove_miner_from_optimization_unit(
+        self, unit_id: EntityId, miner_id: EntityId
+    ) -> EnergyOptimizationUnit:
         """Remove a miner from an optimization unit."""
         self.logger.info(f"Removing miner {miner_id} from optimization unit {unit_id}")
 
@@ -1007,7 +1084,9 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         return optimization_unit
 
-    def assign_policy_to_optimization_unit(self, unit_id: EntityId, policy_id: EntityId) -> EnergyOptimizationUnit:
+    async def assign_policy_to_optimization_unit(
+        self, unit_id: EntityId, policy_id: EntityId
+    ) -> EnergyOptimizationUnit:
         """Assign a policy to an optimization unit."""
         self.logger.info(f"Assigning policy {policy_id} to optimization unit {unit_id}")
 
@@ -1022,7 +1101,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         return optimization_unit
 
-    def assign_energy_source_to_optimization_unit(
+    async def assign_energy_source_to_optimization_unit(
         self, unit_id: EntityId, energy_source_id: EntityId
     ) -> EnergyOptimizationUnit:
         """Assign an energy source to an optimization unit."""
@@ -1039,7 +1118,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         return optimization_unit
 
-    def assign_home_forecast_provider_to_optimization_unit(
+    async def assign_home_forecast_provider_to_optimization_unit(
         self, unit_id: EntityId, home_forecast_provider_id: EntityId
     ) -> EnergyOptimizationUnit:
         """Assign a home forecast provider to an optimization unit."""
@@ -1056,7 +1135,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         return optimization_unit
 
-    def assign_performance_tracker_to_optimization_unit(
+    async def assign_performance_tracker_to_optimization_unit(
         self, unit_id: EntityId, performance_tracker_id: EntityId
     ) -> EnergyOptimizationUnit:
         """Assign a performance tracker to an optimization unit."""
@@ -1073,7 +1152,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         return optimization_unit
 
-    def assign_notifiers_to_optimization_unit(
+    async def assign_notifiers_to_optimization_unit(
         self, unit_id: EntityId, notifier_ids: List[EntityId]
     ) -> EnergyOptimizationUnit:
         """Assign notifiers to an optimization unit."""
@@ -1092,7 +1171,9 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         return optimization_unit
 
-    def add_notifier_to_optimization_unit(self, unit_id: EntityId, notifier_id: EntityId) -> EnergyOptimizationUnit:
+    async def add_notifier_to_optimization_unit(
+        self, unit_id: EntityId, notifier_id: EntityId
+    ) -> EnergyOptimizationUnit:
         """Add a notifier to an optimization unit."""
         self.logger.info(f"Adding notifier {notifier_id} to optimization unit {unit_id}")
 
@@ -1111,7 +1192,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         return optimization_unit
 
-    def remove_notifier_from_optimization_unit(
+    async def remove_notifier_from_optimization_unit(
         self, unit_id: EntityId, notifier_id: EntityId
     ) -> EnergyOptimizationUnit:
         """Remove a notifier from an optimization unit."""
@@ -1206,7 +1287,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         return True
 
     # --- Miner Management ---
-    def add_miner(
+    async def add_miner(
         self,
         name: str,
         model: Optional[str] = None,
@@ -1254,7 +1335,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         """List all miners in the system."""
         return self.miner_repo.get_all()
 
-    def remove_miner(self, miner_id: EntityId) -> Miner:
+    async def remove_miner(self, miner_id: EntityId) -> Miner:
         """Remove a miner from the system."""
         self.logger.info(f"Removing miner {miner_id}")
 
@@ -1267,7 +1348,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         return miner
 
-    def update_miner(
+    async def update_miner(
         self,
         miner_id: EntityId,
         name: str,
@@ -1297,7 +1378,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         return miner
 
-    def activate_miner(self, miner_id: EntityId) -> Miner:
+    async def activate_miner(self, miner_id: EntityId) -> Miner:
         """Activate a miner in the system."""
         self.logger.info(f"Activating miner {miner_id}")
 
@@ -1312,7 +1393,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         return miner
 
-    def deactivate_miner(self, miner_id: EntityId) -> Miner:
+    async def deactivate_miner(self, miner_id: EntityId) -> Miner:
         """Deactivate a miner in the system."""
         self.logger.info(f"Deactivating miner {miner_id}")
 
@@ -1352,7 +1433,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         self.logger.debug(f"Miner {miner.id} ({miner.name}) is valid.")
         return True
 
-    def add_miner_controller(
+    async def add_miner_controller(
         self,
         name: str,
         adapter: MinerControllerAdapter,
@@ -1372,6 +1453,14 @@ class ConfigurationService(ConfigurationServiceInterface):
         self.check_miner_controller(controller)
         self.miner_controller_repo.add(controller)
 
+        await self._event_bus.publish(
+            ConfigurationUpdatedEvent(
+                entity_type="miner_controller",
+                entity_id=controller.id,
+                action="created",
+            )
+        )
+
         return controller
 
     def get_miner_controller(self, controller_id: EntityId) -> Optional[MinerController]:
@@ -1387,7 +1476,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         """List all miner controllers in the system."""
         return self.miner_controller_repo.get_all()
 
-    def unlink_miner_controller(self, miner_controller_id: EntityId) -> None:
+    async def unlink_miner_controller(self, miner_controller_id: EntityId) -> None:
         """Unlink a miner controller from all miners."""
         self.logger.info(f"Unlinking controller {miner_controller_id} from all miners")
 
@@ -1398,7 +1487,7 @@ class ConfigurationService(ConfigurationServiceInterface):
             miner.controller_id = None
             self.miner_repo.update(miner)
 
-    def remove_miner_controller(self, controller_id: EntityId) -> MinerController:
+    async def remove_miner_controller(self, controller_id: EntityId) -> MinerController:
         """Remove a miner controller from the system."""
         self.logger.info(f"Removing miner controller {controller_id}")
 
@@ -1408,13 +1497,21 @@ class ConfigurationService(ConfigurationServiceInterface):
             raise MinerControllerNotFoundError(f"Controller with ID {controller_id} not found.")
 
         # Unlink the controller from all miners before removal
-        self.unlink_miner_controller(controller_id)
+        await self.unlink_miner_controller(controller_id)
 
         self.miner_controller_repo.remove(controller_id)
 
+        await self._event_bus.publish(
+            ConfigurationUpdatedEvent(
+                entity_type="miner_controller",
+                entity_id=controller_id,
+                action="removed",
+            )
+        )
+
         return controller
 
-    def update_miner_controller(
+    async def update_miner_controller(
         self,
         controller_id: EntityId,
         name: str,
@@ -1450,9 +1547,17 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         self.miner_controller_repo.update(controller)
 
+        await self._event_bus.publish(
+            ConfigurationUpdatedEvent(
+                entity_type="miner_controller",
+                entity_id=controller_id,
+                action="updated",
+            )
+        )
+
         return controller
 
-    def set_miner_controller(self, controller_id: EntityId, miner_id: EntityId) -> None:
+    async def set_miner_controller(self, controller_id: EntityId, miner_id: EntityId) -> None:
         """Set a miner controller to a miner."""
         self.logger.info(f"Adding controller {controller_id} to miner {miner_id}")
 
@@ -1504,7 +1609,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         return MINER_CONTROLLER_TYPE_EXTERNAL_SERVICE_MAP.get(adapter_type, None)
 
     # --- Notifier Management ---
-    def add_notifier(
+    async def add_notifier(
         self,
         name: str,
         adapter_type: NotificationAdapter,
@@ -1525,6 +1630,14 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         self.notifier_repo.add(notifier)
 
+        await self._event_bus.publish(
+            ConfigurationUpdatedEvent(
+                entity_type="notifier",
+                entity_id=notifier.id,
+                action="created",
+            )
+        )
+
         return notifier
 
     def get_notifier(self, notifier_id: EntityId) -> Optional[Notifier]:
@@ -1538,7 +1651,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         """List all notifiers in the system."""
         return self.notifier_repo.get_all()
 
-    def remove_notifier(self, notifier_id: EntityId) -> Notifier:
+    async def remove_notifier(self, notifier_id: EntityId) -> Notifier:
         """Remove a notifier from the system."""
         self.logger.debug(f"Removing notifier {notifier_id}")
 
@@ -1547,9 +1660,18 @@ class ConfigurationService(ConfigurationServiceInterface):
             raise NotifierNotFoundError(f"Notifier with ID {notifier_id} not found.")
 
         self.notifier_repo.remove(notifier_id)
+
+        await self._event_bus.publish(
+            ConfigurationUpdatedEvent(
+                entity_type="notifier",
+                entity_id=notifier_id,
+                action="removed",
+            )
+        )
+
         return notifier
 
-    def update_notifier(
+    async def update_notifier(
         self,
         notifier_id: EntityId,
         name: str,
@@ -1569,6 +1691,14 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         self.check_notifier(notifier)
         self.notifier_repo.update(notifier)
+
+        await self._event_bus.publish(
+            ConfigurationUpdatedEvent(
+                entity_type="notifier",
+                entity_id=notifier_id,
+                action="updated",
+            )
+        )
 
         return notifier
 
@@ -1625,7 +1755,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         return NOTIFIER_TYPE_EXTERNAL_SERVICE_MAP.get(adapter_type, None)
 
     # --- Policy Management ---
-    def create_policy(self, name: str, description: str = "") -> OptimizationPolicy:
+    async def create_policy(self, name: str, description: str = "") -> OptimizationPolicy:
         """Create a new policy."""
         self.logger.info(f"Creating policy '{name}'")
 
@@ -1648,7 +1778,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         """List all policies in the system."""
         return self.policy_repo.get_all()
 
-    def add_rule_to_policy(
+    async def add_rule_to_policy(
         self,
         policy_id: EntityId,
         rule_type: RuleType,
@@ -1708,7 +1838,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         raise RuleNotFoundError(f"Rule with ID {rule_id} not found in policy {policy_id}.")
 
-    def update_policy_rule(
+    async def update_policy_rule(
         self,
         policy_id: EntityId,
         rule_id: EntityId,
@@ -1742,7 +1872,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         raise PolicyError(f"Rule with ID {rule_id} not found in policy {policy_id}.")
 
-    def delete_policy_rule(self, policy_id: EntityId, rule_id: EntityId) -> AutomationRule:
+    async def delete_policy_rule(self, policy_id: EntityId, rule_id: EntityId) -> AutomationRule:
         """Delete a rule from a policy."""
         policy = self.policy_repo.get_by_id(policy_id)
 
@@ -1763,7 +1893,7 @@ class ConfigurationService(ConfigurationServiceInterface):
                 return rule
         raise PolicyError(f"Rule with ID {rule_id} not found in policy {policy_id}.")
 
-    def enable_policy_rule(self, policy_id: EntityId, rule_id: EntityId) -> AutomationRule:
+    async def enable_policy_rule(self, policy_id: EntityId, rule_id: EntityId) -> AutomationRule:
         """Set a rule as enabled."""
         self.logger.info(f"Setting rule {rule_id} of policy {policy_id} as active.")
 
@@ -1788,7 +1918,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         return rule
 
-    def disable_policy_rule(self, policy_id: EntityId, rule_id: EntityId) -> AutomationRule:
+    async def disable_policy_rule(self, policy_id: EntityId, rule_id: EntityId) -> AutomationRule:
         """Set a rule as disabled."""
         self.logger.info(f"Setting rule {rule_id} of policy {policy_id} as disabled.")
 
@@ -1813,7 +1943,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         return rule
 
-    def delete_policy(self, policy_id: EntityId) -> Optional[OptimizationPolicy]:
+    async def delete_policy(self, policy_id: EntityId) -> Optional[OptimizationPolicy]:
         """Delete a policy from the system."""
         self.logger.info(f"Deleting policy {policy_id}")
 
@@ -1858,7 +1988,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         self.logger.debug(f"Policy {policy.id} ({policy.name}) is valid.")
         return True
 
-    def update_policy(
+    async def update_policy(
         self,
         policy_id: EntityId,
         name: str,
@@ -1880,7 +2010,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         return policy
 
-    def sort_policy_rules(self, policy_id: EntityId) -> None:
+    async def sort_policy_rules(self, policy_id: EntityId) -> None:
         """Sort the rules of a policy by priority."""
         policy = self.policy_repo.get_by_id(policy_id)
 
@@ -1915,7 +2045,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         settings: Optional[SystemSettings] = self.settings_repo.get_settings(user_id)
         return settings.settings if settings else {}
 
-    def update_setting(self, key: str, value: Any) -> None:
+    async def update_setting(self, key: str, value: Any) -> None:
         """Update a setting."""
         user_id: UserId = UserId("global_settings")
         settings = self.settings_repo.get_settings(user_id)

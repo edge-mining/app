@@ -65,6 +65,7 @@ from edge_mining.adapters.infrastructure.external_services.repositories import (
 )
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.base import BaseSQLAlchemyRepository
 from edge_mining.adapters.infrastructure.persistence.sqlite import BaseSqliteRepository
+from edge_mining.adapters.infrastructure.event_bus.in_memory_event_bus import InMemoryEventBus
 from edge_mining.adapters.infrastructure.sun.factories import AstralSunFactory
 from edge_mining.application.interfaces import SunFactoryInterface
 from edge_mining.application.services.adapter_service import AdapterService
@@ -285,6 +286,9 @@ def configure_dependencies(logger: LoggerPort, settings: AppSettings) -> Service
 
     logger.debug("Instantiating application services...")
 
+    # --- Event Bus ---
+    event_bus = InMemoryEventBus(logger)
+
     adapter_service = AdapterService(
         energy_monitor_repo=persistence_settings.energy_monitor_repo,
         miner_controller_repo=persistence_settings.miner_controller_repo,
@@ -293,6 +297,7 @@ def configure_dependencies(logger: LoggerPort, settings: AppSettings) -> Service
         home_forecast_provider_repo=persistence_settings.home_forecast_provider_repo,
         mining_performance_tracker_repo=persistence_settings.mining_performance_tracker_repo,
         external_service_repo=persistence_settings.external_service_repo,
+        event_bus=event_bus,
         logger=logger,
     )
 
@@ -312,7 +317,11 @@ def configure_dependencies(logger: LoggerPort, settings: AppSettings) -> Service
         logger=logger,
     )
 
-    config_service = ConfigurationService(persistence_settings=persistence_settings, logger=logger)
+    config_service = ConfigurationService(
+        persistence_settings=persistence_settings,
+        event_bus=event_bus,
+        logger=logger,
+    )
 
     services = Services(
         adapter_service=adapter_service,

@@ -65,7 +65,7 @@ async def add_energy_source(
         energy_source_to_add: EnergySource = energy_source_data.to_model()
 
         # Add the energy source
-        created_source = config_service.create_energy_source(
+        created_source = await config_service.create_energy_source(
             name=energy_source_to_add.name,
             source_type=energy_source_to_add.type,
             nominal_power_max=energy_source_to_add.nominal_power_max,
@@ -130,7 +130,7 @@ async def update_energy_source(
             raise EnergySourceNotFoundError(f"Energy source with id {source_id} not found")
 
         # Update the energy source
-        updated_source = config_service.update_energy_source(
+        updated_source = await config_service.update_energy_source(
             source_id=source_id,
             name=energy_source_update.name or "",
             source_type=energy_source_update.type,
@@ -162,7 +162,7 @@ async def delete_energy_source(
 ) -> EnergySourceSchema:
     """Remove an energy source."""
     try:
-        deleted_source = config_service.remove_energy_source(source_id)
+        deleted_source = await config_service.remove_energy_source(source_id)
 
         response = EnergySourceSchema.from_model(deleted_source)
 
@@ -207,7 +207,7 @@ async def add_energy_monitor(
             raise EnergyMonitorConfigurationError("Energy monitor configuration should be set")
 
         # Add the energy monitor
-        created_monitor = config_service.create_energy_monitor(
+        created_monitor = await config_service.create_energy_monitor(
             name=energy_monitor_to_add.name,
             adapter_type=energy_monitor_to_add.adapter_type,
             config=energy_monitor_to_add.config,
@@ -334,7 +334,7 @@ async def update_energy_monitor(
             external_service_id = EntityId(uuid.UUID(energy_monitor_update.external_service_id))
 
         # Update the energy monitor
-        updated_monitor = config_service.update_energy_monitor(
+        updated_monitor = await config_service.update_energy_monitor(
             monitor_id=monitor_id,
             name=energy_monitor_update.name or "",
             config=cast(EnergyMonitorConfig, configuration),
@@ -357,7 +357,7 @@ async def delete_energy_monitor(
 ) -> EnergyMonitorSchema:
     """Remove an energy monitor."""
     try:
-        deleted_monitor = config_service.remove_energy_monitor(monitor_id)
+        deleted_monitor = await config_service.remove_energy_monitor(monitor_id)
 
         response = EnergyMonitorSchema.from_model(deleted_monitor)
 
