@@ -4,7 +4,11 @@ Configuration service for managing all domain entities of edge mining applicatio
 
 from typing import Any, Dict, List, Optional
 
-from edge_mining.application.events.configuration_events import ConfigurationUpdatedEvent, ConfigurationUpdatedEventType
+from edge_mining.application.events.configuration_events import (
+    ConfigurationAction,
+    ConfigurationUpdatedEvent,
+    ConfigurationUpdatedEventType,
+)
 from edge_mining.application.interfaces import ConfigurationServiceInterface
 from edge_mining.application.ports.event_bus import EventBus
 from edge_mining.domain.common import EntityId, Watts
@@ -141,7 +145,7 @@ class ConfigurationService(ConfigurationServiceInterface):
             ConfigurationUpdatedEvent(
                 entity_type=ConfigurationUpdatedEventType.EXTERNAL_SERVICE,
                 entity_id=external_service.id,
-                action="created",
+                action=ConfigurationAction.CREATED,
             )
         )
 
@@ -244,7 +248,7 @@ class ConfigurationService(ConfigurationServiceInterface):
             ConfigurationUpdatedEvent(
                 entity_type=ConfigurationUpdatedEventType.EXTERNAL_SERVICE,
                 entity_id=service_id,
-                action="removed",
+                action=ConfigurationAction.REMOVED,
             )
         )
 
@@ -279,7 +283,7 @@ class ConfigurationService(ConfigurationServiceInterface):
             ConfigurationUpdatedEvent(
                 entity_type=ConfigurationUpdatedEventType.EXTERNAL_SERVICE,
                 entity_id=service_id,
-                action="updated",
+                action=ConfigurationAction.UPDATED,
             )
         )
 
@@ -485,7 +489,7 @@ class ConfigurationService(ConfigurationServiceInterface):
             ConfigurationUpdatedEvent(
                 entity_type=ConfigurationUpdatedEventType.ENERGY_MONITOR,
                 entity_id=energy_monitor.id,
-                action="created",
+                action=ConfigurationAction.CREATED,
             )
         )
 
@@ -534,7 +538,7 @@ class ConfigurationService(ConfigurationServiceInterface):
             ConfigurationUpdatedEvent(
                 entity_type=ConfigurationUpdatedEventType.ENERGY_MONITOR,
                 entity_id=monitor_id,
-                action="removed",
+                action=ConfigurationAction.REMOVED,
             )
         )
 
@@ -576,7 +580,7 @@ class ConfigurationService(ConfigurationServiceInterface):
             ConfigurationUpdatedEvent(
                 entity_type=ConfigurationUpdatedEventType.ENERGY_MONITOR,
                 entity_id=monitor_id,
-                action="updated",
+                action=ConfigurationAction.UPDATED,
             )
         )
 
@@ -722,7 +726,7 @@ class ConfigurationService(ConfigurationServiceInterface):
             ConfigurationUpdatedEvent(
                 entity_type=ConfigurationUpdatedEventType.FORECAST_PROVIDER,
                 entity_id=forecast_provider.id,
-                action="created",
+                action=ConfigurationAction.CREATED,
             )
         )
 
@@ -756,7 +760,7 @@ class ConfigurationService(ConfigurationServiceInterface):
             ConfigurationUpdatedEvent(
                 entity_type=ConfigurationUpdatedEventType.FORECAST_PROVIDER,
                 entity_id=provider_id,
-                action="removed",
+                action=ConfigurationAction.REMOVED,
             )
         )
 
@@ -791,7 +795,7 @@ class ConfigurationService(ConfigurationServiceInterface):
             ConfigurationUpdatedEvent(
                 entity_type=ConfigurationUpdatedEventType.FORECAST_PROVIDER,
                 entity_id=provider_id,
-                action="updated",
+                action=ConfigurationAction.UPDATED,
             )
         )
 
@@ -1457,7 +1461,7 @@ class ConfigurationService(ConfigurationServiceInterface):
             ConfigurationUpdatedEvent(
                 entity_type=ConfigurationUpdatedEventType.MINER_CONTROLLER,
                 entity_id=controller.id,
-                action="created",
+                action=ConfigurationAction.CREATED,
             )
         )
 
@@ -1505,7 +1509,7 @@ class ConfigurationService(ConfigurationServiceInterface):
             ConfigurationUpdatedEvent(
                 entity_type=ConfigurationUpdatedEventType.MINER_CONTROLLER,
                 entity_id=controller_id,
-                action="removed",
+                action=ConfigurationAction.REMOVED,
             )
         )
 
@@ -1551,7 +1555,7 @@ class ConfigurationService(ConfigurationServiceInterface):
             ConfigurationUpdatedEvent(
                 entity_type=ConfigurationUpdatedEventType.MINER_CONTROLLER,
                 entity_id=controller_id,
-                action="updated",
+                action=ConfigurationAction.UPDATED,
             )
         )
 
@@ -1634,7 +1638,7 @@ class ConfigurationService(ConfigurationServiceInterface):
             ConfigurationUpdatedEvent(
                 entity_type=ConfigurationUpdatedEventType.NOTIFIER,
                 entity_id=notifier.id,
-                action="created",
+                action=ConfigurationAction.CREATED,
             )
         )
 
@@ -1665,7 +1669,7 @@ class ConfigurationService(ConfigurationServiceInterface):
             ConfigurationUpdatedEvent(
                 entity_type=ConfigurationUpdatedEventType.NOTIFIER,
                 entity_id=notifier_id,
-                action="removed",
+                action=ConfigurationAction.REMOVED,
             )
         )
 
@@ -1696,7 +1700,7 @@ class ConfigurationService(ConfigurationServiceInterface):
             ConfigurationUpdatedEvent(
                 entity_type=ConfigurationUpdatedEventType.NOTIFIER,
                 entity_id=notifier_id,
-                action="updated",
+                action=ConfigurationAction.UPDATED,
             )
         )
 

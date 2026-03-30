@@ -17,6 +17,15 @@ class ConfigurationUpdatedEventType(Enum):
     UNKNOWN = ""
 
 
+class ConfigurationAction(Enum):
+    """Enum for the possible actions on a configuration entity."""
+
+    CREATED = "created"
+    UPDATED = "updated"
+    REMOVED = "removed"
+    UNKNOWN = ""
+
+
 @dataclass
 class ConfigurationUpdatedEvent(DomainEvent):
     """Event emitted when a configuration is created, updated, or removed.
@@ -27,4 +36,4 @@ class ConfigurationUpdatedEvent(DomainEvent):
 
     entity_type: ConfigurationUpdatedEventType = ConfigurationUpdatedEventType.UNKNOWN
     entity_id: Optional[EntityId] = None
-    action: str = ""  # "created" | "updated" | "removed"
+    action: ConfigurationAction = ConfigurationAction.UNKNOWN

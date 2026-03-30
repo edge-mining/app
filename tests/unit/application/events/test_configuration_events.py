@@ -3,7 +3,7 @@
 import unittest
 import uuid
 
-from edge_mining.application.events.configuration_events import ConfigurationUpdatedEvent, ConfigurationUpdatedEventType
+from edge_mining.application.events.configuration_events import ConfigurationAction, ConfigurationUpdatedEvent, ConfigurationUpdatedEventType
 from edge_mining.domain.common import DomainEvent, EntityId
 
 
@@ -19,11 +19,11 @@ class TestConfigurationUpdatedEvent(unittest.TestCase):
         event = ConfigurationUpdatedEvent(
             entity_type=ConfigurationUpdatedEventType.ENERGY_MONITOR,
             entity_id=entity_id,
-            action="created",
+            action=ConfigurationAction.CREATED,
         )
         self.assertEqual(event.entity_type, ConfigurationUpdatedEventType.ENERGY_MONITOR)
         self.assertEqual(event.entity_id, entity_id)
-        self.assertEqual(event.action, "created")
+        self.assertEqual(event.action, ConfigurationAction.CREATED)
 
     def test_has_event_id_and_occurred_at(self):
         event = ConfigurationUpdatedEvent()
@@ -39,11 +39,11 @@ class TestConfigurationUpdatedEvent(unittest.TestCase):
         event = ConfigurationUpdatedEvent(
             entity_type=ConfigurationUpdatedEventType.NOTIFIER,
             entity_id=entity_id,
-            action="removed",
+            action=ConfigurationAction.REMOVED,
         )
         result = event.to_dict()
         self.assertEqual(result["entity_type"], ConfigurationUpdatedEventType.NOTIFIER)
-        self.assertEqual(result["action"], "removed")
+        self.assertEqual(result["action"], ConfigurationAction.REMOVED)
         self.assertEqual(result["event_type"], "ConfigurationUpdatedEvent")
         self.assertIn("event_id", result)
         self.assertIn("occurred_at", result)
@@ -52,7 +52,7 @@ class TestConfigurationUpdatedEvent(unittest.TestCase):
         event = ConfigurationUpdatedEvent()
         self.assertEqual(event.entity_type, ConfigurationUpdatedEventType.UNKNOWN)
         self.assertIsNone(event.entity_id)
-        self.assertEqual(event.action, "")
+        self.assertEqual(event.action, ConfigurationAction.UNKNOWN)
 
 
 if __name__ == "__main__":
