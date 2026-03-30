@@ -19,7 +19,7 @@ from edge_mining.adapters.domain.notification.notifiers.telegram import Telegram
 from edge_mining.adapters.domain.performance.trackers.dummy import DummyMiningPerformanceTracker
 from edge_mining.adapters.infrastructure.homeassistant.homeassistant_api import ServiceHomeAssistantAPIFactory
 from edge_mining.adapters.infrastructure.rule_engine.factory import RuleEngineFactory
-from edge_mining.application.events.configuration_events import ConfigurationUpdatedEvent
+from edge_mining.application.events.configuration_events import ConfigurationUpdatedEvent, ConfigurationUpdatedEventType
 from edge_mining.application.interfaces import AdapterServiceInterface
 from edge_mining.application.ports.event_bus import EventBus
 from edge_mining.domain.common import EntityId
@@ -775,7 +775,7 @@ class AdapterService(AdapterServiceInterface):
         if event.entity_id is None:
             return
 
-        if event.entity_type == "external_service":
+        if event.entity_type == ConfigurationUpdatedEventType.EXTERNAL_SERVICE:
             # Invalidate the external service AND all adapters that may depend on it
             self._service_cache.pop(event.entity_id, None)
             self._instance_cache.clear()

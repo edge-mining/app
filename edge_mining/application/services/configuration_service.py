@@ -4,7 +4,7 @@ Configuration service for managing all domain entities of edge mining applicatio
 
 from typing import Any, Dict, List, Optional
 
-from edge_mining.application.events.configuration_events import ConfigurationUpdatedEvent
+from edge_mining.application.events.configuration_events import ConfigurationUpdatedEvent, ConfigurationUpdatedEventType
 from edge_mining.application.interfaces import ConfigurationServiceInterface
 from edge_mining.application.ports.event_bus import EventBus
 from edge_mining.domain.common import EntityId, Watts
@@ -139,7 +139,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         await self._event_bus.publish(
             ConfigurationUpdatedEvent(
-                entity_type="external_service",
+                entity_type=ConfigurationUpdatedEventType.EXTERNAL_SERVICE,
                 entity_id=external_service.id,
                 action="created",
             )
@@ -242,7 +242,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         await self._event_bus.publish(
             ConfigurationUpdatedEvent(
-                entity_type="external_service",
+                entity_type=ConfigurationUpdatedEventType.EXTERNAL_SERVICE,
                 entity_id=service_id,
                 action="removed",
             )
@@ -277,7 +277,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         await self._event_bus.publish(
             ConfigurationUpdatedEvent(
-                entity_type="external_service",
+                entity_type=ConfigurationUpdatedEventType.EXTERNAL_SERVICE,
                 entity_id=service_id,
                 action="updated",
             )
@@ -483,7 +483,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         await self._event_bus.publish(
             ConfigurationUpdatedEvent(
-                entity_type="energy_monitor",
+                entity_type=ConfigurationUpdatedEventType.ENERGY_MONITOR,
                 entity_id=energy_monitor.id,
                 action="created",
             )
@@ -532,7 +532,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         await self._event_bus.publish(
             ConfigurationUpdatedEvent(
-                entity_type="energy_monitor",
+                entity_type=ConfigurationUpdatedEventType.ENERGY_MONITOR,
                 entity_id=monitor_id,
                 action="removed",
             )
@@ -574,7 +574,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         await self._event_bus.publish(
             ConfigurationUpdatedEvent(
-                entity_type="energy_monitor",
+                entity_type=ConfigurationUpdatedEventType.ENERGY_MONITOR,
                 entity_id=monitor_id,
                 action="updated",
             )
@@ -720,7 +720,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         await self._event_bus.publish(
             ConfigurationUpdatedEvent(
-                entity_type="forecast_provider",
+                entity_type=ConfigurationUpdatedEventType.FORECAST_PROVIDER,
                 entity_id=forecast_provider.id,
                 action="created",
             )
@@ -754,7 +754,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         await self._event_bus.publish(
             ConfigurationUpdatedEvent(
-                entity_type="forecast_provider",
+                entity_type=ConfigurationUpdatedEventType.FORECAST_PROVIDER,
                 entity_id=provider_id,
                 action="removed",
             )
@@ -789,7 +789,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         await self._event_bus.publish(
             ConfigurationUpdatedEvent(
-                entity_type="forecast_provider",
+                entity_type=ConfigurationUpdatedEventType.FORECAST_PROVIDER,
                 entity_id=provider_id,
                 action="updated",
             )
@@ -1455,7 +1455,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         await self._event_bus.publish(
             ConfigurationUpdatedEvent(
-                entity_type="miner_controller",
+                entity_type=ConfigurationUpdatedEventType.MINER_CONTROLLER,
                 entity_id=controller.id,
                 action="created",
             )
@@ -1503,7 +1503,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         await self._event_bus.publish(
             ConfigurationUpdatedEvent(
-                entity_type="miner_controller",
+                entity_type=ConfigurationUpdatedEventType.MINER_CONTROLLER,
                 entity_id=controller_id,
                 action="removed",
             )
@@ -1549,7 +1549,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         await self._event_bus.publish(
             ConfigurationUpdatedEvent(
-                entity_type="miner_controller",
+                entity_type=ConfigurationUpdatedEventType.MINER_CONTROLLER,
                 entity_id=controller_id,
                 action="updated",
             )
@@ -1632,7 +1632,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         await self._event_bus.publish(
             ConfigurationUpdatedEvent(
-                entity_type="notifier",
+                entity_type=ConfigurationUpdatedEventType.NOTIFIER,
                 entity_id=notifier.id,
                 action="created",
             )
@@ -1663,7 +1663,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         await self._event_bus.publish(
             ConfigurationUpdatedEvent(
-                entity_type="notifier",
+                entity_type=ConfigurationUpdatedEventType.NOTIFIER,
                 entity_id=notifier_id,
                 action="removed",
             )
@@ -1694,7 +1694,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         await self._event_bus.publish(
             ConfigurationUpdatedEvent(
-                entity_type="notifier",
+                entity_type=ConfigurationUpdatedEventType.NOTIFIER,
                 entity_id=notifier_id,
                 action="updated",
             )

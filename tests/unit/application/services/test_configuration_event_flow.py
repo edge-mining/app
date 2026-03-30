@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from edge_mining.adapters.infrastructure.event_bus.in_memory_event_bus import InMemoryEventBus
-from edge_mining.application.events.configuration_events import ConfigurationUpdatedEvent
+from edge_mining.application.events.configuration_events import ConfigurationUpdatedEvent, ConfigurationUpdatedEventType
 from edge_mining.application.services.adapter_service import AdapterService
 from edge_mining.application.services.configuration_service import ConfigurationService
 from edge_mining.domain.common import EntityId
@@ -83,7 +83,7 @@ async def test_create_external_service_publishes_event(config_service, mock_even
     mock_event_bus.publish.assert_awaited_once()
     event = mock_event_bus.publish.call_args[0][0]
     assert isinstance(event, ConfigurationUpdatedEvent)
-    assert event.entity_type == "external_service"
+    assert event.entity_type == ConfigurationUpdatedEventType.EXTERNAL_SERVICE
     assert event.action == "created"
     assert event.entity_id == service.id
 
@@ -105,7 +105,7 @@ async def test_create_energy_monitor_publishes_event(config_service, mock_event_
     mock_event_bus.publish.assert_awaited_once()
     event = mock_event_bus.publish.call_args[0][0]
     assert isinstance(event, ConfigurationUpdatedEvent)
-    assert event.entity_type == "energy_monitor"
+    assert event.entity_type == ConfigurationUpdatedEventType.ENERGY_MONITOR
     assert event.action == "created"
 
 
@@ -135,7 +135,7 @@ async def test_update_notifier_publishes_event(config_service, mock_event_bus, m
 
     mock_event_bus.publish.assert_awaited_once()
     event = mock_event_bus.publish.call_args[0][0]
-    assert event.entity_type == "notifier"
+    assert event.entity_type == ConfigurationUpdatedEventType.NOTIFIER
     assert event.action == "updated"
 
 
@@ -159,7 +159,7 @@ async def test_remove_miner_controller_publishes_event(config_service, mock_even
 
     mock_event_bus.publish.assert_awaited_once()
     event = mock_event_bus.publish.call_args[0][0]
-    assert event.entity_type == "miner_controller"
+    assert event.entity_type == ConfigurationUpdatedEventType.MINER_CONTROLLER
     assert event.action == "removed"
     assert event.entity_id == ctrl_id
 
