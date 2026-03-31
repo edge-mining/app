@@ -1,6 +1,9 @@
 """WebSocket manager for broadcasting domain events to connected clients."""
 
 import json
+import uuid
+from datetime import datetime, timedelta
+from enum import Enum
 from fnmatch import fnmatch
 from typing import Any
 
@@ -12,9 +15,8 @@ from edge_mining.application.events.miner_events import MinerStateChangedEvent
 from edge_mining.application.events.optimization_events import RuleEngagedEvent
 from edge_mining.application.events.policy_events import DecisionalContextUpdatedEvent
 from edge_mining.application.interfaces import EventBusInterface
-from edge_mining.domain.common import DomainEvent
+from edge_mining.domain.common import DomainEvent, EntityId
 from edge_mining.shared.logging.port import LoggerPort
-
 
 # Event class name → WebSocket topic
 EVENT_TOPIC_MAP: dict[str, str] = {
@@ -101,24 +103,27 @@ class WebSocketManager:
         """Check if any subscription pattern matches the topic."""
         return any(fnmatch(topic, pattern) for pattern in subscriptions)
 
-    def _serialize_event(self, event: DomainEvent) -> dict[str, Any]:
-        """Serialize event for WebSocket transmission."""
-        import uuid
-        from datetime import datetime
-        from enum import Enum
+    def _serialize_event(self, event: DomainEvent) -> Any:
+        """Serialize event for WebSocket transmission (recursively handles nested structures)."""
+
+        def sanitize(obj):
+            if isinstance(obj, uuid.UUID) or type(obj) is EntityId:
+                return str(obj)
+            elif isinstance(obj, Enum):
+                return obj.value
+            elif isinstance(obj, datetime):
+                return obj.isoformat()
+            elif isinstance(obj, timedelta):
+                return str(obj)
+            elif isinstance(obj, dict):
+                return {k: sanitize(v) for k, v in obj.items()}
+            elif isinstance(obj, (list, tuple, set)):
+                return [sanitize(v) for v in obj]
+            else:
+                return obj
 
         data = event.to_dict()
-        sanitized = {}
-        for key, value in data.items():
-            if isinstance(value, uuid.UUID):
-                sanitized[key] = str(value)
-            elif isinstance(value, Enum):
-                sanitized[key] = value.value
-            elif isinstance(value, datetime):
-                sanitized[key] = value.isoformat()
-            else:
-                sanitized[key] = value
-        return sanitized
+        return sanitize(data)
 
     async def handle_client_messages(self, websocket: WebSocket) -> None:
         """Listen for subscription messages from a connected client.
