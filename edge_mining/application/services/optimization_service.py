@@ -10,8 +10,13 @@ It is responsible for:
 import asyncio
 from typing import List, Optional
 
+from edge_mining.application.events.energy_events import EnergyStateSnapshotUpdatedEvent
+from edge_mining.application.events.miner_events import MinerStateChangedEvent
+from edge_mining.application.events.optimization_events import RuleEngagedEvent
+from edge_mining.application.events.policy_events import DecisionalContextUpdatedEvent
 from edge_mining.application.interfaces import (
     AdapterServiceInterface,
+    EventBusInterface,
     OptimizationServiceInterface,
     SunFactoryInterface,
 )
@@ -40,11 +45,6 @@ from edge_mining.domain.policy.exceptions import PolicyError, RuleEngineError, R
 from edge_mining.domain.policy.ports import OptimizationPolicyRepository
 from edge_mining.domain.policy.services import RuleEngine
 from edge_mining.domain.policy.value_objects import DecisionalContext, Sun
-from edge_mining.application.events.energy_events import EnergyStateSnapshotUpdatedEvent
-from edge_mining.application.events.miner_events import MinerStateChangedEvent
-from edge_mining.application.events.optimization_events import RuleEngagedEvent
-from edge_mining.application.events.policy_events import DecisionalContextUpdatedEvent
-from edge_mining.application.interfaces import EventBusInterface
 from edge_mining.shared.logging.port import LoggerPort
 
 
@@ -91,7 +91,7 @@ class OptimizationService(OptimizationServiceInterface):
                 if self.logger:
                     self.logger.error(f"Failed to send notification via {type(notifier).__name__}: {e}")
 
-    def test_rules(self, rules: List[AutomationRule], decisional_context: DecisionalContext) -> bool:
+    async def test_rules(self, rules: List[AutomationRule], decisional_context: DecisionalContext) -> bool:
         """Test a specific automation rule against a given context."""
         # Create the rule engine instance
         rule_engine = self.adapter_service.get_rule_engine()
@@ -118,7 +118,7 @@ class OptimizationService(OptimizationServiceInterface):
         # Evaluate the rules in the rule engine
         return rule_engine.evaluate(decisional_context)
 
-    def get_decisional_context(self, optimization_unit_id: EntityId) -> Optional[DecisionalContext]:
+    async def get_decisional_context(self, optimization_unit_id: EntityId) -> Optional[DecisionalContext]:
         """Get the decisional context for a specific optimization unit."""
         optimization_unit = self.optimization_unit_repo.get_by_id(optimization_unit_id)
         if not optimization_unit:
@@ -181,7 +181,7 @@ class OptimizationService(OptimizationServiceInterface):
                 )
 
         # --- Energy State ---
-        if energy_monitor:
+        if energy_source and energy_monitor:
             try:
                 energy_state: Optional[EnergyStateSnapshot] = None
                 energy_state = energy_monitor.get_current_energy_state()
@@ -191,6 +191,16 @@ class OptimizationService(OptimizationServiceInterface):
                             f"Could not retrieve energy state for optimization unit '{optimization_unit.name}'. "
                             "Skipping."
                         )
+                # Publish energy state snapshot event
+                if self._event_bus:
+                    await self._event_bus.publish(
+                        EnergyStateSnapshotUpdatedEvent(
+                            optimization_unit_id=optimization_unit.id,
+                            optimization_unit_name=optimization_unit.name,
+                            energy_source_id=energy_source.id,
+                            energy_state_snapshot=energy_state,
+                        )
+                    )
             except Exception as e:
                 if self.logger:
                     self.logger.error(
@@ -336,6 +346,17 @@ class OptimizationService(OptimizationServiceInterface):
             sun=sun,
             miner=miner,
         )
+
+        # Publish decisional context event
+        if self._event_bus:
+            await self._event_bus.publish(
+                DecisionalContextUpdatedEvent(
+                    optimization_unit_id=optimization_unit.id,
+                    optimization_unit_name=optimization_unit.name,
+                    context=context,
+                    target_miner_ids=list(optimization_unit.target_miner_ids),
+                )
+            )
 
         return context
 
