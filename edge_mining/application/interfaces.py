@@ -4,8 +4,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Type
 
-from edge_mining.domain.common import EntityId, Watts
-from edge_mining.domain.common import DomainEvent
+from edge_mining.domain.common import DomainEvent, EntityId, Watts
 from edge_mining.domain.energy.common import EnergyMonitorAdapter, EnergySourceType
 from edge_mining.domain.energy.entities import EnergyMonitor, EnergySource
 from edge_mining.domain.energy.ports import EnergyMonitorPort
@@ -107,11 +106,11 @@ class OptimizationServiceInterface(ABC):
         """Run the optimization process for all enabled units."""
 
     @abstractmethod
-    def test_rules(self, rules: List[AutomationRule], context: DecisionalContext) -> bool:
+    async def test_rules(self, rules: List[AutomationRule], context: DecisionalContext) -> bool:
         """Test a specific automation rule against a given context."""
 
     @abstractmethod
-    def get_decisional_context(self, optimization_unit_id: EntityId) -> Optional[DecisionalContext]:
+    async def get_decisional_context(self, optimization_unit_id: EntityId) -> Optional[DecisionalContext]:
         """Get the decisional context for a specific optimization unit."""
 
 
