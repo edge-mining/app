@@ -328,6 +328,7 @@ def configure_dependencies(logger: LoggerPort, settings: AppSettings) -> Service
         optimization_service=optimization_service,
         miner_action_service=miner_action_service,
         configuration_service=config_service,
+        event_bus=event_bus,
     )
 
     logger.debug("Dependency configuration complete.")
