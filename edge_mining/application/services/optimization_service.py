@@ -40,6 +40,11 @@ from edge_mining.domain.policy.exceptions import PolicyError, RuleEngineError, R
 from edge_mining.domain.policy.ports import OptimizationPolicyRepository
 from edge_mining.domain.policy.services import RuleEngine
 from edge_mining.domain.policy.value_objects import DecisionalContext, Sun
+from edge_mining.application.events.energy_events import EnergyStateSnapshotUpdatedEvent
+from edge_mining.application.events.miner_events import MinerStateChangedEvent
+from edge_mining.application.events.optimization_events import RuleEngagedEvent
+from edge_mining.application.events.policy_events import DecisionalContextUpdatedEvent
+from edge_mining.application.interfaces import EventBusInterface
 from edge_mining.shared.logging.port import LoggerPort
 
 
@@ -54,6 +59,7 @@ class OptimizationService(OptimizationServiceInterface):
         miner_repo: MinerRepository,
         adapter_service: AdapterServiceInterface,
         sun_factory: SunFactoryInterface,
+        event_bus: Optional[EventBusInterface] = None,
         logger: Optional[LoggerPort] = None,
     ):
         # Domains
@@ -67,6 +73,7 @@ class OptimizationService(OptimizationServiceInterface):
         # Infrastructure
         self.sun_factory = sun_factory
         self.adapter_service = adapter_service
+        self._event_bus = event_bus
         self.logger = logger
 
     async def _notify_unit(self, notifiers: List[NotificationPort], title: str, message: str):
@@ -505,6 +512,17 @@ class OptimizationService(OptimizationServiceInterface):
                     "Failed to retrieve energy state.",
                 )
                 return
+
+            # Publish energy state snapshot event
+            if self._event_bus:
+                await self._event_bus.publish(
+                    EnergyStateSnapshotUpdatedEvent(
+                        optimization_unit_id=optimization_unit.id,
+                        optimization_unit_name=optimization_unit.name,
+                        energy_source_id=energy_source.id,
+                        energy_state_snapshot=energy_state,
+                    )
+                )
         except Exception as e:
             if self.logger:
                 self.logger.error(f"Error getting energy state for optimization unit '{optimization_unit.name}': {e}")
@@ -592,6 +610,17 @@ class OptimizationService(OptimizationServiceInterface):
             tracker_current_hashrate=tracker_current_hashrate,
             sun=sun,
         )
+
+        # Publish decisional context event
+        if self._event_bus:
+            await self._event_bus.publish(
+                DecisionalContextUpdatedEvent(
+                    optimization_unit_id=optimization_unit.id,
+                    optimization_unit_name=optimization_unit.name,
+                    context=context,
+                    target_miner_ids=list(optimization_unit.target_miner_ids),
+                )
+            )
 
         # TODO: should we manage miners singularly or together?
         # TODO: should we serialize the miner process or run them in parallel?
@@ -740,6 +769,20 @@ class OptimizationService(OptimizationServiceInterface):
                     f"Policy='{policy.name}', Decision={decision.name}"
                 )
 
+            # Publish rule engaged event
+            if self._event_bus:
+                await self._event_bus.publish(
+                    RuleEngagedEvent(
+                        optimization_unit_id=optimization_unit.id,
+                        optimization_unit_name=optimization_unit.name,
+                        policy_id=policy.id,
+                        policy_name=policy.name,
+                        miner_id=miner_id,
+                        decision=decision,
+                        miner_status=current_status.name,
+                    )
+                )
+
             await self._execute_miner_decision(
                 miner_controller,
                 miner_id,
@@ -842,3 +885,15 @@ class OptimizationService(OptimizationServiceInterface):
                 elif decision == MiningDecision.STOP_MINING:
                     miner.turn_off()
                 self.miner_repo.update(miner)  # If the repo needs to track the state
+
+            # Publish miner state changed event
+            new_status = MinerStatus.ON if decision == MiningDecision.START_MINING else MinerStatus.OFF
+            if self._event_bus:
+                await self._event_bus.publish(
+                    MinerStateChangedEvent(
+                        miner_id=miner_id,
+                        miner_name=miner.name if miner else "",
+                        old_status=current_status,
+                        new_status=new_status,
+                    )
+                )
