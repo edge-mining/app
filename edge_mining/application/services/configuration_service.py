@@ -9,8 +9,7 @@ from edge_mining.application.events.configuration_events import (
     ConfigurationUpdatedEvent,
     ConfigurationUpdatedEventType,
 )
-from edge_mining.application.interfaces import ConfigurationServiceInterface
-from edge_mining.application.ports.event_bus import EventBus
+from edge_mining.application.interfaces import ConfigurationServiceInterface, EventBusInterface
 from edge_mining.domain.common import EntityId, Watts
 from edge_mining.domain.energy.common import EnergyMonitorAdapter, EnergySourceType
 from edge_mining.domain.energy.entities import EnergyMonitor, EnergySource
@@ -102,7 +101,7 @@ from edge_mining.shared.settings.ports import SettingsRepository
 class ConfigurationService(ConfigurationServiceInterface):
     """Handles configuration of miners, policies, and system settings."""
 
-    def __init__(self, persistence_settings: PersistenceSettings, event_bus: EventBus, logger: LoggerPort):
+    def __init__(self, persistence_settings: PersistenceSettings, event_bus: EventBusInterface, logger: LoggerPort):
         # Domains
         self.external_service_repo: ExternalServiceRepository = persistence_settings.external_service_repo
         self.energy_source_repo: EnergySourceRepository = persistence_settings.energy_source_repo

@@ -2,9 +2,10 @@
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Type
 
 from edge_mining.domain.common import EntityId, Watts
+from edge_mining.domain.common import DomainEvent
 from edge_mining.domain.energy.common import EnergyMonitorAdapter, EnergySourceType
 from edge_mining.domain.energy.entities import EnergyMonitor, EnergySource
 from edge_mining.domain.energy.ports import EnergyMonitorPort
@@ -764,3 +765,29 @@ class SunFactoryInterface(ABC):
     @abstractmethod
     def create_sun_for_date(self, for_date: datetime = datetime.now()) -> Sun:
         """Create a Sun object for a specific date."""
+
+
+class EventBusInterface(ABC):
+    """Application interface for the domain event bus."""
+
+    @abstractmethod
+    async def publish(self, event: DomainEvent) -> None:
+        """Publish an event. Blocking handlers are executed before returning."""
+        ...
+
+    @abstractmethod
+    def subscribe(
+        self,
+        event_type: Type[DomainEvent],
+        handler: Callable,
+        blocking: bool = True,
+    ) -> None:
+        """Register a handler for a specific event type.
+
+        Args:
+            event_type: The class of the event to listen for.
+            handler: Async coroutine that receives the event.
+            blocking: If True, the publisher waits for the handler to complete.
+                      If False, the handler is executed in fire-and-forget mode.
+        """
+        ...

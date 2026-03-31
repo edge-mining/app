@@ -20,8 +20,7 @@ from edge_mining.adapters.domain.performance.trackers.dummy import DummyMiningPe
 from edge_mining.adapters.infrastructure.homeassistant.homeassistant_api import ServiceHomeAssistantAPIFactory
 from edge_mining.adapters.infrastructure.rule_engine.factory import RuleEngineFactory
 from edge_mining.application.events.configuration_events import ConfigurationUpdatedEvent, ConfigurationUpdatedEventType
-from edge_mining.application.interfaces import AdapterServiceInterface
-from edge_mining.application.ports.event_bus import EventBus
+from edge_mining.application.interfaces import AdapterServiceInterface, EventBusInterface
 from edge_mining.domain.common import EntityId
 from edge_mining.domain.energy.common import EnergyMonitorAdapter
 from edge_mining.domain.energy.entities import EnergyMonitor, EnergySource
@@ -69,7 +68,7 @@ class AdapterService(AdapterServiceInterface):
         mining_performance_tracker_repo: MiningPerformanceTrackerRepository,
         home_forecast_provider_repo: HomeForecastProviderRepository,
         external_service_repo: ExternalServiceRepository,
-        event_bus: EventBus,
+        event_bus: EventBusInterface,
         logger: Optional[LoggerPort] = None,
     ):
         self.energy_monitor_repo = energy_monitor_repo
@@ -100,7 +99,7 @@ class AdapterService(AdapterServiceInterface):
 
         self._subscribe_events(event_bus)
 
-    def _subscribe_events(self, event_bus: EventBus) -> None:
+    def _subscribe_events(self, event_bus: EventBusInterface) -> None:
         """Register all event subscriptions for this service."""
         event_bus.subscribe(
             ConfigurationUpdatedEvent,

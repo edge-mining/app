@@ -4,12 +4,12 @@ import asyncio
 from collections import defaultdict
 from typing import Callable, Type
 
-from edge_mining.application.ports.event_bus import EventBus
+from edge_mining.application.interfaces import EventBusInterface
 from edge_mining.domain.common import DomainEvent
 from edge_mining.shared.logging.port import LoggerPort
 
 
-class InMemoryEventBus(EventBus):
+class InMemoryEventBus(EventBusInterface):
     """In-memory implementation of the event bus with blocking/fire-and-forget support."""
 
     def __init__(self, logger: LoggerPort) -> None:
