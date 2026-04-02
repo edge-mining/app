@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from edge_mining.adapters.infrastructure.websocket.manager import WebSocketManager
+from edge_mining.adapters.infrastructure.websocket.utils import WebSocketMessage
 from edge_mining.application.events.configuration_events import ConfigurationUpdatedEvent
 from edge_mining.domain.energy.events import EnergyStateSnapshotUpdatedEvent
 from edge_mining.domain.miner.events import MinerStateChangedEvent
@@ -151,8 +152,10 @@ async def test_broadcast_sends_to_matching_subscriber(manager):
     manager.subscribe(ws, ["energy.*"])
 
     await manager.broadcast_message(
-        topic="energy.state",
-        payload={"optimization_unit_name": "Unit 1"},
+        WebSocketMessage(
+            topic="energy.state",
+            payload={"optimization_unit_name": "Unit 1"},
+        )
     )
 
     ws.send_text.assert_awaited_once()
@@ -168,8 +171,10 @@ async def test_broadcast_skips_non_matching_subscriber(manager):
     manager.subscribe(ws, ["miner.*"])
 
     await manager.broadcast_message(
-        topic="energy.state",
-        payload={"optimization_unit_name": "Unit 1"},
+        WebSocketMessage(
+            topic="energy.state",
+            payload={"optimization_unit_name": "Unit 1"},
+        )
     )
 
     ws.send_text.assert_not_awaited()
@@ -181,7 +186,7 @@ async def test_broadcast_skips_client_with_no_subscriptions(manager):
     await manager.connect(ws)
     # No subscribe call
 
-    await manager.broadcast_message(topic="energy.state", payload={})
+    await manager.broadcast_message(WebSocketMessage(topic="energy.state", payload={}))
 
     ws.send_text.assert_not_awaited()
 
@@ -193,7 +198,7 @@ async def test_broadcast_cleans_dead_connections(manager):
     await manager.connect(ws)
     manager.subscribe(ws, ["energy.*"])
 
-    await manager.broadcast_message(topic="energy.state", payload={})
+    await manager.broadcast_message(WebSocketMessage(topic="energy.state", payload={}))
 
     assert ws not in manager._connections
 
@@ -212,7 +217,7 @@ async def test_broadcast_multiple_clients(manager):
     manager.subscribe(ws2, ["miner.*"])
     manager.subscribe(ws3, ["*"])
 
-    await manager.broadcast_message(topic="energy.state", payload={})
+    await manager.broadcast_message(WebSocketMessage(topic="energy.state", payload={}))
 
     ws1.send_text.assert_awaited_once()
     ws2.send_text.assert_not_awaited()
@@ -229,13 +234,15 @@ async def test_broadcast_rule_engaged_event(manager):
     manager.subscribe(ws, ["rule.*"])
 
     await manager.broadcast_message(
-        topic="rule.engaged",
-        payload={
-            "optimization_unit_name": "Unit 1",
-            "policy_name": "Solar Policy",
-            "decision": "start_mining",
-            "miner_status": "OFF",
-        },
+        WebSocketMessage(
+            topic="rule.engaged",
+            payload={
+                "optimization_unit_name": "Unit 1",
+                "policy_name": "Solar Policy",
+                "decision": "start_mining",
+                "miner_status": "OFF",
+            },
+        )
     )
 
     ws.send_text.assert_awaited_once()
@@ -250,12 +257,14 @@ async def test_broadcast_miner_state_event(manager):
     manager.subscribe(ws, ["miner.state"])
 
     await manager.broadcast_message(
-        topic="miner.state",
-        payload={
-            "miner_name": "Antminer",
-            "old_status": "off",
-            "new_status": "on",
-        },
+        WebSocketMessage(
+            topic="miner.state",
+            payload={
+                "miner_name": "Antminer",
+                "old_status": "off",
+                "new_status": "on",
+            },
+        )
     )
 
     ws.send_text.assert_awaited_once()
@@ -270,8 +279,10 @@ async def test_broadcast_config_updated_event(manager):
     manager.subscribe(ws, ["config.*"])
 
     await manager.broadcast_message(
-        topic="config.updated",
-        payload={"entity_type": "", "entity_id": None, "action": ""},
+        WebSocketMessage(
+            topic="config.updated",
+            payload={"entity_type": "", "entity_id": None, "action": ""},
+        )
     )
 
     ws.send_text.assert_awaited_once()

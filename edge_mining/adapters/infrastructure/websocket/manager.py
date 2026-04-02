@@ -10,7 +10,7 @@ routers from each subdomain.
 
 import json
 from fnmatch import fnmatch
-from typing import Any, List
+from typing import List
 
 from fastapi import WebSocket
 
@@ -19,7 +19,7 @@ from edge_mining.adapters.domain.miner.websocket.handlers import MinerWebSocketH
 from edge_mining.adapters.domain.optimization_unit.websocket.handlers import OptimizationUnitWebSocketHandler
 from edge_mining.adapters.domain.policy.websocket.handlers import PolicyWebSocketHandler
 from edge_mining.adapters.application.services.configuration.websocket.handlers import ConfigurationWebSocketHandler
-from edge_mining.adapters.infrastructure.websocket.utils import WebSocketEventHandler
+from edge_mining.adapters.infrastructure.websocket.utils import WebSocketEventHandler, WebSocketMessage
 from edge_mining.application.interfaces import EventBusInterface
 from edge_mining.domain.common import DomainEvent
 from edge_mining.shared.logging.port import LoggerPort
@@ -62,8 +62,8 @@ class WebSocketManager:
         """Create an async callback that serializes the event and broadcasts it."""
 
         async def _callback(event: DomainEvent) -> None:
-            topic, payload = serialize_fn(event)
-            await self.broadcast_message(topic, payload)
+            message = serialize_fn(event)
+            await self.broadcast_message(message)
 
         return _callback
 
@@ -89,21 +89,21 @@ class WebSocketManager:
         if websocket in self._connections:
             self._connections[websocket] -= set(topics)
 
-    async def broadcast_message(self, topic: str, payload: dict[str, Any]) -> None:
+    async def broadcast_message(self, message: WebSocketMessage) -> None:
         """Broadcast a pre-serialized payload to all clients subscribed to the topic.
 
         Called by subdomain handlers after they have serialized their events.
         """
-        message = json.dumps({"topic": topic, "payload": payload})
+        raw = json.dumps({"topic": message.topic, "payload": message.payload})
 
         disconnected: list[WebSocket] = []
 
         for ws, subscriptions in self._connections.items():
             if not subscriptions:
                 continue
-            if self._matches(subscriptions, topic):
+            if self._matches(subscriptions, message.topic):
                 try:
-                    await ws.send_text(message)
+                    await ws.send_text(raw)
                 except Exception:
                     disconnected.append(ws)
 
