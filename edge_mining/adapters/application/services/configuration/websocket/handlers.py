@@ -2,7 +2,7 @@
 
 from typing import Any, List, Tuple
 
-from edge_mining.adapters.infrastructure.websocket.handler_protocol import (
+from edge_mining.adapters.infrastructure.websocket.utils import (
     WebSocketEventHandler,
     WebSocketEventRegistration,
 )

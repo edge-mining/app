@@ -4,7 +4,7 @@ from typing import Any, List, Tuple
 
 from edge_mining.adapters.domain.energy.schemas import EnergyStateSnapshotSchema
 from edge_mining.adapters.domain.energy.websocket.schemas import EnergyStateSnapshotUpdatedSchema
-from edge_mining.adapters.infrastructure.websocket.handler_protocol import (
+from edge_mining.adapters.infrastructure.websocket.utils import (
     WebSocketEventHandler,
     WebSocketEventRegistration,
 )

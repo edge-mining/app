@@ -4,7 +4,7 @@ from typing import Any, List, Tuple
 
 from edge_mining.adapters.domain.policy.schemas import DecisionalContextSchema
 from edge_mining.adapters.domain.policy.websocket.schemas import DecisionalContextUpdatedSchema
-from edge_mining.adapters.infrastructure.websocket.handler_protocol import (
+from edge_mining.adapters.infrastructure.websocket.utils import (
     WebSocketEventHandler,
     WebSocketEventRegistration,
 )
