@@ -19,7 +19,7 @@ from edge_mining.adapters.domain.miner.websocket.handlers import MinerWebSocketH
 from edge_mining.adapters.domain.optimization_unit.websocket.handlers import OptimizationUnitWebSocketHandler
 from edge_mining.adapters.domain.policy.websocket.handlers import PolicyWebSocketHandler
 from edge_mining.adapters.application.services.configuration.websocket.handlers import ConfigurationWebSocketHandler
-from edge_mining.adapters.infrastructure.websocket.handler_protocol import WebSocketEventHandler
+from edge_mining.adapters.infrastructure.websocket.utils import WebSocketEventHandler
 from edge_mining.application.interfaces import EventBusInterface
 from edge_mining.domain.common import DomainEvent
 from edge_mining.shared.logging.port import LoggerPort
