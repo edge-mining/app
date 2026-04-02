@@ -6,7 +6,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from edge_mining.adapters.infrastructure.event_bus.in_memory_event_bus import InMemoryEventBus
-from edge_mining.application.events.configuration_events import ConfigurationAction, ConfigurationUpdatedEvent, ConfigurationUpdatedEventType
+from edge_mining.application.events.common import ConfigurationAction, ConfigurationUpdatedEventType
+from edge_mining.application.events.configuration_events import ConfigurationUpdatedEvent
 from edge_mining.application.services.adapter_service import AdapterService
 from edge_mining.application.services.configuration_service import ConfigurationService
 from edge_mining.domain.common import EntityId

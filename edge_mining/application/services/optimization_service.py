@@ -10,10 +10,10 @@ It is responsible for:
 import asyncio
 from typing import List, Optional
 
-from edge_mining.application.events.energy_events import EnergyStateSnapshotUpdatedEvent
-from edge_mining.application.events.miner_events import MinerStateChangedEvent
-from edge_mining.application.events.optimization_events import RuleEngagedEvent
-from edge_mining.application.events.policy_events import DecisionalContextUpdatedEvent
+from edge_mining.domain.energy.events import EnergyStateSnapshotUpdatedEvent
+from edge_mining.domain.miner.events import MinerStateChangedEvent
+from edge_mining.domain.optimization_unit.events import RuleEngagedEvent
+from edge_mining.domain.policy.events import DecisionalContextUpdatedEvent
 from edge_mining.application.interfaces import (
     AdapterServiceInterface,
     EventBusInterface,

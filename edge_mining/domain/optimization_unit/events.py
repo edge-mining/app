@@ -1,4 +1,4 @@
-"""Optimization domain events."""
+"""Optimization unit domain events."""
 
 from dataclasses import dataclass
 from typing import Optional

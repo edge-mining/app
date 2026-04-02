@@ -3,7 +3,7 @@
 import unittest
 import uuid
 
-from edge_mining.application.events.optimization_events import RuleEngagedEvent
+from edge_mining.domain.optimization_unit.events import RuleEngagedEvent
 from edge_mining.domain.common import DomainEvent, EntityId
 from edge_mining.domain.policy.common import MiningDecision
 

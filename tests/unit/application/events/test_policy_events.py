@@ -3,7 +3,7 @@
 import unittest
 import uuid
 
-from edge_mining.application.events.policy_events import DecisionalContextUpdatedEvent
+from edge_mining.domain.policy.events import DecisionalContextUpdatedEvent
 from edge_mining.domain.common import DomainEvent, EntityId
 from edge_mining.domain.policy.value_objects import DecisionalContext
 

@@ -1,50 +1,71 @@
-"""WebSocket manager for broadcasting domain events to connected clients."""
+"""WebSocket manager for broadcasting domain events to connected clients.
+
+Acts as an aggregator: each subdomain provides a ``WebSocketEventHandler``
+that declares which event it handles and how to serialize it.
+The manager reads ``event_type`` and ``serialize`` from each handler,
+subscribes on the event bus, and broadcasts pre-serialized payloads –
+mirroring the pattern used by ``main_api.py`` which aggregates FastAPI
+routers from each subdomain.
+"""
 
 import json
-import uuid
-from datetime import datetime, timedelta
-from enum import Enum
 from fnmatch import fnmatch
-from typing import Any
+from typing import Any, List
 
 from fastapi import WebSocket
 
-from edge_mining.application.events.configuration_events import ConfigurationUpdatedEvent
-from edge_mining.application.events.energy_events import EnergyStateSnapshotUpdatedEvent
-from edge_mining.application.events.miner_events import MinerStateChangedEvent
-from edge_mining.application.events.optimization_events import RuleEngagedEvent
-from edge_mining.application.events.policy_events import DecisionalContextUpdatedEvent
+from edge_mining.adapters.domain.energy.websocket.handlers import EnergyWebSocketHandler
+from edge_mining.adapters.domain.miner.websocket.handlers import MinerWebSocketHandler
+from edge_mining.adapters.domain.optimization_unit.websocket.handlers import OptimizationUnitWebSocketHandler
+from edge_mining.adapters.domain.policy.websocket.handlers import PolicyWebSocketHandler
+from edge_mining.adapters.application.services.configuration.websocket.handlers import ConfigurationWebSocketHandler
+from edge_mining.adapters.infrastructure.websocket.handler_protocol import WebSocketEventHandler
 from edge_mining.application.interfaces import EventBusInterface
-from edge_mining.domain.common import DomainEvent, EntityId
+from edge_mining.domain.common import DomainEvent
 from edge_mining.shared.logging.port import LoggerPort
-
-# Event class name → WebSocket topic
-EVENT_TOPIC_MAP: dict[str, str] = {
-    "ConfigurationUpdatedEvent": "config.updated",
-    "RuleEngagedEvent": "rule.engaged",
-    "MinerStateChangedEvent": "miner.state",
-    "EnergyStateSnapshotUpdatedEvent": "energy.state",
-    "DecisionalContextUpdatedEvent": "policy.context",
-}
 
 
 class WebSocketManager:
-    """Manages WebSocket connections and broadcasts domain events to subscribers."""
+    """Manages WebSocket connections and broadcasts domain events to subscribers.
+
+    Each subdomain handler exposes a ``registrations`` property
+    returning a list of ``WebSocketEventRegistration`` items.
+    Each registration binds a domain event class to a serialization function.
+
+    The manager iterates over all registrations, subscribes on the event bus,
+    and broadcasts the serialized results.
+    """
 
     def __init__(self, event_bus: EventBusInterface, logger: LoggerPort) -> None:
         self._logger = logger
-        # WebSocket → set of topic patterns the client subscribed to
         self._connections: dict[WebSocket, set[str]] = {}
 
-        self._subscribe_events(event_bus)
+        # Collect all subdomain handlers
+        handlers: List[WebSocketEventHandler] = [
+            ConfigurationWebSocketHandler(),
+            EnergyWebSocketHandler(),
+            MinerWebSocketHandler(),
+            OptimizationUnitWebSocketHandler(),
+            PolicyWebSocketHandler(),
+        ]
 
-    def _subscribe_events(self, event_bus: EventBusInterface) -> None:
-        """Register all event subscriptions for WebSocket broadcasting."""
-        event_bus.subscribe(ConfigurationUpdatedEvent, self.broadcast, blocking=False)
-        event_bus.subscribe(RuleEngagedEvent, self.broadcast, blocking=False)
-        event_bus.subscribe(MinerStateChangedEvent, self.broadcast, blocking=False)
-        event_bus.subscribe(EnergyStateSnapshotUpdatedEvent, self.broadcast, blocking=False)
-        event_bus.subscribe(DecisionalContextUpdatedEvent, self.broadcast, blocking=False)
+        # Subscribe to the event bus for every registration across all handlers
+        for handler in handlers:
+            for registration in handler.registrations:
+                event_bus.subscribe(
+                    registration.event_type,
+                    self._make_callback(registration.serialize),
+                    blocking=False,
+                )
+
+    def _make_callback(self, serialize_fn):
+        """Create an async callback that serializes the event and broadcasts it."""
+
+        async def _callback(event: DomainEvent) -> None:
+            topic, payload = serialize_fn(event)
+            await self.broadcast_message(topic, payload)
+
+        return _callback
 
     async def connect(self, websocket: WebSocket) -> None:
         """Accept a new WebSocket connection. No subscriptions by default."""
@@ -68,21 +89,12 @@ class WebSocketManager:
         if websocket in self._connections:
             self._connections[websocket] -= set(topics)
 
-    async def broadcast(self, event: DomainEvent) -> None:
-        """Broadcast a domain event to all clients subscribed to its topic.
+    async def broadcast_message(self, topic: str, payload: dict[str, Any]) -> None:
+        """Broadcast a pre-serialized payload to all clients subscribed to the topic.
 
-        This method is designed to be used as a fire-and-forget event bus handler.
+        Called by subdomain handlers after they have serialized their events.
         """
-        topic = EVENT_TOPIC_MAP.get(event.event_type)
-        if topic is None:
-            return
-
-        message = json.dumps(
-            {
-                "topic": topic,
-                "payload": self._serialize_event(event),
-            }
-        )
+        message = json.dumps({"topic": topic, "payload": payload})
 
         disconnected: list[WebSocket] = []
 
@@ -102,28 +114,6 @@ class WebSocketManager:
     def _matches(self, subscriptions: set[str], topic: str) -> bool:
         """Check if any subscription pattern matches the topic."""
         return any(fnmatch(topic, pattern) for pattern in subscriptions)
-
-    def _serialize_event(self, event: DomainEvent) -> Any:
-        """Serialize event for WebSocket transmission (recursively handles nested structures)."""
-
-        def sanitize(obj):
-            if isinstance(obj, uuid.UUID) or type(obj) is EntityId:
-                return str(obj)
-            elif isinstance(obj, Enum):
-                return obj.value
-            elif isinstance(obj, datetime):
-                return obj.isoformat()
-            elif isinstance(obj, timedelta):
-                return str(obj)
-            elif isinstance(obj, dict):
-                return {k: sanitize(v) for k, v in obj.items()}
-            elif isinstance(obj, (list, tuple, set)):
-                return [sanitize(v) for v in obj]
-            else:
-                return obj
-
-        data = event.to_dict()
-        return sanitize(data)
 
     async def handle_client_messages(self, websocket: WebSocket) -> None:
         """Listen for subscription messages from a connected client.

@@ -3,7 +3,7 @@
 import unittest
 import uuid
 
-from edge_mining.application.events.miner_events import MinerStateChangedEvent
+from edge_mining.domain.miner.events import MinerStateChangedEvent
 from edge_mining.domain.common import DomainEvent, EntityId
 from edge_mining.domain.miner.common import MinerStatus
 

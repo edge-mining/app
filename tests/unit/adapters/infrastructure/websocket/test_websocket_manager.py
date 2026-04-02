@@ -6,12 +6,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from edge_mining.adapters.infrastructure.websocket.manager import EVENT_TOPIC_MAP, WebSocketManager
+from edge_mining.adapters.infrastructure.websocket.manager import WebSocketManager
 from edge_mining.application.events.configuration_events import ConfigurationUpdatedEvent
-from edge_mining.application.events.energy_events import EnergyStateSnapshotUpdatedEvent
-from edge_mining.application.events.miner_events import MinerStateChangedEvent
-from edge_mining.application.events.optimization_events import RuleEngagedEvent
-from edge_mining.application.events.policy_events import DecisionalContextUpdatedEvent
+from edge_mining.domain.energy.events import EnergyStateSnapshotUpdatedEvent
+from edge_mining.domain.miner.events import MinerStateChangedEvent
+from edge_mining.domain.optimization_unit.events import RuleEngagedEvent
+from edge_mining.domain.policy.events import DecisionalContextUpdatedEvent
 from edge_mining.application.interfaces import EventBusInterface
 from edge_mining.domain.common import EntityId, Watts
 from edge_mining.domain.miner.common import MinerStatus
@@ -150,10 +150,10 @@ async def test_broadcast_sends_to_matching_subscriber(manager):
     await manager.connect(ws)
     manager.subscribe(ws, ["energy.*"])
 
-    event = EnergyStateSnapshotUpdatedEvent(
-        optimization_unit_name="Unit 1",
+    await manager.broadcast_message(
+        topic="energy.state",
+        payload={"optimization_unit_name": "Unit 1"},
     )
-    await manager.broadcast(event)
 
     ws.send_text.assert_awaited_once()
     sent = json.loads(ws.send_text.call_args[0][0])
@@ -167,10 +167,10 @@ async def test_broadcast_skips_non_matching_subscriber(manager):
     await manager.connect(ws)
     manager.subscribe(ws, ["miner.*"])
 
-    event = EnergyStateSnapshotUpdatedEvent(
-        optimization_unit_name="Unit 1",
+    await manager.broadcast_message(
+        topic="energy.state",
+        payload={"optimization_unit_name": "Unit 1"},
     )
-    await manager.broadcast(event)
 
     ws.send_text.assert_not_awaited()
 
@@ -181,8 +181,7 @@ async def test_broadcast_skips_client_with_no_subscriptions(manager):
     await manager.connect(ws)
     # No subscribe call
 
-    event = EnergyStateSnapshotUpdatedEvent()
-    await manager.broadcast(event)
+    await manager.broadcast_message(topic="energy.state", payload={})
 
     ws.send_text.assert_not_awaited()
 
@@ -194,8 +193,7 @@ async def test_broadcast_cleans_dead_connections(manager):
     await manager.connect(ws)
     manager.subscribe(ws, ["energy.*"])
 
-    event = EnergyStateSnapshotUpdatedEvent()
-    await manager.broadcast(event)
+    await manager.broadcast_message(topic="energy.state", payload={})
 
     assert ws not in manager._connections
 
@@ -214,67 +212,14 @@ async def test_broadcast_multiple_clients(manager):
     manager.subscribe(ws2, ["miner.*"])
     manager.subscribe(ws3, ["*"])
 
-    event = EnergyStateSnapshotUpdatedEvent()
-    await manager.broadcast(event)
+    await manager.broadcast_message(topic="energy.state", payload={})
 
     ws1.send_text.assert_awaited_once()
     ws2.send_text.assert_not_awaited()
     ws3.send_text.assert_awaited_once()
 
 
-@pytest.mark.asyncio
-async def test_broadcast_unknown_event_type(manager):
-    """Events not in EVENT_TOPIC_MAP should be silently ignored."""
-    from dataclasses import dataclass
-    from edge_mining.domain.common import DomainEvent
-
-    @dataclass
-    class UnknownEvent(DomainEvent):
-        pass
-
-    ws = make_ws()
-    await manager.connect(ws)
-    manager.subscribe(ws, ["*"])
-
-    await manager.broadcast(UnknownEvent())
-    ws.send_text.assert_not_awaited()
-
-
-# --- Serialization ---
-
-
-def test_serialize_event_converts_enum(manager):
-    event = MinerStateChangedEvent(
-        miner_name="Miner 1",
-        old_status=MinerStatus.OFF,
-        new_status=MinerStatus.ON,
-    )
-    result = manager._serialize_event(event)
-    # Enum values should be converted
-    assert isinstance(result["old_status"], (str, int))
-    assert isinstance(result["new_status"], (str, int))
-
-
-def test_serialize_event_converts_uuid(manager):
-    miner_id = EntityId(uuid.uuid4())
-    event = MinerStateChangedEvent(
-        miner_id=miner_id,
-        miner_name="Miner 1",
-    )
-    result = manager._serialize_event(event)
-    assert isinstance(result["miner_id"], str)
-
-
-# --- Event topic mapping ---
-
-
-def test_event_topic_map_completeness():
-    """All defined events should have a topic mapping."""
-    assert "ConfigurationUpdatedEvent" in EVENT_TOPIC_MAP
-    assert "RuleEngagedEvent" in EVENT_TOPIC_MAP
-    assert "MinerStateChangedEvent" in EVENT_TOPIC_MAP
-    assert "EnergyStateSnapshotUpdatedEvent" in EVENT_TOPIC_MAP
-    assert "DecisionalContextUpdatedEvent" in EVENT_TOPIC_MAP
+# --- Subdomain handler broadcasting ---
 
 
 @pytest.mark.asyncio
@@ -283,13 +228,15 @@ async def test_broadcast_rule_engaged_event(manager):
     await manager.connect(ws)
     manager.subscribe(ws, ["rule.*"])
 
-    event = RuleEngagedEvent(
-        optimization_unit_name="Unit 1",
-        policy_name="Solar Policy",
-        decision=MiningDecision.START_MINING,
-        miner_status="OFF",
+    await manager.broadcast_message(
+        topic="rule.engaged",
+        payload={
+            "optimization_unit_name": "Unit 1",
+            "policy_name": "Solar Policy",
+            "decision": "start_mining",
+            "miner_status": "OFF",
+        },
     )
-    await manager.broadcast(event)
 
     ws.send_text.assert_awaited_once()
     sent = json.loads(ws.send_text.call_args[0][0])
@@ -302,12 +249,14 @@ async def test_broadcast_miner_state_event(manager):
     await manager.connect(ws)
     manager.subscribe(ws, ["miner.state"])
 
-    event = MinerStateChangedEvent(
-        miner_name="Antminer",
-        old_status=MinerStatus.OFF,
-        new_status=MinerStatus.ON,
+    await manager.broadcast_message(
+        topic="miner.state",
+        payload={
+            "miner_name": "Antminer",
+            "old_status": "off",
+            "new_status": "on",
+        },
     )
-    await manager.broadcast(event)
 
     ws.send_text.assert_awaited_once()
     sent = json.loads(ws.send_text.call_args[0][0])
@@ -320,8 +269,10 @@ async def test_broadcast_config_updated_event(manager):
     await manager.connect(ws)
     manager.subscribe(ws, ["config.*"])
 
-    event = ConfigurationUpdatedEvent()
-    await manager.broadcast(event)
+    await manager.broadcast_message(
+        topic="config.updated",
+        payload={"entity_type": "", "entity_id": None, "action": ""},
+    )
 
     ws.send_text.assert_awaited_once()
     sent = json.loads(ws.send_text.call_args[0][0])

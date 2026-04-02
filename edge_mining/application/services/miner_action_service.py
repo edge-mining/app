@@ -14,7 +14,7 @@ from edge_mining.domain.miner.exceptions import (
 from edge_mining.domain.miner.ports import MinerRepository
 from edge_mining.domain.miner.value_objects import HashRate
 from edge_mining.domain.notification.ports import NotificationPort
-from edge_mining.application.events.miner_events import MinerStateChangedEvent
+from edge_mining.domain.miner.events import MinerStateChangedEvent
 from edge_mining.application.interfaces import EventBusInterface
 from edge_mining.shared.logging.port import LoggerPort
 

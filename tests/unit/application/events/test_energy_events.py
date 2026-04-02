@@ -3,7 +3,7 @@
 import unittest
 import uuid
 
-from edge_mining.application.events.energy_events import EnergyStateSnapshotUpdatedEvent
+from edge_mining.domain.energy.events import EnergyStateSnapshotUpdatedEvent
 from edge_mining.domain.common import DomainEvent, EntityId
 
 
