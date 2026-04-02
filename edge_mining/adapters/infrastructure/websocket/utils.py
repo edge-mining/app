@@ -2,9 +2,16 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Callable, List, Tuple, Type
+from typing import Any, Callable, List, NamedTuple, Type
 
 from edge_mining.domain.common import DomainEvent
+
+
+class WebSocketMessage(NamedTuple):
+    """Typed container returned by WebSocket serialization functions."""
+
+    topic: str
+    payload: dict[str, Any]
 
 
 @dataclass(frozen=True)
@@ -12,11 +19,11 @@ class WebSocketEventRegistration:
     """A single event-to-topic binding.
 
     *event_type* is the domain event class to subscribe to.
-    *serialize* converts a domain event into a ``(topic, payload)`` pair.
+    *serialize* converts a domain event into a ``WebSocketMessage``.
     """
 
     event_type: Type[DomainEvent]
-    serialize: Callable[[DomainEvent], Tuple[str, dict[str, Any]]]
+    serialize: Callable[[DomainEvent], WebSocketMessage]
 
 
 class WebSocketEventHandler(ABC):

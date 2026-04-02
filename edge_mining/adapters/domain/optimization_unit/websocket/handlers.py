@@ -1,11 +1,12 @@
 """WebSocket event handler for the Optimization Unit domain."""
 
-from typing import Any, List, Tuple
+from typing import List
 
 from edge_mining.adapters.domain.optimization_unit.websocket.schemas import RuleEngagedSchema
 from edge_mining.adapters.infrastructure.websocket.utils import (
     WebSocketEventHandler,
     WebSocketEventRegistration,
+    WebSocketMessage,
 )
 from edge_mining.domain.common import DomainEvent
 from edge_mining.domain.optimization_unit.events import RuleEngagedEvent
@@ -23,7 +24,7 @@ class OptimizationUnitWebSocketHandler(WebSocketEventHandler):
             ),
         ]
 
-    def _serialize_rule_engaged(self, event: DomainEvent) -> Tuple[str, dict[str, Any]]:
+    def _serialize_rule_engaged(self, event: DomainEvent) -> WebSocketMessage:
         assert isinstance(event, RuleEngagedEvent)
         payload = RuleEngagedSchema(
             optimization_unit_id=str(event.optimization_unit_id) if event.optimization_unit_id else None,
@@ -34,4 +35,4 @@ class OptimizationUnitWebSocketHandler(WebSocketEventHandler):
             decision=event.decision.value if event.decision else None,
             miner_status=event.miner_status,
         )
-        return "rule.engaged", payload.model_dump(mode="json")
+        return WebSocketMessage("rule.engaged", payload.model_dump(mode="json"))
