@@ -165,7 +165,36 @@ docker compose logs
   - Nginx is running and correctly proxying requests
   - Frontend is pointing to the right API URL.
 
-## 6. Updating Submodules
+## 6. Updating the Application
+
+When a new version is available, use the `update.sh` script to pull the latest changes (including submodules) and restart the application:
+
+```bash
+./update.sh
+```
+
+This script will:
+- Pull the latest changes from the current branch (with `--recurse-submodules`)
+- Ensure all submodules are in sync
+- Re-initialize `user_data/` (copies missing defaults only)
+- Rebuild and restart the Docker stack
+
+### 6.1 Switching Branch
+
+To switch to a different branch (e.g. from `main` to `dev`), use the `switch_branch.sh` script:
+
+```bash
+./switch_branch.sh
+```
+
+This script will:
+- Fetch the latest remote branches
+- Display a numbered list of all available branches
+- Prompt you to select the desired branch
+- Switch with `--recurse-submodules` so that all submodules are correctly updated to the matching commit
+- Rebuild and restart the Docker stack
+
+### 6.2 Updating Submodules (manual)
 
 This repository uses Git submodules for the `core` and `frontend` components. The submodules are configured to track the `dev` and `develop` branches respectively.
 
