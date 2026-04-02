@@ -16,6 +16,13 @@ import time
 from typing import Optional, Tuple
 
 from homeassistant_api import Client, Domain, Entity, Service
+from homeassistant_api.errors import (
+    EndpointNotFoundError,
+    HomeassistantAPIError,
+    RequestError,
+    RequestTimeoutError,
+    UnauthorizedError,
+)
 
 from edge_mining.adapters.infrastructure.homeassistant.utils import (
     STATE_SERVICE_MAP,
@@ -75,6 +82,17 @@ class ServiceHomeAssistantAPI(ExternalServicePort):
             self.client.get_config()
             if self.logger:
                 self.logger.info("Successfully connected to Home Assistant API.")
+        except UnauthorizedError as e:
+            if self.logger:
+                self.logger.error(
+                    "Home Assistant API authentication failed during connection. "
+                    "Please verify your access token is valid."
+                )
+            raise ConnectionError(f"Home Assistant authentication failed: {e}") from e
+        except (RequestError, HomeassistantAPIError) as e:
+            if self.logger:
+                self.logger.error(f"Home Assistant API error during connection: {e}")
+            raise ConnectionError(f"Home Assistant API error during connection: {e}") from e
         except Exception as e:
             if self.logger:
                 self.logger.error(f"An unexpected error occurred connecting to Home Assistant: {e}")
@@ -100,9 +118,9 @@ class ServiceHomeAssistantAPI(ExternalServicePort):
             if self.logger:
                 self.logger.info("Successfully connected to Home Assistant API.")
             return True
-        except Exception as e:
+        except (Exception, HomeassistantAPIError) as e:
             if self.logger:
-                self.logger.error(f"Connection check to Home Assistant API failed: {e}")
+                self.logger.error(f"Home Assistant API connection check failed: {e}")
             return False
 
     def get_entity_state(self, entity_id: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
@@ -130,6 +148,30 @@ class ServiceHomeAssistantAPI(ExternalServicePort):
             if self.logger:
                 self.logger.debug(f"Fetched HA entity '{entity_id}': State='{state}', Unit='{unit}'")
             return state, unit
+        except EndpointNotFoundError:
+            if self.logger:
+                self.logger.error(
+                    f"Home Assistant entity '{entity_id}' does not exist. "
+                    "Please verify the entity ID is correct in your configuration."
+                )
+            return None, None
+        except UnauthorizedError:
+            if self.logger:
+                self.logger.error(
+                    "Home Assistant API authentication failed. " "Please verify your access token is valid."
+                )
+            return None, None
+        except RequestTimeoutError:
+            if self.logger:
+                self.logger.error(
+                    f"Home Assistant API request timed out while fetching entity '{entity_id}'. "
+                    "The server may be overloaded or unreachable."
+                )
+            return None, None
+        except (RequestError, HomeassistantAPIError) as e:
+            if self.logger:
+                self.logger.error(f"Home Assistant API error while fetching entity '{entity_id}': {e}")
+            return None, None
         except Exception as e:
             if self.logger:
                 self.logger.error(f"Unexpected error getting Home Assistant entity '{entity_id}': {e}")
@@ -210,6 +252,30 @@ class ServiceHomeAssistantAPI(ExternalServicePort):
                 self.logger.debug(f"Successfully set HA entity '{entity_id}' to state '{state}'.")
 
             return True
+        except EndpointNotFoundError:
+            if self.logger:
+                self.logger.error(
+                    f"Home Assistant entity '{entity_id}' does not exist. "
+                    "Please verify the entity ID is correct in your configuration."
+                )
+            return False
+        except UnauthorizedError:
+            if self.logger:
+                self.logger.error(
+                    "Home Assistant API authentication failed. " "Please verify your access token is valid."
+                )
+            return False
+        except RequestTimeoutError:
+            if self.logger:
+                self.logger.error(
+                    f"Home Assistant API request timed out while setting entity '{entity_id}'. "
+                    "The server may be overloaded or unreachable."
+                )
+            return False
+        except (RequestError, HomeassistantAPIError) as e:
+            if self.logger:
+                self.logger.error(f"Home Assistant API error while setting entity '{entity_id}': {e}")
+            return False
         except Exception as e:
             if self.logger:
                 self.logger.error(f"Unexpected error setting Home Assistant entity '{entity_id}': {e}")
