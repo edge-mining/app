@@ -1,13 +1,12 @@
 """WebSocket event handler for the Energy domain."""
 
-from typing import List
+from typing import Any, List
 
 from edge_mining.adapters.domain.energy.schemas import EnergyStateSnapshotSchema
 from edge_mining.adapters.domain.energy.websocket.schemas import EnergyStateSnapshotUpdatedSchema
 from edge_mining.adapters.infrastructure.websocket.utils import (
     WebSocketEventHandler,
     WebSocketEventRegistration,
-    WebSocketMessage,
 )
 from edge_mining.domain.common import DomainEvent
 from edge_mining.domain.energy.events import EnergyStateSnapshotUpdatedEvent
@@ -21,11 +20,12 @@ class EnergyWebSocketHandler(WebSocketEventHandler):
         return [
             WebSocketEventRegistration(
                 event_type=EnergyStateSnapshotUpdatedEvent,
+                topic="energy.state",
                 serialize=self._serialize_energy_state_snapshot_updated,
             ),
         ]
 
-    def _serialize_energy_state_snapshot_updated(self, event: DomainEvent) -> WebSocketMessage:
+    def _serialize_energy_state_snapshot_updated(self, event: DomainEvent) -> dict[str, Any]:
         assert isinstance(event, EnergyStateSnapshotUpdatedEvent)
         payload = EnergyStateSnapshotUpdatedSchema(
             optimization_unit_id=str(event.optimization_unit_id) if event.optimization_unit_id else None,
@@ -37,4 +37,4 @@ class EnergyWebSocketHandler(WebSocketEventHandler):
                 else None
             ),
         )
-        return WebSocketMessage("energy.state", payload.model_dump(mode="json"))
+        return payload.model_dump(mode="json")

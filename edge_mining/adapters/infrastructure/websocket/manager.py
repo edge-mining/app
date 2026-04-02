@@ -39,6 +39,7 @@ class WebSocketManager:
     def __init__(self, event_bus: EventBusInterface, logger: LoggerPort) -> None:
         self._logger = logger
         self._connections: dict[WebSocket, set[str]] = {}
+        self._available_topics: List[str] = []
 
         # Collect all subdomain handlers
         handlers: List[WebSocketEventHandler] = [
@@ -52,18 +53,24 @@ class WebSocketManager:
         # Subscribe to the event bus for every registration across all handlers
         for handler in handlers:
             for registration in handler.registrations:
+                self._available_topics.append(registration.topic)
                 event_bus.subscribe(
                     registration.event_type,
-                    self._make_callback(registration.serialize),
+                    self._make_callback(registration.topic, registration.serialize),
                     blocking=False,
                 )
 
-    def _make_callback(self, serialize_fn):
+    @property
+    def available_topics(self) -> List[str]:
+        """Return the list of all topics that clients can subscribe to."""
+        return list(self._available_topics)
+
+    def _make_callback(self, topic, serialize_fn):
         """Create an async callback that serializes the event and broadcasts it."""
 
         async def _callback(event: DomainEvent) -> None:
-            message = serialize_fn(event)
-            await self.broadcast_message(message)
+            payload = serialize_fn(event)
+            await self.broadcast_message(WebSocketMessage(topic, payload))
 
         return _callback
 

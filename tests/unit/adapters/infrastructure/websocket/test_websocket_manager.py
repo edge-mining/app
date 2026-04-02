@@ -72,6 +72,18 @@ def test_subscribe_events_registers_all_handlers(mock_event_bus, logger):
         assert call.kwargs.get("blocking") is False or call.args[2] is False
 
 
+def test_available_topics_returns_all_registered_topics(mock_event_bus, logger):
+    """available_topics should list every topic declared by subdomain handlers."""
+    manager = WebSocketManager(event_bus=mock_event_bus, logger=logger)
+    assert sorted(manager.available_topics) == [
+        "config.updated",
+        "energy.state",
+        "miner.state",
+        "policy.context",
+        "rule.engaged",
+    ]
+
+
 # --- Connection management ---
 
 

@@ -19,11 +19,13 @@ class WebSocketEventRegistration:
     """A single event-to-topic binding.
 
     *event_type* is the domain event class to subscribe to.
-    *serialize* converts a domain event into a ``WebSocketMessage``.
+    *topic* is the WebSocket topic string clients use to subscribe.
+    *serialize* converts a domain event into a payload dict.
     """
 
     event_type: Type[DomainEvent]
-    serialize: Callable[[DomainEvent], WebSocketMessage]
+    topic: str
+    serialize: Callable[[DomainEvent], dict[str, Any]]
 
 
 class WebSocketEventHandler(ABC):
