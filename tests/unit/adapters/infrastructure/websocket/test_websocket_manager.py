@@ -300,3 +300,29 @@ async def test_broadcast_config_updated_event(manager):
     ws.send_text.assert_awaited_once()
     sent = json.loads(ws.send_text.call_args[0][0])
     assert sent["topic"] == "config.updated"
+
+
+# --- get_topics ---
+
+
+@pytest.mark.asyncio
+async def test_get_topics_returns_available_topics(manager):
+    """Client sending {"get_topics": true} should receive the full list of available topics."""
+    ws = make_ws()
+    ws.receive_json.side_effect = [{"get_topics": True}, Exception("done")]
+    await manager.connect(ws)
+
+    await manager.handle_client_messages(ws)
+
+    ws.send_json.assert_awaited_once_with(
+        {
+            "type": "available_topics",
+            "topics": [
+                "config.updated",
+                "energy.state",
+                "miner.state",
+                "policy.context",
+                "rule.engaged",
+            ],
+        }
+    )

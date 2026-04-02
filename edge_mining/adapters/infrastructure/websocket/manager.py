@@ -123,15 +123,23 @@ class WebSocketManager:
         return any(fnmatch(topic, pattern) for pattern in subscriptions)
 
     async def handle_client_messages(self, websocket: WebSocket) -> None:
-        """Listen for subscription messages from a connected client.
+        """Listen for messages from a connected client.
 
         Expected message format:
             {"subscribe": ["energy.*", "miner.state"]}
             {"unsubscribe": ["energy.*"]}
+            {"get_topics": true}
         """
         try:
             while True:
                 data = await websocket.receive_json()
+                if data.get("get_topics"):
+                    await websocket.send_json(
+                        {
+                            "type": "available_topics",
+                            "topics": sorted(self._available_topics),
+                        }
+                    )
                 if "subscribe" in data and isinstance(data["subscribe"], list):
                     self.subscribe(websocket, data["subscribe"])
                     await websocket.send_json(
