@@ -310,7 +310,6 @@ class HomeAssistantAPIEnergyMonitor(EnergyMonitorPort):
         if self.logger:
             self.logger.debug("Fetching current energy state from Home Assistant...")
         now = Timestamp(datetime.now())
-        has_critical_error = False
 
         # --- Production ---
         if self.entity_production:
@@ -374,33 +373,35 @@ class HomeAssistantAPIEnergyMonitor(EnergyMonitorPort):
         else:
             grid_watts = None
             if self.entity_grid:
-                has_critical_error = True  # Grid is usually important
+                if self.logger:
+                    self.logger.warning(
+                        f"Could not retrieve grid value (Entity: {self.entity_grid}). "
+                        "Continuing without grid data."
+                    )
 
         # Battery: We want positive for CHARGING, negative for DISCHARGING
         if battery_power_raw is not None:
             battery_power = battery_power_raw if self.battery_positive_charge else -battery_power_raw
         else:
             battery_power = None
-            # Only critical if battery SOC is also configured
             if self.entity_battery_soc and self.entity_battery_power:
-                has_critical_error = True
+                if self.logger:
+                    self.logger.warning(
+                        f"Could not retrieve battery power value "
+                        f"(Entity: {self.entity_battery_power}). "
+                        "Continuing without battery data."
+                    )
 
         # Check if essential values are missing
         if production_watts is None and self.entity_production:
             if self.logger:
-                self.logger.error(f"Missing critical value: Production (Entity: {self.entity_production})")
-            has_critical_error = True
+                self.logger.warning(
+                    f"Could not retrieve production value (Entity: {self.entity_production}). "
+                    "Defaulting to 0W."
+                )
         if consumption_watts is None and self.entity_consumption:
             if self.logger:
                 self.logger.error(f"Missing critical value: House Consumption (Entity: {self.entity_consumption})")
-            has_critical_error = True
-
-        if has_critical_error:
-            if self.logger:
-                self.logger.error(
-                    "Failed to retrieve one or more critical energy values from Home Assistant. Cannot create snapshot."
-                )
-            return None
 
         reading_timestamp = now
 
