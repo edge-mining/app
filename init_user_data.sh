@@ -27,7 +27,7 @@ fi
 
 # Handle edgemining.db
 # If a pre-existing database exists under core/, copy it once.
-# Otherwise, create an empty file in user_data so the app can initialize it.
+# Otherwise, create an empty file in user_data (only if it doesn't exist) so the app can initialize it.
 if [ -f "$APP_CORE_DATA_DIR/db/edgemining.db" ]; then
   if [ ! -f "$APP_USER_DATA_DIR/db/edgemining.db" ]; then
     cp "$APP_CORE_DATA_DIR/db/edgemining.db" "$APP_USER_DATA_DIR/db/edgemining.db"
