@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_valid
 from edge_mining.adapters.domain.energy.schemas import EnergySourceSchema, EnergyStateSnapshotSchema
 from edge_mining.adapters.domain.forecast.schemas import ForecastSchema, SunSchema
 from edge_mining.adapters.domain.home_load.schemas import ConsumptionForecastSchema
-from edge_mining.adapters.domain.miner.schemas import HashRateSchema, MinerSchema
+from edge_mining.adapters.domain.miner.schemas import HashRateSchema, MinerSchema, MinerStateSnapshotSchema
 from edge_mining.adapters.domain.policy.utils import FieldStructureSchema, _extract_schema_structure
 from edge_mining.domain.common import EntityId
 from edge_mining.domain.policy.aggregate_roots import OptimizationPolicy
@@ -466,7 +466,8 @@ class DecisionalContextSchema(BaseModel):
     home_load_forecast: Optional[ConsumptionForecastSchema] = Field(None, description="Home consumption forecast")
     tracker_current_hashrate: Optional[HashRateSchema] = Field(None, description="Current mining hashrate")
     sun: Optional[SunSchema] = Field(None, description="Sun position and timing information")
-    miner: Optional[MinerSchema] = Field(None, description="Miner information")
+    miner: Optional[MinerSchema] = Field(None, description="Miner static configuration")
+    miner_state: Optional[MinerStateSnapshotSchema] = Field(None, description="Miner runtime state snapshot")
     timestamp: datetime = Field(default_factory=datetime.now, description="Timestamp of this decisional context")
 
     @staticmethod
@@ -508,6 +509,7 @@ class DecisionalContextSchema(BaseModel):
             ),
             sun=SunSchema.from_model(context.sun) if context.sun else None,
             miner=MinerSchema.from_model(context.miner) if context.miner else None,
+            miner_state=(MinerStateSnapshotSchema.from_model(context.miner_state) if context.miner_state else None),
             timestamp=context.timestamp,
         )
 
@@ -523,6 +525,7 @@ class DecisionalContextSchema(BaseModel):
             ),
             sun=self.sun.to_model() if self.sun else None,
             miner=self.miner.to_model() if self.miner else None,
+            miner_state=self.miner_state.to_model() if self.miner_state else None,
             timestamp=self.timestamp,
         )
 

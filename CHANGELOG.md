@@ -5,6 +5,76 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0-rev1]
+
+### Added
+- **`MinerStateSnapshot` Value Object** (`edge_mining/domain/miner/value_objects.py`):
+  - New frozen dataclass representing the runtime operational state of a miner
+  - Fields: `status` (MinerStatus), `hash_rate` (Optional[HashRate]), `power_consumption` (Optional[Watts])
+  - Follows the Single Responsibility Principle: separates real-time state from static configuration
+
+- **`MinerStateSnapshotSchema`** (`edge_mining/adapters/domain/miner/schemas.py`):
+  - Pydantic schema for serialization/deserialization of `MinerStateSnapshot`
+  - Methods: `from_model()`, `to_model()` for domain ↔ schema conversion
+
+### Changed
+- **`Miner` Entity** (`edge_mining/domain/miner/entities.py`):
+  - **BREAKING**: Removed runtime state fields: `status`, `hash_rate`, `power_consumption`
+  - **BREAKING**: Removed methods: `turn_on()`, `turn_off()`, `update_status()`
+  - Simplified `deactivate()` to only set `self.active = False`
+  - Entity now represents only static configuration: `name`, `model`, `hash_rate_max`, `power_consumption_max`, `active`, `controller_id`
+
+- **`DecisionalContext`** (`edge_mining/domain/policy/value_objects.py`):
+  - Added `miner_state: Optional[MinerStateSnapshot]` field for runtime state access
+  - Existing `miner: Optional[Miner]` field retained for static configuration access
+
+- **`OptimizationPolicy`** (`edge_mining/domain/policy/aggregate_roots.py`):
+  - Updated `decide_next_action()` to read status from `decisional_context.miner_state.status` instead of `decisional_context.miner.status`
+
+- **Repositories** (`edge_mining/adapters/domain/miner/repositories.py`):
+  - `SqliteMinerRepository`: Removed `status`, `hash_rate`, `power_consumption` from schema, SQL queries, and row mapping
+  - `SqlAlchemyMinerRepository`: Removed runtime state fields from `update()` method
+
+- **SQLAlchemy Tables** (`edge_mining/adapters/domain/miner/tables.py`):
+  - Removed `MinerStatusType` custom type class
+  - Removed `status`, `hash_rate`, `power_consumption` columns from `miners_table`
+  - Simplified event listeners to only handle `hash_rate_max` and `power_consumption_max`
+
+- **Pydantic Schemas**:
+  - `MinerSchema` (`edge_mining/adapters/domain/miner/schemas.py`): Removed `status`, `hash_rate`, `power_consumption` fields
+  - `MinerCreateSchema`: Removed state fields from creation payload
+  - `DecisionalContextSchema` (`edge_mining/adapters/domain/policy/schemas.py`): Added `miner_state` field with `MinerStateSnapshotSchema`
+
+- **API Router** (`edge_mining/adapters/domain/miner/fast_api/router.py`):
+  - `GET /miners/{miner_id}/status`: Now returns `MinerStateSnapshotSchema` instead of `MinerSchema`
+  - `GET /miner-controllers/{controller_id}/miner-details`: Now returns `MinerStateSnapshotSchema`
+
+- **CLI Commands** (`edge_mining/adapters/domain/miner/cli/commands.py`):
+  - Removed status display from `list_miners()` and `print_miner_details()`
+
+- **Application Interfaces** (`edge_mining/application/interfaces.py`):
+  - `get_miner_status()`: Return type changed from `Optional[MinerStatus]` to `Optional[MinerStateSnapshot]`
+  - `get_miner_details_from_controller()`: Return type changed from `Optional[Miner]` to `Optional[MinerStateSnapshot]`
+  - `add_miner()`: Removed `status` parameter
+
+- **Application Services**:
+  - `MinerActionService` (`edge_mining/application/services/miner_action_service.py`): Refactored all methods to build and return `MinerStateSnapshot` instead of mutating/persisting the `Miner` entity state
+  - `ConfigurationService` (`edge_mining/application/services/configuration_service.py`): Removed `status` from `add_miner()`
+  - `OptimizationService` (`edge_mining/application/services/optimization_service.py`): Updated context building to create `MinerStateSnapshot` objects; removed `miner.turn_on()`/`miner.turn_off()` calls and state persistence after decisions
+
+- **Rule Engine** (`edge_mining/adapters/infrastructure/rule_engine/schemas.py`):
+  - Updated operator examples from `miner.status` to `miner_state.status`
+
+- **YAML Rule Files** (`data/examples/rules/stop/`):
+  - Updated `advanced_stop_rules.yaml` and `basic_stop_rules.yaml`: Changed field references from `miner.status` to `miner_state.status`
+
+- **Alembic Migration** (`alembic/versions/4e55fe6113c7_initial_schema_with_all_tables.py`):
+  - Removed columns `status`, `hash_rate`, `power_consumption` from `miners` table definition
+  - Removed `MinerStatusType()` reference (custom type no longer exists)
+
+### Fixed
+- Fixed unterminated string literal in `MinerActionServiceInterface` docstring
+
 ## [0.1.0]
 
 ### Added

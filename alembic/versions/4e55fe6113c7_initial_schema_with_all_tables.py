@@ -184,11 +184,8 @@ def upgrade() -> None:
         sa.Column("id", sa.String(), nullable=False),
         sa.Column("name", sa.String(), nullable=False),
         sa.Column("model", sa.String(), nullable=True),
-        sa.Column("status", edge_mining.adapters.domain.miner.tables.MinerStatusType(), nullable=False),
         sa.Column("active", sa.Boolean(), nullable=False),
-        sa.Column("hash_rate", sa.String(), nullable=True),
         sa.Column("hash_rate_max", sa.String(), nullable=True),
-        sa.Column("power_consumption", sa.Float(), nullable=True),
         sa.Column("power_consumption_max", sa.Float(), nullable=True),
         sa.Column("controller_id", sa.String(), nullable=True),
         sa.ForeignKeyConstraint(

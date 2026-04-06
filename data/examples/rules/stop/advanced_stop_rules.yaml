@@ -91,7 +91,7 @@ rules:
         - field: "timestamp.hour"
           operator: "eq"
           value: 3  # 3 AM maintenance
-        - field: "miner.status"
+        - field: "miner_state.status"
           operator: "eq"
           value: "ERROR"  # Stop on miner error
         - all_of:  # Sunday early morning maintenance

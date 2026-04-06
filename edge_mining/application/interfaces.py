@@ -13,10 +13,10 @@ from edge_mining.domain.forecast.common import ForecastProviderAdapter
 from edge_mining.domain.forecast.entities import ForecastProvider
 from edge_mining.domain.forecast.ports import ForecastProviderPort
 from edge_mining.domain.home_load.ports import HomeForecastProviderPort
-from edge_mining.domain.miner.common import MinerControllerAdapter, MinerStatus
+from edge_mining.domain.miner.common import MinerControllerAdapter
 from edge_mining.domain.miner.entities import Miner, MinerController
 from edge_mining.domain.miner.ports import MinerControlPort
-from edge_mining.domain.miner.value_objects import HashRate
+from edge_mining.domain.miner.value_objects import HashRate, MinerStateSnapshot
 from edge_mining.domain.notification.common import NotificationAdapter
 from edge_mining.domain.notification.entities import Notifier
 from edge_mining.domain.notification.ports import NotificationPort
@@ -134,16 +134,16 @@ class MinerActionServiceInterface(ABC):
         """Gets the current hash rate of the specified miner."""
 
     @abstractmethod
-    async def get_miner_status(self, miner_id: EntityId) -> Optional[MinerStatus]:
-        """Gets the current status of the specified miner."""
+    async def get_miner_status(self, miner_id: EntityId) -> Optional[MinerStateSnapshot]:
+        """Gets the current status of the specified miner as a state snapshot."""
 
     @abstractmethod
     async def sync_all_miners(self, include_inactive: bool = False) -> None:
         """Synchronizes the status of all miners from their controllers."""
 
     @abstractmethod
-    async def get_miner_details_from_controller(self, controller_id: EntityId) -> Optional[Miner]:
-        """Get details of a miner from its controller."""
+    async def get_miner_details_from_controller(self, controller_id: EntityId) -> Optional[MinerStateSnapshot]:
+        """Get details of a miner from its controller as a state snapshot."""
 
 
 class ConfigurationServiceInterface(ABC):
@@ -155,7 +155,6 @@ class ConfigurationServiceInterface(ABC):
         self,
         name: str,
         model: Optional[str] = None,
-        status: MinerStatus = MinerStatus.UNKNOWN,
         hash_rate_max: Optional[HashRate] = None,
         power_consumption_max: Optional[Watts] = None,
         controller_id: Optional[EntityId] = None,

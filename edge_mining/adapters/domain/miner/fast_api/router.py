@@ -12,6 +12,7 @@ from edge_mining.adapters.domain.miner.schemas import (
     MinerControllerUpdateSchema,
     MinerCreateSchema,
     MinerSchema,
+    MinerStateSnapshotSchema,
     MinerUpdateSchema,
 )
 
@@ -271,22 +272,20 @@ async def stop_miner(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.get("/miners/{miner_id}/status", response_model=MinerSchema)
+@router.get("/miners/{miner_id}/status", response_model=MinerStateSnapshotSchema)
 async def get_miner_status(
     miner_id: EntityId,
     config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
     action_service: Annotated[MinerActionServiceInterface, Depends(get_miner_action_service)],
-) -> MinerSchema:
+) -> MinerStateSnapshotSchema:
     """Get the current status of a miner."""
     try:
-        _ = await action_service.get_miner_status(miner_id)
+        snapshot = await action_service.get_miner_status(miner_id)
 
-        miner = config_service.get_miner(miner_id)
-
-        if miner is None:
+        if snapshot is None:
             raise MinerNotFoundError(f"Miner with ID {miner_id} not found")
 
-        response = MinerSchema.from_model(miner)
+        response = MinerStateSnapshotSchema.from_model(snapshot)
 
         return response
     except MinerNotFoundError as e:
@@ -489,19 +488,19 @@ async def get_miner_controller(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.get("/miner-controllers/{controller_id}/miner-details", response_model=MinerSchema)
+@router.get("/miner-controllers/{controller_id}/miner-details", response_model=MinerStateSnapshotSchema)
 async def get_miner_details_from_controller(
     controller_id: EntityId,
     action_service: Annotated[MinerActionServiceInterface, Depends(get_miner_action_service)],
-) -> MinerSchema:
+) -> MinerStateSnapshotSchema:
     """Get miner details directly from a specific controller."""
     try:
-        miner = await action_service.get_miner_details_from_controller(controller_id)
+        snapshot = await action_service.get_miner_details_from_controller(controller_id)
 
-        if miner is None:
+        if snapshot is None:
             raise MinerControllerNotFoundError(f"Miner controller with ID {controller_id} not found")
 
-        response = MinerSchema.from_model(miner)
+        response = MinerStateSnapshotSchema.from_model(snapshot)
 
         return response
     except MinerControllerNotFoundError as e:
