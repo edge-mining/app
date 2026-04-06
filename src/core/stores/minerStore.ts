@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import type { Miner } from "../models/miner";
+import type { Miner, MinerStateSnapshot } from "../models/miner";
 import { MinerService } from "../services/minerService";
 
 export const useMinerStore = defineStore("miner", () => {
@@ -8,6 +8,7 @@ export const useMinerStore = defineStore("miner", () => {
 
   // State
   const miners = ref<Miner[]>([]);
+  const minerStates = ref<Map<string, MinerStateSnapshot>>(new Map());
 
   // Actions
   function loadMiners() {
@@ -45,20 +46,23 @@ export const useMinerStore = defineStore("miner", () => {
   }
 
   function getMinerStatus(minerId: string) {
-    return service.getMinerStatus(minerId).then((updatedMiner) => {
-      // Update the miner in the array with the new status
-      const index = miners.value.findIndex(m => m.id?.toString() === minerId);
-      if (index !== -1) {
-        // Update properties individually to ensure reactivity
-        Object.assign(miners.value[index], updatedMiner);
-      }
-      return updatedMiner;
+    return service.getMinerStatus(minerId).then((snapshot) => {
+      // Store the runtime state snapshot in the map
+      const newMap = new Map(minerStates.value);
+      newMap.set(minerId, snapshot);
+      minerStates.value = newMap;
+      return snapshot;
     });
+  }
+
+  function getMinerState(minerId: string): MinerStateSnapshot | undefined {
+    return minerStates.value.get(minerId);
   }
 
   return {
     //STATE
     miners,
+    minerStates,
     // ACTIONS
     loadMiners,
     addMiner,
@@ -69,5 +73,6 @@ export const useMinerStore = defineStore("miner", () => {
     activateMiner,
     deactivateMiner,
     getMinerStatus,
+    getMinerState,
   };
 });

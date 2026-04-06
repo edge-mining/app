@@ -2,6 +2,7 @@
 import type { MinerController, MinerControllerAdapter } from "../../core/models/minerController";
 import type { Miner } from "../../core/models/miner";
 import { useExternalServiceStore } from "../../core/stores/externalServiceStore";
+import { useMinerStore } from "../../core/stores/minerStore";
 import { computed, ref } from "vue";
 import {
   PhPencil,
@@ -30,6 +31,7 @@ const emit = defineEmits<{
 }>();
 
 const externalServiceStore = useExternalServiceStore();
+const minerStore = useMinerStore();
 const showDeleteConfirm = ref(false);
 
 // External service linked
@@ -53,7 +55,10 @@ const activeAssignedMiners = computed(() => {
 });
 
 const runningAssignedMiners = computed(() => {
-  return assignedMiners.value.filter((m) => m.status === "on");
+  return assignedMiners.value.filter((m) => {
+    const state = m.id ? minerStore.minerStates.get(m.id) : undefined;
+    return state?.status === "on";
+  });
 });
 
 // Adapter type configuration for styling
@@ -193,7 +198,7 @@ function cancelDelete() {
             v-for="miner in assignedMiners.slice(0, 4)"
             :key="miner.id"
             class="badge badge-sm badge-ghost"
-            :class="{ 'badge-success badge-outline': miner.status === 'on' }"
+            :class="{ 'badge-success badge-outline': miner.id && minerStore.minerStates.get(miner.id)?.status === 'on' }"
           >
             {{ miner.name }}
           </span>

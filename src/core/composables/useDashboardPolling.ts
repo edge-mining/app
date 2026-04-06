@@ -42,10 +42,12 @@ export function useDashboardPolling(intervalMs = 5000) {
   function detectMinerChanges() {
     for (const miner of minerStore.miners) {
       if (!miner.id) continue;
+      const state = minerStore.minerStates.get(miner.id);
+      const currentStatus = state?.status ?? 'unknown';
       const prevStatus = dashboardStore.previousMinerStatuses.get(miner.id);
-      if (prevStatus && prevStatus !== miner.status) {
+      if (prevStatus && prevStatus !== currentStatus) {
         const now = Math.floor(Date.now() / 1000);
-        if (miner.status === "on" && prevStatus !== "on") {
+        if (currentStatus === "on" && prevStatus !== "on") {
           dashboardStore.addEvent({
             type: "miner_start",
             message: `${miner.name} started`,
@@ -56,7 +58,7 @@ export function useDashboardPolling(intervalMs = 5000) {
             minerName: miner.name,
             action: "on",
           });
-        } else if (miner.status === "off" && prevStatus !== "off") {
+        } else if (currentStatus === "off" && prevStatus !== "off") {
           dashboardStore.addEvent({
             type: "miner_stop",
             message: `${miner.name} stopped`,
@@ -70,12 +72,12 @@ export function useDashboardPolling(intervalMs = 5000) {
         } else {
           dashboardStore.addEvent({
             type: "status_change",
-            message: `${miner.name}: ${prevStatus} → ${miner.status}`,
+            message: `${miner.name}: ${prevStatus} → ${currentStatus}`,
             timestamp: new Date(),
           });
         }
       }
-      dashboardStore.previousMinerStatuses.set(miner.id, miner.status);
+      dashboardStore.previousMinerStatuses.set(miner.id, currentStatus);
     }
   }
 
@@ -96,11 +98,12 @@ export function useDashboardPolling(intervalMs = 5000) {
     let totalHash = 0;
     let totalPower = 0;
     for (const m of minerStore.miners) {
-      if (m.status === "on") {
-        if (m.hash_rate?.value) {
-          totalHash += normalizeHashRate(m.hash_rate.value, m.hash_rate.unit || "TH/s");
+      const state = m.id ? minerStore.minerStates.get(m.id) : undefined;
+      if (state?.status === "on") {
+        if (state.hash_rate?.value) {
+          totalHash += normalizeHashRate(state.hash_rate.value, state.hash_rate.unit || "TH/s");
         }
-        totalPower += m.power_consumption || 0;
+        totalPower += state.power_consumption || 0;
       }
     }
 
@@ -227,7 +230,8 @@ export function useDashboardPolling(intervalMs = 5000) {
     if (dashboardStore.previousMinerStatuses.size === 0) {
       for (const miner of minerStore.miners) {
         if (miner.id) {
-          dashboardStore.previousMinerStatuses.set(miner.id, miner.status);
+          const state = minerStore.minerStates.get(miner.id);
+          dashboardStore.previousMinerStatuses.set(miner.id, state?.status ?? 'unknown');
         }
       }
     }

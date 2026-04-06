@@ -1,7 +1,7 @@
 import type { EnergySource, EnergyStateSnapshot } from "./energySource";
 import type { Forecast, Sun } from "./forecast";
 import type { ConsumptionForecast } from "./homeLoad";
-import type { Miner, HashRate } from "./miner";
+import type { Miner, HashRate, MinerStateSnapshot } from "./miner";
 
 export type RuleType = "start" | "stop";
 
@@ -65,5 +65,6 @@ export interface DecisionalContext {
   tracker_current_hashrate?: HashRate;
   sun?: Sun;
   miner?: Miner;
+  miner_state?: MinerStateSnapshot;
   timestamp: string; // ISO datetime
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Miner } from "../../core/models/miner";
+import type { Miner, MinerStatus, MinerStateSnapshot } from "../../core/models/miner";
 import { computed } from "vue";
 import {
   PhPower,
@@ -13,11 +13,13 @@ import { formatHashRate, formatPower, normalizeHashRate } from "../../core/utils
 
 const props = defineProps<{
   miner: Miner;
+  state?: MinerStateSnapshot;
 }>();
 
-const isOn = computed(() => props.miner.status === "on");
+const currentStatus = computed<MinerStatus>(() => props.state?.status ?? 'unknown');
+const isOn = computed(() => currentStatus.value === "on");
 const isTransitioning = computed(
-  () => props.miner.status === "starting" || props.miner.status === "stopping"
+  () => currentStatus.value === ('starting' satisfies MinerStatus) || currentStatus.value === ('stopping' satisfies MinerStatus)
 );
 
 const statusConfig = computed(() => {
@@ -29,13 +31,13 @@ const statusConfig = computed(() => {
     error: { color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/30", label: "Error", icon: PhWarningCircle },
     unknown: { color: "text-base-content/30", bg: "bg-base-100/20", border: "border-base-300/20", label: "Unknown", icon: PhQuestion },
   };
-  return configs[props.miner.status] || configs.unknown;
+  return configs[currentStatus.value] || configs.unknown;
 });
 
 // Hash rate % of max (normalized to common unit)
 const hashRatePct = computed(() => {
-  if (!props.miner.hash_rate?.value || !props.miner.hash_rate_max?.value) return 0;
-  const current = normalizeHashRate(props.miner.hash_rate.value, props.miner.hash_rate.unit);
+  if (!props.state?.hash_rate?.value || !props.miner.hash_rate_max?.value) return 0;
+  const current = normalizeHashRate(props.state.hash_rate.value, props.state.hash_rate.unit);
   const max = normalizeHashRate(props.miner.hash_rate_max.value, props.miner.hash_rate_max.unit);
   if (max === 0) return 0;
   return Math.min((current / max) * 100, 100);
@@ -43,8 +45,8 @@ const hashRatePct = computed(() => {
 
 // Power consumption % of max
 const powerPct = computed(() => {
-  if (!props.miner.power_consumption || !props.miner.power_consumption_max) return 0;
-  return Math.min((props.miner.power_consumption / props.miner.power_consumption_max) * 100, 100);
+  if (!props.state?.power_consumption || !props.miner.power_consumption_max) return 0;
+  return Math.min((props.state.power_consumption / props.miner.power_consumption_max) * 100, 100);
 });
 </script>
 
@@ -91,7 +93,7 @@ const powerPct = computed(() => {
             <PhCpu :size="11" /> Hash
           </span>
           <span class="font-mono" :class="isOn ? 'text-emerald-400' : 'text-base-content/30'">
-            {{ formatHashRate(miner.hash_rate?.value, miner.hash_rate?.unit) }}
+            {{ formatHashRate(state?.hash_rate?.value, state?.hash_rate?.unit) }}
           </span>
         </div>
         <div class="h-1 rounded-full bg-base-300/30 overflow-hidden">
@@ -110,7 +112,7 @@ const powerPct = computed(() => {
             <PhLightning :size="11" /> Power
           </span>
           <span class="font-mono" :class="isOn ? 'text-amber-400' : 'text-base-content/30'">
-            {{ formatPower(miner.power_consumption) }}
+            {{ formatPower(state?.power_consumption) }}
           </span>
         </div>
         <div class="h-1 rounded-full bg-base-300/30 overflow-hidden">
