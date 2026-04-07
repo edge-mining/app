@@ -157,9 +157,7 @@ class ServiceHomeAssistantAPI(ExternalServicePort):
             return None, None
         except UnauthorizedError:
             if self.logger:
-                self.logger.error(
-                    "Home Assistant API authentication failed. " "Please verify your access token is valid."
-                )
+                self.logger.error("Home Assistant API authentication failed. Please verify your access token is valid.")
             return None, None
         except RequestTimeoutError:
             if self.logger:
@@ -261,9 +259,7 @@ class ServiceHomeAssistantAPI(ExternalServicePort):
             return False
         except UnauthorizedError:
             if self.logger:
-                self.logger.error(
-                    "Home Assistant API authentication failed. " "Please verify your access token is valid."
-                )
+                self.logger.error("Home Assistant API authentication failed. Please verify your access token is valid.")
             return False
         except RequestTimeoutError:
             if self.logger:

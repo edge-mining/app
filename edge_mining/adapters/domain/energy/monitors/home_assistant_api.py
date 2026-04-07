@@ -375,8 +375,7 @@ class HomeAssistantAPIEnergyMonitor(EnergyMonitorPort):
             if self.entity_grid:
                 if self.logger:
                     self.logger.warning(
-                        f"Could not retrieve grid value (Entity: {self.entity_grid}). "
-                        "Continuing without grid data."
+                        f"Could not retrieve grid value (Entity: {self.entity_grid}). Continuing without grid data."
                     )
 
         # Battery: We want positive for CHARGING, negative for DISCHARGING
@@ -396,8 +395,7 @@ class HomeAssistantAPIEnergyMonitor(EnergyMonitorPort):
         if production_watts is None and self.entity_production:
             if self.logger:
                 self.logger.warning(
-                    f"Could not retrieve production value (Entity: {self.entity_production}). "
-                    "Defaulting to 0W."
+                    f"Could not retrieve production value (Entity: {self.entity_production}). Defaulting to 0W."
                 )
         if consumption_watts is None and self.entity_consumption:
             if self.logger:

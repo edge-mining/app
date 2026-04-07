@@ -26,7 +26,7 @@ class InMemoryEventBus(EventBusInterface):
     ) -> None:
         self._handlers[event_type].append((handler, blocking))
         self._logger.debug(
-            f"EventBus: subscribed {handler.__qualname__} to " f"{event_type.__name__} (blocking={blocking})"
+            f"EventBus: subscribed {handler.__qualname__} to {event_type.__name__} (blocking={blocking})"
         )
 
     async def publish(self, event: DomainEvent) -> None:
@@ -36,7 +36,7 @@ class InMemoryEventBus(EventBusInterface):
             return
 
         self._logger.debug(
-            f"EventBus: publishing {event.event_type} " f"(id={event.event_id[:8]}..., handlers={len(handlers)})"
+            f"EventBus: publishing {event.event_type} (id={event.event_id[:8]}..., handlers={len(handlers)})"
         )
 
         # 1. Blocking handlers — the publisher WAITS, exceptions are propagated
@@ -54,5 +54,5 @@ class InMemoryEventBus(EventBusInterface):
             await handler(event)
         except Exception as e:
             self._logger.warning(
-                f"EventBus: fire-and-forget handler {handler.__qualname__} " f"failed for {event.event_type}: {e}"
+                f"EventBus: fire-and-forget handler {handler.__qualname__} failed for {event.event_type}: {e}"
             )

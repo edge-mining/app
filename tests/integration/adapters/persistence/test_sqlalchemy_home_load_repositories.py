@@ -39,7 +39,9 @@ class TestSqlAlchemyHomeForecastProviderRepository:
         assert retrieved.adapter_type == HomeForecastProviderAdapter.DUMMY
         assert isinstance(retrieved.config, HomeForecastProviderDummyConfig)
 
-    def test_update_home_forecast_provider_with_enum_adapter(self, repository: SqlAlchemyHomeForecastProviderRepository):
+    def test_update_home_forecast_provider_with_enum_adapter(
+        self, repository: SqlAlchemyHomeForecastProviderRepository
+    ):
         """Regression test: enum adapter_type must remain valid through update commit."""
         provider = HomeForecastProvider(
             name="Original Home Forecast",
