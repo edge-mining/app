@@ -7,12 +7,20 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy import select
 
-from edge_mining.adapters.domain.miner.tables import miner_controllers_table, miners_table
+from edge_mining.adapters.domain.miner.tables import (
+    delete_features_for_miner,
+    load_features_for_miner,
+    miner_controllers_table,
+    miner_features_table,
+    miners_table,
+    save_features_for_miner,
+)
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.base import BaseSQLAlchemyRepository
 from edge_mining.adapters.infrastructure.persistence.sqlite import BaseSqliteRepository
 from edge_mining.domain.common import EntityId, Watts
-from edge_mining.domain.miner.common import MinerControllerAdapter
-from edge_mining.domain.miner.entities import Miner, MinerController
+from edge_mining.domain.miner.common import MinerControllerAdapter, MinerFeatureType
+from edge_mining.domain.miner.aggregate_roots import Miner
+from edge_mining.domain.miner.entities import MinerController
 from edge_mining.domain.miner.exceptions import (
     MinerControllerAlreadyExistsError,
     MinerControllerConfigurationError,
@@ -21,7 +29,7 @@ from edge_mining.domain.miner.exceptions import (
     MinerError,
 )
 from edge_mining.domain.miner.ports import MinerControllerRepository, MinerRepository
-from edge_mining.domain.miner.value_objects import HashRate
+from edge_mining.domain.miner.value_objects import HashRate, MinerFeature
 from edge_mining.shared.adapter_maps.miner import MINER_CONTROLLER_CONFIG_TYPE_MAP
 from edge_mining.shared.interfaces.config import MinerControllerConfig
 
@@ -61,40 +69,44 @@ class InMemoryMinerRepository(MinerRepository):
             del self._miners[miner_id]
 
     def get_by_controller_id(self, controller_id: EntityId) -> List[Miner]:
-        """Get all miners associated with a specific controller ID."""
-        return (
-            [copy.deepcopy(m) for m in self._miners.values() if m.controller_id == controller_id]
-            if controller_id
-            else []
-        )
+        """Get all miners that have at least one feature provided by the given controller."""
+        if not controller_id:
+            return []
+        return [
+            copy.deepcopy(m) for m in self._miners.values() if any(f.controller_id == controller_id for f in m.features)
+        ]
 
 
 class SqliteMinerRepository(MinerRepository):
     """SQLite implementation for the Miner Repository."""
 
     TABLE_NAME = "miners"
+    FEATURES_TABLE_NAME = "miner_features"
 
-    # Declarative schema definition
-    # NOTE: If you modify SCHEMA, update BaseSqliteRepository.CURRENT_DB_VERSION
     SCHEMA = {
         "id": "TEXT PRIMARY KEY",
         "name": "TEXT NOT NULL",
-        "model": "TEXT",  # Miner model/hardware identifier
+        "model": "TEXT",
         "active": "INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1))",
-        "hash_rate_max": "TEXT",  # JSON object of HashRate dict
+        "hash_rate_max": "TEXT",
         "power_consumption_max": "REAL",
-        "controller_id": "TEXT",  # Foreign key to miner controller
+    }
+
+    FEATURES_SCHEMA = {
+        "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+        "miner_id": "TEXT NOT NULL",
+        "controller_id": "TEXT NOT NULL",
+        "feature_type": "TEXT NOT NULL",
+        "priority": "INTEGER NOT NULL DEFAULT 50",
+        "enabled": "INTEGER NOT NULL DEFAULT 1 CHECK(enabled IN (0,1))",
     }
 
     def __init__(self, db: BaseSqliteRepository):
         self._db = db
         self.logger = db.logger
 
-        # BaseSqliteRepository generates CREATE TABLE SQL automatically
-        self._db.create_tables(
-            table_name=self.TABLE_NAME,
-            schema=self.SCHEMA,
-        )
+        self._db.create_tables(table_name=self.TABLE_NAME, schema=self.SCHEMA)
+        self._db.create_tables(table_name=self.FEATURES_TABLE_NAME, schema=self.FEATURES_SCHEMA)
 
     def _dict_to_hashrate(self, data: Dict[str, Any]) -> HashRate:
         """Deserialize a dictionary (from JSON) into an HashRate object."""
@@ -107,17 +119,21 @@ class SqliteMinerRepository(MinerRepository):
             "unit": hash_rate.unit if hash_rate else "TH/s",
         }
 
-    def _row_to_miner(self, row: sqlite3.Row) -> Optional[Miner]:
+    def _row_to_miner(self, row: sqlite3.Row, conn: Optional[sqlite3.Connection] = None) -> Optional[Miner]:
         """Deserialize a row from the database into a Miner object."""
         if not row:
             return None
         try:
             hash_rate_max_data = json.loads(row["hash_rate_max"]) if row["hash_rate_max"] else None
-
             hash_rate_max = self._dict_to_hashrate(hash_rate_max_data) if hash_rate_max_data else None
 
+            miner_id = EntityId(row["id"])
+            features: List[MinerFeature] = []
+            if conn:
+                features = self._load_features(conn, miner_id)
+
             return Miner(
-                id=EntityId(row["id"]),
+                id=miner_id,
                 name=row["name"] if row["name"] is not None else "",
                 model=row["model"] if row["model"] is not None else None,
                 active=(row["active"] == 1 if row["active"] is not None else False),
@@ -125,24 +141,49 @@ class SqliteMinerRepository(MinerRepository):
                 power_consumption_max=(
                     Watts(row["power_consumption_max"]) if row["power_consumption_max"] is not None else None
                 ),
-                controller_id=(EntityId(row["controller_id"]) if row["controller_id"] else None),
+                features=features,
             )
         except (ValueError, KeyError) as e:
             self.logger.error(f"Error deserializing Miner from DB row: {row}. Error: {e}")
             return None
+
+    def _load_features(self, conn: sqlite3.Connection, miner_id: EntityId) -> List[MinerFeature]:
+        """Load features for a miner from the features table."""
+        sql = f"SELECT * FROM {self.FEATURES_TABLE_NAME} WHERE miner_id = ?"
+        cursor = conn.cursor()
+        cursor.execute(sql, (str(miner_id),))
+        rows = cursor.fetchall()
+        features = []
+        for r in rows:
+            features.append(
+                MinerFeature(
+                    feature_type=MinerFeatureType(r["feature_type"]),
+                    controller_id=EntityId(r["controller_id"]),
+                    priority=r["priority"],
+                    enabled=bool(r["enabled"]),
+                )
+            )
+        return features
+
+    def _save_features(self, conn: sqlite3.Connection, miner_id: EntityId, features: List[MinerFeature]) -> None:
+        """Replace all features for a miner."""
+        conn.execute(f"DELETE FROM {self.FEATURES_TABLE_NAME} WHERE miner_id = ?", (str(miner_id),))
+        for f in features:
+            conn.execute(
+                f"INSERT INTO {self.FEATURES_TABLE_NAME} (miner_id, controller_id, feature_type, priority, enabled) VALUES (?, ?, ?, ?, ?)",
+                (str(miner_id), str(f.controller_id), f.feature_type.value, f.priority, int(f.enabled)),
+            )
 
     def add(self, miner: Miner) -> None:
         """Add a miner to the SQLite database."""
         self.logger.debug(f"Adding miner {miner.id} to SQLite.")
 
         sql = f"""
-            INSERT INTO {self.TABLE_NAME} (id, name, model, active, hash_rate_max, power_consumption_max,
-            controller_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO {self.TABLE_NAME} (id, name, model, active, hash_rate_max, power_consumption_max)
+            VALUES (?, ?, ?, ?, ?, ?)
         """
         conn = self._db.get_connection()
         try:
-            # Serialize hash_rate_max to JSON for storage
             hash_rate_max_json = json.dumps(self._hashrate_to_dict(miner.hash_rate_max))
 
             with conn:
@@ -155,9 +196,9 @@ class SqliteMinerRepository(MinerRepository):
                         miner.active,
                         hash_rate_max_json,
                         (float(miner.power_consumption_max) if miner.power_consumption_max is not None else 0.0),
-                        miner.controller_id,
                     ),
                 )
+                self._save_features(conn, miner.id, miner.features)
         except sqlite3.IntegrityError as e:
             self.logger.error(f"Integrity error adding miner {miner.id}: {e}")
             # Could mean that the ID already exists
@@ -179,10 +220,10 @@ class SqliteMinerRepository(MinerRepository):
             cursor = conn.cursor()
             cursor.execute(sql, (miner_id,))
             row = cursor.fetchone()
-            return self._row_to_miner(row)
+            return self._row_to_miner(row, conn)
         except sqlite3.Error as e:
             self.logger.error(f"SQLite error getting miner {miner_id}: {e}")
-            return None  # Or raise exception? Returning None is more forgiving
+            return None
         finally:
             if conn:
                 conn.close()
@@ -199,7 +240,7 @@ class SqliteMinerRepository(MinerRepository):
             cursor.execute(sql)
             rows = cursor.fetchall()
             for row in rows:
-                miner = self._row_to_miner(row)
+                miner = self._row_to_miner(row, conn)
                 if miner:
                     miners.append(miner)
         except sqlite3.Error as e:
@@ -216,13 +257,11 @@ class SqliteMinerRepository(MinerRepository):
 
         sql = f"""
             UPDATE {self.TABLE_NAME}
-            SET name = ?, model = ?, active = ?, hash_rate_max = ?, power_consumption_max = ?,
-            controller_id = ?
+            SET name = ?, model = ?, active = ?, hash_rate_max = ?, power_consumption_max = ?
             WHERE id = ?
         """
         conn = self._db.get_connection()
         try:
-            # Serialize hash_rate_max to JSON for storage
             hash_rate_max_json = json.dumps(self._hashrate_to_dict(miner.hash_rate_max))
 
             with conn:
@@ -235,12 +274,12 @@ class SqliteMinerRepository(MinerRepository):
                         miner.active,
                         hash_rate_max_json,
                         (float(miner.power_consumption_max) if miner.power_consumption_max is not None else 0.0),
-                        miner.controller_id,
                         miner.id,
                     ),
                 )
                 if cursor.rowcount == 0:
                     raise MinerError(f"No miner found with ID {miner.id} for update.")
+                self._save_features(conn, miner.id, miner.features)
         except sqlite3.Error as e:
             self.logger.error(f"SQLite error updating miner {miner.id}: {e}")
             raise MinerError(f"DB error updating miner: {e}") from e
@@ -252,16 +291,15 @@ class SqliteMinerRepository(MinerRepository):
         """Remove a miner from the SQLite database."""
         self.logger.debug(f"Removing miner {miner_id} from SQLite.")
 
-        sql = f"DELETE FROM {self.TABLE_NAME} WHERE id = ?"
         conn = self._db.get_connection()
         try:
             with conn:
                 cursor = conn.cursor()
-                cursor.execute(sql, (miner_id,))
+                # Delete features first
+                cursor.execute(f"DELETE FROM {self.FEATURES_TABLE_NAME} WHERE miner_id = ?", (str(miner_id),))
+                cursor.execute(f"DELETE FROM {self.TABLE_NAME} WHERE id = ?", (str(miner_id),))
                 if cursor.rowcount == 0:
                     self.logger.warning(f"Attempt to remove non-existent miner with ID {miner_id}.")
-                    # There is no need to raise an exception here, removing a
-                    # non-existent is idempotent.
         except sqlite3.Error as e:
             self.logger.error(f"SQLite error removing miner {miner_id}: {e}")
             raise MinerError(f"DB error removing miner: {e}") from e
@@ -270,18 +308,22 @@ class SqliteMinerRepository(MinerRepository):
                 conn.close()
 
     def get_by_controller_id(self, controller_id: EntityId) -> List[Miner]:
-        """Get all miners associated with a specific controller ID."""
+        """Get all miners that have at least one feature provided by the given controller."""
         self.logger.debug(f"Getting miners by controller ID {controller_id} from SQLite.")
 
-        sql = f"SELECT * FROM {self.TABLE_NAME} WHERE controller_id = ?"
+        sql = f"""
+            SELECT DISTINCT m.* FROM {self.TABLE_NAME} m
+            INNER JOIN {self.FEATURES_TABLE_NAME} f ON m.id = f.miner_id
+            WHERE f.controller_id = ?
+        """
         conn = self._db.get_connection()
         miners = []
         try:
             cursor = conn.cursor()
-            cursor.execute(sql, (controller_id,))
+            cursor.execute(sql, (str(controller_id),))
             rows = cursor.fetchall()
             for row in rows:
-                miner = self._row_to_miner(row)
+                miner = self._row_to_miner(row, conn)
                 if miner:
                     miners.append(miner)
             return miners
@@ -296,101 +338,81 @@ class SqliteMinerRepository(MinerRepository):
 class SqlAlchemyMinerRepository(MinerRepository):
     """SQLAlchemy-based implementation of the MinerRepository port.
 
-    This repository works directly with the imperatively mapped Miner domain entity.
-    Since the domain entity is mapped directly to the database via imperative mapping
-    with composite value objects, SQLAlchemy handles the conversion between the
-    flattened database columns and the rich domain value objects automatically.
-
-    Args:
-        db: BaseSQLAlchemyRepository instance for database operations
-        session: SQLAlchemy database session for executing queries
+    Features are persisted in the miner_features table and loaded/saved
+    separately from the Miner entity (which is mapped without the features field).
     """
 
     def __init__(self, db: BaseSQLAlchemyRepository):
-        """Initialize repository with database instance.
-
-        Args:
-            db: BaseSQLAlchemyRepository instance
-        """
         self._db = db
         self.logger = db.logger
 
-    def add(self, miner: Miner) -> None:
-        """Add a new miner to the repository.
+    def _populate_features(self, session, miner: Miner) -> Miner:
+        """Load features from DB and attach to the miner entity."""
+        miner.features = load_features_for_miner(session, miner.id)
+        return miner
 
-        Args:
-            miner: Domain entity to persist
-        """
+    def add(self, miner: Miner) -> None:
+        """Add a new miner to the repository."""
         session = self._db.get_session()
         try:
+            features = list(miner.features)
             session.add(miner)
+            session.flush()
+            save_features_for_miner(session, miner.id, features)
             session.commit()
+            miner.features = features
         finally:
             session.close()
 
     def get_by_id(self, miner_id: EntityId) -> Optional[Miner]:
-        """Retrieve a miner by its ID.
-
-        Args:
-            miner_id: Unique identifier of the miner
-
-        Returns:
-            Domain entity if found, None otherwise
-        """
+        """Retrieve a miner by its ID."""
         session = self._db.get_session()
         try:
             stmt = select(Miner).where(miners_table.c.id == str(miner_id))
             entity = session.execute(stmt).scalar_one_or_none()
+            if entity:
+                self._populate_features(session, entity)
             return entity
         finally:
             session.close()
 
     def get_all(self) -> List[Miner]:
-        """Retrieve all miners from the repository.
-
-        Returns:
-            List of all miner domain entities
-        """
+        """Retrieve all miners from the repository."""
         session = self._db.get_session()
         try:
             stmt = select(Miner)
             entities = session.execute(stmt).scalars().all()
+            for entity in entities:
+                self._populate_features(session, entity)
             return list(entities)
         finally:
             session.close()
 
     def update(self, miner: Miner) -> None:
-        """Update an existing miner in the repository.
-
-        Args:
-            miner: Domain entity with updated state
-        """
+        """Update an existing miner in the repository."""
         session = self._db.get_session()
         try:
             stmt = select(Miner).where(miners_table.c.id == str(miner.id))
             existing_entity = session.execute(stmt).scalar_one_or_none()
 
             if existing_entity:
-                # Update all fields from the new entity
                 existing_entity.name = miner.name
                 existing_entity.model = miner.model
                 existing_entity.active = miner.active
                 existing_entity.hash_rate_max = miner.hash_rate_max
                 existing_entity.power_consumption_max = miner.power_consumption_max
-                existing_entity.controller_id = miner.controller_id
 
+                save_features_for_miner(session, miner.id, miner.features)
                 session.commit()
+                existing_entity.features = list(miner.features)
         finally:
             session.close()
 
     def remove(self, miner_id: EntityId) -> None:
-        """Remove a miner from the repository.
-
-        Args:
-            miner_id: Unique identifier of the miner to remove
-        """
+        """Remove a miner from the repository."""
         session = self._db.get_session()
         try:
+            delete_features_for_miner(session, miner_id)
             stmt = select(Miner).where(miners_table.c.id == str(miner_id))
             entity = session.execute(stmt).scalar_one_or_none()
 
@@ -401,18 +423,20 @@ class SqlAlchemyMinerRepository(MinerRepository):
             session.close()
 
     def get_by_controller_id(self, controller_id: EntityId) -> List[Miner]:
-        """Retrieve all miners associated with a specific controller.
-
-        Args:
-            controller_id: Unique identifier of the controller
-
-        Returns:
-            List of miner domain entities associated with the controller
-        """
+        """Retrieve all miners that have at least one feature from the given controller."""
         session = self._db.get_session()
         try:
-            stmt = select(Miner).where(miners_table.c.controller_id == str(controller_id))
+            # Subquery: distinct miner_ids from miner_features where controller matches
+            subq = (
+                select(miner_features_table.c.miner_id)
+                .where(miner_features_table.c.controller_id == str(controller_id))
+                .distinct()
+                .subquery()
+            )
+            stmt = select(Miner).where(miners_table.c.id.in_(select(subq)))
             entities = session.execute(stmt).scalars().all()
+            for entity in entities:
+                self._populate_features(session, entity)
             return list(entities)
         finally:
             session.close()

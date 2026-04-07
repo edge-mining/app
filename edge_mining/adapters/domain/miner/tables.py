@@ -29,16 +29,16 @@ import json
 import uuid
 from typing import Any, Optional
 
-from sqlalchemy import Boolean, Column, Float, ForeignKey, String, Table, event
-from sqlalchemy.orm import relationship
+from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String, Table, event
 
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.common import ConfigurationType
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.registry import mapper_registry, metadata
 from edge_mining.domain.common import EntityId, Watts
-from edge_mining.domain.miner.common import MinerControllerAdapter
-from edge_mining.domain.miner.entities import Miner, MinerController
+from edge_mining.domain.miner.common import MinerControllerAdapter, MinerFeatureType
+from edge_mining.domain.miner.aggregate_roots import Miner
+from edge_mining.domain.miner.entities import MinerController
 from edge_mining.domain.miner.exceptions import MinerControllerConfigurationError
-from edge_mining.domain.miner.value_objects import HashRate
+from edge_mining.domain.miner.value_objects import HashRate, MinerFeature
 from edge_mining.shared.adapter_maps.miner import MINER_CONTROLLER_CONFIG_TYPE_MAP
 from edge_mining.shared.interfaces.config import MinerControllerConfig
 
@@ -164,48 +164,38 @@ miners_table = Table(
     Column("hash_rate_max", String, nullable=True),
     # Power Consumption Max (Watts Value Object stored as float)
     Column("power_consumption_max", Float, nullable=True),
-    # Foreign Key to MinerController
-    Column("controller_id", String, ForeignKey("miner_controllers.id"), nullable=True),
 )
 
-# Map MinerController first (parent in the relationship)
+# Define the miner_features table (feature-based architecture)
+miner_features_table = Table(
+    "miner_features",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("miner_id", String, ForeignKey("miners.id", ondelete="CASCADE"), nullable=False, index=True),
+    Column("controller_id", String, ForeignKey("miner_controllers.id", ondelete="CASCADE"), nullable=False, index=True),
+    Column("feature_type", String, nullable=False),
+    Column("priority", Integer, nullable=False, default=50),
+    Column("enabled", Boolean, nullable=False, default=True),
+)
+
+# Map MinerController (no relationship to Miner — features bridge them now)
 mapper_registry.map_imperatively(
     MinerController,
     miner_controllers_table,
-    properties={
-        "miners": relationship(
-            "Miner",
-            back_populates="controller",
-            lazy="select",
-        )
-    },
 )
 
-# Map Miner (child in the relationship) - use event listeners for value object conversions
+# Map Miner — features are loaded/saved by the repository, not by ORM relationship
 mapper_registry.map_imperatively(
     Miner,
     miners_table,
-    properties={
-        # Relationship to controller
-        "controller": relationship(
-            "MinerController",
-            foreign_keys=[miners_table.c.controller_id],
-            lazy="joined",
-        ),
-    },
-    # Don't exclude properties - let SQLAlchemy load them, then convert in event listener
+    exclude_properties=["features"],
 )
 
 
 # Event listeners for value object conversions
 @event.listens_for(Miner, "load")
 def _receive_miner_load(target: Miner, context) -> None:
-    """Event listener that reconstructs value objects after loading.
-
-    Args:
-        target: The Miner instance being loaded
-        context: SQLAlchemy context
-    """
+    """Event listener that reconstructs value objects after loading."""
     # Reconstruct hash_rate_max (HashRate) from JSON string
     if hasattr(target, "hash_rate_max") and target.hash_rate_max:
         if isinstance(target.hash_rate_max, str):
@@ -221,6 +211,10 @@ def _receive_miner_load(target: Miner, context) -> None:
     if hasattr(target, "power_consumption_max") and target.power_consumption_max is not None:
         if not isinstance(target.power_consumption_max, type(Watts(0.0))):
             target.power_consumption_max = Watts(float(target.power_consumption_max))
+
+    # Initialize features as empty list — repository will populate it
+    if not hasattr(target, "features") or target.features is None:
+        object.__setattr__(target, "features", [])
 
 
 @event.listens_for(Miner, "before_insert")
@@ -247,22 +241,11 @@ def _flatten_miner_value_objects(mapper, connection, target: Miner) -> None:
 @event.listens_for(Miner, "after_insert")
 @event.listens_for(Miner, "after_update")
 def _restore_miner_composites(mapper, connection, target: Any) -> None:
-    """Event listener that restores value objects after persisting.
-
-    Args:
-        mapper: SQLAlchemy mapper
-        connection: Database connection
-        target: The Miner instance that was persisted
-    """
+    """Event listener that restores value objects after persisting."""
     # Restore id to EntityId if it was converted to string
     if hasattr(target, "id") and target.id is not None:
         if isinstance(target.id, str):
             target.id = EntityId(uuid.UUID(target.id))
-
-    # Restore controller_id to EntityId if needed
-    if hasattr(target, "controller_id") and target.controller_id is not None:
-        if isinstance(target.controller_id, str):
-            target.controller_id = EntityId(uuid.UUID(target.controller_id))
 
     # Restore hash_rate_max from JSON string
     if hasattr(target, "hash_rate_max") and target.hash_rate_max is not None:
@@ -279,3 +262,50 @@ def _restore_miner_composites(mapper, connection, target: Any) -> None:
     if hasattr(target, "power_consumption_max") and target.power_consumption_max is not None:
         if not isinstance(target.power_consumption_max, type(Watts(0.0))):
             target.power_consumption_max = Watts(float(target.power_consumption_max))
+
+
+# --- Helper functions for feature persistence (used by repositories) ---
+
+
+def load_features_for_miner(session, miner_id: EntityId) -> list[MinerFeature]:
+    """Load MinerFeature VOs from the miner_features table for a given miner."""
+    from sqlalchemy import select
+
+    stmt = select(miner_features_table).where(miner_features_table.c.miner_id == str(miner_id))
+    rows = session.execute(stmt).fetchall()
+    features = []
+    for row in rows:
+        features.append(
+            MinerFeature(
+                feature_type=MinerFeatureType(row.feature_type),
+                controller_id=EntityId(uuid.UUID(row.controller_id)),
+                priority=row.priority,
+                enabled=bool(row.enabled),
+            )
+        )
+    return features
+
+
+def save_features_for_miner(session, miner_id: EntityId, features: list[MinerFeature]) -> None:
+    """Persist MinerFeature VOs to the miner_features table for a given miner.
+
+    Replaces all existing features for the miner (delete + re-insert).
+    """
+    # Delete existing features
+    session.execute(miner_features_table.delete().where(miner_features_table.c.miner_id == str(miner_id)))
+    # Insert new features
+    for f in features:
+        session.execute(
+            miner_features_table.insert().values(
+                miner_id=str(miner_id),
+                controller_id=str(f.controller_id),
+                feature_type=f.feature_type.value,
+                priority=f.priority,
+                enabled=f.enabled,
+            )
+        )
+
+
+def delete_features_for_miner(session, miner_id: EntityId) -> None:
+    """Delete all features for a given miner."""
+    session.execute(miner_features_table.delete().where(miner_features_table.c.miner_id == str(miner_id)))
