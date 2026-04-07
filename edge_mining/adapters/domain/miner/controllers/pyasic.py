@@ -1,5 +1,5 @@
 """
-pyasic adapter (Implementation of Port)
+pyasic adapter (Implementation of Feature Ports)
 that controls a miner via pyasic.
 """
 
@@ -15,10 +15,30 @@ from pyasic.web.base import BaseWebAPI
 from edge_mining.adapters.utils import run_async_func
 from edge_mining.domain.common import Watts
 from edge_mining.domain.miner.common import MinerControllerProtocol, MinerStatus
-from edge_mining.domain.miner.entities import Miner
+from edge_mining.domain.miner.aggregate_roots import Miner
 from edge_mining.domain.miner.exceptions import MinerControllerConfigurationError
-from edge_mining.domain.miner.ports import MinerControlPort
-from edge_mining.domain.miner.value_objects import HashRate
+from edge_mining.domain.miner.ports import (
+    BoardTemperatureMonitorPort,
+    ChipTemperatureMonitorPort,
+    FrequencyMonitorPort,
+    HashrateMonitorPort,
+    InletTemperatureMonitorPort,
+    InternalFanControlPort,
+    InternalFanSpeedMonitorPort,
+    MiningControlPort,
+    ModelDetectionPort,
+    OutletTemperatureMonitorPort,
+    PowerMonitorPort,
+    StatusMonitorPort,
+    VoltageMonitorPort,
+)
+from edge_mining.domain.miner.value_objects import (
+    FanSpeed,
+    Frequency,
+    HashRate,
+    Temperature,
+    Voltage,
+)
 from edge_mining.shared.adapter_configs.miner import MinerControllerPyASICConfig
 from edge_mining.shared.external_services.ports import ExternalServicePort
 from edge_mining.shared.interfaces.config import Configuration
@@ -44,7 +64,7 @@ class PyASICMinerControllerAdapterFactory(MinerControllerAdapterFactory):
         config: Optional[Configuration] = None,
         logger: Optional[LoggerPort] = None,
         external_service: Optional[ExternalServicePort] = None,
-    ) -> MinerControlPort:
+    ) -> "PyASICMinerController":
         """Create a miner controller adapter instance."""
 
         if not isinstance(config, MinerControllerPyASICConfig):
@@ -63,8 +83,22 @@ class PyASICMinerControllerAdapterFactory(MinerControllerAdapterFactory):
         )
 
 
-class PyASICMinerController(MinerControlPort):
-    """Controls a miner via pyasic."""
+class PyASICMinerController(
+    HashrateMonitorPort,
+    PowerMonitorPort,
+    StatusMonitorPort,
+    ChipTemperatureMonitorPort,
+    BoardTemperatureMonitorPort,
+    InletTemperatureMonitorPort,
+    OutletTemperatureMonitorPort,
+    InternalFanSpeedMonitorPort,
+    VoltageMonitorPort,
+    FrequencyMonitorPort,
+    MiningControlPort,
+    InternalFanControlPort,
+    ModelDetectionPort,
+):
+    """Controls a miner via pyasic. Implements multiple feature ports."""
 
     def __init__(
         self,
@@ -141,13 +175,14 @@ class PyASICMinerController(MinerControlPort):
                 if self.logger:
                     self.logger.error(f"Failed to retrieve miner instance from {self.ip}: {e}")
 
+    # --- ModelDetectionPort ---
+
     def get_model(self) -> Optional[str]:
         """Gets the model of the miner."""
 
         if self.logger:
             self.logger.debug(f"Fetching model from {self.ip}...")
 
-        # Get pyasic miner instance
         self._get_miner()
 
         if not self._miner:
@@ -157,15 +192,14 @@ class PyASICMinerController(MinerControlPort):
 
         return self._miner.model or None
 
-    def get_miner_hashrate(self) -> Optional[HashRate]:
-        """
-        Gets the current hash rate, if available.
-        """
+    # --- HashrateMonitorPort ---
+
+    def get_hashrate(self) -> Optional[HashRate]:
+        """Gets the current hash rate, if available."""
 
         if self.logger:
-            self.logger.debug(f"Fetching hashrate from from {self.ip}...")
+            self.logger.debug(f"Fetching hashrate from {self.ip}...")
 
-        # Get pyasic miner instance
         self._get_miner()
 
         if not self._miner:
@@ -190,12 +224,13 @@ class PyASICMinerController(MinerControlPort):
 
         return real_hashrate
 
-    def get_miner_power(self) -> Optional[Watts]:
+    # --- PowerMonitorPort ---
+
+    def get_power(self) -> Optional[Watts]:
         """Gets the current power consumption, if available."""
         if self.logger:
-            self.logger.debug(f"Fetching power consumption from from {self.ip}...")
+            self.logger.debug(f"Fetching power consumption from {self.ip}...")
 
-        # Get pyasic miner instance
         self._get_miner()
 
         if not self._miner:
@@ -216,12 +251,13 @@ class PyASICMinerController(MinerControlPort):
 
         return power_watts
 
-    def get_miner_status(self) -> MinerStatus:
+    # --- StatusMonitorPort ---
+
+    def get_status(self) -> MinerStatus:
         """Gets the current operational status of the miner."""
         if self.logger:
             self.logger.debug(f"Fetching miner status from {self.ip}...")
 
-        # Get pyasic miner instance
         self._get_miner()
 
         if not self._miner:
@@ -253,33 +289,150 @@ class PyASICMinerController(MinerControlPort):
 
         return miner_status
 
-    def stop_miner(self) -> bool:
-        """Attempts to stop the specified miner. Returns True on success request."""
-        if self.logger:
-            self.logger.debug(f"Sending stop command to miner at {self.ip}...")
+    # --- ChipTemperatureMonitorPort ---
 
-        # Get pyasic miner instance
+    def get_chip_temperature(self) -> Optional[Temperature]:
+        """Gets the current chip temperature, if available."""
+        if self.logger:
+            self.logger.debug(f"Fetching chip temperature from {self.ip}...")
+
         self._get_miner()
 
         if not self._miner:
             if self.logger:
                 self.logger.error(f"Failed to retrieve miner instance from {self.ip}...")
-            return False
+            return None
 
         miner = self._miner
-        success = run_async_func(miner.stop_mining())
+        data = run_async_func(miner.get_data())
+        if data is None or data.temperature_avg is None:
+            return None
 
+        return Temperature(value=float(data.temperature_avg))
+
+    # --- BoardTemperatureMonitorPort ---
+
+    def get_board_temperature(self) -> Optional[Temperature]:
+        """Gets the current board temperature, if available."""
         if self.logger:
-            self.logger.debug(f"Stop command sent. Success: {success}")
+            self.logger.debug(f"Fetching board temperature from {self.ip}...")
 
-        return success or False
+        self._get_miner()
 
-    def start_miner(self) -> bool:
-        """Attempts to start the miner. Returns True on success request."""
+        if not self._miner:
+            return None
+
+        miner = self._miner
+        data = run_async_func(miner.get_data())
+        if data is None or not data.hashboards:
+            return None
+
+        # Average board temperature across all hashboards
+        temps = [hb.temp for hb in data.hashboards if hb.temp is not None]
+        if not temps:
+            return None
+
+        return Temperature(value=round(sum(temps) / len(temps), 1))
+
+    # --- InletTemperatureMonitorPort ---
+
+    def get_inlet_temperature(self) -> Optional[Temperature]:
+        """Gets the current inlet air temperature, if available."""
+        if self.logger:
+            self.logger.debug(f"Fetching inlet temperature from {self.ip}...")
+
+        self._get_miner()
+
+        if not self._miner:
+            return None
+
+        miner = self._miner
+        data = run_async_func(miner.get_data())
+        if data is None or data.env_temp is None:
+            return None
+
+        return Temperature(value=float(data.env_temp))
+
+    # --- OutletTemperatureMonitorPort ---
+
+    def get_outlet_temperature(self) -> Optional[Temperature]:
+        """Gets the current outlet air temperature, if available."""
+        if self.logger:
+            self.logger.debug(f"Fetching outlet temperature from {self.ip}...")
+
+        # pyasic does not typically provide separate outlet temperature
+        # Some miners expose this through env_temp or specific board data
+        return None
+
+    # --- InternalFanSpeedMonitorPort ---
+
+    def get_internal_fan_speed(self) -> Optional[FanSpeed]:
+        """Gets the current internal fan speed, if available."""
+        if self.logger:
+            self.logger.debug(f"Fetching internal fan speed from {self.ip}...")
+
+        self._get_miner()
+
+        if not self._miner:
+            return None
+
+        miner = self._miner
+        data = run_async_func(miner.get_data())
+        if data is None or not data.fans:
+            return None
+
+        # Average fan speed across all fans
+        speeds = [fan.speed for fan in data.fans if fan.speed is not None and fan.speed > 0]
+        if not speeds:
+            return None
+
+        return FanSpeed(value=round(sum(speeds) / len(speeds), 0))
+
+    # --- VoltageMonitorPort ---
+
+    def get_voltage(self) -> Optional[Voltage]:
+        """Gets the current voltage, if available."""
+        if self.logger:
+            self.logger.debug(f"Fetching voltage from {self.ip}...")
+
+        self._get_miner()
+
+        if not self._miner:
+            return None
+
+        miner = self._miner
+        data = run_async_func(miner.get_data())
+        if data is None or data.voltage is None:
+            return None
+
+        return Voltage(value=float(data.voltage))
+
+    # --- FrequencyMonitorPort ---
+
+    def get_frequency(self) -> Optional[Frequency]:
+        """Gets the current chip operating frequency, if available."""
+        if self.logger:
+            self.logger.debug(f"Fetching frequency from {self.ip}...")
+
+        self._get_miner()
+
+        if not self._miner:
+            return None
+
+        miner = self._miner
+        data = run_async_func(miner.get_data())
+        if data is None or data.frequency_avg is None:
+            return None
+
+        return Frequency(value=float(data.frequency_avg))
+
+    # --- MiningControlPort ---
+
+    def start_mining(self) -> bool:
+        """Attempts to start mining. Returns True on success."""
         if self.logger:
             self.logger.debug(f"Sending start command to miner at {self.ip}...")
 
-        # Get pyasic miner instance
         self._get_miner()
 
         if not self._miner:
@@ -295,6 +448,53 @@ class PyASICMinerController(MinerControlPort):
 
         return success or False
 
+    def stop_mining(self) -> bool:
+        """Attempts to stop mining. Returns True on success."""
+        if self.logger:
+            self.logger.debug(f"Sending stop command to miner at {self.ip}...")
+
+        self._get_miner()
+
+        if not self._miner:
+            if self.logger:
+                self.logger.error(f"Failed to retrieve miner instance from {self.ip}...")
+            return False
+
+        miner = self._miner
+        success = run_async_func(miner.stop_mining())
+
+        if self.logger:
+            self.logger.debug(f"Stop command sent. Success: {success}")
+
+        return success or False
+
+    # --- InternalFanControlPort ---
+
+    def set_internal_fan_speed(self, speed_percent: float) -> bool:
+        """Sets internal fan speed as a percentage (0-100). Returns True on success."""
+        if self.logger:
+            self.logger.debug(f"Setting internal fan speed to {speed_percent}% on {self.ip}...")
+
+        self._get_miner()
+
+        if not self._miner:
+            if self.logger:
+                self.logger.error(f"Failed to retrieve miner instance from {self.ip}...")
+            return False
+
+        miner = self._miner
+        try:
+            success = run_async_func(miner.set_fan_speed(int(speed_percent)))
+            if self.logger:
+                self.logger.debug(f"Fan speed set. Success: {success}")
+            return success or False
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Failed to set fan speed on {self.ip}: {e}")
+            return False
+
+    # --- Private helpers ---
+
     def _derive_miner_status(self) -> Optional[bool]:
         """Derives the miner status based on hashrate and power consumption.
 
@@ -306,8 +506,8 @@ class PyASICMinerController(MinerControlPort):
         """
         IDLE_WATTAGE_THRESHOLD = 1  # Low threshold to work with low-power miners (e.g., Bitaxe ~13W)
 
-        hashrate: Optional[HashRate] = self.get_miner_hashrate()
-        wattage: Optional[Watts] = self.get_miner_power()
+        hashrate: Optional[HashRate] = self.get_hashrate()
+        wattage: Optional[Watts] = self.get_power()
 
         if self.logger:
             self.logger.debug(
