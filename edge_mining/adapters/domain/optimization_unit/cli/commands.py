@@ -11,16 +11,15 @@ from edge_mining.adapters.domain.policy.cli.commands import (
     print_optimization_policy_details,
     select_optimization_policy,
 )
+from edge_mining.adapters.utils import run_async_func
 from edge_mining.application.interfaces import ConfigurationServiceInterface
 from edge_mining.domain.common import EntityId
 from edge_mining.domain.energy.entities import EnergySource
-from edge_mining.domain.miner.entities import Miner
+from edge_mining.domain.miner.aggregate_roots import Miner
 from edge_mining.domain.notification.entities import Notifier
 from edge_mining.domain.optimization_unit.aggregate_roots import EnergyOptimizationUnit
 from edge_mining.domain.policy.aggregate_roots import OptimizationPolicy
 from edge_mining.shared.logging.port import LoggerPort
-
-from edge_mining.adapters.utils import run_async_func
 
 
 def handle_add_optimization_unit(configuration_service: ConfigurationServiceInterface, logger: LoggerPort):
