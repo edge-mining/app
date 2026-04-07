@@ -14,6 +14,8 @@ from edge_mining.domain.common import EntityId, Watts
 from edge_mining.domain.miner.value_objects import HashRate
 from edge_mining.shared.infrastructure import Services
 
+from edge_mining.adapters.utils import run_async_func
+
 
 @cli.command("run-evaluation")
 @click.pass_context
@@ -83,15 +85,17 @@ def create_optimization_unit(
             EntityId(cast(UUID, performance_tracker_id_str)) if performance_tracker_id_str else None
         )
 
-        created = configuration_service.create_optimization_unit(
-            name=name,
-            description=description,
-            energy_source_id=energy_source_id,
-            target_miner_ids=target_miner_ids,
-            policy_id=policy_id,
-            home_forecast_provider_id=home_forecast_provider_id,
-            performance_tracker_id=performance_tracker_id,
-            notifier_ids=notifier_ids,
+        created = run_async_func(
+            configuration_service.create_optimization_unit(
+                name=name,
+                description=description,
+                energy_source_id=energy_source_id,
+                target_miner_ids=target_miner_ids,
+                policy_id=policy_id,
+                home_forecast_provider_id=home_forecast_provider_id,
+                performance_tracker_id=performance_tracker_id,
+                notifier_ids=notifier_ids,
+            )
         )
         if not created:
             click.echo("Error: Optimization Unit creation failed.", err=True)
@@ -148,11 +152,13 @@ def add_miner(
         hash_rate = HashRate(value=float(hash_rate_str), unit=hash_rate_unit_str)
         power_consumption = Watts(float(power_consumption_str))
 
-        added = configuration_service.add_miner(
-            name=name,
-            hash_rate_max=hash_rate,
-            power_consumption_max=power_consumption,
-            controller_id=controller_id,
+        added = run_async_func(
+            configuration_service.add_miner(
+                name=name,
+                hash_rate_max=hash_rate,
+                power_consumption_max=power_consumption,
+                controller_id=controller_id,
+            )
         )
         click.echo(f"Miner '{added.name}' ({added.id}) added successfully.")
     except Exception as e:
@@ -188,7 +194,7 @@ def remove_miner(ctx: click.Context, miner_id_str: str):
     miner_id = EntityId(cast(UUID, miner_id_str))
 
     try:
-        configuration_service.remove_miner(miner_id=miner_id)
+        run_async_func(configuration_service.remove_miner(miner_id=miner_id))
         click.echo(f"Miner {miner_id} removed.")
     except Exception as e:
         click.echo(f"Error removing miner: {e}", err=True)
@@ -214,7 +220,7 @@ def create_policy(ctx: click.Context, name: str, description: str):
         return
 
     try:
-        created = configuration_service.create_policy(name=name, description=description)
+        created = run_async_func(configuration_service.create_policy(name=name, description=description))
         click.echo(f"Optimization Policy '{created.name}' ({created.description}) created successfully.")
     except Exception as e:
         click.echo(f"Error adding miner: {e}", err=True)

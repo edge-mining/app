@@ -94,7 +94,7 @@ async def add_miner(
     try:
         miner_to_add: Miner = miner_schema.to_model()
 
-        new_miner = config_service.add_miner(
+        new_miner = await config_service.add_miner(
             name=miner_to_add.name,
             model=miner_to_add.model,
             hash_rate_max=miner_to_add.hash_rate_max,
@@ -127,7 +127,7 @@ async def update_miner(
             Watts(miner_update.power_consumption_max) if miner_update.power_consumption_max is not None else None
         )
 
-        miner_updated = config_service.update_miner(
+        miner_updated = await config_service.update_miner(
             miner_id=miner.id,
             name=miner_update.name or "",
             model=miner_update.model,
@@ -153,7 +153,7 @@ async def remove_miner(
 ) -> MinerSchema:
     """Remove a miner."""
     try:
-        deleted_miner = config_service.remove_miner(miner_id)
+        deleted_miner = await config_service.remove_miner(miner_id)
 
         response = MinerSchema.from_model(deleted_miner)
 
@@ -301,7 +301,7 @@ async def activate_miner(
 ) -> MinerSchema:
     """Activate a miner."""
     try:
-        miner = config_service.activate_miner(miner_id)
+        miner = await config_service.activate_miner(miner_id)
 
         response = MinerSchema.from_model(miner)
 
@@ -319,7 +319,7 @@ async def deactivate_miner(
 ) -> MinerSchema:
     """Deactivate a miner."""
     try:
-        miner = config_service.deactivate_miner(miner_id)
+        miner = await config_service.deactivate_miner(miner_id)
 
         response = MinerSchema.from_model(miner)
 
@@ -343,7 +343,7 @@ async def set_miner_controller(
         if miner is None:
             raise MinerNotFoundError(f"Miner with ID {miner_id} not found")
 
-        config_service.set_miner_controller(miner_id, controller_id)
+        await config_service.set_miner_controller(miner_id, controller_id)
 
         response = MinerSchema.from_model(miner)
 
@@ -387,7 +387,7 @@ async def add_miner_controller(
         if controller_to_add.config is None:
             raise MinerControllerConfigurationError("Miner controller configuration should be set")
 
-        new_controller = config_service.add_miner_controller(
+        new_controller = await config_service.add_miner_controller(
             name=controller_to_add.name,
             adapter=controller_to_add.adapter_type,
             config=controller_to_add.config,
@@ -537,7 +537,7 @@ async def update_miner_controller(
         if controller_update.external_service_id:
             external_service_id = EntityId(uuid.UUID(controller_update.external_service_id))
 
-        updated_controller = config_service.update_miner_controller(
+        updated_controller = await config_service.update_miner_controller(
             controller_id=controller.id,
             name=controller_update.name or "",
             config=cast(MinerControllerConfig, configuration),
@@ -560,7 +560,7 @@ async def remove_miner_controller(
 ) -> MinerControllerSchema:
     """Remove a miner controller."""
     try:
-        deleted_controller = config_service.remove_miner_controller(controller_id)
+        deleted_controller = await config_service.remove_miner_controller(controller_id)
 
         response = MinerControllerSchema.from_model(deleted_controller)
 

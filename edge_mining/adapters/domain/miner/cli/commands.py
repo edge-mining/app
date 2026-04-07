@@ -86,12 +86,14 @@ def handle_add_miner(configuration_service: ConfigurationServiceInterface, logge
             )
 
     try:
-        added = configuration_service.add_miner(
-            name=new_miner.name,
-            model=new_miner.model,
-            hash_rate_max=new_miner.hash_rate_max,
-            power_consumption_max=new_miner.power_consumption_max,
-            controller_id=new_miner.controller_id,
+        added = run_async_func(
+            configuration_service.add_miner(
+                name=new_miner.name,
+                model=new_miner.model,
+                hash_rate_max=new_miner.hash_rate_max,
+                power_consumption_max=new_miner.power_consumption_max,
+                controller_id=new_miner.controller_id,
+            )
         )
         click.echo(
             click.style(
@@ -288,13 +290,15 @@ def update_single_miner(
     hash_rate_max = HashRate(value=hash_rate, unit=hash_rate_unit)
 
     try:
-        updated = configuration_service.update_miner(
-            miner_id=selected_miner.id,
-            name=name,
-            model=model if model else None,
-            hash_rate_max=hash_rate_max,
-            power_consumption_max=Watts(power_consumption),
-            controller_id=EntityId(controller_id) if controller_id else None,
+        updated = run_async_func(
+            configuration_service.update_miner(
+                miner_id=selected_miner.id,
+                name=name,
+                model=model if model else None,
+                hash_rate_max=hash_rate_max,
+                power_consumption_max=Watts(power_consumption),
+                controller_id=EntityId(controller_id) if controller_id else None,
+            )
         )
         click.echo(
             click.style(
@@ -328,7 +332,7 @@ def delete_single_miner(
         click.echo(click.style("Deletion cancelled.", fg="yellow"))
         return False
     try:
-        removed_miner = configuration_service.remove_miner(miner_id=selected_miner.id)
+        removed_miner = run_async_func(configuration_service.remove_miner(miner_id=selected_miner.id))
         logger.info(f"Miner '{removed_miner.name}' (ID: {removed_miner.id}) successfully removed.")
         click.echo(
             click.style(
@@ -361,14 +365,16 @@ def assign_controller_to_miner(
     try:
         selected_miner.controller_id = controller.id
 
-        updated_miner = configuration_service.update_miner(
-            miner_id=selected_miner.id,
-            name=selected_miner.name,
-            model=selected_miner.model,
-            hash_rate_max=selected_miner.hash_rate_max,
-            power_consumption_max=selected_miner.power_consumption_max,
-            controller_id=selected_miner.controller_id,
-            active=selected_miner.active,
+        updated_miner = run_async_func(
+            configuration_service.update_miner(
+                miner_id=selected_miner.id,
+                name=selected_miner.name,
+                model=selected_miner.model,
+                hash_rate_max=selected_miner.hash_rate_max,
+                power_consumption_max=selected_miner.power_consumption_max,
+                controller_id=selected_miner.controller_id,
+                active=selected_miner.active,
+            )
         )
         click.echo(
             click.style(
@@ -561,7 +567,7 @@ def manage_single_miner_menu(
 
         if choice == "1":
             try:
-                miner = configuration_service.activate_miner(miner.id)
+                miner = run_async_func(configuration_service.activate_miner(miner.id))
                 logger.info(f"Miner {miner.name} activated successfully.")
             except Exception as e:
                 logger.error(f"Error activating miner: {e}")
@@ -573,7 +579,7 @@ def manage_single_miner_menu(
 
         elif choice == "2":
             try:
-                miner = configuration_service.deactivate_miner(miner.id)
+                miner = run_async_func(configuration_service.deactivate_miner(miner.id))
                 logger.info(f"Miner {miner.name} deactivated successfully.")
             except Exception as e:
                 logger.error(f"Error deactivating miner: {e}")
@@ -904,11 +910,13 @@ def handle_add_miner_controller(
                 return None
 
     try:
-        added_controller = configuration_service.add_miner_controller(
-            name=new_controller.name,
-            adapter=new_controller.adapter_type,
-            config=new_controller.config,
-            external_service_id=new_controller.external_service_id,
+        added_controller = run_async_func(
+            configuration_service.add_miner_controller(
+                name=new_controller.name,
+                adapter=new_controller.adapter_type,
+                config=new_controller.config,
+                external_service_id=new_controller.external_service_id,
+            )
         )
         click.echo(
             click.style(
@@ -1033,8 +1041,10 @@ def update_single_miner_controller(
         return None
 
     try:
-        updated_controller = configuration_service.update_miner_controller(
-            controller_id=controller.id, name=name, config=config, external_service_id=external_service_id
+        updated_controller = run_async_func(
+            configuration_service.update_miner_controller(
+                controller_id=controller.id, name=name, config=config, external_service_id=external_service_id
+            )
         )
         logger.info(f"Miner Controller '{updated_controller.name}' (ID: {updated_controller.id}) successfully updated.")
     except Exception as e:
@@ -1068,7 +1078,7 @@ def delete_single_miner_controller(
         return False
 
     try:
-        removed_controller = configuration_service.remove_miner_controller(controller_id=controller.id)
+        removed_controller = run_async_func(configuration_service.remove_miner_controller(controller_id=controller.id))
         logger.info(f"Miner Controller '{removed_controller.name}' (ID: {removed_controller.id}) successfully removed.")
     except Exception as e:
         logger.error(f"Error removing miner controller: {e}")

@@ -7,6 +7,7 @@ from edge_mining.application.interfaces import (
     MinerActionServiceInterface,
     AdapterServiceInterface,
     ConfigurationServiceInterface,
+    EventBusInterface,
     OptimizationServiceInterface,
 )
 from edge_mining.domain.energy.ports import (
@@ -61,3 +62,4 @@ class Services:
     optimization_service: OptimizationServiceInterface
     miner_action_service: MinerActionServiceInterface
     configuration_service: ConfigurationServiceInterface
+    event_bus: EventBusInterface

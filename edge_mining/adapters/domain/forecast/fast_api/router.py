@@ -63,7 +63,7 @@ async def add_forecast_provider(
             raise ForecastProviderConfigurationError("Forecast provider configuration should be set")
 
         # Add the forecast provider
-        created_provider = config_service.create_forecast_provider(
+        created_provider = await config_service.create_forecast_provider(
             name=forecast_provider_to_add.name,
             adapter_type=forecast_provider_to_add.adapter_type,
             config=forecast_provider_to_add.config,
@@ -190,7 +190,7 @@ async def update_forecast_provider(
             external_service_id = EntityId(uuid.UUID(forecast_provider_update.external_service_id))
 
         # Update the forecast provider
-        updated_provider = config_service.update_forecast_provider(
+        updated_provider = await config_service.update_forecast_provider(
             provider_id=provider_id,
             name=forecast_provider_update.name or "",
             adapter_type=forecast_provider.adapter_type,
@@ -214,7 +214,7 @@ async def delete_forecast_provider(
 ) -> ForecastProviderSchema:
     """Remove a forecast provider."""
     try:
-        deleted_provider = config_service.remove_forecast_provider(provider_id)
+        deleted_provider = await config_service.remove_forecast_provider(provider_id)
 
         response = ForecastProviderSchema.from_model(deleted_provider)
 

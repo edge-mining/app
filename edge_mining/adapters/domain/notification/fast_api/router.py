@@ -149,7 +149,7 @@ async def add_notifier(
         if notifier_to_add.config is None:
             raise NotifierConfigurationError("Notifier configuration should be set")
 
-        new_notifier = config_service.add_notifier(
+        new_notifier = await config_service.add_notifier(
             name=notifier_to_add.name,
             adapter_type=notifier_to_add.adapter_type,
             config=notifier_to_add.config,
@@ -193,7 +193,7 @@ async def update_notifier(
         if notifier_update.external_service_id:
             external_service_id = EntityId(uuid.UUID(notifier_update.external_service_id))
 
-        updated_notifier = config_service.update_notifier(
+        updated_notifier = await config_service.update_notifier(
             notifier_id=notifier.id,
             name=notifier_update.name or "",
             config=cast(NotificationConfig, configuration),
@@ -216,7 +216,7 @@ async def remove_notifier(
 ) -> NotifierSchema:
     """Remove a notifier."""
     try:
-        deleted_notifier = config_service.remove_notifier(notifier_id)
+        deleted_notifier = await config_service.remove_notifier(notifier_id)
 
         response = NotifierSchema.from_model(deleted_notifier)
 
