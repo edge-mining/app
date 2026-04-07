@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Optional
 
 from edge_mining.domain.energy.entities import EnergySource
-from edge_mining.domain.miner.entities import Miner
+from edge_mining.domain.miner.aggregate_roots import Miner
 from edge_mining.shared.external_services.ports import ExternalServicePort
 from edge_mining.shared.interfaces.config import Configuration, ExternalServiceConfig
 from edge_mining.shared.logging.port import LoggerPort
