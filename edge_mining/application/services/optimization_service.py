@@ -292,11 +292,6 @@ class OptimizationService(OptimizationServiceInterface):
                     power_consumption=current_power,
                 )
 
-                # Update model if available and it has changed (static config update)
-                current_model = miner_controller.get_model()
-                if current_model and miner.model != current_model:
-                    miner.model = current_model
-
                 break  # We found a valid miner and controller, we can stop looking for more miners
 
         # --- Mining Performance Tracker ---
