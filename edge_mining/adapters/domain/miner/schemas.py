@@ -7,9 +7,15 @@ from typing import Dict, Optional, Union, cast
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
 from edge_mining.domain.common import EntityId, Watts
-from edge_mining.domain.miner.common import MinerControllerAdapter, MinerControllerProtocol, MinerStatus
-from edge_mining.domain.miner.entities import Miner, MinerController
-from edge_mining.domain.miner.value_objects import HashRate, MinerStateSnapshot
+from edge_mining.domain.miner.common import (
+    MinerControllerAdapter,
+    MinerControllerProtocol,
+    MinerFeatureType,
+    MinerStatus,
+)
+from edge_mining.domain.miner.aggregate_roots import Miner
+from edge_mining.domain.miner.entities import MinerController
+from edge_mining.domain.miner.value_objects import HashRate, MinerFeature, MinerStateSnapshot
 from edge_mining.shared.adapter_configs.miner import (
     MinerControllerDummyConfig,
     MinerControllerGenericSocketHomeAssistantAPIConfig,
@@ -47,6 +53,53 @@ class HashRateSchema(BaseModel):
         return HashRate(value=self.value, unit=self.unit)
 
 
+class MinerFeatureSchema(BaseModel):
+    """Schema for MinerFeature value object."""
+
+    feature_type: str = Field(..., description="Feature type")
+    controller_id: str = Field(..., description="ID of the controller providing this feature")
+    priority: int = Field(default=50, ge=1, le=100, description="Priority (1-100, higher wins)")
+    enabled: bool = Field(default=True, description="Whether this feature is enabled")
+
+    @field_validator("controller_id")
+    @classmethod
+    def validate_controller_id(cls, v: str) -> str:
+        """Validate that controller_id is a valid UUID string."""
+        try:
+            uuid.UUID(v)
+        except ValueError as exc:
+            raise ValueError("controller_id must be a valid UUID string") from exc
+        return v
+
+    @field_validator("feature_type")
+    @classmethod
+    def validate_feature_type(cls, v: str) -> str:
+        """Validate that feature_type is a recognized MinerFeatureType."""
+        valid_types = [ft.value for ft in MinerFeatureType]
+        if v not in valid_types:
+            raise ValueError(f"feature_type must be one of {valid_types}")
+        return v
+
+    @classmethod
+    def from_model(cls, feature: MinerFeature) -> "MinerFeatureSchema":
+        """Create MinerFeatureSchema from a MinerFeature value object."""
+        return cls(
+            feature_type=feature.feature_type.value,
+            controller_id=str(feature.controller_id),
+            priority=feature.priority,
+            enabled=feature.enabled,
+        )
+
+    def to_model(self) -> MinerFeature:
+        """Convert MinerFeatureSchema to MinerFeature value object."""
+        return MinerFeature(
+            feature_type=MinerFeatureType(self.feature_type),
+            controller_id=EntityId(uuid.UUID(self.controller_id)),
+            priority=self.priority,
+            enabled=self.enabled,
+        )
+
+
 class MinerSchema(BaseModel):
     """Schema for Miner entity with complete validation."""
 
@@ -56,7 +109,8 @@ class MinerSchema(BaseModel):
     hash_rate_max: Optional[HashRateSchema] = Field(default=None, description="Maximum hash rate")
     power_consumption_max: Optional[float] = Field(default=None, ge=0, description="Maximum power consumption in Watts")
     active: bool = Field(default=True, description="Whether the miner is active in the system")
-    controller_id: Optional[str] = Field(default=None, description="ID of the associated Miner controller")
+    features: list[MinerFeatureSchema] = Field(default_factory=list, description="Features provided by controllers")
+    controller_ids: list[str] = Field(default_factory=list, description="IDs of associated controllers (computed)")
 
     @field_validator("id")
     @classmethod
@@ -75,17 +129,6 @@ class MinerSchema(BaseModel):
         v = v.strip()
         if not v:
             v = ""
-        return v
-
-    @field_validator("controller_id")
-    @classmethod
-    def validate_controller_id(cls, v: Optional[str]) -> Optional[str]:
-        """Validate that controller_id is a valid UUID string if provided."""
-        if v is not None:
-            try:
-                uuid.UUID(v)
-            except ValueError as exc:
-                raise ValueError("controller_id must be a valid UUID string") from exc
         return v
 
     @field_validator("power_consumption_max")
@@ -110,18 +153,14 @@ class MinerSchema(BaseModel):
             hash_rate_max=hash_rate_max,
             power_consumption_max=miner.power_consumption_max,
             active=miner.active,
-            controller_id=str(miner.controller_id) if miner.controller_id else None,
+            features=[MinerFeatureSchema.from_model(f) for f in miner.features],
+            controller_ids=[str(cid) for cid in miner.get_controller_ids()],
         )
 
     @field_serializer("id")
     def serialize_id(self, value: str) -> str:
         """Serialize id field."""
         return str(value)
-
-    @field_serializer("controller_id")
-    def serialize_controller_id(self, value: Optional[str]) -> Optional[str]:
-        """Serialize controller_id field."""
-        return str(value) if value is not None else None
 
     def to_model(self) -> Miner:
         """Convert MinerSchema back to Miner domain model instance."""
@@ -134,7 +173,7 @@ class MinerSchema(BaseModel):
             ),
             power_consumption_max=Watts(self.power_consumption_max) if self.power_consumption_max is not None else None,
             active=self.active,
-            controller_id=EntityId(uuid.UUID(self.controller_id)) if self.controller_id else None,
+            features=[f.to_model() for f in self.features],
         )
 
     class Config:
@@ -194,18 +233,6 @@ class MinerCreateSchema(BaseModel):
     model: Optional[str] = Field(default=None, description="Miner model/hardware identifier")
     hash_rate_max: Optional[HashRateSchema] = Field(default=None, description="Maximum hash rate")
     power_consumption_max: Optional[float] = Field(default=None, ge=0, description="Maximum power consumption in Watts")
-    controller_id: Optional[str] = Field(default=None, description="ID of the associated controller")
-
-    @field_validator("controller_id")
-    @classmethod
-    def validate_controller_id(cls, v: Optional[str]) -> Optional[str]:
-        """Validate that controller_id is a valid UUID string if provided."""
-        if v is not None:
-            try:
-                uuid.UUID(v)
-            except ValueError as exc:
-                raise ValueError("controller_id must be a valid UUID string") from exc
-        return v
 
     @field_validator("name")
     @classmethod
@@ -227,7 +254,6 @@ class MinerCreateSchema(BaseModel):
             ),
             power_consumption_max=Watts(self.power_consumption_max) if self.power_consumption_max is not None else None,
             active=True,
-            controller_id=EntityId(uuid.UUID(self.controller_id)) if self.controller_id else None,
         )
 
     class Config:
@@ -248,18 +274,6 @@ class MinerUpdateSchema(BaseModel):
     hash_rate_max: Optional[HashRateSchema] = Field(default=None, description="Maximum hash rate")
     power_consumption_max: Optional[float] = Field(default=None, ge=0, description="Maximum power consumption in Watts")
     active: Optional[bool] = Field(default=None, description="Whether the miner is active")
-    controller_id: Optional[str] = Field(default=None, description="ID of the associated Miner controller")
-
-    @field_validator("controller_id")
-    @classmethod
-    def validate_controller_id(cls, v: Optional[str]) -> Optional[str]:
-        """Validate that controller_id is a valid UUID string if provided."""
-        if v is not None:
-            try:
-                uuid.UUID(v)
-            except ValueError as exc:
-                raise ValueError("controller_id must be a valid UUID string") from exc
-        return v
 
     @field_validator("name")
     @classmethod

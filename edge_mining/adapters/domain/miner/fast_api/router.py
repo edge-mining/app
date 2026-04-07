@@ -29,7 +29,7 @@ from edge_mining.application.interfaces import (
 )
 from edge_mining.domain.common import EntityId, Watts
 from edge_mining.domain.miner.common import MinerControllerAdapter
-from edge_mining.domain.miner.entities import Miner
+from edge_mining.domain.miner.aggregate_roots import Miner
 from edge_mining.domain.miner.exceptions import (
     MinerControllerAlreadyExistsError,
     MinerControllerConfigurationError,
@@ -99,7 +99,6 @@ async def add_miner(
             model=miner_to_add.model,
             hash_rate_max=miner_to_add.hash_rate_max,
             power_consumption_max=miner_to_add.power_consumption_max,
-            controller_id=miner_to_add.controller_id,
         )
 
         response = MinerSchema.from_model(new_miner)
@@ -133,7 +132,6 @@ async def update_miner(
             model=miner_update.model,
             hash_rate_max=hash_rate_max,
             power_consumption_max=power_consumption_max,
-            controller_id=EntityId(uuid.UUID(miner_update.controller_id)),
             active=miner.active,
         )
 
@@ -336,14 +334,15 @@ async def set_miner_controller(
     controller_id: EntityId,
     config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
 ) -> MinerSchema:
-    """Set the controller for a miner."""
+    """Associate a controller to a miner, auto-creating features for all supported feature types."""
     try:
+        await config_service.set_miner_controller(controller_id, miner_id)
+
+        # Re-read the miner to get updated features
         miner = config_service.get_miner(miner_id)
 
         if miner is None:
             raise MinerNotFoundError(f"Miner with ID {miner_id} not found")
-
-        await config_service.set_miner_controller(miner_id, controller_id)
 
         response = MinerSchema.from_model(miner)
 
@@ -352,6 +351,32 @@ async def set_miner_controller(
         raise HTTPException(status_code=404, detail="Miner not found") from e
     except MinerControllerNotFoundError as e:
         raise HTTPException(status_code=404, detail="Miner controller not found") from e
+    except MinerControllerConfigurationError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/miners/{miner_id}/unlink-controller", response_model=MinerSchema)
+async def unlink_controller_from_miner(
+    miner_id: EntityId,
+    controller_id: EntityId,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+) -> MinerSchema:
+    """Remove all features provided by a controller from a miner."""
+    try:
+        await config_service.unlink_controller_from_miner(controller_id, miner_id)
+
+        miner = config_service.get_miner(miner_id)
+
+        if miner is None:
+            raise MinerNotFoundError(f"Miner with ID {miner_id} not found")
+
+        response = MinerSchema.from_model(miner)
+
+        return response
+    except MinerNotFoundError as e:
+        raise HTTPException(status_code=404, detail="Miner not found") from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
