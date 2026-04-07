@@ -323,6 +323,7 @@ def configure_dependencies(logger: LoggerPort, settings: AppSettings) -> Service
         persistence_settings=persistence_settings,
         event_bus=event_bus,
         logger=logger,
+        adapter_service=adapter_service,
     )
 
     services = Services(
