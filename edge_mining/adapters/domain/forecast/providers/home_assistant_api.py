@@ -326,7 +326,6 @@ class HomeAssistantForecastProvider(ForecastProviderPort):
         """Fetches the energy production forecast."""
         if self.logger:
             self.logger.debug("Fetching forecast energy state from Home Assistant...")
-        has_critical_error = False
 
         # --- Actual Power h ---
         if self.entity_forecast_power_actual_h:
@@ -433,29 +432,21 @@ class HomeAssistantForecastProvider(ForecastProviderPort):
         else:
             energy_remaining_today = None
 
-        # Check if essential values are missing
+        # Check if essential values are missing - log warnings but continue with partial data
         if energy_today is None and self.entity_forecast_energy_today:
             if self.logger:
-                self.logger.error(
-                    f"Missing critical value: Solar Production (Entity: {self.entity_forecast_energy_today})"
+                self.logger.warning(
+                    f"Could not retrieve forecast energy today (Entity: {self.entity_forecast_energy_today}). "
+                    "Continuing with partial forecast data."
                 )
-            has_critical_error = True
         if energy_tomorrow is None and self.entity_forecast_energy_tomorrow:
             if self.logger:
-                self.logger.error(
-                    f"Missing critical value: Solar Production (Entity: {self.entity_forecast_energy_tomorrow})"
+                self.logger.warning(
+                    f"Could not retrieve forecast energy tomorrow (Entity: {self.entity_forecast_energy_tomorrow}). "
+                    "Continuing with partial forecast data."
                 )
-            has_critical_error = True
 
         # Add here other checks for critical values as needed
-
-        if has_critical_error:
-            if self.logger:
-                self.logger.error(
-                    "Failed to retrieve one or more critical energy values "
-                    "from Home Assistant. Cannot create forecast data."
-                )
-            return None
 
         now = Timestamp(datetime.now())
         actual_hour = datetime.now().replace(minute=0, second=0, microsecond=0)

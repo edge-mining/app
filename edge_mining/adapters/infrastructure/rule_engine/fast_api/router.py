@@ -87,14 +87,16 @@ async def evaluate_rules(
         for rule_schema in evaluation_request.rules:
             automation_rules.append(rule_schema.to_model())
 
-        context: Optional[DecisionalContext] = optimization_service.get_decisional_context(
+        context: Optional[DecisionalContext] = await optimization_service.get_decisional_context(
             EntityId(uuid.UUID(evaluation_request.optimization_unit))
         )
 
         if not context:
             raise ValueError("Decisional context could not be created")
 
-        return optimization_service.test_rules(automation_rules, context)
+        result = await optimization_service.test_rules(automation_rules, context)
+
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error during evaluation: {str(e)}") from e
 

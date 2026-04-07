@@ -12,11 +12,13 @@ from typing import List, Optional
 
 from edge_mining.application.interfaces import (
     AdapterServiceInterface,
+    EventBusInterface,
     OptimizationServiceInterface,
     SunFactoryInterface,
 )
 from edge_mining.domain.common import EntityId
 from edge_mining.domain.energy.entities import EnergySource
+from edge_mining.domain.energy.events import EnergyStateSnapshotUpdatedEvent
 from edge_mining.domain.energy.ports import EnergyMonitorPort, EnergySourceRepository
 from edge_mining.domain.energy.value_objects import EnergyStateSnapshot
 from edge_mining.domain.forecast.aggregate_root import Forecast
@@ -25,17 +27,20 @@ from edge_mining.domain.home_load.ports import HomeForecastProviderPort
 from edge_mining.domain.home_load.value_objects import ConsumptionForecast
 from edge_mining.domain.miner.common import MinerStatus
 from edge_mining.domain.miner.entities import Miner
+from edge_mining.domain.miner.events import MinerStateChangedEvent
 from edge_mining.domain.miner.exceptions import MinerError
 from edge_mining.domain.miner.ports import MinerControlPort, MinerRepository
 from edge_mining.domain.miner.value_objects import HashRate, MinerStateSnapshot
 from edge_mining.domain.notification.ports import NotificationPort
 from edge_mining.domain.optimization_unit.aggregate_roots import EnergyOptimizationUnit
+from edge_mining.domain.optimization_unit.events import RuleEngagedEvent
 from edge_mining.domain.optimization_unit.exceptions import OptimizationUnitNotFoundError
 from edge_mining.domain.optimization_unit.ports import EnergyOptimizationUnitRepository
 from edge_mining.domain.performance.ports import MiningPerformanceTrackerPort
 from edge_mining.domain.policy.aggregate_roots import OptimizationPolicy
 from edge_mining.domain.policy.common import MiningDecision
 from edge_mining.domain.policy.entities import AutomationRule
+from edge_mining.domain.policy.events import DecisionalContextUpdatedEvent
 from edge_mining.domain.policy.exceptions import PolicyError, RuleEngineError, RuleEvaluationError, RuleLoadError
 from edge_mining.domain.policy.ports import OptimizationPolicyRepository
 from edge_mining.domain.policy.services import RuleEngine
@@ -54,6 +59,7 @@ class OptimizationService(OptimizationServiceInterface):
         miner_repo: MinerRepository,
         adapter_service: AdapterServiceInterface,
         sun_factory: SunFactoryInterface,
+        event_bus: Optional[EventBusInterface] = None,
         logger: Optional[LoggerPort] = None,
     ):
         # Domains
@@ -67,6 +73,7 @@ class OptimizationService(OptimizationServiceInterface):
         # Infrastructure
         self.sun_factory = sun_factory
         self.adapter_service = adapter_service
+        self._event_bus = event_bus
         self.logger = logger
 
     async def _notify_unit(self, notifiers: List[NotificationPort], title: str, message: str):
@@ -84,7 +91,7 @@ class OptimizationService(OptimizationServiceInterface):
                 if self.logger:
                     self.logger.error(f"Failed to send notification via {type(notifier).__name__}: {e}")
 
-    def test_rules(self, rules: List[AutomationRule], decisional_context: DecisionalContext) -> bool:
+    async def test_rules(self, rules: List[AutomationRule], decisional_context: DecisionalContext) -> bool:
         """Test a specific automation rule against a given context."""
         # Create the rule engine instance
         rule_engine = self.adapter_service.get_rule_engine()
@@ -111,7 +118,7 @@ class OptimizationService(OptimizationServiceInterface):
         # Evaluate the rules in the rule engine
         return rule_engine.evaluate(decisional_context)
 
-    def get_decisional_context(self, optimization_unit_id: EntityId) -> Optional[DecisionalContext]:
+    async def get_decisional_context(self, optimization_unit_id: EntityId) -> Optional[DecisionalContext]:
         """Get the decisional context for a specific optimization unit."""
         optimization_unit = self.optimization_unit_repo.get_by_id(optimization_unit_id)
         if not optimization_unit:
@@ -174,7 +181,7 @@ class OptimizationService(OptimizationServiceInterface):
                 )
 
         # --- Energy State ---
-        if energy_monitor:
+        if energy_source and energy_monitor:
             try:
                 energy_state: Optional[EnergyStateSnapshot] = None
                 energy_state = energy_monitor.get_current_energy_state()
@@ -184,6 +191,16 @@ class OptimizationService(OptimizationServiceInterface):
                             f"Could not retrieve energy state for optimization unit '{optimization_unit.name}'. "
                             "Skipping."
                         )
+                # Publish energy state snapshot event
+                if self._event_bus:
+                    await self._event_bus.publish(
+                        EnergyStateSnapshotUpdatedEvent(
+                            optimization_unit_id=optimization_unit.id,
+                            optimization_unit_name=optimization_unit.name,
+                            energy_source_id=energy_source.id,
+                            energy_state_snapshot=energy_state,
+                        )
+                    )
             except Exception as e:
                 if self.logger:
                     self.logger.error(
@@ -331,6 +348,17 @@ class OptimizationService(OptimizationServiceInterface):
             miner=miner,
             miner_state=miner_state,
         )
+
+        # Publish decisional context event
+        if self._event_bus:
+            await self._event_bus.publish(
+                DecisionalContextUpdatedEvent(
+                    optimization_unit_id=optimization_unit.id,
+                    optimization_unit_name=optimization_unit.name,
+                    context=context,
+                    target_miner_ids=list(optimization_unit.target_miner_ids),
+                )
+            )
 
         return context
 
@@ -507,6 +535,17 @@ class OptimizationService(OptimizationServiceInterface):
                     "Failed to retrieve energy state.",
                 )
                 return
+
+            # Publish energy state snapshot event
+            if self._event_bus:
+                await self._event_bus.publish(
+                    EnergyStateSnapshotUpdatedEvent(
+                        optimization_unit_id=optimization_unit.id,
+                        optimization_unit_name=optimization_unit.name,
+                        energy_source_id=energy_source.id,
+                        energy_state_snapshot=energy_state,
+                    )
+                )
         except Exception as e:
             if self.logger:
                 self.logger.error(f"Error getting energy state for optimization unit '{optimization_unit.name}': {e}")
@@ -594,6 +633,17 @@ class OptimizationService(OptimizationServiceInterface):
             tracker_current_hashrate=tracker_current_hashrate,
             sun=sun,
         )
+
+        # Publish decisional context event
+        if self._event_bus:
+            await self._event_bus.publish(
+                DecisionalContextUpdatedEvent(
+                    optimization_unit_id=optimization_unit.id,
+                    optimization_unit_name=optimization_unit.name,
+                    context=context,
+                    target_miner_ids=list(optimization_unit.target_miner_ids),
+                )
+            )
 
         # TODO: should we manage miners singularly or together?
         # TODO: should we serialize the miner process or run them in parallel?
@@ -741,6 +791,20 @@ class OptimizationService(OptimizationServiceInterface):
                     f"Policy='{policy.name}', Decision={decision.name}"
                 )
 
+            # Publish rule engaged event
+            if self._event_bus:
+                await self._event_bus.publish(
+                    RuleEngagedEvent(
+                        optimization_unit_id=optimization_unit.id,
+                        optimization_unit_name=optimization_unit.name,
+                        policy_id=policy.id,
+                        policy_name=policy.name,
+                        miner_id=miner_id,
+                        decision=decision,
+                        miner_status=current_status.name,
+                    )
+                )
+
             await self._execute_miner_decision(
                 miner_controller,
                 miner_id,
@@ -822,12 +886,31 @@ class OptimizationService(OptimizationServiceInterface):
                     f"Attempt to stop miner {miner_id} failed." + message_suffix,
                 )
 
-        if action_taken and not success:
+        if action_taken:
+            if not success:
+                if self.logger:
+                    self.logger.error(
+                        f"Command {decision.name} for miner {miner_id} failed using controller {type(controller).__name__}."
+                    )
+            else:
+                miner = self.miner_repo.get_by_id(miner_id)
+
+                # Get new miner state to publish in the event
+                new_status = controller.get_miner_status()  # Get the updated status after the command
+
+                # Publish miner state changed event
+                if self._event_bus:
+                    await self._event_bus.publish(
+                        MinerStateChangedEvent(
+                            miner_id=miner_id,
+                            miner_name=miner.name if miner else "",
+                            old_status=current_status,
+                            new_status=new_status,
+                        )
+                    )
+        else:
             if self.logger:
-                self.logger.error(
-                    f"Command {decision.name} for miner {miner_id} failed using controller {type(controller).__name__}."
+                self.logger.debug(
+                    f"No action taken for miner {miner_id} (Decision: {decision.name}, "
+                    f"Current Status: {current_status.name})."
                 )
-        elif action_taken and success:
-            # State is no longer persisted on the Miner entity.
-            # The next optimization iteration will query the controller for current status.
-            pass

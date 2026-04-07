@@ -426,7 +426,7 @@ async def get_decisional_context(
 ) -> DecisionalContextSchema:
     """Get the current decisional context for an optimization unit."""
     try:
-        context = optimization_service.get_decisional_context(unit_id)
+        context = await optimization_service.get_decisional_context(unit_id)
 
         if context is None:
             raise OptimizationUnitNotFoundError(f"Optimization Unit with ID {unit_id} not found")

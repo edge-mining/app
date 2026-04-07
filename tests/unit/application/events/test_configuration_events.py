@@ -3,7 +3,8 @@
 import unittest
 import uuid
 
-from edge_mining.application.events.configuration_events import ConfigurationAction, ConfigurationUpdatedEvent, ConfigurationUpdatedEventType
+from edge_mining.application.events.common import ConfigurationAction, ConfigurationUpdatedEventType
+from edge_mining.application.events.configuration_events import ConfigurationUpdatedEvent
 from edge_mining.domain.common import DomainEvent, EntityId
 
 

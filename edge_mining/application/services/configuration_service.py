@@ -4,11 +4,11 @@ Configuration service for managing all domain entities of edge mining applicatio
 
 from typing import Any, Dict, List, Optional
 
-from edge_mining.application.events.configuration_events import (
+from edge_mining.application.events.common import (
     ConfigurationAction,
-    ConfigurationUpdatedEvent,
     ConfigurationUpdatedEventType,
 )
+from edge_mining.application.events.configuration_events import ConfigurationUpdatedEvent
 from edge_mining.application.interfaces import ConfigurationServiceInterface, EventBusInterface
 from edge_mining.domain.common import EntityId, Watts
 from edge_mining.domain.energy.common import EnergyMonitorAdapter, EnergySourceType

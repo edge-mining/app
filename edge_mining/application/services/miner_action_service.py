@@ -2,10 +2,11 @@
 
 from typing import List, Optional
 
-from edge_mining.application.interfaces import AdapterServiceInterface, MinerActionServiceInterface
+from edge_mining.application.interfaces import AdapterServiceInterface, EventBusInterface, MinerActionServiceInterface
 from edge_mining.domain.common import EntityId, Watts
 from edge_mining.domain.miner.common import MinerStatus
 from edge_mining.domain.miner.entities import Miner
+from edge_mining.domain.miner.events import MinerStateChangedEvent
 from edge_mining.domain.miner.exceptions import (
     MinerControllerConfigurationError,
     MinerControllerNotFoundError,
@@ -25,6 +26,7 @@ class MinerActionService(MinerActionServiceInterface):
         self,
         adapter_service: AdapterServiceInterface,
         miner_repo: MinerRepository,
+        event_bus: Optional[EventBusInterface] = None,
         logger: Optional[LoggerPort] = None,
     ):
         # Services
@@ -34,6 +36,7 @@ class MinerActionService(MinerActionServiceInterface):
         self.miner_repo = miner_repo
 
         # Infrastructure
+        self._event_bus = event_bus
         self.logger = logger
 
     async def _notify(self, notifiers: List[NotificationPort], title: str, message: str):
@@ -67,6 +70,9 @@ class MinerActionService(MinerActionServiceInterface):
         if not miner_controller:
             raise MinerControllerConfigurationError(f"Miner controller for miner {miner_id} is not configured.")
 
+        # Query current state from controller
+        current_status = miner_controller.get_miner_status()
+
         # Update model if available and it has changed (static config update)
         current_model = miner_controller.get_model()
         if current_model and miner.model != current_model:
@@ -78,6 +84,17 @@ class MinerActionService(MinerActionServiceInterface):
         if success:
             if self.logger:
                 self.logger.info(f"Miner {miner.id} ({miner.name}) started successfully.")
+
+            # Publish miner state changed event
+            if self._event_bus:
+                await self._event_bus.publish(
+                    MinerStateChangedEvent(
+                        miner_id=miner.id,
+                        miner_name=miner.name,
+                        old_status=current_status,
+                        new_status=MinerStatus.ON,
+                    )
+                )
 
             if notifiers:
                 await self._notify(
@@ -110,6 +127,9 @@ class MinerActionService(MinerActionServiceInterface):
         if not miner_controller:
             raise MinerControllerConfigurationError(f"Miner controller for miner {miner_id} is not configured.")
 
+        # Query current state from controller
+        current_status = miner_controller.get_miner_status()
+
         # Update model if available and it has changed (static config update)
         current_model = miner_controller.get_model()
         if current_model and miner.model != current_model:
@@ -121,6 +141,17 @@ class MinerActionService(MinerActionServiceInterface):
         if success:
             if self.logger:
                 self.logger.info(f"Miner {miner.id} ({miner.name}) stopped successfully.")
+
+            # Publish miner state changed event
+            if self._event_bus:
+                await self._event_bus.publish(
+                    MinerStateChangedEvent(
+                        miner_id=miner.id,
+                        miner_name=miner.name,
+                        old_status=current_status,
+                        new_status=MinerStatus.OFF,
+                    )
+                )
 
             if notifiers:
                 await self._notify(

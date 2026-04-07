@@ -19,7 +19,8 @@ from edge_mining.adapters.domain.notification.notifiers.telegram import Telegram
 from edge_mining.adapters.domain.performance.trackers.dummy import DummyMiningPerformanceTracker
 from edge_mining.adapters.infrastructure.homeassistant.homeassistant_api import ServiceHomeAssistantAPIFactory
 from edge_mining.adapters.infrastructure.rule_engine.factory import RuleEngineFactory
-from edge_mining.application.events.configuration_events import ConfigurationUpdatedEvent, ConfigurationUpdatedEventType
+from edge_mining.application.events.common import ConfigurationUpdatedEventType
+from edge_mining.application.events.configuration_events import ConfigurationUpdatedEvent
 from edge_mining.application.interfaces import AdapterServiceInterface, EventBusInterface
 from edge_mining.domain.common import EntityId
 from edge_mining.domain.energy.common import EnergyMonitorAdapter
@@ -769,7 +770,7 @@ class AdapterService(AdapterServiceInterface):
     async def on_configuration_updated(self, event: ConfigurationUpdatedEvent) -> None:
         """Handler for cache invalidation when a configuration changes."""
         if self.logger:
-            self.logger.debug(f"Cache invalidation: {event.entity_type} " f"{event.entity_id} ({event.action})")
+            self.logger.debug(f"Cache invalidation: {event.entity_type} {event.entity_id} ({event.action})")
 
         if event.entity_id is None:
             return
