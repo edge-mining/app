@@ -25,11 +25,19 @@ from edge_mining.domain.forecast.aggregate_root import Forecast
 from edge_mining.domain.forecast.ports import ForecastProviderPort
 from edge_mining.domain.home_load.ports import HomeForecastProviderPort
 from edge_mining.domain.home_load.value_objects import ConsumptionForecast
-from edge_mining.domain.miner.common import MinerStatus
-from edge_mining.domain.miner.entities import Miner
+from edge_mining.domain.miner.aggregate_roots import Miner
+from edge_mining.domain.miner.common import MinerFeatureType, MinerStatus
 from edge_mining.domain.miner.events import MinerStateChangedEvent
 from edge_mining.domain.miner.exceptions import MinerError
-from edge_mining.domain.miner.ports import MinerControlPort, MinerRepository
+from edge_mining.domain.miner.ports import (
+    HashrateMonitorPort,
+    MinerFeaturePort,
+    MinerRepository,
+    MiningControlPort,
+    PowerControlPort,
+    PowerMonitorPort,
+    StatusMonitorPort,
+)
 from edge_mining.domain.miner.value_objects import HashRate, MinerStateSnapshot
 from edge_mining.domain.notification.ports import NotificationPort
 from edge_mining.domain.optimization_unit.aggregate_roots import EnergyOptimizationUnit
@@ -262,28 +270,31 @@ class OptimizationService(OptimizationServiceInterface):
                         )
                     continue  # Try next miner if available
 
-                if not miner.controller_id:
+                if not miner.get_controller_ids():
                     if self.logger:
                         self.logger.warning(
-                            f"Miner {miner_id} in optimization unit '{optimization_unit.name}' does not have a controller ID. Skipping miner."
+                            f"Miner {miner_id} in optimization unit '{optimization_unit.name}' has no controllers. Skipping miner."
                         )
                     continue  # Try next miner if available
 
-                # --- Miner Controller ---
-                miner_controller = self.adapter_service.get_miner_controller(miner)
-                if not miner_controller:
+                # --- Query current state via feature ports ---
+                status_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.STATUS_MONITORING)
+                if not status_port or not isinstance(status_port, StatusMonitorPort):
                     if self.logger:
-                        self.logger.error(
-                            f"Controller for miner {miner_id} "
-                            f"(Config ID: {miner.controller_id}) not found/initialized. "
-                            f"Using default."
-                        )
-                    continue  # Try next miner if available
+                        self.logger.error(f"No status monitor port for miner {miner_id}. Skipping.")
+                    continue
 
-                # Query current state from controller
-                current_status = miner_controller.get_miner_status()
-                current_hashrate = miner_controller.get_miner_hashrate()
-                current_power = miner_controller.get_miner_power()
+                current_status = status_port.get_status()
+
+                hashrate_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.HASHRATE_MONITORING)
+                current_hashrate = None
+                if hashrate_port and isinstance(hashrate_port, HashrateMonitorPort):
+                    current_hashrate = hashrate_port.get_hashrate()
+
+                power_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.POWER_MONITORING)
+                current_power = None
+                if power_port and isinstance(power_port, PowerMonitorPort):
+                    current_power = power_port.get_power()
 
                 # Build the miner state snapshot
                 miner_state = MinerStateSnapshot(
@@ -687,32 +698,24 @@ class OptimizationService(OptimizationServiceInterface):
             )
             return
 
-        # --- Miner Controller ---
-        miner_controller: Optional[MinerControlPort] = None
-        if miner.controller_id:
-            try:
-                miner_controller = self.adapter_service.get_miner_controller(miner)
-            except Exception as e:
-                if self.logger:
-                    self.logger.critical(f"Error getting controller for miner {miner_id}: {e}")
-            if not miner_controller:
-                if self.logger:
-                    self.logger.error(
-                        f"Controller for miner {miner_id} "
-                        f"(Config ID: {miner.controller_id}) not found/initialized. "
-                        f"Using default."
-                    )
-                message = f"Controller for miner {miner_id} not found in optimization unit '{optimization_unit.name}'."
-                await self._notify_unit(
-                    notifiers,
-                    f"Optimizer Error ({optimization_unit.name})",
-                    message,
-                )
+        # --- Miner Controller (via feature ports) ---
+        status_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.STATUS_MONITORING)
+        if not status_port or not isinstance(status_port, StatusMonitorPort):
+            if self.logger:
+                self.logger.error(f"No status monitor available for miner {miner_id}. Cannot control miner.")
+            await self._notify_unit(
+                notifiers,
+                f"Optimizer Error ({optimization_unit.name} / {miner_id})",
+                "Status monitor unavailable.",
+            )
+            return
 
-        if not miner_controller:
+        mining_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.MINING_CONTROL)
+
+        if not mining_port:
             if self.logger:
                 self.logger.error(
-                    f"No miner controller (specific or default) available "
+                    f"No mining control port available "
                     f"for miner {miner_id} in optimization unit "
                     f"'{optimization_unit.name}'. Cannot control miner."
                 )
@@ -725,10 +728,18 @@ class OptimizationService(OptimizationServiceInterface):
 
         # Get current status and make decision
         try:
-            # Query current state from controller
-            current_status = miner_controller.get_miner_status()
-            current_hashrate = miner_controller.get_miner_hashrate()
-            current_power = miner_controller.get_miner_power()
+            # Query current state via feature ports
+            current_status = status_port.get_status()
+
+            hashrate_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.HASHRATE_MONITORING)
+            current_hashrate = None
+            if hashrate_port and isinstance(hashrate_port, HashrateMonitorPort):
+                current_hashrate = hashrate_port.get_hashrate()
+
+            power_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.POWER_MONITORING)
+            current_power = None
+            if power_port and isinstance(power_port, PowerMonitorPort):
+                current_power = power_port.get_power()
 
             # Build the miner state snapshot
             miner_state = MinerStateSnapshot(
@@ -738,10 +749,15 @@ class OptimizationService(OptimizationServiceInterface):
             )
 
             # Update model if available and it has changed (static config update)
-            current_model = miner_controller.get_model()
-            if current_model and miner.model != current_model:
-                miner.model = current_model
-                self.miner_repo.update(miner)
+            model_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.MODEL_DETECTION)
+            if model_port:
+                from edge_mining.domain.miner.ports import ModelDetectionPort
+
+                if isinstance(model_port, ModelDetectionPort):
+                    current_model = model_port.get_model()
+                    if current_model and miner.model != current_model:
+                        miner.model = current_model
+                        self.miner_repo.update(miner)
 
             # Creates a copy of the context with the miner included, so that the policy
             # can access miner-specific data, without modifying the original context.
@@ -801,7 +817,8 @@ class OptimizationService(OptimizationServiceInterface):
                 )
 
             await self._execute_miner_decision(
-                miner_controller,
+                mining_port,
+                status_port,
                 miner_id,
                 decision,
                 current_status,
@@ -834,7 +851,8 @@ class OptimizationService(OptimizationServiceInterface):
 
     async def _execute_miner_decision(
         self,
-        controller: MinerControlPort,
+        mining_port: MinerFeaturePort,
+        status_port: StatusMonitorPort,
         miner_id: EntityId,
         decision: MiningDecision,
         current_status: MinerStatus,
@@ -847,8 +865,11 @@ class OptimizationService(OptimizationServiceInterface):
 
         if decision == MiningDecision.START_MINING and current_status != MinerStatus.ON:
             if self.logger:
-                self.logger.info(f"Executing START for miner {miner_id} via {type(controller).__name__}")
-            success = controller.start_miner()
+                self.logger.info(f"Executing START for miner {miner_id} via {type(mining_port).__name__}")
+            if isinstance(mining_port, MiningControlPort):
+                success = mining_port.start_mining()
+            elif isinstance(mining_port, PowerControlPort):
+                success = mining_port.power_on()
             action_taken = True
             if success:
                 await self._notify_unit(
@@ -865,8 +886,11 @@ class OptimizationService(OptimizationServiceInterface):
 
         elif decision == MiningDecision.STOP_MINING and current_status == MinerStatus.ON:
             if self.logger:
-                self.logger.info(f"Executing STOP for miner {miner_id} via {type(controller).__name__}")
-            success = controller.stop_miner()
+                self.logger.info(f"Executing STOP for miner {miner_id} via {type(mining_port).__name__}")
+            if isinstance(mining_port, MiningControlPort):
+                success = mining_port.stop_mining()
+            elif isinstance(mining_port, PowerControlPort):
+                success = mining_port.power_off()
             action_taken = True
             if success:
                 await self._notify_unit(
@@ -885,13 +909,13 @@ class OptimizationService(OptimizationServiceInterface):
             if not success:
                 if self.logger:
                     self.logger.error(
-                        f"Command {decision.name} for miner {miner_id} failed using controller {type(controller).__name__}."
+                        f"Command {decision.name} for miner {miner_id} failed using controller {type(mining_port).__name__}."
                     )
             else:
                 miner = self.miner_repo.get_by_id(miner_id)
 
                 # Get new miner state to publish in the event
-                new_status = controller.get_miner_status()  # Get the updated status after the command
+                new_status = status_port.get_status()
 
                 # Publish miner state changed event
                 if self._event_bus:

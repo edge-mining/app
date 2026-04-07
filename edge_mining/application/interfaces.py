@@ -13,9 +13,10 @@ from edge_mining.domain.forecast.common import ForecastProviderAdapter
 from edge_mining.domain.forecast.entities import ForecastProvider
 from edge_mining.domain.forecast.ports import ForecastProviderPort
 from edge_mining.domain.home_load.ports import HomeForecastProviderPort
-from edge_mining.domain.miner.common import MinerControllerAdapter
-from edge_mining.domain.miner.entities import Miner, MinerController
-from edge_mining.domain.miner.ports import MinerControlPort
+from edge_mining.domain.miner.common import MinerControllerAdapter, MinerFeatureType
+from edge_mining.domain.miner.aggregate_roots import Miner
+from edge_mining.domain.miner.entities import MinerController
+from edge_mining.domain.miner.ports import MinerFeaturePort
 from edge_mining.domain.miner.value_objects import HashRate, MinerStateSnapshot
 from edge_mining.domain.notification.common import NotificationAdapter
 from edge_mining.domain.notification.entities import Notifier
@@ -48,8 +49,12 @@ class AdapterServiceInterface(ABC):
         """Get an energy monitor adapter instance."""
 
     @abstractmethod
-    def get_miner_controller(self, miner: Miner) -> Optional[MinerControlPort]:
-        """Get a miner controller adapter instance"""
+    def get_miner_controller_adapter(self, miner: Miner, controller_id: EntityId) -> Optional[MinerFeaturePort]:
+        """Get a miner controller adapter instance for a specific controller."""
+
+    @abstractmethod
+    def get_miner_feature_port(self, miner: Miner, feature_type: MinerFeatureType) -> Optional[MinerFeaturePort]:
+        """Get the adapter implementing the highest-priority active feature port for a miner."""
 
     @abstractmethod
     def get_all_notifiers(self) -> List[NotificationPort]:
@@ -157,7 +162,6 @@ class ConfigurationServiceInterface(ABC):
         model: Optional[str] = None,
         hash_rate_max: Optional[HashRate] = None,
         power_consumption_max: Optional[Watts] = None,
-        controller_id: Optional[EntityId] = None,
         active: bool = True,
     ) -> Miner:
         """Add a miner to the system."""
@@ -182,7 +186,6 @@ class ConfigurationServiceInterface(ABC):
         model: Optional[str] = None,
         hash_rate_max: Optional[HashRate] = None,
         power_consumption_max: Optional[Watts] = None,
-        controller_id: Optional[EntityId] = None,
         active: bool = True,
     ) -> Miner:
         """Update a miner in the system."""
@@ -245,7 +248,11 @@ class ConfigurationServiceInterface(ABC):
 
     @abstractmethod
     async def set_miner_controller(self, controller_id: EntityId, miner_id: EntityId) -> None:
-        """Set a miner controller to a miner."""
+        """Associate a controller to a miner, auto-creating features for all supported feature types."""
+
+    @abstractmethod
+    async def unlink_controller_from_miner(self, controller_id: EntityId, miner_id: EntityId) -> None:
+        """Remove all features provided by a controller from a miner."""
 
     @abstractmethod
     def check_miner_controller(self, controller: MinerController) -> bool:

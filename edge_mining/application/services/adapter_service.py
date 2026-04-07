@@ -32,9 +32,10 @@ from edge_mining.domain.forecast.ports import ForecastProviderPort, ForecastProv
 from edge_mining.domain.home_load.common import HomeForecastProviderAdapter
 from edge_mining.domain.home_load.entities import HomeForecastProvider
 from edge_mining.domain.home_load.ports import HomeForecastProviderPort, HomeForecastProviderRepository
-from edge_mining.domain.miner.common import MinerControllerAdapter
-from edge_mining.domain.miner.entities import Miner, MinerController
-from edge_mining.domain.miner.ports import MinerControllerRepository, MinerControlPort
+from edge_mining.domain.miner.common import MinerControllerAdapter, MinerFeatureType
+from edge_mining.domain.miner.aggregate_roots import Miner
+from edge_mining.domain.miner.entities import MinerController
+from edge_mining.domain.miner.ports import MinerControllerRepository, MinerFeaturePort
 from edge_mining.domain.notification.common import NotificationAdapter
 from edge_mining.domain.notification.entities import Notifier
 from edge_mining.domain.notification.ports import NotificationPort, NotifierRepository
@@ -85,7 +86,7 @@ class AdapterService(AdapterServiceInterface):
             Optional[
                 Union[
                     EnergyMonitorPort,
-                    MinerControlPort,
+                    MinerFeaturePort,
                     NotificationPort,
                     ForecastProviderPort,
                     HomeForecastProviderPort,
@@ -230,7 +231,7 @@ class AdapterService(AdapterServiceInterface):
 
     def _initialize_miner_controller_adapter(
         self, miner: Miner, miner_controller: MinerController
-    ) -> Optional[MinerControlPort]:
+    ) -> Optional[MinerFeaturePort]:
         """Initialize a miner controller adapter."""
         # If the adapter has already been created, we use it.
         if miner_controller.id in self._instance_cache:
@@ -243,8 +244,6 @@ class AdapterService(AdapterServiceInterface):
 
             cached_instance = self._instance_cache[miner_controller.id]
             if not cached_instance:
-                # If the cached instance is None, we return it
-                # to indicate that the adapter was not initialized.
                 if self.logger:
                     self.logger.warning(
                         f"Cached instance for miner controller ID {miner_controller.id} "
@@ -252,16 +251,14 @@ class AdapterService(AdapterServiceInterface):
                     )
                 return None
 
-            # Check if the cached instance is of the correct type
-            if not isinstance(cached_instance, MinerControlPort):
+            if not isinstance(cached_instance, MinerFeaturePort):
                 if self.logger:
                     self.logger.warning(
                         f"Cached instance for miner controller ID {miner_controller.id} "
-                        f"is not of type MinerControlPort. Reinitializing adapter."
+                        f"is not of type MinerFeaturePort. Reinitializing adapter."
                     )
                 return None
 
-            # If the cached instance is valid, we return it
             return cached_instance
 
         # Retrieve the external service associated to the miner controller
@@ -276,7 +273,7 @@ class AdapterService(AdapterServiceInterface):
 
         try:
             miner_controller_factory: Optional[MinerControllerAdapterFactory] = None
-            instance: Optional[MinerControlPort] = None
+            instance: Optional[MinerFeaturePort] = None
 
             if miner_controller.adapter_type == MinerControllerAdapter.DUMMY:
                 if miner.power_consumption_max is None or miner.hash_rate_max is None:
@@ -616,18 +613,42 @@ class AdapterService(AdapterServiceInterface):
             return None
         return self._initialize_energy_monitor_adapter(energy_source, energy_monitor)
 
-    def get_miner_controller(self, miner: Miner) -> Optional[MinerControlPort]:
-        """Get a miner controller adapter instance"""
-        if not miner.controller_id:
-            if self.logger:
-                self.logger.error(f"Miner {miner.name} does not have an associated MinerController ID.")
-            return None
-        miner_controller = self.miner_controller_repo.get_by_id(miner.controller_id)
+    def get_miner_controller_adapter(self, miner: Miner, controller_id: EntityId) -> Optional[MinerFeaturePort]:
+        """Get a miner controller adapter instance for a specific controller."""
+        miner_controller = self.miner_controller_repo.get_by_id(controller_id)
         if not miner_controller:
             if self.logger:
-                self.logger.error(f"Miner Controller ID {miner.controller_id} not found or not a MinerController.")
+                self.logger.error(f"Miner Controller ID {controller_id} not found.")
             return None
         return self._initialize_miner_controller_adapter(miner, miner_controller)
+
+    def get_miner_feature_port(self, miner: Miner, feature_type: MinerFeatureType) -> Optional[MinerFeaturePort]:
+        """Get the adapter implementing the highest-priority active feature for a miner.
+
+        Resolves the active MinerFeature for the given feature_type, retrieves
+        the associated controller adapter, and verifies it supports the feature.
+        """
+        active_feature = miner.get_active_feature(feature_type)
+        if not active_feature:
+            if self.logger:
+                self.logger.debug(f"No active feature of type {feature_type.value} for miner {miner.name}.")
+            return None
+
+        adapter = self.get_miner_controller_adapter(miner, active_feature.controller_id)
+        if not adapter:
+            return None
+
+        # Verify the adapter actually supports the requested feature type
+        supported = adapter.__class__.get_supported_features()
+        if feature_type not in supported:
+            if self.logger:
+                self.logger.error(
+                    f"Adapter for controller {active_feature.controller_id} "
+                    f"does not support feature {feature_type.value}."
+                )
+            return None
+
+        return adapter
 
     def get_all_notifiers(self) -> List[NotificationPort]:
         """Get all notifier adapter instances"""

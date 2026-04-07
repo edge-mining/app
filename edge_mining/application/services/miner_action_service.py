@@ -4,17 +4,24 @@ from typing import List, Optional
 
 from edge_mining.application.interfaces import AdapterServiceInterface, EventBusInterface, MinerActionServiceInterface
 from edge_mining.domain.common import EntityId, Watts
-from edge_mining.domain.miner.common import MinerStatus
-from edge_mining.domain.miner.entities import Miner
+from edge_mining.domain.miner.aggregate_roots import Miner
+from edge_mining.domain.miner.common import MinerFeatureType, MinerStatus
 from edge_mining.domain.miner.events import MinerStateChangedEvent
 from edge_mining.domain.miner.exceptions import (
     MinerControllerConfigurationError,
-    MinerControllerNotFoundError,
     MinerNotActiveError,
     MinerNotFoundError,
 )
-from edge_mining.domain.miner.ports import MinerRepository
-from edge_mining.domain.miner.value_objects import HashRate, MinerStateSnapshot
+from edge_mining.domain.miner.ports import (
+    HashrateMonitorPort,
+    MinerRepository,
+    MiningControlPort,
+    ModelDetectionPort,
+    PowerControlPort,
+    PowerMonitorPort,
+    StatusMonitorPort,
+)
+from edge_mining.domain.miner.value_objects import HashRate, MinerFeature, MinerStateSnapshot
 from edge_mining.domain.notification.ports import NotificationPort
 from edge_mining.shared.logging.port import LoggerPort
 
@@ -38,6 +45,15 @@ class MinerActionService(MinerActionServiceInterface):
         # Infrastructure
         self._event_bus = event_bus
         self.logger = logger
+
+    def _try_update_model(self, miner: Miner) -> None:
+        """Update miner model from MODEL_DETECTION feature port if available."""
+        model_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.MODEL_DETECTION)
+        if model_port and isinstance(model_port, ModelDetectionPort):
+            current_model = model_port.get_model()
+            if current_model and miner.model != current_model:
+                miner.model = current_model
+                self.miner_repo.update(miner)
 
     async def _notify(self, notifiers: List[NotificationPort], title: str, message: str):
         """Sends a notification using the configured notifiers."""
@@ -64,22 +80,27 @@ class MinerActionService(MinerActionServiceInterface):
         if not miner.active:
             raise MinerNotActiveError(f"Miner {miner_id} is not active and cannot be started.")
 
-        # Get the miner controller from the adapter service
-        miner_controller = self.adapter_service.get_miner_controller(miner)
+        # Try MINING_CONTROL first, then POWER_CONTROL as fallback
+        mining_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.MINING_CONTROL)
+        power_ctrl_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.POWER_CONTROL)
 
-        if not miner_controller:
-            raise MinerControllerConfigurationError(f"Miner controller for miner {miner_id} is not configured.")
+        if not mining_port and not power_ctrl_port:
+            raise MinerControllerConfigurationError(f"No mining or power control available for miner {miner_id}.")
 
-        # Query current state from controller
-        current_status = miner_controller.get_miner_status()
+        # Get current status
+        status_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.STATUS_MONITORING)
+        current_status = MinerStatus.UNKNOWN
+        if status_port and isinstance(status_port, StatusMonitorPort):
+            current_status = status_port.get_status()
 
-        # Update model if available and it has changed (static config update)
-        current_model = miner_controller.get_model()
-        if current_model and miner.model != current_model:
-            miner.model = current_model
-            self.miner_repo.update(miner)
+        # Update model
+        self._try_update_model(miner)
 
-        success = miner_controller.start_miner()
+        success = False
+        if mining_port and isinstance(mining_port, MiningControlPort):
+            success = mining_port.start_mining()
+        elif power_ctrl_port and isinstance(power_ctrl_port, PowerControlPort):
+            success = power_ctrl_port.power_on()
 
         if success:
             if self.logger:
@@ -121,22 +142,27 @@ class MinerActionService(MinerActionServiceInterface):
         if not miner.active:
             raise MinerNotActiveError(f"Miner {miner_id} is not active and cannot be stopped.")
 
-        # Get the miner controller from the adapter service
-        miner_controller = self.adapter_service.get_miner_controller(miner)
+        # Try MINING_CONTROL first, then POWER_CONTROL as fallback
+        mining_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.MINING_CONTROL)
+        power_ctrl_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.POWER_CONTROL)
 
-        if not miner_controller:
-            raise MinerControllerConfigurationError(f"Miner controller for miner {miner_id} is not configured.")
+        if not mining_port and not power_ctrl_port:
+            raise MinerControllerConfigurationError(f"No mining or power control available for miner {miner_id}.")
 
-        # Query current state from controller
-        current_status = miner_controller.get_miner_status()
+        # Get current status
+        status_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.STATUS_MONITORING)
+        current_status = MinerStatus.UNKNOWN
+        if status_port and isinstance(status_port, StatusMonitorPort):
+            current_status = status_port.get_status()
 
-        # Update model if available and it has changed (static config update)
-        current_model = miner_controller.get_model()
-        if current_model and miner.model != current_model:
-            miner.model = current_model
-            self.miner_repo.update(miner)
+        # Update model
+        self._try_update_model(miner)
 
-        success = miner_controller.stop_miner()
+        success = False
+        if mining_port and isinstance(mining_port, MiningControlPort):
+            success = mining_port.stop_mining()
+        elif power_ctrl_port and isinstance(power_ctrl_port, PowerControlPort):
+            success = power_ctrl_port.power_off()
 
         if success:
             if self.logger:
@@ -175,15 +201,11 @@ class MinerActionService(MinerActionServiceInterface):
         if not miner:
             raise MinerNotFoundError(f"Miner with ID {miner_id} not found.")
 
-        # Get the miner controller from the adapter service
-        miner_controller = self.adapter_service.get_miner_controller(miner)
+        port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.POWER_MONITORING)
+        if not port or not isinstance(port, PowerMonitorPort):
+            raise MinerControllerConfigurationError(f"No power monitor available for miner {miner_id}.")
 
-        if not miner_controller:
-            raise MinerControllerConfigurationError(f"Miner controller for miner {miner_id} is not configured.")
-
-        current_power = miner_controller.get_miner_power()
-
-        return current_power
+        return port.get_power()
 
     def get_miner_hashrate(self, miner_id: EntityId) -> Optional[HashRate]:
         """Gets the current hash rate of the specified miner."""
@@ -195,21 +217,13 @@ class MinerActionService(MinerActionServiceInterface):
         if not miner:
             raise MinerNotFoundError(f"Miner with ID {miner_id} not found.")
 
-        # Get the miner controller from the adapter service
-        miner_controller = self.adapter_service.get_miner_controller(miner)
+        port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.HASHRATE_MONITORING)
+        if not port or not isinstance(port, HashrateMonitorPort):
+            raise MinerControllerConfigurationError(f"No hashrate monitor available for miner {miner_id}.")
 
-        if not miner_controller:
-            raise MinerControllerConfigurationError(f"Miner controller for miner {miner_id} is not configured.")
+        self._try_update_model(miner)
 
-        current_hashrate = miner_controller.get_miner_hashrate()
-
-        # Update model if available and it has changed (static config update)
-        current_model = miner_controller.get_model()
-        if current_model and miner.model != current_model:
-            miner.model = current_model
-            self.miner_repo.update(miner)
-
-        return current_hashrate
+        return port.get_hashrate()
 
     async def get_miner_status(self, miner_id: EntityId) -> MinerStateSnapshot:
         """Gets the current status of the specified miner as a state snapshot."""
@@ -221,22 +235,23 @@ class MinerActionService(MinerActionServiceInterface):
         if not miner:
             raise MinerNotFoundError(f"Miner with ID {miner_id} not found.")
 
-        # Get the miner controller from the adapter service
-        miner_controller = self.adapter_service.get_miner_controller(miner)
+        # Query individual feature ports
+        status_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.STATUS_MONITORING)
+        current_status = MinerStatus.UNKNOWN
+        if status_port and isinstance(status_port, StatusMonitorPort):
+            current_status = status_port.get_status()
 
-        if not miner_controller:
-            raise MinerControllerConfigurationError(f"Miner controller for miner {miner_id} is not configured.")
+        hashrate_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.HASHRATE_MONITORING)
+        current_hashrate = None
+        if hashrate_port and isinstance(hashrate_port, HashrateMonitorPort):
+            current_hashrate = hashrate_port.get_hashrate()
 
-        # Query current state from controller
-        current_status = miner_controller.get_miner_status()
-        current_hashrate = miner_controller.get_miner_hashrate()
-        current_power = miner_controller.get_miner_power()
+        power_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.POWER_MONITORING)
+        current_power = None
+        if power_port and isinstance(power_port, PowerMonitorPort):
+            current_power = power_port.get_power()
 
-        # Update model if available and it has changed (static config update)
-        current_model = miner_controller.get_model()
-        if current_model and miner.model != current_model:
-            miner.model = current_model
-            self.miner_repo.update(miner)
+        self._try_update_model(miner)
 
         return MinerStateSnapshot(
             status=current_status,
@@ -275,27 +290,26 @@ class MinerActionService(MinerActionServiceInterface):
                 if self.logger:
                     self.logger.debug(f"Syncing status for miner {miner.id} ({miner.name})...")
 
-                # Get the miner controller from the adapter service
-                miner_controller = self.adapter_service.get_miner_controller(miner)
-
-                if not miner_controller:
+                status_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.STATUS_MONITORING)
+                if not status_port or not isinstance(status_port, StatusMonitorPort):
                     if self.logger:
-                        self.logger.warning(
-                            f"Miner controller for miner {miner.id} ({miner.name}) is not configured. Skipping."
-                        )
+                        self.logger.warning(f"No status monitor for miner {miner.id} ({miner.name}). Skipping.")
                     error_count += 1
                     continue
 
-                # Query current state from controller (for logging purposes)
-                current_status = miner_controller.get_miner_status()
-                current_hashrate = miner_controller.get_miner_hashrate()
-                current_power = miner_controller.get_miner_power()
+                current_status = status_port.get_status()
 
-                # Update model if available and it has changed (static config update)
-                current_model = miner_controller.get_model()
-                if current_model and miner.model != current_model:
-                    miner.model = current_model
-                    self.miner_repo.update(miner)
+                hashrate_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.HASHRATE_MONITORING)
+                current_hashrate = None
+                if hashrate_port and isinstance(hashrate_port, HashrateMonitorPort):
+                    current_hashrate = hashrate_port.get_hashrate()
+
+                power_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.POWER_MONITORING)
+                current_power = None
+                if power_port and isinstance(power_port, PowerMonitorPort):
+                    current_power = power_port.get_power()
+
+                self._try_update_model(miner)
 
                 synced_count += 1
 
@@ -322,26 +336,34 @@ class MinerActionService(MinerActionServiceInterface):
         if self.logger:
             self.logger.info(f"Getting miner details from controller {controller_id}")
 
-        # Create a temporary miner to hold the details retrieved from the controller
+        # Create a temporary miner with features for all possible feature types
+        # so the adapter service can resolve the controller
+
+        temp_features = [MinerFeature(feature_type=ft, controller_id=controller_id) for ft in MinerFeatureType]
         temp_miner = Miner(
             name="Unknown",
             model="Unknown",
             hash_rate_max=None,
             power_consumption_max=None,
-            controller_id=controller_id,
             active=True,
+            features=temp_features,
         )
 
-        # Get the miner controller from the adapter service
-        miner_controller = self.adapter_service.get_miner_controller(temp_miner)
+        # Query via feature ports
+        status_port = self.adapter_service.get_miner_feature_port(temp_miner, MinerFeatureType.STATUS_MONITORING)
+        current_status = MinerStatus.UNKNOWN
+        if status_port and isinstance(status_port, StatusMonitorPort):
+            current_status = status_port.get_status()
 
-        if not miner_controller:
-            raise MinerControllerNotFoundError(f"Controller with ID {controller_id} not found.")
+        hashrate_port = self.adapter_service.get_miner_feature_port(temp_miner, MinerFeatureType.HASHRATE_MONITORING)
+        current_hashrate = None
+        if hashrate_port and isinstance(hashrate_port, HashrateMonitorPort):
+            current_hashrate = hashrate_port.get_hashrate()
 
-        # Retrieve details from the controller
-        current_status = miner_controller.get_miner_status()
-        current_hashrate = miner_controller.get_miner_hashrate()
-        current_power = miner_controller.get_miner_power()
+        power_port = self.adapter_service.get_miner_feature_port(temp_miner, MinerFeatureType.POWER_MONITORING)
+        current_power = None
+        if power_port and isinstance(power_port, PowerMonitorPort):
+            current_power = power_port.get_power()
 
         has_no_details = all(
             (
