@@ -3,8 +3,8 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from edge_mining.domain.common import ValueObject, Watts
-from edge_mining.domain.miner.common import MinerStatus
+from edge_mining.domain.common import EntityId, ValueObject, Watts
+from edge_mining.domain.miner.common import MinerFeatureType, MinerStatus
 
 
 @dataclass(frozen=True)
@@ -13,6 +13,51 @@ class HashRate(ValueObject):
 
     value: float  # e.g., TH/s
     unit: str = "TH/s"
+
+
+@dataclass(frozen=True)
+class Temperature(ValueObject):
+    """Value Object for a temperature measurement."""
+
+    value: float
+    unit: str = "°C"
+
+
+@dataclass(frozen=True)
+class FanSpeed(ValueObject):
+    """Value Object for a fan speed measurement."""
+
+    value: float
+    unit: str = "RPM"
+
+
+@dataclass(frozen=True)
+class Voltage(ValueObject):
+    """Value Object for a voltage measurement."""
+
+    value: float
+    unit: str = "V"
+
+
+@dataclass(frozen=True)
+class Frequency(ValueObject):
+    """Value Object for a frequency measurement."""
+
+    value: float
+    unit: str = "MHz"
+
+
+@dataclass(frozen=True)
+class MinerFeature(ValueObject):
+    """Value Object representing a single capability provided by a controller to a miner.
+
+    Identity is given by the pair (feature_type, controller_id).
+    """
+
+    feature_type: MinerFeatureType
+    controller_id: EntityId
+    priority: int = 50  # 1-100, higher = higher priority
+    enabled: bool = True
 
 
 @dataclass(frozen=True)
@@ -27,3 +72,11 @@ class MinerStateSnapshot(ValueObject):
     status: MinerStatus = MinerStatus.UNKNOWN
     hash_rate: Optional[HashRate] = None
     power_consumption: Optional[Watts] = None
+    chip_temperature: Optional[Temperature] = None
+    board_temperature: Optional[Temperature] = None
+    inlet_temperature: Optional[Temperature] = None
+    outlet_temperature: Optional[Temperature] = None
+    internal_fan_speed: Optional[FanSpeed] = None
+    external_fan_speed: Optional[FanSpeed] = None
+    voltage: Optional[Voltage] = None
+    frequency: Optional[Frequency] = None
