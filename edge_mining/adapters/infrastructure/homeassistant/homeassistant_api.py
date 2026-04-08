@@ -82,21 +82,21 @@ class ServiceHomeAssistantAPI(ExternalServicePort):
             self.client.get_config()
             if self.logger:
                 self.logger.info("Successfully connected to Home Assistant API.")
-        except UnauthorizedError as e:
+        except UnauthorizedError:
+            self.client = None
             if self.logger:
                 self.logger.error(
                     "Home Assistant API authentication failed during connection. "
                     "Please verify your access token is valid."
                 )
-            raise ConnectionError(f"Home Assistant authentication failed: {e}") from e
         except (RequestError, HomeassistantAPIError) as e:
+            self.client = None
             if self.logger:
                 self.logger.error(f"Home Assistant API error during connection: {e}")
-            raise ConnectionError(f"Home Assistant API error during connection: {e}") from e
         except Exception as e:
+            self.client = None
             if self.logger:
                 self.logger.error(f"An unexpected error occurred connecting to Home Assistant: {e}")
-            raise ConnectionError(f"Unexpected error connecting to Home Assistant: {e}") from e
 
     def disconnect(self) -> None:
         """Disconnect from the Home Assistant API."""
