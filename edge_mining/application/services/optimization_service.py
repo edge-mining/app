@@ -30,7 +30,9 @@ from edge_mining.domain.miner.common import MinerFeatureType, MinerStatus
 from edge_mining.domain.miner.events import MinerStateChangedEvent
 from edge_mining.domain.miner.exceptions import MinerError
 from edge_mining.domain.miner.ports import (
+    ChipTemperatureMonitorPort,
     HashrateMonitorPort,
+    InternalFanSpeedMonitorPort,
     MinerFeaturePort,
     MinerRepository,
     MiningControlPort,
@@ -300,11 +302,27 @@ class OptimizationService(OptimizationServiceInterface):
                 if power_port and isinstance(power_port, PowerMonitorPort):
                     current_power = await power_port.get_power()
 
+                temperature_port = await self.adapter_service.get_miner_feature_port(
+                    miner, MinerFeatureType.CHIP_TEMPERATURE_MONITORING
+                )
+                current_chip_temperature = None
+                if temperature_port and isinstance(temperature_port, ChipTemperatureMonitorPort):
+                    current_chip_temperature = await temperature_port.get_chip_temperature()
+
+                internal_fan_port = await self.adapter_service.get_miner_feature_port(
+                    miner, MinerFeatureType.FAN_SPEED_INTERNAL_MONITORING
+                )
+                internal_fan_speed = None
+                if internal_fan_port and isinstance(internal_fan_port, InternalFanSpeedMonitorPort):
+                    internal_fan_speed = await internal_fan_port.get_internal_fan_speed()
+
                 # Build the miner state snapshot
                 miner_state = MinerStateSnapshot(
                     status=current_status,
                     hash_rate=current_hashrate,
                     power_consumption=current_power,
+                    chip_temperature=current_chip_temperature,
+                    internal_fan_speed=internal_fan_speed,
                 )
 
                 break  # We found a valid miner and controller, we can stop looking for more miners
