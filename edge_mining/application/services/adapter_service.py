@@ -625,7 +625,7 @@ class AdapterService(AdapterServiceInterface):
             return None
         return await self._initialize_miner_controller_adapter(miner, miner_controller)
 
-    def get_miner_feature_port(self, miner: Miner, feature_type: MinerFeatureType) -> Optional[MinerFeaturePort]:
+    async def get_miner_feature_port(self, miner: Miner, feature_type: MinerFeatureType) -> Optional[MinerFeaturePort]:
         """Get the adapter implementing the highest-priority active feature for a miner.
 
         Resolves the active MinerFeature for the given feature_type, retrieves
@@ -637,7 +637,7 @@ class AdapterService(AdapterServiceInterface):
                 self.logger.debug(f"No active feature of type {feature_type.value} for miner {miner.name}.")
             return None
 
-        adapter = self.get_miner_controller_adapter(miner, active_feature.controller_id)
+        adapter = await self.get_miner_controller_adapter(miner, active_feature.controller_id)
         if not adapter:
             return None
 

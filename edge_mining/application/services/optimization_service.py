@@ -278,7 +278,9 @@ class OptimizationService(OptimizationServiceInterface):
                     continue  # Try next miner if available
 
                 # --- Query current state via feature ports ---
-                status_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.STATUS_MONITORING)
+                status_port = await self.adapter_service.get_miner_feature_port(
+                    miner, MinerFeatureType.STATUS_MONITORING
+                )
                 if not status_port or not isinstance(status_port, StatusMonitorPort):
                     if self.logger:
                         self.logger.error(f"No status monitor port for miner {miner_id}. Skipping.")
@@ -286,12 +288,14 @@ class OptimizationService(OptimizationServiceInterface):
 
                 current_status = await status_port.get_status()
 
-                hashrate_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.HASHRATE_MONITORING)
+                hashrate_port = await self.adapter_service.get_miner_feature_port(
+                    miner, MinerFeatureType.HASHRATE_MONITORING
+                )
                 current_hashrate = None
                 if hashrate_port and isinstance(hashrate_port, HashrateMonitorPort):
                     current_hashrate = await hashrate_port.get_hashrate()
 
-                power_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.POWER_MONITORING)
+                power_port = await self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.POWER_MONITORING)
                 current_power = None
                 if power_port and isinstance(power_port, PowerMonitorPort):
                     current_power = await power_port.get_power()
@@ -699,7 +703,7 @@ class OptimizationService(OptimizationServiceInterface):
             return
 
         # --- Miner Controller (via feature ports) ---
-        status_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.STATUS_MONITORING)
+        status_port = await self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.STATUS_MONITORING)
         if not status_port or not isinstance(status_port, StatusMonitorPort):
             if self.logger:
                 self.logger.error(f"No status monitor available for miner {miner_id}. Cannot control miner.")
@@ -710,7 +714,7 @@ class OptimizationService(OptimizationServiceInterface):
             )
             return
 
-        mining_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.MINING_CONTROL)
+        mining_port = await self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.MINING_CONTROL)
 
         if not mining_port:
             if self.logger:
@@ -731,12 +735,14 @@ class OptimizationService(OptimizationServiceInterface):
             # Query current state via feature ports
             current_status = await status_port.get_status()
 
-            hashrate_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.HASHRATE_MONITORING)
+            hashrate_port = await self.adapter_service.get_miner_feature_port(
+                miner, MinerFeatureType.HASHRATE_MONITORING
+            )
             current_hashrate = None
             if hashrate_port and isinstance(hashrate_port, HashrateMonitorPort):
                 current_hashrate = await hashrate_port.get_hashrate()
 
-            power_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.POWER_MONITORING)
+            power_port = await self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.POWER_MONITORING)
             current_power = None
             if power_port and isinstance(power_port, PowerMonitorPort):
                 current_power = await power_port.get_power()
@@ -749,7 +755,7 @@ class OptimizationService(OptimizationServiceInterface):
             )
 
             # Update model if available and it has changed (static config update)
-            model_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.MODEL_DETECTION)
+            model_port = await self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.MODEL_DETECTION)
             if model_port:
                 from edge_mining.domain.miner.ports import ModelDetectionPort
 

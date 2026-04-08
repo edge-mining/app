@@ -48,7 +48,7 @@ class MinerActionService(MinerActionServiceInterface):
 
     async def _try_update_model(self, miner: Miner) -> None:
         """Update miner model from MODEL_DETECTION feature port if available."""
-        model_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.MODEL_DETECTION)
+        model_port = await self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.MODEL_DETECTION)
         if model_port and isinstance(model_port, ModelDetectionPort):
             current_model = await model_port.get_model()
             if current_model and miner.model != current_model:
@@ -81,14 +81,14 @@ class MinerActionService(MinerActionServiceInterface):
             raise MinerNotActiveError(f"Miner {miner_id} is not active and cannot be started.")
 
         # Try MINING_CONTROL first, then POWER_CONTROL as fallback
-        mining_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.MINING_CONTROL)
-        power_ctrl_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.POWER_CONTROL)
+        mining_port = await self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.MINING_CONTROL)
+        power_ctrl_port = await self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.POWER_CONTROL)
 
         if not mining_port and not power_ctrl_port:
             raise MinerControllerConfigurationError(f"No mining or power control available for miner {miner_id}.")
 
         # Get current status
-        status_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.STATUS_MONITORING)
+        status_port = await self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.STATUS_MONITORING)
         current_status = MinerStatus.UNKNOWN
         if status_port and isinstance(status_port, StatusMonitorPort):
             current_status = await status_port.get_status()
@@ -143,14 +143,14 @@ class MinerActionService(MinerActionServiceInterface):
             raise MinerNotActiveError(f"Miner {miner_id} is not active and cannot be stopped.")
 
         # Try MINING_CONTROL first, then POWER_CONTROL as fallback
-        mining_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.MINING_CONTROL)
-        power_ctrl_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.POWER_CONTROL)
+        mining_port = await self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.MINING_CONTROL)
+        power_ctrl_port = await self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.POWER_CONTROL)
 
         if not mining_port and not power_ctrl_port:
             raise MinerControllerConfigurationError(f"No mining or power control available for miner {miner_id}.")
 
         # Get current status
-        status_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.STATUS_MONITORING)
+        status_port = await self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.STATUS_MONITORING)
         current_status = MinerStatus.UNKNOWN
         if status_port and isinstance(status_port, StatusMonitorPort):
             current_status = await status_port.get_status()
@@ -201,7 +201,7 @@ class MinerActionService(MinerActionServiceInterface):
         if not miner:
             raise MinerNotFoundError(f"Miner with ID {miner_id} not found.")
 
-        port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.POWER_MONITORING)
+        port = await self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.POWER_MONITORING)
         if not port or not isinstance(port, PowerMonitorPort):
             raise MinerControllerConfigurationError(f"No power monitor available for miner {miner_id}.")
 
@@ -217,7 +217,7 @@ class MinerActionService(MinerActionServiceInterface):
         if not miner:
             raise MinerNotFoundError(f"Miner with ID {miner_id} not found.")
 
-        port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.HASHRATE_MONITORING)
+        port = await self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.HASHRATE_MONITORING)
         if not port or not isinstance(port, HashrateMonitorPort):
             raise MinerControllerConfigurationError(f"No hashrate monitor available for miner {miner_id}.")
 
@@ -236,17 +236,17 @@ class MinerActionService(MinerActionServiceInterface):
             raise MinerNotFoundError(f"Miner with ID {miner_id} not found.")
 
         # Query individual feature ports
-        status_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.STATUS_MONITORING)
+        status_port = await self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.STATUS_MONITORING)
         current_status = MinerStatus.UNKNOWN
         if status_port and isinstance(status_port, StatusMonitorPort):
             current_status = await status_port.get_status()
 
-        hashrate_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.HASHRATE_MONITORING)
+        hashrate_port = await self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.HASHRATE_MONITORING)
         current_hashrate = None
         if hashrate_port and isinstance(hashrate_port, HashrateMonitorPort):
             current_hashrate = await hashrate_port.get_hashrate()
 
-        power_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.POWER_MONITORING)
+        power_port = await self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.POWER_MONITORING)
         current_power = None
         if power_port and isinstance(power_port, PowerMonitorPort):
             current_power = await power_port.get_power()
@@ -290,7 +290,9 @@ class MinerActionService(MinerActionServiceInterface):
                 if self.logger:
                     self.logger.debug(f"Syncing status for miner {miner.id} ({miner.name})...")
 
-                status_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.STATUS_MONITORING)
+                status_port = await self.adapter_service.get_miner_feature_port(
+                    miner, MinerFeatureType.STATUS_MONITORING
+                )
                 if not status_port or not isinstance(status_port, StatusMonitorPort):
                     if self.logger:
                         self.logger.warning(f"No status monitor for miner {miner.id} ({miner.name}). Skipping.")
@@ -299,12 +301,14 @@ class MinerActionService(MinerActionServiceInterface):
 
                 current_status = await status_port.get_status()
 
-                hashrate_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.HASHRATE_MONITORING)
+                hashrate_port = await self.adapter_service.get_miner_feature_port(
+                    miner, MinerFeatureType.HASHRATE_MONITORING
+                )
                 current_hashrate = None
                 if hashrate_port and isinstance(hashrate_port, HashrateMonitorPort):
                     current_hashrate = await hashrate_port.get_hashrate()
 
-                power_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.POWER_MONITORING)
+                power_port = await self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.POWER_MONITORING)
                 current_power = None
                 if power_port and isinstance(power_port, PowerMonitorPort):
                     current_power = await power_port.get_power()
@@ -350,17 +354,19 @@ class MinerActionService(MinerActionServiceInterface):
         )
 
         # Query via feature ports
-        status_port = self.adapter_service.get_miner_feature_port(temp_miner, MinerFeatureType.STATUS_MONITORING)
+        status_port = await self.adapter_service.get_miner_feature_port(temp_miner, MinerFeatureType.STATUS_MONITORING)
         current_status = MinerStatus.UNKNOWN
         if status_port and isinstance(status_port, StatusMonitorPort):
             current_status = await status_port.get_status()
 
-        hashrate_port = self.adapter_service.get_miner_feature_port(temp_miner, MinerFeatureType.HASHRATE_MONITORING)
+        hashrate_port = await self.adapter_service.get_miner_feature_port(
+            temp_miner, MinerFeatureType.HASHRATE_MONITORING
+        )
         current_hashrate = None
         if hashrate_port and isinstance(hashrate_port, HashrateMonitorPort):
             current_hashrate = await hashrate_port.get_hashrate()
 
-        power_port = self.adapter_service.get_miner_feature_port(temp_miner, MinerFeatureType.POWER_MONITORING)
+        power_port = await self.adapter_service.get_miner_feature_port(temp_miner, MinerFeatureType.POWER_MONITORING)
         current_power = None
         if power_port and isinstance(power_port, PowerMonitorPort):
             current_power = await power_port.get_power()

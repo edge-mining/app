@@ -53,7 +53,7 @@ class AdapterServiceInterface(ABC):
         """Get a miner controller adapter instance for a specific controller."""
 
     @abstractmethod
-    def get_miner_feature_port(self, miner: Miner, feature_type: MinerFeatureType) -> Optional[MinerFeaturePort]:
+    async def get_miner_feature_port(self, miner: Miner, feature_type: MinerFeatureType) -> Optional[MinerFeaturePort]:
         """Get the adapter implementing the highest-priority active feature port for a miner."""
 
     @abstractmethod
