@@ -11,6 +11,8 @@ import {
   PhGear,
   PhDownloadSimple,
   PhCheck,
+  PhPlus,
+  PhTrash,
 } from "@phosphor-icons/vue";
 
 const props = defineProps<{
@@ -22,7 +24,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: [];
-  save: [miner: Miner];
+  save: [miner: Miner, controllerChanges: { add: string[]; remove: string[] }];
 }>();
 
 const minerControllerStore = useMinerControllerStore();
@@ -39,6 +41,10 @@ const formData = ref<Miner>({
   power_consumption_max: 3000,
 });
 
+// Controller binding state (managed separately from miner data)
+const selectedControllerIds = ref<string[]>([]);
+const originalControllerIds = ref<string[]>([]);
+
 // Watch for changes in the prop to reset form
 watch(
   () => props.open,
@@ -51,6 +57,8 @@ watch(
             ? { ...props.miner.hash_rate_max }
             : { value: 100, unit: "TH/s" },
         };
+        selectedControllerIds.value = [...(props.miner.controller_ids ?? [])];
+        originalControllerIds.value = [...(props.miner.controller_ids ?? [])];
       } else {
         formData.value = {
           name: "",
@@ -58,29 +66,49 @@ watch(
           hash_rate_max: { value: 100, unit: "TH/s" },
           power_consumption_max: 3000,
         };
+        selectedControllerIds.value = [];
+        originalControllerIds.value = [];
       }
     }
   },
   { immediate: true }
 );
 
-// Compute the controller IDs already assigned to other miners
-const assignedControllerIds = computed(() => {
-  if (!props.allMiners) return new Set<string>();
-  return new Set(
-    props.allMiners
-      .filter((m) => m.id !== formData.value.id && m.controller_id)
-      .map((m) => String(m.controller_id))
+// Available controllers not yet selected
+const availableControllers = computed(() => {
+  return minerControllerStore.minerControllers.filter(
+    (controller) => !selectedControllerIds.value.includes(controller.id!)
   );
 });
 
-// Filter available controllers
-const availableControllers = computed(() => {
-  return minerControllerStore.minerControllers.filter(
-    (controller) =>
-      !assignedControllerIds.value.has(controller.id!) ||
-      controller.id === formData.value.controller_id
+// Controller ID being added from the dropdown
+const controllerToAdd = ref<string | undefined>(undefined);
+
+function addController() {
+  if (controllerToAdd.value && !selectedControllerIds.value.includes(controllerToAdd.value)) {
+    selectedControllerIds.value.push(controllerToAdd.value);
+    controllerToAdd.value = undefined;
+  }
+}
+
+function removeController(controllerId: string) {
+  selectedControllerIds.value = selectedControllerIds.value.filter((id) => id !== controllerId);
+}
+
+function getControllerName(controllerId: string): string {
+  const controller = minerControllerStore.minerControllers.find((mc) => mc.id === controllerId);
+  return controller?.name ?? controllerId;
+}
+
+// Compute controller changes (diff)
+const controllerChanges = computed(() => {
+  const add = selectedControllerIds.value.filter(
+    (id) => !originalControllerIds.value.includes(id)
   );
+  const remove = originalControllerIds.value.filter(
+    (id) => !selectedControllerIds.value.includes(id)
+  );
+  return { add, remove };
 });
 
 const isFormValid = computed(() => {
@@ -101,32 +129,11 @@ const isFetchingDetails = ref(false);
 const fetchSuccess = ref(false);
 const fetchError = ref<string | null>(null);
 const highlightedFields = ref<Set<string>>(new Set());
+const fetchControllerId = ref<string | undefined>(undefined);
 
-function isNonEmpty(value: any): boolean {
-  return value !== null && value !== undefined && value !== "";
-}
-
-function typewriterEffect(
-  target: (char: string) => void,
-  text: string,
-  speed = 30
-): Promise<void> {
-  return new Promise((resolve) => {
-    target("");
-    let i = 0;
-    const interval = setInterval(() => {
-      target(text.slice(0, ++i));
-      if (i >= text.length) {
-        clearInterval(interval);
-        resolve();
-      }
-    }, speed);
-  });
-}
-
-async function fetchMinerDetails() {
-  const controllerId = formData.value.controller_id;
+async function fetchMinerDetails(controllerId: string) {
   if (!controllerId) return;
+  fetchControllerId.value = controllerId;
   isFetchingDetails.value = true;
   fetchError.value = null;
   fetchSuccess.value = false;
@@ -148,6 +155,7 @@ async function fetchMinerDetails() {
     setTimeout(() => {
       fetchSuccess.value = false;
       highlightedFields.value = new Set();
+      fetchControllerId.value = undefined;
     }, 3000);
   } catch (error: any) {
     fetchError.value = error?.response?.data?.detail || error?.message || "Failed to fetch miner details from controller";
@@ -160,7 +168,10 @@ function handleSave() {
   if (isFormValid.value) {
     // Deep clone to remove Vue reactive proxies
     const rawData = JSON.parse(JSON.stringify(toRaw(formData.value)));
-    emit("save", rawData);
+    // Remove controller-related fields from miner payload (backend no longer accepts them)
+    delete rawData.features;
+    delete rawData.controller_ids;
+    emit("save", rawData, { ...controllerChanges.value });
   }
 }
 </script>
@@ -219,24 +230,57 @@ function handleSave() {
           </div>
         </div>
 
-        <!-- Controller -->
+        <!-- Controllers -->
         <div class="divider text-xs text-base-content/50 my-4">
-          CONTROLLER
+          CONTROLLERS
         </div>
 
         <div class="form-control">
           <label class="label mb-1">
             <span class="label-text flex items-center gap-2">
               <PhGear :size="16" class="text-info" />
-              Miner Controller
+              Miner Controllers
             </span>
           </label>
+
+          <!-- Selected controllers list -->
+          <div v-if="selectedControllerIds.length > 0" class="space-y-2 mb-3">
+            <div
+              v-for="controllerId in selectedControllerIds"
+              :key="controllerId"
+              class="flex items-center gap-2 bg-base-200/40 rounded-lg px-3 py-2"
+            >
+              <PhGear :size="14" class="text-info flex-shrink-0" />
+              <span class="text-sm text-base-content flex-1 truncate">{{ getControllerName(controllerId) }}</span>
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs btn-square"
+                :class="fetchControllerId === controllerId && fetchSuccess ? 'text-success' : 'text-primary'"
+                :disabled="isFetchingDetails"
+                @click="fetchMinerDetails(controllerId)"
+                title="Fetch Miner Details"
+              >
+                <PhCheck v-if="fetchControllerId === controllerId && fetchSuccess" :size="14" />
+                <PhDownloadSimple v-else :size="14" :class="{ 'animate-bounce': isFetchingDetails && fetchControllerId === controllerId }" />
+              </button>
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs btn-square text-error"
+                @click="removeController(controllerId)"
+                title="Remove controller"
+              >
+                <PhTrash :size="14" />
+              </button>
+            </div>
+          </div>
+
+          <!-- Add controller row -->
           <div class="flex gap-2">
             <select
-              v-model="formData.controller_id"
+              v-model="controllerToAdd"
               class="select select-bordered flex-1"
             >
-              <option :value="undefined">None</option>
+              <option :value="undefined">Select a controller to add...</option>
               <option
                 v-for="controller in availableControllers"
                 :key="controller.id"
@@ -247,19 +291,17 @@ function handleSave() {
             </select>
             <button
               type="button"
-              class="btn btn-outline"
-              :class="fetchSuccess ? 'btn-success' : 'btn-primary'"
-              :disabled="!formData.controller_id || isFetchingDetails"
-              @click="fetchMinerDetails"
-              title="Fetch Miner Details"
+              class="btn btn-outline btn-primary"
+              :disabled="!controllerToAdd"
+              @click="addController"
+              title="Add Controller"
             >
-              <PhCheck v-if="fetchSuccess" :size="18" />
-              <PhDownloadSimple v-else :size="18" :class="{ 'animate-bounce': isFetchingDetails }" />
+              <PhPlus :size="18" />
             </button>
           </div>
           <label class="label mt-1">
             <span class="label-text-alt text-base-content/50">
-              Controllers manage remote start/stop operations
+              Controllers provide monitoring and control capabilities
             </span>
           </label>
           <div v-if="fetchError" class="alert alert-error alert-sm mt-2 py-2 text-sm">

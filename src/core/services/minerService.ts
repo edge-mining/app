@@ -43,6 +43,10 @@ export class MinerService extends BaseService {
   }
 
   setMinerController(minerId: string, controllerId: string): Promise<Miner> {
-    return this.post<Miner>(`/miners/${minerId}/set-controller`, { controller_id: controllerId }).getData();
+    return this.post<Miner>(`/miners/${minerId}/set-controller`, {}, { params: { controller_id: controllerId } }).getData();
+  }
+
+  unlinkMinerController(minerId: string, controllerId: string): Promise<Miner> {
+    return this.post<Miner>(`/miners/${minerId}/unlink-controller`, {}, { params: { controller_id: controllerId } }).getData();
   }
 }

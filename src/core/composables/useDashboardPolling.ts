@@ -83,7 +83,7 @@ export function useDashboardPolling(intervalMs = 5000) {
 
   async function refreshMinerStatuses() {
     const pollableMiners = minerStore.miners.filter(
-      (m) => m.id != null && m.active && m.controller_id
+      (m) => m.id != null && m.active && m.controller_ids?.length
     );
     if (pollableMiners.length > 0) {
       await Promise.all(

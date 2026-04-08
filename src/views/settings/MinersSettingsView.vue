@@ -148,11 +148,25 @@ function handleCloseModal() {
   editingMiner.value = undefined;
 }
 
-function handleSave(miner: Miner) {
+async function applyControllerChanges(minerId: string, changes: { add: string[]; remove: string[] }) {
+  const promises: Promise<any>[] = [];
+  for (const controllerId of changes.add) {
+    promises.push(minerStore.setMinerController(minerId, controllerId));
+  }
+  for (const controllerId of changes.remove) {
+    promises.push(minerStore.unlinkMinerController(minerId, controllerId));
+  }
+  if (promises.length > 0) {
+    await Promise.all(promises);
+  }
+}
+
+function handleSave(miner: Miner, controllerChanges: { add: string[]; remove: string[] }) {
   if (isEditMode.value && miner.id) {
     minerStore
       .updateMiner(miner.id.toString(), miner)
-      .then(() => {
+      .then(async () => {
+        await applyControllerChanges(miner.id!.toString(), controllerChanges);
         minerStore.loadMiners();
         handleCloseModal();
       })
@@ -163,7 +177,10 @@ function handleSave(miner: Miner) {
   } else {
     minerStore
       .addMiner(miner)
-      .then(() => {
+      .then(async (created) => {
+        if (created.id) {
+          await applyControllerChanges(created.id.toString(), controllerChanges);
+        }
         minerStore.loadMiners();
         handleCloseModal();
       })

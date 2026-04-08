@@ -59,6 +59,14 @@ export const useMinerStore = defineStore("miner", () => {
     return minerStates.value.get(minerId);
   }
 
+  function setMinerController(minerId: string, controllerId: string) {
+    return service.setMinerController(minerId, controllerId);
+  }
+
+  function unlinkMinerController(minerId: string, controllerId: string) {
+    return service.unlinkMinerController(minerId, controllerId);
+  }
+
   return {
     //STATE
     miners,
@@ -74,5 +82,7 @@ export const useMinerStore = defineStore("miner", () => {
     deactivateMiner,
     getMinerStatus,
     getMinerState,
+    setMinerController,
+    unlinkMinerController,
   };
 });

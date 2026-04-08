@@ -70,7 +70,7 @@ const stats = computed(() => {
 
   // Count total assigned miners
   const assignedMinersCount = minerStore.miners.filter(
-    (m) => m.controller_id
+    (m) => m.controller_ids?.length
   ).length;
 
   // Count by adapter type
