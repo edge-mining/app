@@ -33,6 +33,20 @@ fi
 
 echo ""
 
+# Check if containers are running and stop them
+echo -e "${YELLOW}>> Checking for running containers...${NC}"
+RUNNING_CONTAINERS=$(docker compose ps --services --filter "status=running" 2>/dev/null || true)
+
+if [ -n "$RUNNING_CONTAINERS" ]; then
+    echo -e "${YELLOW}${BOLD}⚠ Running containers detected:${NC}"
+    echo "$RUNNING_CONTAINERS"
+    echo ""
+    echo -e "${YELLOW}${BOLD}>> Stopping containers...${NC}"
+    docker compose down
+    echo -e "${GREEN}✓ Containers stopped successfully${NC}"
+    echo ""
+fi
+
 # Build and start the application stack for the first time
 # (builds images and starts containers in the background)
 echo -e "${YELLOW}>> Building and starting the application...${NC}"
