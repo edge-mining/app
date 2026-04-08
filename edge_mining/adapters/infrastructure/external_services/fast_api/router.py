@@ -163,7 +163,12 @@ async def update_external_service(
 
         configuration: Optional[Configuration] = None
         if external_service_update.config:
-            configuration = ExternalServiceConfig.from_dict(external_service_update.config)
+            config_cls = config_service.get_external_service_config_by_type(external_service.adapter_type)
+            if config_cls is None:
+                raise ExternalServiceConfigurationError(
+                    f"No configuration class found for adapter type {external_service.adapter_type}"
+                )
+            configuration = config_cls.from_dict(external_service_update.config)
 
         # Update the external service
         updated_service = await config_service.update_external_service(
