@@ -47,7 +47,10 @@ const { lastUpdated, isPolling, events, hashRateSeries, powerSeries, energyProdu
 const totalMiners = computed(() => minerStore.miners.length);
 
 const runningMiners = computed(
-  () => minerStore.miners.filter((m) => m.status === "on").length
+  () => minerStore.miners.filter((m) => {
+    const state = m.id ? minerStore.minerStates.get(m.id) : undefined;
+    return state?.status === "on";
+  }).length
 );
 
 const activeMiners = computed(
@@ -57,8 +60,9 @@ const activeMiners = computed(
 const totalHashRate = computed(() => {
   let total = 0;
   for (const m of minerStore.miners) {
-    if (m.status === "on" && m.hash_rate?.value) {
-      total += normalizeHashRate(m.hash_rate.value, m.hash_rate.unit || "TH/s");
+    const state = m.id ? minerStore.minerStates.get(m.id) : undefined;
+    if (state?.status === "on" && state.hash_rate?.value) {
+      total += normalizeHashRate(state.hash_rate.value, state.hash_rate.unit || "TH/s");
     }
   }
   return total;
@@ -73,8 +77,14 @@ const formattedHashRate = computed(() => {
 
 const totalPowerConsumption = computed(() => {
   return minerStore.miners
-    .filter((m) => m.status === "on")
-    .reduce((sum, m) => sum + (m.power_consumption || 0), 0);
+    .filter((m) => {
+      const state = m.id ? minerStore.minerStates.get(m.id) : undefined;
+      return state?.status === "on";
+    })
+    .reduce((sum, m) => {
+      const state = m.id ? minerStore.minerStates.get(m.id) : undefined;
+      return sum + (state?.power_consumption || 0);
+    }, 0);
 });
 
 const enabledUnits = computed(
@@ -465,6 +475,7 @@ const forecastIntervalData = computed<ForecastIntervalData[]>(() => {
               v-for="miner in minerStore.miners"
               :key="miner.id"
               :miner="miner"
+              :state="miner.id ? minerStore.minerStates.get(miner.id) : undefined"
             />
             <div
               v-if="minerStore.miners.length === 0"

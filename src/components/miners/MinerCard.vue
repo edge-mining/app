@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Miner, MinerStatus } from "../../core/models/miner";
+import type { Miner, MinerStatus, MinerStateSnapshot } from "../../core/models/miner";
 import { useMinerControllerStore } from "../../core/stores/minerControllerStore";
 import { computed, ref, watch } from "vue";
 import {
@@ -23,6 +23,7 @@ import { formatPower, formatHashRate, normalizeHashRate } from "../../core/utils
 
 const props = defineProps<{
   miner: Miner;
+  state?: MinerStateSnapshot;
 }>();
 
 const emit = defineEmits<{
@@ -46,10 +47,13 @@ const minerController = computed(() => {
   );
 });
 
+// Runtime state
+const currentStatus = computed<MinerStatus>(() => props.state?.status ?? 'unknown');
+
 // Status computations
-const isOn = computed(() => props.miner.status === "on");
-const isStarting = computed(() => props.miner.status === "starting");
-const isStopping = computed(() => props.miner.status === "stopping");
+const isOn = computed(() => currentStatus.value === "on");
+const isStarting = computed(() => currentStatus.value === "starting");
+const isStopping = computed(() => currentStatus.value === "stopping");
 const canStart = computed(
   () =>
     props.miner.active &&
@@ -66,7 +70,7 @@ const canStop = computed(
 
 // Reset isProcessing when status changes
 watch(
-  () => props.miner.status,
+  currentStatus,
   (newStatus, oldStatus) => {
     if (newStatus !== oldStatus && isProcessing.value) {
       isProcessing.value = false;
@@ -159,14 +163,14 @@ const statusConfig = computed(() => {
       },
     },
   };
-  return configs[props.miner.status] || configs.unknown;
+  return configs[currentStatus.value] || configs.unknown;
 });
 
 // Hash rate progress (normalize units before comparing)
 const hashRateProgress = computed(() => {
-  if (!props.miner.hash_rate?.value || !props.miner.hash_rate_max?.value)
+  if (!props.state?.hash_rate?.value || !props.miner.hash_rate_max?.value)
     return 0;
-  const current = normalizeHashRate(props.miner.hash_rate.value, props.miner.hash_rate.unit || "TH/s");
+  const current = normalizeHashRate(props.state.hash_rate.value, props.state.hash_rate.unit || "TH/s");
   const max = normalizeHashRate(props.miner.hash_rate_max.value, props.miner.hash_rate_max.unit || "TH/s");
   if (max === 0) return 0;
   return Math.min((current / max) * 100, 100);
@@ -174,10 +178,10 @@ const hashRateProgress = computed(() => {
 
 // Power consumption progress
 const powerProgress = computed(() => {
-  if (!props.miner.power_consumption || !props.miner.power_consumption_max)
+  if (!props.state?.power_consumption || !props.miner.power_consumption_max)
     return 0;
   return Math.min(
-    (props.miner.power_consumption / props.miner.power_consumption_max) * 100,
+    (props.state.power_consumption / props.miner.power_consumption_max) * 100,
     100
   );
 });
@@ -279,7 +283,7 @@ function handleDeactivate() {
             <span>Hash Rate</span>
           </div>
           <div class="text-sm font-medium text-base-content">
-            {{ formatHashRate(miner.hash_rate?.value, miner.hash_rate?.unit) }}
+            {{ formatHashRate(state?.hash_rate?.value, state?.hash_rate?.unit) }}
             <span class="text-base-content/40">
               / {{ formatHashRate(miner.hash_rate_max?.value, miner.hash_rate_max?.unit) }}
             </span>
@@ -299,7 +303,7 @@ function handleDeactivate() {
             <span>Power</span>
           </div>
           <div class="text-sm font-medium text-base-content">
-            {{ formatPower(miner.power_consumption) }}
+            {{ formatPower(state?.power_consumption) }}
             <span class="text-base-content/40">
               / {{ formatPower(miner.power_consumption_max) }}
             </span>

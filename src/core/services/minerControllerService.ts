@@ -1,6 +1,6 @@
 import { BaseService } from "./baseService";
 import type { MinerController, MinerControllerAdapter, ConfigSchema } from "../models/minerController";
-import type { Miner } from "../models/miner";
+import type { MinerStateSnapshot } from "../models/miner";
 
 export class MinerControllerService extends BaseService {
   getMinerControllers(): Promise<MinerController[]> {
@@ -36,7 +36,7 @@ export class MinerControllerService extends BaseService {
       .then((result) => (result === "null" ? null : result));
   }
 
-  getMinerDetails(controllerId: string): Promise<Miner> {
-    return this.get<Miner>(`/miner-controllers/${controllerId}/miner-details`).getData();
+  getMinerDetails(controllerId: string): Promise<MinerStateSnapshot> {
+    return this.get<MinerStateSnapshot>(`/miner-controllers/${controllerId}/miner-details`).getData();
   }
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch, toRaw } from "vue";
-import type { Miner } from "../../core/models/miner";
+import type { Miner, MinerStateSnapshot } from "../../core/models/miner";
 import { useMinerControllerStore } from "../../core/stores/minerControllerStore";
 import { MinerControllerService } from "../../core/services/minerControllerService";
 import {
@@ -34,7 +34,6 @@ const hashRateUnits = ["H/s", "KH/s", "MH/s", "GH/s", "TH/s", "PH/s", "EH/s"];
 // Local form state
 const formData = ref<Miner>({
   name: "",
-  status: "unknown",
   active: false,
   hash_rate_max: { value: 100, unit: "TH/s" },
   power_consumption_max: 3000,
@@ -55,7 +54,6 @@ watch(
       } else {
         formData.value = {
           name: "",
-          status: "unknown",
           active: false,
           hash_rate_max: { value: 100, unit: "TH/s" },
           power_consumption_max: 3000,
@@ -134,13 +132,18 @@ async function fetchMinerDetails() {
   fetchSuccess.value = false;
   highlightedFields.value = new Set();
   try {
-    const details = await minerControllerService.getMinerDetails(controllerId);
+    const snapshot: MinerStateSnapshot = await minerControllerService.getMinerDetails(controllerId);
     const updated = new Set<string>();
-    if (isNonEmpty(details.model)) {
-      updated.add("model");
-      highlightedFields.value = updated;
-      await typewriterEffect((v) => (formData.value.model = v), details.model!);
+    // Auto-fill max values from current runtime readings
+    if (snapshot.hash_rate && snapshot.hash_rate.value > 0) {
+      formData.value.hash_rate_max = { value: snapshot.hash_rate.value, unit: snapshot.hash_rate.unit || "TH/s" };
+      updated.add("hash_rate_max");
     }
+    if (snapshot.power_consumption && snapshot.power_consumption > 0) {
+      formData.value.power_consumption_max = snapshot.power_consumption;
+      updated.add("power_consumption_max");
+    }
+    highlightedFields.value = updated;
     fetchSuccess.value = true;
     setTimeout(() => {
       fetchSuccess.value = false;
@@ -284,7 +287,8 @@ function handleSave() {
                 v-model.number="formData.hash_rate_max!.value"
                 type="number"
                 min="0"
-                class="input input-bordered flex-1"
+                class="input input-bordered flex-1 transition-colors duration-500"
+                :class="{ 'input-success border-success': highlightedFields.has('hash_rate_max') }"
                 placeholder="100"
                 required
               />
@@ -307,7 +311,8 @@ function handleSave() {
                 Max Power Consumption *
               </span>
             </label>
-            <label class="input input-bordered flex items-center gap-2">
+            <label class="input input-bordered flex items-center gap-2 transition-colors duration-500"
+              :class="{ 'input-success border-success': highlightedFields.has('power_consumption_max') }">
               <input
                 v-model.number="formData.power_consumption_max"
                 type="number"

@@ -1,5 +1,5 @@
 import { BaseService } from "./baseService";
-import type { Miner } from "../models/miner";
+import type { Miner, MinerStateSnapshot } from "../models/miner";
 
 export class MinerService extends BaseService {
   getMiners(): Promise<Miner[]> {
@@ -30,8 +30,8 @@ export class MinerService extends BaseService {
     return this.post<Miner>(`/miners/${minerId}/stop`, {}).getData();
   }
 
-  getMinerStatus(minerId: string): Promise<Miner> {
-    return this.get<Miner>(`/miners/${minerId}/status`).getData();
+  getMinerStatus(minerId: string): Promise<MinerStateSnapshot> {
+    return this.get<MinerStateSnapshot>(`/miners/${minerId}/status`).getData();
   }
 
   activateMiner(minerId: string): Promise<Miner> {

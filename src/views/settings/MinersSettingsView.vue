@@ -39,6 +39,12 @@ const statusFilters = [
 
 let statusInterval: number | undefined;
 
+// Helper to get miner status from the state map
+function getMinerStatus(miner: Miner): MinerStatus {
+  if (!miner.id) return "unknown";
+  return minerStore.minerStates.get(miner.id)?.status ?? "unknown";
+}
+
 // Computed
 const filteredMiners = computed(() => {
   if (selectedStatusFilter.value === "all") {
@@ -47,37 +53,42 @@ const filteredMiners = computed(() => {
   if (selectedStatusFilter.value === "active") {
     return minerStore.miners.filter((m) => m.active);
   }
-  return minerStore.miners.filter((m) => m.status === selectedStatusFilter.value);
+  return minerStore.miners.filter((m) => getMinerStatus(m) === selectedStatusFilter.value);
 });
 
 const stats = computed(() => {
   const miners = minerStore.miners;
   const totalMiners = miners.length;
   const activeMiners = miners.filter((m) => m.active).length;
-  const runningMiners = miners.filter((m) => m.status === "on").length;
+  const runningMiners = miners.filter((m) => getMinerStatus(m) === "on").length;
 
   // Calculate current total hash rate (only from running miners)
-  const runningMinersData = miners.filter((m) => m.status === "on");
+  const runningMinersData = miners.filter((m) => getMinerStatus(m) === "on");
   let totalHashRate = 0;
   let hashRateUnit = "TH/s";
 
   runningMinersData.forEach((m) => {
-    if (m.hash_rate?.value) {
+    const state = m.id ? minerStore.minerStates.get(m.id) : undefined;
+    if (state?.hash_rate?.value) {
       // Normalize to TH/s for aggregation
-      const normalized = normalizeHashRate(m.hash_rate.value, m.hash_rate.unit || "TH/s");
+      const normalized = normalizeHashRate(state.hash_rate.value, state.hash_rate.unit || "TH/s");
       totalHashRate += normalized;
     }
   });
 
   // Calculate total power consumption
   const totalPowerConsumption = runningMinersData.reduce(
-    (sum, m) => sum + (m.power_consumption || 0),
+    (sum, m) => {
+      const state = m.id ? minerStore.minerStates.get(m.id) : undefined;
+      return sum + (state?.power_consumption || 0);
+    },
     0
   );
 
   // Status counts
   const statusCounts = miners.reduce((acc, m) => {
-    acc[m.status] = (acc[m.status] || 0) + 1;
+    const status = getMinerStatus(m);
+    acc[status] = (acc[status] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
@@ -298,6 +309,7 @@ function getFilterCount(filter: string): number {
             v-for="miner in filteredMiners"
             :key="miner.id"
             :miner="miner"
+            :state="miner.id ? minerStore.minerStates.get(miner.id) : undefined"
             @edit="handleEdit"
             @delete="handleDelete"
             @start="handleStart"

@@ -10,11 +10,15 @@ export interface Miner {
   id?: string;
   name: string;
   model?: string;
-  status: MinerStatus;
-  hash_rate?: HashRate;
   hash_rate_max?: HashRate;
-  power_consumption?: number;
   power_consumption_max?: number;
   active: boolean;
   controller_id?: string;
+}
+
+// Runtime operational state
+export interface MinerStateSnapshot {
+  status: MinerStatus;
+  hash_rate?: HashRate;
+  power_consumption?: number;
 }
