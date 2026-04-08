@@ -17,7 +17,7 @@ class EnergyMonitorPort(ABC):
         self.energy_monitor_type = energy_monitor_type
 
     @abstractmethod
-    def get_current_energy_state(self) -> Optional[EnergyStateSnapshot]:
+    async def get_current_energy_state(self) -> Optional[EnergyStateSnapshot]:
         """Fetches the latest energy readings from the plant."""
         raise NotImplementedError
 

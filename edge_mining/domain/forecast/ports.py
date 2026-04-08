@@ -17,7 +17,7 @@ class ForecastProviderPort(ABC):
         self.forecast_provider_type = forecast_provider_type
 
     @abstractmethod
-    def get_forecast(self) -> Optional[Forecast]:
+    async def get_forecast(self) -> Optional[Forecast]:
         """Fetches the energy production forecast."""
         raise NotImplementedError
 

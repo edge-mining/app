@@ -42,11 +42,18 @@ def mock_persistence():
 
     # Each repo mock needs get_by_id, add, update, remove, get_all
     for repo_name in [
-        "external_service_repo", "energy_source_repo", "energy_monitor_repo",
-        "miner_repo", "miner_controller_repo", "policy_repo",
-        "optimization_unit_repo", "forecast_provider_repo",
-        "home_forecast_provider_repo", "mining_performance_tracker_repo",
-        "notifier_repo", "settings_repo",
+        "external_service_repo",
+        "energy_source_repo",
+        "energy_monitor_repo",
+        "miner_repo",
+        "miner_controller_repo",
+        "policy_repo",
+        "optimization_unit_repo",
+        "forecast_provider_repo",
+        "home_forecast_provider_repo",
+        "mining_performance_tracker_repo",
+        "notifier_repo",
+        "settings_repo",
     ]:
         repo = MagicMock()
         repo.get_all.return_value = []
@@ -66,6 +73,7 @@ def config_service(mock_persistence, mock_event_bus, logger):
 
 
 # --- Test that ConfigurationService publishes events ---
+
 
 @pytest.mark.asyncio
 async def test_create_external_service_publishes_event(config_service, mock_event_bus):
@@ -166,6 +174,7 @@ async def test_remove_miner_controller_publishes_event(config_service, mock_even
 
 
 # --- Test end-to-end flow with real InMemoryEventBus ---
+
 
 @pytest.mark.asyncio
 async def test_end_to_end_cache_invalidation(mock_persistence, logger):

@@ -98,7 +98,7 @@ class GenericSocketHomeAssistantAPIMinerController(MinerControlPort):
                 f"Entities Configured: Switch={self.entity_switch}, Power={self.entity_power}, Unit={self.unit_power}"
             )
 
-    def get_model(self) -> Optional[str]:
+    async def get_model(self) -> Optional[str]:
         """Gets the model of the miner."""
 
         if self.logger:
@@ -106,19 +106,19 @@ class GenericSocketHomeAssistantAPIMinerController(MinerControlPort):
 
         return None
 
-    def get_miner_hashrate(self) -> Optional[HashRate]:
+    async def get_miner_hashrate(self) -> Optional[HashRate]:
         """
         Gets the current hash rate, if available.
         This implementation does not provides hash rate information.
         """
         return None
 
-    def get_miner_power(self) -> Optional[Watts]:
+    async def get_miner_power(self) -> Optional[Watts]:
         """Gets the current power consumption, if available."""
         if self.logger:
             self.logger.debug("Fetching power consumption from Home Assistant...")
 
-        state_power, _ = self.home_assistant.get_entity_state(self.entity_power)
+        state_power, _ = await self.home_assistant.get_entity_state(self.entity_power)
         power_watts = self.home_assistant.parse_power(
             state_power,
             self.unit_power,
@@ -130,12 +130,12 @@ class GenericSocketHomeAssistantAPIMinerController(MinerControlPort):
 
         return power_watts
 
-    def get_miner_status(self) -> MinerStatus:
+    async def get_miner_status(self) -> MinerStatus:
         """Gets the current operational status of the miner."""
         if self.logger:
             self.logger.debug("Fetching miner status from Home Assistant...")
 
-        state_switch, _ = self.home_assistant.get_entity_state(self.entity_switch)
+        state_switch, _ = await self.home_assistant.get_entity_state(self.entity_switch)
         state_status = self.home_assistant.parse_bool(state_switch, self.entity_switch or "N/A")
 
         state_map: Dict[Optional[bool], MinerStatus] = {
@@ -151,12 +151,12 @@ class GenericSocketHomeAssistantAPIMinerController(MinerControlPort):
 
         return miner_status
 
-    def stop_miner(self) -> bool:
+    async def stop_miner(self) -> bool:
         """Attempts to stop the specified miner. Returns True on success request."""
         if self.logger:
             self.logger.debug("Sending stop command to miner via Home Assistant...")
 
-        success = self.home_assistant.set_entity_state(
+        success = await self.home_assistant.set_entity_state(
             self.entity_switch,
             str(False),
         )
@@ -166,12 +166,12 @@ class GenericSocketHomeAssistantAPIMinerController(MinerControlPort):
 
         return success
 
-    def start_miner(self) -> bool:
+    async def start_miner(self) -> bool:
         """Attempts to start the miner. Returns True on success request."""
         if self.logger:
             self.logger.debug("Sending start command to miner via Home Assistant...")
 
-        success = self.home_assistant.set_entity_state(
+        success = await self.home_assistant.set_entity_state(
             self.entity_switch,
             str(True),
         )

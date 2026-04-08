@@ -16,17 +16,17 @@ class ExternalServicePort(ABC):
         self.external_service_type = external_service_type
 
     @abstractmethod
-    def connect(self) -> None:
+    async def connect(self) -> None:
         """Connect to the external service."""
         pass
 
     @abstractmethod
-    def disconnect(self) -> None:
+    async def disconnect(self) -> None:
         """Disconnect from the external service."""
         pass
 
     @abstractmethod
-    def is_connected(self) -> bool:
+    async def is_connected(self) -> bool:
         """Check if the external service is connected."""
         pass
 

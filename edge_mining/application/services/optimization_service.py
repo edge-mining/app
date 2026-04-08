@@ -10,10 +10,6 @@ It is responsible for:
 import asyncio
 from typing import List, Optional
 
-from edge_mining.domain.energy.events import EnergyStateSnapshotUpdatedEvent
-from edge_mining.domain.miner.events import MinerStateChangedEvent
-from edge_mining.domain.optimization_unit.events import RuleEngagedEvent
-from edge_mining.domain.policy.events import DecisionalContextUpdatedEvent
 from edge_mining.application.interfaces import (
     AdapterServiceInterface,
     EventBusInterface,
@@ -22,6 +18,7 @@ from edge_mining.application.interfaces import (
 )
 from edge_mining.domain.common import EntityId
 from edge_mining.domain.energy.entities import EnergySource
+from edge_mining.domain.energy.events import EnergyStateSnapshotUpdatedEvent
 from edge_mining.domain.energy.ports import EnergyMonitorPort, EnergySourceRepository
 from edge_mining.domain.energy.value_objects import EnergyStateSnapshot
 from edge_mining.domain.forecast.aggregate_root import Forecast
@@ -35,12 +32,14 @@ from edge_mining.domain.miner.ports import MinerControlPort, MinerRepository
 from edge_mining.domain.miner.value_objects import HashRate, MinerStateSnapshot
 from edge_mining.domain.notification.ports import NotificationPort
 from edge_mining.domain.optimization_unit.aggregate_roots import EnergyOptimizationUnit
+from edge_mining.domain.optimization_unit.events import RuleEngagedEvent
 from edge_mining.domain.optimization_unit.exceptions import OptimizationUnitNotFoundError
 from edge_mining.domain.optimization_unit.ports import EnergyOptimizationUnitRepository
 from edge_mining.domain.performance.ports import MiningPerformanceTrackerPort
 from edge_mining.domain.policy.aggregate_roots import OptimizationPolicy
 from edge_mining.domain.policy.common import MiningDecision
 from edge_mining.domain.policy.entities import AutomationRule
+from edge_mining.domain.policy.events import DecisionalContextUpdatedEvent
 from edge_mining.domain.policy.exceptions import PolicyError, RuleEngineError, RuleEvaluationError, RuleLoadError
 from edge_mining.domain.policy.ports import OptimizationPolicyRepository
 from edge_mining.domain.policy.services import RuleEngine
@@ -141,7 +140,7 @@ class OptimizationService(OptimizationServiceInterface):
         # --- Energy Monitor ---
         energy_monitor: Optional[EnergyMonitorPort] = None
         if energy_source and energy_source.energy_monitor_id:
-            energy_monitor = self.adapter_service.get_energy_monitor(energy_source)
+            energy_monitor = await self.adapter_service.get_energy_monitor(energy_source)
             if not energy_monitor:
                 if self.logger:
                     self.logger.error(
@@ -153,7 +152,7 @@ class OptimizationService(OptimizationServiceInterface):
         # --- Forecast Provider ---
         forecast_provider: Optional[ForecastProviderPort] = None
         if energy_source and energy_source.forecast_provider_id:
-            forecast_provider = self.adapter_service.get_forecast_provider(energy_source)
+            forecast_provider = await self.adapter_service.get_forecast_provider(energy_source)
             # Forecast is optional, so log a warning if it's missing but continue
             if not forecast_provider:
                 if self.logger:
@@ -184,7 +183,7 @@ class OptimizationService(OptimizationServiceInterface):
         if energy_source and energy_monitor:
             try:
                 energy_state: Optional[EnergyStateSnapshot] = None
-                energy_state = energy_monitor.get_current_energy_state()
+                energy_state = await energy_monitor.get_current_energy_state()
                 if not energy_state:
                     if self.logger:
                         self.logger.error(
@@ -211,7 +210,7 @@ class OptimizationService(OptimizationServiceInterface):
         forecast_data: Optional[Forecast] = None
         if forecast_provider:
             try:
-                forecast_data = forecast_provider.get_forecast()
+                forecast_data = await forecast_provider.get_forecast()
             except Exception as e:
                 if self.logger:
                     self.logger.warning(
@@ -270,7 +269,7 @@ class OptimizationService(OptimizationServiceInterface):
                     continue  # Try next miner if available
 
                 # --- Miner Controller ---
-                miner_controller = self.adapter_service.get_miner_controller(miner)
+                miner_controller = await self.adapter_service.get_miner_controller(miner)
                 if not miner_controller:
                     if self.logger:
                         self.logger.error(
@@ -281,9 +280,9 @@ class OptimizationService(OptimizationServiceInterface):
                     continue  # Try next miner if available
 
                 # Query current state from controller
-                current_status = miner_controller.get_miner_status()
-                current_hashrate = miner_controller.get_miner_hashrate()
-                current_power = miner_controller.get_miner_power()
+                current_status = await miner_controller.get_miner_status()
+                current_hashrate = await miner_controller.get_miner_hashrate()
+                current_power = await miner_controller.get_miner_power()
 
                 # Build the miner state snapshot
                 miner_state = MinerStateSnapshot(
@@ -293,7 +292,7 @@ class OptimizationService(OptimizationServiceInterface):
                 )
 
                 # Update model if available and it has changed (static config update)
-                current_model = miner_controller.get_model()
+                current_model = await miner_controller.get_model()
                 if current_model and miner.model != current_model:
                     miner.model = current_model
 
@@ -303,7 +302,7 @@ class OptimizationService(OptimizationServiceInterface):
         tracker_current_hashrate: Optional[HashRate] = None
         mining_performance_tracker: Optional[MiningPerformanceTrackerPort] = None
         if optimization_unit.performance_tracker_id:
-            mining_performance_tracker = self.adapter_service.get_mining_performance_tracker(
+            mining_performance_tracker = await self.adapter_service.get_mining_performance_tracker(
                 optimization_unit.performance_tracker_id
             )
         # Mining performance tracker is optional, so log a warning if it's missing
@@ -388,7 +387,7 @@ class OptimizationService(OptimizationServiceInterface):
         # --- Notifiers ---
         unit_notifiers: List[NotificationPort] = []
         try:
-            unit_notifiers = self.adapter_service.get_notifiers(optimization_unit.notifier_ids)
+            unit_notifiers = await self.adapter_service.get_notifiers(optimization_unit.notifier_ids)
         except Exception as e:
             if self.logger:
                 self.logger.error(f"Error getting notifiers for optimization unit '{optimization_unit.name}': {e}")
@@ -438,7 +437,7 @@ class OptimizationService(OptimizationServiceInterface):
         energy_monitor: Optional[EnergyMonitorPort] = None
         if energy_source.energy_monitor_id:
             try:
-                energy_monitor = self.adapter_service.get_energy_monitor(energy_source)
+                energy_monitor = await self.adapter_service.get_energy_monitor(energy_source)
             except Exception as e:
                 if self.logger:
                     self.logger.critical(f"Error getting energy monitor for energy source '{energy_source.name}': {e}")
@@ -460,7 +459,7 @@ class OptimizationService(OptimizationServiceInterface):
         forecast_provider: Optional[ForecastProviderPort] = None
         if energy_source.forecast_provider_id:
             try:
-                forecast_provider = self.adapter_service.get_forecast_provider(energy_source)
+                forecast_provider = await self.adapter_service.get_forecast_provider(energy_source)
             except Exception as e:
                 if self.logger:
                     self.logger.error(f"Error getting forecast provider for energy source '{energy_source.name}': {e}")
@@ -500,7 +499,7 @@ class OptimizationService(OptimizationServiceInterface):
         mining_performance_tracker: Optional[MiningPerformanceTrackerPort] = None
         if optimization_unit.performance_tracker_id:
             try:
-                mining_performance_tracker = self.adapter_service.get_mining_performance_tracker(
+                mining_performance_tracker = await self.adapter_service.get_mining_performance_tracker(
                     optimization_unit.performance_tracker_id
                 )
             except Exception as e:
@@ -523,7 +522,7 @@ class OptimizationService(OptimizationServiceInterface):
         # --- Energy State ---
         try:
             energy_state: Optional[EnergyStateSnapshot] = None
-            energy_state = energy_monitor.get_current_energy_state()
+            energy_state = await energy_monitor.get_current_energy_state()
             if not energy_state:
                 if self.logger:
                     self.logger.error(
@@ -567,7 +566,7 @@ class OptimizationService(OptimizationServiceInterface):
                 # For now, assuming the resolver provides a ready-to-use adapter.
                 # (the configuration has already done outside of the edge mining application)
 
-                forecast_data = forecast_provider.get_forecast()
+                forecast_data = await forecast_provider.get_forecast()
             except Exception as e:
                 if self.logger:
                     self.logger.warning(
@@ -696,7 +695,7 @@ class OptimizationService(OptimizationServiceInterface):
         miner_controller: Optional[MinerControlPort] = None
         if miner.controller_id:
             try:
-                miner_controller = self.adapter_service.get_miner_controller(miner)
+                miner_controller = await self.adapter_service.get_miner_controller(miner)
             except Exception as e:
                 if self.logger:
                     self.logger.critical(f"Error getting controller for miner {miner_id}: {e}")
@@ -731,9 +730,9 @@ class OptimizationService(OptimizationServiceInterface):
         # Get current status and make decision
         try:
             # Query current state from controller
-            current_status = miner_controller.get_miner_status()
-            current_hashrate = miner_controller.get_miner_hashrate()
-            current_power = miner_controller.get_miner_power()
+            current_status = await miner_controller.get_miner_status()
+            current_hashrate = await miner_controller.get_miner_hashrate()
+            current_power = await miner_controller.get_miner_power()
 
             # Build the miner state snapshot
             miner_state = MinerStateSnapshot(
@@ -743,7 +742,7 @@ class OptimizationService(OptimizationServiceInterface):
             )
 
             # Update model if available and it has changed (static config update)
-            current_model = miner_controller.get_model()
+            current_model = await miner_controller.get_model()
             if current_model and miner.model != current_model:
                 miner.model = current_model
                 self.miner_repo.update(miner)
@@ -853,7 +852,7 @@ class OptimizationService(OptimizationServiceInterface):
         if decision == MiningDecision.START_MINING and current_status != MinerStatus.ON:
             if self.logger:
                 self.logger.info(f"Executing START for miner {miner_id} via {type(controller).__name__}")
-            success = controller.start_miner()
+            success = await controller.start_miner()
             action_taken = True
             if success:
                 await self._notify_unit(
@@ -871,7 +870,7 @@ class OptimizationService(OptimizationServiceInterface):
         elif decision == MiningDecision.STOP_MINING and current_status == MinerStatus.ON:
             if self.logger:
                 self.logger.info(f"Executing STOP for miner {miner_id} via {type(controller).__name__}")
-            success = controller.stop_miner()
+            success = await controller.stop_miner()
             action_taken = True
             if success:
                 await self._notify_unit(

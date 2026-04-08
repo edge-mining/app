@@ -141,7 +141,7 @@ class PyASICMinerController(MinerControlPort):
                 if self.logger:
                     self.logger.error(f"Failed to retrieve miner instance from {self.ip}: {e}")
 
-    def get_model(self) -> Optional[str]:
+    async def get_model(self) -> Optional[str]:
         """Gets the model of the miner."""
 
         if self.logger:
@@ -157,7 +157,7 @@ class PyASICMinerController(MinerControlPort):
 
         return self._miner.model or None
 
-    def get_miner_hashrate(self) -> Optional[HashRate]:
+    async def get_miner_hashrate(self) -> Optional[HashRate]:
         """
         Gets the current hash rate, if available.
         """
@@ -190,7 +190,7 @@ class PyASICMinerController(MinerControlPort):
 
         return real_hashrate
 
-    def get_miner_power(self) -> Optional[Watts]:
+    async def get_miner_power(self) -> Optional[Watts]:
         """Gets the current power consumption, if available."""
         if self.logger:
             self.logger.debug(f"Fetching power consumption from from {self.ip}...")
@@ -216,7 +216,7 @@ class PyASICMinerController(MinerControlPort):
 
         return power_watts
 
-    def get_miner_status(self) -> MinerStatus:
+    async def get_miner_status(self) -> MinerStatus:
         """Gets the current operational status of the miner."""
         if self.logger:
             self.logger.debug(f"Fetching miner status from {self.ip}...")
@@ -243,7 +243,7 @@ class PyASICMinerController(MinerControlPort):
         if mining_state is None:
             if self.logger:
                 self.logger.debug("Mining state is not provided, deriving miner status...")
-            derived_state = self._derive_miner_status()
+            derived_state = await self._derive_miner_status()
             miner_status = state_map.get(derived_state, MinerStatus.UNKNOWN)
         else:
             miner_status = state_map.get(mining_state, MinerStatus.UNKNOWN)
@@ -253,7 +253,7 @@ class PyASICMinerController(MinerControlPort):
 
         return miner_status
 
-    def stop_miner(self) -> bool:
+    async def stop_miner(self) -> bool:
         """Attempts to stop the specified miner. Returns True on success request."""
         if self.logger:
             self.logger.debug(f"Sending stop command to miner at {self.ip}...")
@@ -274,7 +274,7 @@ class PyASICMinerController(MinerControlPort):
 
         return success or False
 
-    def start_miner(self) -> bool:
+    async def start_miner(self) -> bool:
         """Attempts to start the miner. Returns True on success request."""
         if self.logger:
             self.logger.debug(f"Sending start command to miner at {self.ip}...")
@@ -295,7 +295,7 @@ class PyASICMinerController(MinerControlPort):
 
         return success or False
 
-    def _derive_miner_status(self) -> Optional[bool]:
+    async def _derive_miner_status(self) -> Optional[bool]:
         """Derives the miner status based on hashrate and power consumption.
 
         Returns True if miner is ON (both hashrate > 0 and power > IDLE_WATTAGE_THRESHOLD),
@@ -306,8 +306,8 @@ class PyASICMinerController(MinerControlPort):
         """
         IDLE_WATTAGE_THRESHOLD = 1  # Low threshold to work with low-power miners (e.g., Bitaxe ~13W)
 
-        hashrate: Optional[HashRate] = self.get_miner_hashrate()
-        wattage: Optional[Watts] = self.get_miner_power()
+        hashrate: Optional[HashRate] = await self.get_miner_hashrate()
+        wattage: Optional[Watts] = await self.get_miner_power()
 
         if self.logger:
             self.logger.debug(

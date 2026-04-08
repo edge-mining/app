@@ -212,7 +212,7 @@ async def get_external_service_status(
 ) -> ExternalServiceStatusSchema:
     """Get the connection status of a specific external service"""
     try:
-        external_service_adapter = adapter_service.get_external_service(service_id)
+        external_service_adapter = await adapter_service.get_external_service(service_id)
 
         if external_service_adapter is None:
             raise ExternalServiceNotFoundError(f"External service with id {service_id} not found")
@@ -222,7 +222,7 @@ async def get_external_service_status(
             raise ExternalServiceNotFoundError(f"External service with id {service_id} not found")
 
         try:
-            is_connected = external_service_adapter.is_connected()
+            is_connected = await external_service_adapter.is_connected()
             status = ExternalServiceStatusEnum.CONNECTED if is_connected else ExternalServiceStatusEnum.DISCONNECTED
             error_message = None
         except Exception as e:

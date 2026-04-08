@@ -306,14 +306,14 @@ class HomeAssistantAPIEnergyMonitor(EnergyMonitorPort):
                 f"Battery Positive Charge='{self.battery_positive_charge}'"
             )
 
-    def get_current_energy_state(self) -> Optional[EnergyStateSnapshot]:
+    async def get_current_energy_state(self) -> Optional[EnergyStateSnapshot]:
         if self.logger:
             self.logger.debug("Fetching current energy state from Home Assistant...")
         now = Timestamp(datetime.now())
 
         # --- Production ---
         if self.entity_production:
-            state_production, _ = self.home_assistant.get_entity_state(self.entity_production)
+            state_production, _ = await self.home_assistant.get_entity_state(self.entity_production)
             production_watts = self.home_assistant.parse_power(
                 state_production,
                 self.unit_production,
@@ -324,7 +324,7 @@ class HomeAssistantAPIEnergyMonitor(EnergyMonitorPort):
 
         # --- Consumption ---
         if self.entity_consumption:
-            state_consumption, _ = self.home_assistant.get_entity_state(self.entity_consumption)
+            state_consumption, _ = await self.home_assistant.get_entity_state(self.entity_consumption)
             consumption_watts = self.home_assistant.parse_power(
                 state_consumption,
                 self.unit_consumption,
@@ -335,15 +335,15 @@ class HomeAssistantAPIEnergyMonitor(EnergyMonitorPort):
 
         # --- Grid ---
         if self.entity_grid:
-            state_grid, _ = self.home_assistant.get_entity_state(self.entity_grid)
+            state_grid, _ = await self.home_assistant.get_entity_state(self.entity_grid)
             grid_watts_raw = self.home_assistant.parse_power(state_grid, self.unit_grid, self.entity_grid or "N/A")
         else:
             grid_watts_raw = None
 
         # --- Battery ---
         if self.entity_battery_soc and self.entity_battery_power:
-            state_battery_soc, _ = self.home_assistant.get_entity_state(self.entity_battery_soc)
-            state_battery_power, _ = self.home_assistant.get_entity_state(self.entity_battery_power)
+            state_battery_soc, _ = await self.home_assistant.get_entity_state(self.entity_battery_soc)
+            state_battery_power, _ = await self.home_assistant.get_entity_state(self.entity_battery_power)
             battery_soc = self.home_assistant.parse_percentage(state_battery_soc, self.entity_battery_soc or "N/A")
             battery_power_raw = self.home_assistant.parse_power(
                 state_battery_power,
@@ -355,7 +355,7 @@ class HomeAssistantAPIEnergyMonitor(EnergyMonitorPort):
             battery_power_raw = None
 
         if self.entity_battery_remaining_capacity:
-            state_battery_remaining_capacity, _ = self.home_assistant.get_entity_state(
+            state_battery_remaining_capacity, _ = await self.home_assistant.get_entity_state(
                 self.entity_battery_remaining_capacity
             )
             battery_remaining_capacity = self.home_assistant.parse_energy(
@@ -375,8 +375,7 @@ class HomeAssistantAPIEnergyMonitor(EnergyMonitorPort):
             if self.entity_grid:
                 if self.logger:
                     self.logger.warning(
-                        f"Could not retrieve grid value (Entity: {self.entity_grid}). "
-                        "Continuing without grid data."
+                        f"Could not retrieve grid value (Entity: {self.entity_grid}). Continuing without grid data."
                     )
 
         # Battery: We want positive for CHARGING, negative for DISCHARGING
@@ -396,8 +395,7 @@ class HomeAssistantAPIEnergyMonitor(EnergyMonitorPort):
         if production_watts is None and self.entity_production:
             if self.logger:
                 self.logger.warning(
-                    f"Could not retrieve production value (Entity: {self.entity_production}). "
-                    "Defaulting to 0W."
+                    f"Could not retrieve production value (Entity: {self.entity_production}). Defaulting to 0W."
                 )
         if consumption_watts is None and self.entity_consumption:
             if self.logger:

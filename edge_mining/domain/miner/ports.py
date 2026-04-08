@@ -13,32 +13,32 @@ class MinerControlPort(ABC):
     """Port for the Miner Control."""
 
     @abstractmethod
-    def get_model(self) -> Optional[str]:
+    async def get_model(self) -> Optional[str]:
         """Gets the model of the miner."""
         raise NotImplementedError
 
     @abstractmethod
-    def start_miner(self) -> bool:
+    async def start_miner(self) -> bool:
         """Attempts to start the miner. Returns True on success request."""
         raise NotImplementedError
 
     @abstractmethod
-    def stop_miner(self) -> bool:
+    async def stop_miner(self) -> bool:
         """Attempts to stop the specified miner. Returns True on success request."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_miner_status(self) -> MinerStatus:
+    async def get_miner_status(self) -> MinerStatus:
         """Gets the current operational status of the miner."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_miner_power(self) -> Optional[Watts]:
+    async def get_miner_power(self) -> Optional[Watts]:
         """Gets the current power consumption, if available."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_miner_hashrate(self) -> Optional[HashRate]:
+    async def get_miner_hashrate(self) -> Optional[HashRate]:
         """Gets the current hash rate, if available."""
         raise NotImplementedError
 

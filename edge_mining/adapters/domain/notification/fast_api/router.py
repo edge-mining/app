@@ -234,7 +234,7 @@ async def test_notifier(
 ) -> Dict[str, str]:
     """Test a notifier by sending a test notification."""
     try:
-        notifier_port = adapter_service.get_notifier(notifier_id)
+        notifier_port = await adapter_service.get_notifier(notifier_id)
 
         if notifier_port is None:
             raise NotifierNotFoundError(f"Notifier with ID {notifier_id} not found")

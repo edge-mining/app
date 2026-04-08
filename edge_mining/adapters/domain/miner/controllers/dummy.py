@@ -27,7 +27,7 @@ class DummyMinerController(MinerControlPort):
 
         self._power: Watts = Watts(0.0)
 
-    def get_model(self) -> Optional[str]:
+    async def get_model(self) -> Optional[str]:
         """Gets the model of the miner."""
 
         if self.logger:
@@ -35,7 +35,7 @@ class DummyMinerController(MinerControlPort):
 
         return None
 
-    def start_miner(self) -> bool:
+    async def start_miner(self) -> bool:
         """Start the miner."""
         print(f"DummyController: Received START (current: {self._status.name})")
         if self._status != MinerStatus.ON:
@@ -49,7 +49,7 @@ class DummyMinerController(MinerControlPort):
             # threading.Timer(5, self._set_status, args=(MinerStatus.ON)).start()
         return True  # Assume command sent successfully
 
-    def stop_miner(self) -> bool:
+    async def stop_miner(self) -> bool:
         """Stop the miner."""
         if self.logger:
             self.logger.debug(f"DummyController: Received STOP (current: {self._status.name})")
@@ -61,7 +61,7 @@ class DummyMinerController(MinerControlPort):
             # threading.Timer(3, self._set_status, args=(MinerStatus.OFF).start()
         return True  # Assume command sent successfully
 
-    def get_miner_status(self) -> MinerStatus:
+    async def get_miner_status(self) -> MinerStatus:
         """Get the status of the miner."""
         # Simulate state transitions finishing for dummy purposes
         if self._status == MinerStatus.STARTING:
@@ -87,7 +87,7 @@ class DummyMinerController(MinerControlPort):
             self.logger.debug(f"DummyController: Reporting status {status.name}")
         return status
 
-    def get_miner_power(self) -> Optional[Watts]:
+    async def get_miner_power(self) -> Optional[Watts]:
         """Get the power of the miner."""
         status = self._status
         if status == MinerStatus.ON:
@@ -106,7 +106,7 @@ class DummyMinerController(MinerControlPort):
         self._power = power
         return power
 
-    def get_miner_hashrate(self) -> Optional[HashRate]:
+    async def get_miner_hashrate(self) -> Optional[HashRate]:
         """Get the hash rate of the miner."""
         status = self._status
         if status == MinerStatus.ON:
