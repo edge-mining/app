@@ -14,6 +14,7 @@ import {
   PhPlus,
   PhTrash,
 } from "@phosphor-icons/vue";
+import { formatType } from "../../core/utils/formatters";
 
 const props = defineProps<{
   open: boolean;
@@ -110,6 +111,22 @@ function removeController(controllerId: string) {
 function getControllerName(controllerId: string): string {
   const controller = minerControllerStore.minerControllers.find((mc) => mc.id === controllerId);
   return controller?.name ?? controllerId;
+}
+
+function getControllerAdapterType(controllerId: string): string | undefined {
+  const controller = minerControllerStore.minerControllers.find((mc) => mc.id === controllerId);
+  return controller?.adapter_type;
+}
+
+const adapterBadgeClass: Record<string, string> = {
+  dummy: "bg-slate-500/20 text-slate-400",
+  pyasic: "bg-emerald-500/20 text-emerald-400",
+  generic_socket_home_assistant_api: "bg-sky-500/20 text-sky-400",
+};
+
+function getAdapterBadgeClass(controllerId: string): string {
+  const adapterType = getControllerAdapterType(controllerId);
+  return adapterType ? (adapterBadgeClass[adapterType] ?? "badge-ghost") : "badge-ghost";
 }
 
 // Compute controller changes (diff)
@@ -286,7 +303,7 @@ function handleSave() {
                 </label>
                 <ul tabindex="0" class="dropdown-content z-[1] menu p-1 shadow-lg bg-base-200 rounded-box w-52">
                   <li v-for="cid in modelControllers" :key="cid">
-                    <a @click="fetchField('model', cid)">{{ getControllerName(cid) }}</a>
+                    <a @click="fetchField('model', cid)">{{ getControllerName(cid) }} <span v-if="getControllerAdapterType(cid)" class="badge badge-xs" :class="getAdapterBadgeClass(cid)">{{ formatType(getControllerAdapterType(cid)!) }}</span></a>
                   </li>
                 </ul>
               </div>
@@ -316,6 +333,7 @@ function handleSave() {
             >
               <PhGear :size="14" class="text-info flex-shrink-0" />
               <span class="text-sm text-base-content flex-1 truncate">{{ getControllerName(controllerId) }}</span>
+              <span v-if="getControllerAdapterType(controllerId)" class="badge badge-xs" :class="getAdapterBadgeClass(controllerId)">{{ formatType(getControllerAdapterType(controllerId)!) }}</span>
               <button
                 type="button"
                 class="btn btn-ghost btn-xs btn-square text-error"
@@ -339,7 +357,7 @@ function handleSave() {
                 :key="controller.id"
                 :value="controller.id"
               >
-                {{ controller.name }}
+                {{ controller.name }} ({{ formatType(controller.adapter_type) }})
               </option>
             </select>
             <button
@@ -416,7 +434,7 @@ function handleSave() {
                 </label>
                 <ul tabindex="0" class="dropdown-content z-[1] menu p-1 shadow-lg bg-base-200 rounded-box w-52">
                   <li v-for="cid in hashRateControllers" :key="cid">
-                    <a @click="fetchField('hash_rate_max', cid)">{{ getControllerName(cid) }}</a>
+                    <a @click="fetchField('hash_rate_max', cid)">{{ getControllerName(cid) }} <span v-if="getControllerAdapterType(cid)" class="badge badge-xs" :class="getAdapterBadgeClass(cid)">{{ formatType(getControllerAdapterType(cid)!) }}</span></a>
                   </li>
                 </ul>
               </div>
@@ -465,7 +483,7 @@ function handleSave() {
                 </label>
                 <ul tabindex="0" class="dropdown-content z-[1] menu p-1 shadow-lg bg-base-200 rounded-box w-52">
                   <li v-for="cid in powerControllers" :key="cid">
-                    <a @click="fetchField('power_consumption_max', cid)">{{ getControllerName(cid) }}</a>
+                    <a @click="fetchField('power_consumption_max', cid)">{{ getControllerName(cid) }} <span v-if="getControllerAdapterType(cid)" class="badge badge-xs" :class="getAdapterBadgeClass(cid)">{{ formatType(getControllerAdapterType(cid)!) }}</span></a>
                   </li>
                 </ul>
               </div>
