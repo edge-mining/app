@@ -35,10 +35,10 @@ class OptimizationPolicy(AggregateRoot):
         This is the core decision-making logic.
         """
 
-        if not decisional_context.miner:
-            raise ValueError("Error while evaluating policy: Miner is not set in the context.")
+        if not decisional_context.miner_state:
+            raise ValueError("Error while evaluating policy: Miner state is not set in the context.")
 
-        print(f"Policy '{self.name}': Evaluating state for miner status {decisional_context.miner.status.name}")
+        print(f"Policy '{self.name}': Evaluating state for miner status {decisional_context.miner_state.status.name}")
 
         # Logic:
         # 1. If miner is OFF, check START rules. If any match -> START_MINING
@@ -51,7 +51,7 @@ class OptimizationPolicy(AggregateRoot):
         self.sort_rules()
 
         # Load rules into the rule engine based on miner status
-        if decisional_context.miner.status in [
+        if decisional_context.miner_state.status in [
             MinerStatus.OFF,
             MinerStatus.ERROR,
             MinerStatus.UNKNOWN,
@@ -62,7 +62,7 @@ class OptimizationPolicy(AggregateRoot):
             if rule_engine.evaluate(decisional_context):
                 # If any START rule matches, return START_MINING decision
                 return MiningDecision.START_MINING
-        elif decisional_context.miner.status in [MinerStatus.ON]:
+        elif decisional_context.miner_state.status in [MinerStatus.ON]:
             rule_engine.load_rules(self.stop_rules)
 
             # Evaluate the rules in the rule engine

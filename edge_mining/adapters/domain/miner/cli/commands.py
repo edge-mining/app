@@ -13,7 +13,7 @@ from edge_mining.adapters.infrastructure.external_services.cli.commands import (
 from edge_mining.adapters.utils import run_async_func
 from edge_mining.application.interfaces import ConfigurationServiceInterface, MinerActionServiceInterface
 from edge_mining.domain.common import EntityId, Watts
-from edge_mining.domain.miner.common import MinerControllerAdapter, MinerControllerProtocol, MinerStatus
+from edge_mining.domain.miner.common import MinerControllerAdapter, MinerControllerProtocol
 from edge_mining.domain.miner.entities import Miner, MinerController
 from edge_mining.domain.miner.value_objects import HashRate
 from edge_mining.shared.adapter_configs.miner import (
@@ -124,11 +124,6 @@ def list_miners(configuration_service: ConfigurationServiceInterface):
                 + click.style(f"{model_str}, ", fg="white")
                 + "ID: "
                 + click.style(f"{m.id}, ", fg="yellow")
-                + "Status: "
-                + click.style(
-                    f"{m.status.name}, ",
-                    fg=f"{'green' if m.status == MinerStatus.ON else 'red'}",
-                )
                 + "Max Power: "
                 + click.style(f"{m.power_consumption_max}W, ", fg="cyan")
                 + "Max HashRate: "
@@ -507,13 +502,6 @@ def print_miner_details(
     click.echo("")
     click.echo("| Name: " + click.style(miner.name, fg="blue"))
     click.echo("| ID: " + click.style(miner.id, fg="yellow"))
-    click.echo(
-        "| Status: "
-        + click.style(
-            miner.status.name,
-            fg="green" if miner.status == MinerStatus.ON else "red",
-        )
-    )
     click.echo(
         "| Max HashRate: " + str(miner.hash_rate_max.value)
         if miner.hash_rate_max

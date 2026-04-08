@@ -11,7 +11,7 @@ from edge_mining.adapters.domain.miner.tables import miner_controllers_table, mi
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.base import BaseSQLAlchemyRepository
 from edge_mining.adapters.infrastructure.persistence.sqlite import BaseSqliteRepository
 from edge_mining.domain.common import EntityId, Watts
-from edge_mining.domain.miner.common import MinerControllerAdapter, MinerStatus
+from edge_mining.domain.miner.common import MinerControllerAdapter
 from edge_mining.domain.miner.entities import Miner, MinerController
 from edge_mining.domain.miner.exceptions import (
     MinerControllerAlreadyExistsError,
@@ -80,11 +80,8 @@ class SqliteMinerRepository(MinerRepository):
         "id": "TEXT PRIMARY KEY",
         "name": "TEXT NOT NULL",
         "model": "TEXT",  # Miner model/hardware identifier
-        "status": "TEXT NOT NULL",
         "active": "INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1))",
-        "hash_rate": "TEXT",  # JSON object of HashRate dict
         "hash_rate_max": "TEXT",  # JSON object of HashRate dict
-        "power_consumption": "REAL",
         "power_consumption_max": "REAL",
         "controller_id": "TEXT",  # Foreign key to miner controller
     }
@@ -115,22 +112,16 @@ class SqliteMinerRepository(MinerRepository):
         if not row:
             return None
         try:
-            # Deserialize hash_rate from the database row
-            hash_rate_data = json.loads(row["hash_rate"]) if row["hash_rate"] else None
             hash_rate_max_data = json.loads(row["hash_rate_max"]) if row["hash_rate_max"] else None
 
-            hash_rate = self._dict_to_hashrate(hash_rate_data) if hash_rate_data else None
             hash_rate_max = self._dict_to_hashrate(hash_rate_max_data) if hash_rate_max_data else None
 
             return Miner(
                 id=EntityId(row["id"]),
                 name=row["name"] if row["name"] is not None else "",
                 model=row["model"] if row["model"] is not None else None,
-                status=MinerStatus(row["status"]),
                 active=(row["active"] == 1 if row["active"] is not None else False),
-                hash_rate=hash_rate,
                 hash_rate_max=hash_rate_max,
-                power_consumption=(Watts(row["power_consumption"]) if row["power_consumption"] is not None else None),
                 power_consumption_max=(
                     Watts(row["power_consumption_max"]) if row["power_consumption_max"] is not None else None
                 ),
@@ -145,14 +136,13 @@ class SqliteMinerRepository(MinerRepository):
         self.logger.debug(f"Adding miner {miner.id} to SQLite.")
 
         sql = f"""
-            INSERT INTO {self.TABLE_NAME} (id, name, model, status, active, hash_rate, hash_rate_max, power_consumption,
-            power_consumption_max, controller_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO {self.TABLE_NAME} (id, name, model, active, hash_rate_max, power_consumption_max,
+            controller_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         """
         conn = self._db.get_connection()
         try:
-            # Serialize hash_rate to JSON for storage
-            hash_rate_json = json.dumps(self._hashrate_to_dict(miner.hash_rate))
+            # Serialize hash_rate_max to JSON for storage
             hash_rate_max_json = json.dumps(self._hashrate_to_dict(miner.hash_rate_max))
 
             with conn:
@@ -162,11 +152,8 @@ class SqliteMinerRepository(MinerRepository):
                         miner.id,
                         miner.name,
                         miner.model,
-                        miner.status.value,
                         miner.active,
-                        hash_rate_json,
                         hash_rate_max_json,
-                        (float(miner.power_consumption) if miner.power_consumption is not None else 0.0),
                         (float(miner.power_consumption_max) if miner.power_consumption_max is not None else 0.0),
                         miner.controller_id,
                     ),
@@ -229,14 +216,13 @@ class SqliteMinerRepository(MinerRepository):
 
         sql = f"""
             UPDATE {self.TABLE_NAME}
-            SET name = ?, model = ?, status = ?, active = ?, hash_rate = ?, hash_rate_max = ?, power_consumption = ?,
-            power_consumption_max = ?, controller_id = ?
+            SET name = ?, model = ?, active = ?, hash_rate_max = ?, power_consumption_max = ?,
+            controller_id = ?
             WHERE id = ?
         """
         conn = self._db.get_connection()
         try:
-            # Serialize hash_rate to JSON for storage
-            hash_rate_json = json.dumps(self._hashrate_to_dict(miner.hash_rate))
+            # Serialize hash_rate_max to JSON for storage
             hash_rate_max_json = json.dumps(self._hashrate_to_dict(miner.hash_rate_max))
 
             with conn:
@@ -246,11 +232,8 @@ class SqliteMinerRepository(MinerRepository):
                     (
                         miner.name,
                         miner.model,
-                        miner.status.value,
                         miner.active,
-                        hash_rate_json,
                         hash_rate_max_json,
-                        (float(miner.power_consumption) if miner.power_consumption is not None else 0.0),
                         (float(miner.power_consumption_max) if miner.power_consumption_max is not None else 0.0),
                         miner.controller_id,
                         miner.id,
@@ -391,11 +374,8 @@ class SqlAlchemyMinerRepository(MinerRepository):
                 # Update all fields from the new entity
                 existing_entity.name = miner.name
                 existing_entity.model = miner.model
-                existing_entity.status = miner.status
                 existing_entity.active = miner.active
-                existing_entity.hash_rate = miner.hash_rate
                 existing_entity.hash_rate_max = miner.hash_rate_max
-                existing_entity.power_consumption = miner.power_consumption
                 existing_entity.power_consumption_max = miner.power_consumption_max
                 existing_entity.controller_id = miner.controller_id
 

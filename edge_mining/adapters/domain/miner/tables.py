@@ -29,13 +29,13 @@ import json
 import uuid
 from typing import Any, Optional
 
-from sqlalchemy import Boolean, Column, Float, ForeignKey, String, Table, TypeDecorator, event
+from sqlalchemy import Boolean, Column, Float, ForeignKey, String, Table, event
 from sqlalchemy.orm import relationship
 
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.common import ConfigurationType
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.registry import mapper_registry, metadata
 from edge_mining.domain.common import EntityId, Watts
-from edge_mining.domain.miner.common import MinerControllerAdapter, MinerStatus
+from edge_mining.domain.miner.common import MinerControllerAdapter
 from edge_mining.domain.miner.entities import Miner, MinerController
 from edge_mining.domain.miner.exceptions import MinerControllerConfigurationError
 from edge_mining.domain.miner.value_objects import HashRate
@@ -48,48 +48,6 @@ class MinerControllerConfigType(ConfigurationType):
 
     Inherits from ConfigurationType to handle JSON serialization/deserialization.
     """
-
-
-class MinerStatusType(TypeDecorator):
-    """Custom SQLAlchemy type that converts MinerStatus enum to/from string.
-
-    SQLite doesn't natively support enums, so we need to convert them to strings.
-    """
-
-    impl = String
-    cache_ok = True
-
-    def process_bind_param(self, value: Optional[MinerStatus], dialect) -> Optional[str]:
-        """Convert MinerStatus enum to string before storing in DB.
-
-        Args:
-            value: MinerStatus enum instance or None
-            dialect: SQLAlchemy dialect
-
-        Returns:
-            String value of enum or None
-        """
-        if value is None:
-            return None
-        if isinstance(value, str):
-            return value
-        return value.value  # Get the string value from enum
-
-    def process_result_value(self, value: Optional[str], dialect) -> Optional[MinerStatus]:
-        """Convert string back to MinerStatus enum after loading from DB.
-
-        Args:
-            value: String from database or None
-            dialect: SQLAlchemy dialect
-
-        Returns:
-            MinerStatus enum instance or None
-        """
-        if value is None:
-            return None
-        if isinstance(value, MinerStatus):
-            return value
-        return MinerStatus(value)
 
 
 def _deserialize_miner_controller_config(
@@ -201,13 +159,10 @@ miners_table = Table(
     # Basic attributes
     Column("name", String, nullable=False),
     Column("model", String, nullable=True),
-    Column("status", MinerStatusType, nullable=False, default="UNKNOWN"),
     Column("active", Boolean, nullable=False, default=True),
-    # Hash Rate Value Object - stored as TEXT (JSON) in SQLite to match existing schema
-    Column("hash_rate", String, nullable=True),
+    # Hash Rate Max Value Object - stored as TEXT (JSON) in SQLite to match existing schema
     Column("hash_rate_max", String, nullable=True),
-    # Power Consumption (Watts Value Object stored as float)
-    Column("power_consumption", Float, nullable=True),
+    # Power Consumption Max (Watts Value Object stored as float)
     Column("power_consumption_max", Float, nullable=True),
     # Foreign Key to MinerController
     Column("controller_id", String, ForeignKey("miner_controllers.id"), nullable=True),
@@ -251,18 +206,6 @@ def _receive_miner_load(target: Miner, context) -> None:
         target: The Miner instance being loaded
         context: SQLAlchemy context
     """
-    # SQLAlchemy will load the raw column values as strings/floats
-    # We need to convert them to proper value objects
-
-    # Reconstruct hash_rate (HashRate) from JSON string
-    if hasattr(target, "hash_rate") and target.hash_rate:
-        if isinstance(target.hash_rate, str):
-            try:
-                hash_rate_data = json.loads(target.hash_rate)
-                target.hash_rate = HashRate(value=hash_rate_data.get("value"), unit=hash_rate_data.get("unit", "TH/s"))
-            except (json.JSONDecodeError, TypeError, KeyError):
-                target.hash_rate = None
-
     # Reconstruct hash_rate_max (HashRate) from JSON string
     if hasattr(target, "hash_rate_max") and target.hash_rate_max:
         if isinstance(target.hash_rate_max, str):
@@ -273,11 +216,6 @@ def _receive_miner_load(target: Miner, context) -> None:
                 )
             except (json.JSONDecodeError, TypeError, KeyError):
                 target.hash_rate_max = None
-
-    # Convert power_consumption to Watts (it's loaded as float)
-    if hasattr(target, "power_consumption") and target.power_consumption is not None:
-        if not isinstance(target.power_consumption, type(Watts(0.0))):
-            target.power_consumption = Watts(float(target.power_consumption))
 
     # Convert power_consumption_max to Watts (it's loaded as float)
     if hasattr(target, "power_consumption_max") and target.power_consumption_max is not None:
@@ -295,22 +233,11 @@ def _flatten_miner_value_objects(mapper, connection, target: Miner) -> None:
         connection: Database connection
         target: The Miner instance being persisted
     """
-    # Flatten hash_rate (HashRate) to JSON string
-    if hasattr(target, "hash_rate") and target.hash_rate is not None:
-        if not isinstance(target.hash_rate, str):
-            hash_rate_dict = {"value": target.hash_rate.value, "unit": target.hash_rate.unit}
-            target.hash_rate = json.dumps(hash_rate_dict)  # type: ignore[assignment]
-
     # Flatten hash_rate_max (HashRate) to JSON string
     if hasattr(target, "hash_rate_max") and target.hash_rate_max is not None:
         if not isinstance(target.hash_rate_max, str):
             hash_rate_max_dict = {"value": target.hash_rate_max.value, "unit": target.hash_rate_max.unit}
             target.hash_rate_max = json.dumps(hash_rate_max_dict)  # type: ignore[assignment]
-
-    # Flatten power_consumption (Watts) to float
-    # Watts is a NewType (alias for float), so just ensure it's a float
-    if hasattr(target, "power_consumption") and target.power_consumption is not None:
-        target.power_consumption = float(target.power_consumption)  # type: ignore[assignment]
 
     # Flatten power_consumption_max (Watts) to float
     if hasattr(target, "power_consumption_max") and target.power_consumption_max is not None:
@@ -328,25 +255,14 @@ def _restore_miner_composites(mapper, connection, target: Any) -> None:
         target: The Miner instance that was persisted
     """
     # Restore id to EntityId if it was converted to string
-    # NOTE: After SQLAlchemy flush, IDs may be strings and need restoration to EntityId
     if hasattr(target, "id") and target.id is not None:
         if isinstance(target.id, str):
             target.id = EntityId(uuid.UUID(target.id))
 
     # Restore controller_id to EntityId if needed
-    # NOTE: Foreign key UUIDs may be strings after persist and need conversion
     if hasattr(target, "controller_id") and target.controller_id is not None:
         if isinstance(target.controller_id, str):
             target.controller_id = EntityId(uuid.UUID(target.controller_id))
-
-    # Restore hash_rate from JSON string
-    if hasattr(target, "hash_rate") and target.hash_rate is not None:
-        if isinstance(target.hash_rate, str):
-            try:
-                hash_rate_data = json.loads(target.hash_rate)
-                target.hash_rate = HashRate(value=hash_rate_data.get("value"), unit=hash_rate_data.get("unit", "TH/s"))
-            except (json.JSONDecodeError, TypeError, KeyError):
-                pass
 
     # Restore hash_rate_max from JSON string
     if hasattr(target, "hash_rate_max") and target.hash_rate_max is not None:
@@ -360,10 +276,6 @@ def _restore_miner_composites(mapper, connection, target: Any) -> None:
                 pass
 
     # Restore Watts values
-    if hasattr(target, "power_consumption") and target.power_consumption is not None:
-        if not isinstance(target.power_consumption, type(Watts(0.0))):
-            target.power_consumption = Watts(float(target.power_consumption))
-
     if hasattr(target, "power_consumption_max") and target.power_consumption_max is not None:
         if not isinstance(target.power_consumption_max, type(Watts(0.0))):
             target.power_consumption_max = Watts(float(target.power_consumption_max))

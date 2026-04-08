@@ -4,70 +4,27 @@ from dataclasses import dataclass
 from typing import Optional
 
 from edge_mining.domain.common import Entity, EntityId, Watts
-from edge_mining.domain.miner.common import MinerControllerAdapter, MinerStatus
-from edge_mining.domain.miner.exceptions import MinerNotActiveError
+from edge_mining.domain.miner.common import MinerControllerAdapter
 from edge_mining.domain.miner.value_objects import HashRate
 from edge_mining.shared.interfaces.config import MinerControllerConfig
 
 
 @dataclass
 class Miner(Entity):
-    """Entity for a miner."""
+    """Entity for a miner.
+
+    Represents the physical mining asset and its intrinsic (static) properties.
+    Runtime operational state (status, current hash rate, current power consumption)
+    is captured separately in MinerStateSnapshot.
+    """
 
     name: str = ""
     model: Optional[str] = None
-    status: MinerStatus = MinerStatus.UNKNOWN
-    hash_rate: Optional[HashRate] = None  # Hash rate in GH/s or TH/s
     hash_rate_max: Optional[HashRate] = None  # Max hash rate for the miner
-    power_consumption: Optional[Watts] = None  # Can be dynamic or fixed
     power_consumption_max: Optional[Watts] = None  # Max power consumption for the miner
     active: bool = True  # Is the miner active in the system?
 
     controller_id: Optional[EntityId] = None  # Controller for the miner
-
-    def turn_on(self):
-        """Turn on the miner."""
-        # Domain logic: update status if applicable
-        if self.active:
-            if self.status in [
-                MinerStatus.OFF,
-                MinerStatus.ERROR,
-                MinerStatus.UNKNOWN,
-            ]:
-                self.status = MinerStatus.STARTING
-                print(f"Domain: Miner {self.id} requested to turn ON")
-        else:
-            raise MinerNotActiveError(f"Miner {self.id} is not active and cannot be turned ON.")
-
-    def turn_off(self):
-        """Turn off the miner."""
-        # Domain logic: update status if applicable
-        if self.active:
-            if self.status in [MinerStatus.ON, MinerStatus.ERROR]:
-                self.status = MinerStatus.STOPPING
-                print(f"Domain: Miner {self.id} requested to turn OFF")
-            # Else: Already off or transitioning
-        else:
-            raise MinerNotActiveError(f"Miner {self.id} is not active and cannot be turned OFF.")
-
-    def update_status(
-        self,
-        new_status: MinerStatus,
-        hash_rate: Optional[HashRate] = None,
-        power: Optional[Watts] = None,
-    ):
-        """Update the status of the miner."""
-        if self.active:
-            self.status = new_status
-            if hash_rate is not None:
-                self.hash_rate = hash_rate
-            if power is not None:
-                self.power_consumption = power
-
-            # TODO: Add logic to handle max hash rate and power consumption
-            print(f"Domain: Miner {self.id} status updated to {new_status}, hashrate: {hash_rate}, power: {power}")
-        else:
-            raise MinerNotActiveError(f"Miner {self.id} is not active and cannot update status.")
 
     def activate(self):
         """Activate the miner."""
@@ -77,12 +34,6 @@ class Miner(Entity):
     def deactivate(self):
         """Deactivate the miner."""
         self.active = False
-
-        # Deactivate logic: reset status and properties
-        self.status = MinerStatus.UNKNOWN
-        self.hash_rate = None
-        self.power_consumption = None
-
         print(f"Domain: Miner {self.id} deactivated")
 
 

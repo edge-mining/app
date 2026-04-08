@@ -9,10 +9,11 @@ from edge_mining.domain.miner.entities import Miner
 from edge_mining.domain.miner.exceptions import (
     MinerControllerConfigurationError,
     MinerControllerNotFoundError,
+    MinerNotActiveError,
     MinerNotFoundError,
 )
 from edge_mining.domain.miner.ports import MinerRepository
-from edge_mining.domain.miner.value_objects import HashRate
+from edge_mining.domain.miner.value_objects import HashRate, MinerStateSnapshot
 from edge_mining.domain.notification.ports import NotificationPort
 from edge_mining.domain.miner.events import MinerStateChangedEvent
 from edge_mining.application.interfaces import EventBusInterface
@@ -61,35 +62,26 @@ class MinerActionService(MinerActionServiceInterface):
         if not miner:
             raise MinerNotFoundError(f"Miner with ID {miner_id} not found.")
 
+        if not miner.active:
+            raise MinerNotActiveError(f"Miner {miner_id} is not active and cannot be started.")
+
         # Get the miner controller from the adapter service
         miner_controller = self.adapter_service.get_miner_controller(miner)
 
         if not miner_controller:
             raise MinerControllerConfigurationError(f"Miner controller for miner {miner_id} is not configured.")
 
-        # Update miner status using controller
-        current_status = miner_controller.get_miner_status()
-        current_hashrate = miner_controller.get_miner_hashrate()
-        current_power = miner_controller.get_miner_power()
-        miner.update_status(current_status, current_hashrate, current_power)
-
-        # Update model if available and it has changed
+        # Update model if available and it has changed (static config update)
         current_model = miner_controller.get_model()
         if current_model and miner.model != current_model:
             miner.model = current_model
-
-        # Persist the observed state
-        self.miner_repo.update(miner)
+            self.miner_repo.update(miner)
 
         success = miner_controller.start_miner()
 
         if success:
             if self.logger:
                 self.logger.info(f"Miner {miner.id} ({miner.name}) started successfully.")
-
-            # Update domain state
-            miner.turn_on()
-            self.miner_repo.update(miner)
 
             # Publish miner state changed event
             if self._event_bus:
@@ -124,35 +116,26 @@ class MinerActionService(MinerActionServiceInterface):
         if not miner:
             raise MinerNotFoundError(f"Miner with ID {miner_id} not found.")
 
+        if not miner.active:
+            raise MinerNotActiveError(f"Miner {miner_id} is not active and cannot be stopped.")
+
         # Get the miner controller from the adapter service
         miner_controller = self.adapter_service.get_miner_controller(miner)
 
         if not miner_controller:
             raise MinerControllerConfigurationError(f"Miner controller for miner {miner_id} is not configured.")
 
-        # Update miner status using controller
-        current_status = miner_controller.get_miner_status()
-        current_hashrate = miner_controller.get_miner_hashrate()
-        current_power = miner_controller.get_miner_power()
-        miner.update_status(current_status, current_hashrate, current_power)
-
-        # Update model if available and it has changed
+        # Update model if available and it has changed (static config update)
         current_model = miner_controller.get_model()
         if current_model and miner.model != current_model:
             miner.model = current_model
-
-        # Persist the observed state
-        self.miner_repo.update(miner)
+            self.miner_repo.update(miner)
 
         success = miner_controller.stop_miner()
 
         if success:
             if self.logger:
                 self.logger.info(f"Miner {miner.id} ({miner.name}) stopped successfully.")
-
-            # Update domain state
-            miner.turn_off()
-            self.miner_repo.update(miner)
 
             # Publish miner state changed event
             if self._event_bus:
@@ -193,13 +176,7 @@ class MinerActionService(MinerActionServiceInterface):
         if not miner_controller:
             raise MinerControllerConfigurationError(f"Miner controller for miner {miner_id} is not configured.")
 
-        # Update miner status using controller
-        current_status = miner_controller.get_miner_status()
         current_power = miner_controller.get_miner_power()
-        miner.update_status(new_status=current_status, power=current_power)
-
-        # Persist the observed state
-        self.miner_repo.update(miner)
 
         return current_power
 
@@ -219,23 +196,18 @@ class MinerActionService(MinerActionServiceInterface):
         if not miner_controller:
             raise MinerControllerConfigurationError(f"Miner controller for miner {miner_id} is not configured.")
 
-        # Update miner status using controller
-        current_status = miner_controller.get_miner_status()
         current_hashrate = miner_controller.get_miner_hashrate()
-        miner.update_status(new_status=current_status, hash_rate=current_hashrate)
 
-        # Update model if available and it has changed
+        # Update model if available and it has changed (static config update)
         current_model = miner_controller.get_model()
         if current_model and miner.model != current_model:
             miner.model = current_model
-
-        # Persist the observed state
-        self.miner_repo.update(miner)
+            self.miner_repo.update(miner)
 
         return current_hashrate
 
-    async def get_miner_status(self, miner_id: EntityId) -> MinerStatus:
-        """Gets the current status of the specified miner."""
+    async def get_miner_status(self, miner_id: EntityId) -> MinerStateSnapshot:
+        """Gets the current status of the specified miner as a state snapshot."""
         if self.logger:
             self.logger.info(f"Getting status for miner {miner_id}")
 
@@ -250,32 +222,33 @@ class MinerActionService(MinerActionServiceInterface):
         if not miner_controller:
             raise MinerControllerConfigurationError(f"Miner controller for miner {miner_id} is not configured.")
 
-        # Update miner status using controller
+        # Query current state from controller
         current_status = miner_controller.get_miner_status()
         current_hashrate = miner_controller.get_miner_hashrate()
         current_power = miner_controller.get_miner_power()
-        miner.update_status(current_status, current_hashrate, current_power)
 
-        # Update model if available and it has changed
+        # Update model if available and it has changed (static config update)
         current_model = miner_controller.get_model()
         if current_model and miner.model != current_model:
             miner.model = current_model
+            self.miner_repo.update(miner)
 
-        # Persist the observed state
-        self.miner_repo.update(miner)
-
-        return current_status
+        return MinerStateSnapshot(
+            status=current_status,
+            hash_rate=current_hashrate,
+            power_consumption=current_power,
+        )
 
     async def sync_all_miners(self, include_inactive: bool = False) -> None:
         """Synchronizes the status of all miners from their controllers.
 
-        This method retrieves all miners from the repository and updates their
-        status by querying their respective controllers. Miners without a configured
-        controller or with errors are logged but do not block the synchronization
-        of other miners.
+        This method retrieves all miners from the repository and queries their
+        respective controllers. Miners without a configured controller or with
+        errors are logged but do not block the synchronization of other miners.
 
-        This is typically called during application startup to ensure the system
-        state reflects the actual hardware state.
+        Static configuration (model) is updated if detected from the controller.
+        Runtime state (status, hashrate, power) is not persisted — it is
+        captured in MinerStateSnapshot as needed by consumers.
         """
         if self.logger:
             self.logger.info("Starting synchronization of all miners status...")
@@ -308,19 +281,16 @@ class MinerActionService(MinerActionServiceInterface):
                     error_count += 1
                     continue
 
-                # Update miner status using controller
+                # Query current state from controller (for logging purposes)
                 current_status = miner_controller.get_miner_status()
                 current_hashrate = miner_controller.get_miner_hashrate()
                 current_power = miner_controller.get_miner_power()
-                miner.update_status(current_status, current_hashrate, current_power)
 
-                # Update model if available and it has changed
+                # Update model if available and it has changed (static config update)
                 current_model = miner_controller.get_model()
                 if current_model and miner.model != current_model:
                     miner.model = current_model
-
-                # Persist the observed state
-                self.miner_repo.update(miner)
+                    self.miner_repo.update(miner)
 
                 synced_count += 1
 
@@ -342,8 +312,8 @@ class MinerActionService(MinerActionServiceInterface):
         if self.logger:
             self.logger.info(f"Miners status synchronization completed: {synced_count} synced, {error_count} errors.")
 
-    async def get_miner_details_from_controller(self, controller_id: EntityId) -> Miner:
-        """Get details of a miner from its controller."""
+    async def get_miner_details_from_controller(self, controller_id: EntityId) -> MinerStateSnapshot:
+        """Get details of a miner from its controller as a state snapshot."""
         if self.logger:
             self.logger.info(f"Getting miner details from controller {controller_id}")
 
@@ -351,7 +321,6 @@ class MinerActionService(MinerActionServiceInterface):
         temp_miner = Miner(
             name="Unknown",
             model="Unknown",
-            status=MinerStatus.UNKNOWN,
             hash_rate_max=None,
             power_consumption_max=None,
             controller_id=controller_id,
@@ -365,14 +334,12 @@ class MinerActionService(MinerActionServiceInterface):
             raise MinerControllerNotFoundError(f"Controller with ID {controller_id} not found.")
 
         # Retrieve details from the controller
-        current_model = miner_controller.get_model()
         current_status = miner_controller.get_miner_status()
         current_hashrate = miner_controller.get_miner_hashrate()
         current_power = miner_controller.get_miner_power()
 
         has_no_details = all(
             (
-                not current_model,
                 current_status == MinerStatus.UNKNOWN,
                 current_hashrate is None,
                 current_power is None,
@@ -390,19 +357,13 @@ class MinerActionService(MinerActionServiceInterface):
                 f"{controller_id}. Check controller connectivity and configuration."
             )
 
-        miner = Miner(
-            name="",
-            model=current_model,
+        snapshot = MinerStateSnapshot(
             status=current_status,
-            hash_rate_max=None,
             hash_rate=current_hashrate,
-            power_consumption_max=None,
             power_consumption=current_power,
-            controller_id=controller_id,
-            active=True,
         )
 
         if self.logger:
             self.logger.debug(f"Retrieved miner details for controller {controller_id}")
 
-        return miner
+        return snapshot

@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field, field_serializer, field_validator
 from edge_mining.domain.common import EntityId, Watts
 from edge_mining.domain.miner.common import MinerControllerAdapter, MinerControllerProtocol, MinerStatus
 from edge_mining.domain.miner.entities import Miner, MinerController
-from edge_mining.domain.miner.value_objects import HashRate
+from edge_mining.domain.miner.value_objects import HashRate, MinerStateSnapshot
 from edge_mining.shared.adapter_configs.miner import (
     MinerControllerDummyConfig,
     MinerControllerGenericSocketHomeAssistantAPIConfig,
@@ -53,10 +53,7 @@ class MinerSchema(BaseModel):
     id: str = Field(..., description="Unique identifier for the miner")
     name: str = Field(default="", description="Miner name")
     model: Optional[str] = Field(default=None, description="Miner model/hardware identifier")
-    status: MinerStatus = Field(default=MinerStatus.UNKNOWN, description="Current miner status")
-    hash_rate: Optional[HashRateSchema] = Field(default=None, description="Current hash rate")
     hash_rate_max: Optional[HashRateSchema] = Field(default=None, description="Maximum hash rate")
-    power_consumption: Optional[float] = Field(default=None, description="Current power consumption in Watts")
     power_consumption_max: Optional[float] = Field(default=None, ge=0, description="Maximum power consumption in Watts")
     active: bool = Field(default=True, description="Whether the miner is active in the system")
     controller_id: Optional[str] = Field(default=None, description="ID of the associated Miner controller")
@@ -102,10 +99,6 @@ class MinerSchema(BaseModel):
     @classmethod
     def from_model(cls, miner: Miner) -> "MinerSchema":
         """Create MinerSchema from a Miner domain model instance."""
-        hash_rate: Optional[HashRateSchema] = None
-        if miner.hash_rate:
-            hash_rate = HashRateSchema(value=miner.hash_rate.value, unit=miner.hash_rate.unit)
-
         hash_rate_max: Optional[HashRateSchema] = None
         if miner.hash_rate_max:
             hash_rate_max = HashRateSchema(value=miner.hash_rate_max.value, unit=miner.hash_rate_max.unit)
@@ -114,10 +107,7 @@ class MinerSchema(BaseModel):
             id=str(miner.id),
             name=miner.name,
             model=miner.model,
-            status=miner.status,
-            hash_rate=hash_rate,
             hash_rate_max=hash_rate_max,
-            power_consumption=miner.power_consumption,
             power_consumption_max=miner.power_consumption_max,
             active=miner.active,
             controller_id=str(miner.controller_id) if miner.controller_id else None,
@@ -139,12 +129,9 @@ class MinerSchema(BaseModel):
             id=EntityId(uuid.UUID(self.id)),
             name=self.name,
             model=self.model,
-            status=self.status,
-            hash_rate=(HashRate(value=self.hash_rate.value, unit=self.hash_rate.unit) if self.hash_rate else None),
             hash_rate_max=(
                 HashRate(value=self.hash_rate_max.value, unit=self.hash_rate_max.unit) if self.hash_rate_max else None
             ),
-            power_consumption=Watts(self.power_consumption) if self.power_consumption is not None else None,
             power_consumption_max=Watts(self.power_consumption_max) if self.power_consumption_max is not None else None,
             active=self.active,
             controller_id=EntityId(uuid.UUID(self.controller_id)) if self.controller_id else None,
@@ -158,8 +145,45 @@ class MinerSchema(BaseModel):
         arbitrary_types_allowed = True
         json_encoders = {
             uuid.UUID: str,
-            MinerStatus: lambda v: v.value,
             MinerControllerAdapter: lambda v: v.value,
+        }
+
+
+class MinerStateSnapshotSchema(BaseModel):
+    """Schema for MinerStateSnapshot value object (runtime operational state)."""
+
+    status: MinerStatus = Field(default=MinerStatus.UNKNOWN, description="Current miner status")
+    hash_rate: Optional[HashRateSchema] = Field(default=None, description="Current hash rate")
+    power_consumption: Optional[float] = Field(default=None, description="Current power consumption in Watts")
+
+    @classmethod
+    def from_model(cls, snapshot: MinerStateSnapshot) -> "MinerStateSnapshotSchema":
+        """Create MinerStateSnapshotSchema from a MinerStateSnapshot value object."""
+        hash_rate: Optional[HashRateSchema] = None
+        if snapshot.hash_rate:
+            hash_rate = HashRateSchema(value=snapshot.hash_rate.value, unit=snapshot.hash_rate.unit)
+
+        return cls(
+            status=snapshot.status,
+            hash_rate=hash_rate,
+            power_consumption=snapshot.power_consumption,
+        )
+
+    def to_model(self) -> MinerStateSnapshot:
+        """Convert MinerStateSnapshotSchema to MinerStateSnapshot value object."""
+        return MinerStateSnapshot(
+            status=MinerStatus(self.status) if isinstance(self.status, str) else self.status,
+            hash_rate=(HashRate(value=self.hash_rate.value, unit=self.hash_rate.unit) if self.hash_rate else None),
+            power_consumption=Watts(self.power_consumption) if self.power_consumption is not None else None,
+        )
+
+    class Config:
+        """Pydantic configuration."""
+
+        use_enum_values = True
+        validate_assignment = True
+        json_encoders = {
+            MinerStatus: lambda v: v.value,
         }
 
 
@@ -198,12 +222,9 @@ class MinerCreateSchema(BaseModel):
             id=EntityId(uuid.uuid4()),
             name=self.name,
             model=self.model,
-            status=MinerStatus.UNKNOWN,
-            hash_rate=None,
             hash_rate_max=(
                 HashRate(value=self.hash_rate_max.value, unit=self.hash_rate_max.unit) if self.hash_rate_max else None
             ),
-            power_consumption=None,
             power_consumption_max=Watts(self.power_consumption_max) if self.power_consumption_max is not None else None,
             active=True,
             controller_id=EntityId(uuid.UUID(self.controller_id)) if self.controller_id else None,

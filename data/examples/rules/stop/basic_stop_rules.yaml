@@ -45,7 +45,7 @@ rules:
         - field: "timestamp.hour"
           operator: "eq"
           value: 3  # 3 AM maintenance window
-        - field: "miner.status"
+        - field: "miner_state.status"
           operator: "eq"
           value: "ERROR"
     priority: 20
@@ -58,7 +58,7 @@ rules:
         - field: "timestamp.hour"
           operator: "in"
           value: [6, 7, 8]  # Early morning
-        - field: "miner.status"
+        - field: "miner_state.status"
           operator: "eq"
           value: "ERROR"
     priority: 20

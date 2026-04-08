@@ -26,7 +26,8 @@ class TestRuleEvaluator(unittest.TestCase):
         self.mock_context.energy_state.production = 1200
 
         self.mock_context.miner = Mock()
-        self.mock_context.miner.status = "ON"
+        self.mock_context.miner_state = Mock()
+        self.mock_context.miner_state.status = "ON"
 
         self.mock_context.timestamp = datetime(2025, 8, 13, 14, 30)  # Tuesday 14:30
 
@@ -83,7 +84,7 @@ class TestRuleEvaluator(unittest.TestCase):
     def test_convert_conditions_to_schema_rule_condition(self):
         """Test converting dict to RuleConditionSchema."""
         conditions_dict = {
-            "field": "miner.status",
+            "field": "miner_state.status",
             "operator": "eq",
             "value": "ON",
         }
@@ -91,7 +92,7 @@ class TestRuleEvaluator(unittest.TestCase):
         result = RuleEvaluator._convert_conditions_to_schema(conditions_dict)
 
         self.assertIsInstance(result, RuleConditionSchema)
-        self.assertEqual(result.field, "miner.status")
+        self.assertEqual(result.field, "miner_state.status")
         self.assertEqual(result.operator, OperatorType.EQ)
         self.assertEqual(result.value, "ON")
 

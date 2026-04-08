@@ -27,7 +27,7 @@ from edge_mining.domain.forecast.ports import ForecastProviderRepository
 from edge_mining.domain.home_load.entities import HomeForecastProvider
 from edge_mining.domain.home_load.exceptions import HomeForecastProviderNotFoundError
 from edge_mining.domain.home_load.ports import HomeForecastProviderRepository
-from edge_mining.domain.miner.common import MinerControllerAdapter, MinerStatus
+from edge_mining.domain.miner.common import MinerControllerAdapter
 from edge_mining.domain.miner.entities import Miner, MinerController
 from edge_mining.domain.miner.exceptions import (
     MinerControllerConfigurationError,
@@ -1294,7 +1294,6 @@ class ConfigurationService(ConfigurationServiceInterface):
         self,
         name: str,
         model: Optional[str] = None,
-        status: MinerStatus = MinerStatus.UNKNOWN,
         hash_rate_max: Optional[HashRate] = None,
         power_consumption_max: Optional[Watts] = None,
         controller_id: Optional[EntityId] = None,
@@ -1313,7 +1312,6 @@ class ConfigurationService(ConfigurationServiceInterface):
         miner = Miner(
             name=name,
             model=model,
-            status=status,
             hash_rate_max=hash_rate_max,
             power_consumption_max=power_consumption_max,
             controller_id=controller_id,

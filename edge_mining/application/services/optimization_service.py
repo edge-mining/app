@@ -32,7 +32,7 @@ from edge_mining.domain.miner.common import MinerStatus
 from edge_mining.domain.miner.entities import Miner
 from edge_mining.domain.miner.exceptions import MinerError
 from edge_mining.domain.miner.ports import MinerControlPort, MinerRepository
-from edge_mining.domain.miner.value_objects import HashRate
+from edge_mining.domain.miner.value_objects import HashRate, MinerStateSnapshot
 from edge_mining.domain.notification.ports import NotificationPort
 from edge_mining.domain.optimization_unit.aggregate_roots import EnergyOptimizationUnit
 from edge_mining.domain.optimization_unit.exceptions import OptimizationUnitNotFoundError
@@ -244,6 +244,7 @@ class OptimizationService(OptimizationServiceInterface):
             miner_ids = optimization_unit.target_miner_ids
 
             miner: Optional[Miner] = None
+            miner_state: Optional[MinerStateSnapshot] = None
             for miner_id in miner_ids:
                 # --- Miner ---
                 miner = self.miner_repo.get_by_id(miner_id)
@@ -279,19 +280,19 @@ class OptimizationService(OptimizationServiceInterface):
                         )
                     continue  # Try next miner if available
 
-                # Update miner status using controller
+                # Query current state from controller
                 current_status = miner_controller.get_miner_status()
                 current_hashrate = miner_controller.get_miner_hashrate()
                 current_power = miner_controller.get_miner_power()
 
-                # Update the domain model
-                miner.update_status(
-                    new_status=current_status,
+                # Build the miner state snapshot
+                miner_state = MinerStateSnapshot(
+                    status=current_status,
                     hash_rate=current_hashrate,
-                    power=current_power,
+                    power_consumption=current_power,
                 )
 
-                # Update model if available and it has changed
+                # Update model if available and it has changed (static config update)
                 current_model = miner_controller.get_model()
                 if current_model and miner.model != current_model:
                     miner.model = current_model
@@ -345,6 +346,7 @@ class OptimizationService(OptimizationServiceInterface):
             tracker_current_hashrate=tracker_current_hashrate,
             sun=sun,
             miner=miner,
+            miner_state=miner_state,
         )
 
         # Publish decisional context event
@@ -728,25 +730,23 @@ class OptimizationService(OptimizationServiceInterface):
 
         # Get current status and make decision
         try:
-            # Update miner status using controller
+            # Query current state from controller
             current_status = miner_controller.get_miner_status()
             current_hashrate = miner_controller.get_miner_hashrate()
             current_power = miner_controller.get_miner_power()
 
-            # Update the domain model
-            miner.update_status(
-                new_status=current_status,
+            # Build the miner state snapshot
+            miner_state = MinerStateSnapshot(
+                status=current_status,
                 hash_rate=current_hashrate,
-                power=current_power,
+                power_consumption=current_power,
             )
 
-            # Update model if available and it has changed
+            # Update model if available and it has changed (static config update)
             current_model = miner_controller.get_model()
             if current_model and miner.model != current_model:
                 miner.model = current_model
-
-            # Persist the observed state
-            self.miner_repo.update(miner)
+                self.miner_repo.update(miner)
 
             # Creates a copy of the context with the miner included, so that the policy
             # can access miner-specific data, without modifying the original context.
@@ -759,7 +759,8 @@ class OptimizationService(OptimizationServiceInterface):
                 home_load_forecast=context.home_load_forecast,
                 tracker_current_hashrate=context.tracker_current_hashrate,
                 sun=context.sun,
-                miner=miner,  # Add the miner to the context
+                miner=miner,  # Static config
+                miner_state=miner_state,  # Runtime state snapshot
             )
 
             # Create the rule engine instance
@@ -891,30 +892,6 @@ class OptimizationService(OptimizationServiceInterface):
                     f"Command {decision.name} for miner {miner_id} failed using controller {type(controller).__name__}."
                 )
         elif action_taken and success:
-            # We might want to update the expected state in the miner entity here,
-            # and then the next iteration will confirm with get_miner_status.
-            miner = self.miner_repo.get_by_id(miner_id)
-            if miner:
-                if decision == MiningDecision.START_MINING:
-                    miner.turn_on()
-                elif decision == MiningDecision.STOP_MINING:
-                    miner.turn_off()
-                self.miner_repo.update(miner)  # If the repo needs to track the state
-            if miner:
-                if decision == MiningDecision.START_MINING:
-                    miner.turn_on()
-                elif decision == MiningDecision.STOP_MINING:
-                    miner.turn_off()
-                self.miner_repo.update(miner)  # If the repo needs to track the state
-
-            # Publish miner state changed event
-            new_status = MinerStatus.ON if decision == MiningDecision.START_MINING else MinerStatus.OFF
-            if self._event_bus:
-                await self._event_bus.publish(
-                    MinerStateChangedEvent(
-                        miner_id=miner_id,
-                        miner_name=miner.name if miner else "",
-                        old_status=current_status,
-                        new_status=new_status,
-                    )
-                )
+            # State is no longer persisted on the Miner entity.
+            # The next optimization iteration will query the controller for current status.
+            pass
