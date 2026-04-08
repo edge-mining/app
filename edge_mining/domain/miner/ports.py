@@ -242,6 +242,28 @@ class ModelDetectionPort(MinerFeaturePort):
         raise NotImplementedError
 
 
+class MaxPowerDetectionPort(MinerFeaturePort):
+    """Port for detecting miner maximum power consumption."""
+
+    feature_type = MinerFeatureType.MAX_POWER_DETECTION
+
+    @abstractmethod
+    async def get_max_power(self) -> Optional[Watts]:
+        """Gets the maximum power consumption of the miner, if available."""
+        raise NotImplementedError
+
+
+class MaxHashrateDetectionPort(MinerFeaturePort):
+    """Port for detecting miner maximum hash rate."""
+
+    feature_type = MinerFeatureType.MAX_HASHRATE_DETECTION
+
+    @abstractmethod
+    async def get_max_hashrate(self) -> Optional[HashRate]:
+        """Gets the maximum hash rate of the miner, if available."""
+        raise NotImplementedError
+
+
 # --- Repository Ports ---
 
 

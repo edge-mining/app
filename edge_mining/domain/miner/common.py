@@ -40,6 +40,8 @@ class MinerFeatureType(Enum):
 
     # Info
     MODEL_DETECTION = "model_detection"
+    MAX_POWER_DETECTION = "max_power_detection"
+    MAX_HASHRATE_DETECTION = "max_hashrate_detection"
 
 
 class MinerControllerAdapter(AdapterType):

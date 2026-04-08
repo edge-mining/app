@@ -24,6 +24,8 @@ from edge_mining.domain.miner.ports import (
     InletTemperatureMonitorPort,
     InternalFanControlPort,
     InternalFanSpeedMonitorPort,
+    MaxHashrateDetectionPort,
+    MaxPowerDetectionPort,
     MiningControlPort,
     ModelDetectionPort,
     OutletTemperatureMonitorPort,
@@ -96,6 +98,8 @@ class PyASICMinerController(
     MiningControlPort,
     InternalFanControlPort,
     ModelDetectionPort,
+    MaxPowerDetectionPort,
+    MaxHashrateDetectionPort,
 ):
     """Controls a miner via pyasic. Implements multiple feature ports."""
 
@@ -190,6 +194,66 @@ class PyASICMinerController(
             return None
 
         return self._miner.model or None
+
+    # --- MaxPowerDetectionPort ---
+
+    async def get_max_power(self) -> Optional[Watts]:
+        """Gets the maximum power consumption of the miner, if available."""
+
+        if self.logger:
+            self.logger.debug(f"Fetching max power from {self.ip}...")
+
+        await self._get_miner()
+
+        if not self._miner:
+            if self.logger:
+                self.logger.error(f"Failed to retrieve miner instance from {self.ip}...")
+            return None
+
+        miner = self._miner
+        wattage = await miner.get_wattage_limit()
+        if wattage is None:
+            if self.logger:
+                self.logger.debug(f"Failed to fetch max power from {self.ip}...")
+            return None
+        max_power_watts = Watts(wattage)
+
+        if self.logger:
+            self.logger.debug(f"Max power fetched: {max_power_watts}")
+
+        return max_power_watts
+
+    # --- MaxHashrateDetectionPort ---
+
+    async def get_max_hashrate(self) -> Optional[HashRate]:
+        """Gets the maximum hash rate of the miner, if available."""
+
+        if self.logger:
+            self.logger.debug(f"Fetching max hash rate from {self.ip}...")
+
+        await self._get_miner()
+
+        if not self._miner:
+            if self.logger:
+                self.logger.error(f"Failed to retrieve miner instance from {self.ip}...")
+            return None
+
+        miner = self._miner
+        hashrate = await miner.get_expected_hashrate()
+        if hashrate is None:
+            if self.logger:
+                self.logger.debug(f"Failed to fetch max hash rate from {self.ip}...")
+            return None
+        normalized_value, normalized_unit = self._normalize_hashrate_unit(
+            value=float(hashrate),
+            unit=str(hashrate.unit),
+        )
+        max_hashrate = HashRate(value=normalized_value, unit=normalized_unit)
+
+        if self.logger:
+            self.logger.debug(f"Max hash rate fetched: {max_hashrate}")
+
+        return max_hashrate
 
     # --- HashrateMonitorPort ---
 
