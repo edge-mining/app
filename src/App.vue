@@ -1,11 +1,34 @@
 <script setup lang="ts">
-import { ref, defineAsyncComponent } from "vue";
+import { ref, defineAsyncComponent, computed } from "vue";
 import SidebarMenu from "./components/SidebarMenu.vue";
 import TopBar from "./components/TopBar.vue";
+import { useAppStore } from "./core/stores/appStore";
+import { PhCheckCircle, PhWarning, PhInfo, PhXCircle } from "@phosphor-icons/vue";
 
 const BottomBar = defineAsyncComponent(() => import("./components/BottomBar.vue"));
 
 const showDrawer = ref(true);
+const appStore = useAppStore();
+
+const toastIcon = computed(() => {
+  switch (appStore.userNotification?.status) {
+    case "success": return PhCheckCircle;
+    case "warning": return PhWarning;
+    case "info": return PhInfo;
+    case "error": return PhXCircle;
+    default: return PhInfo;
+  }
+});
+
+const toastClass = computed(() => {
+  switch (appStore.userNotification?.status) {
+    case "success": return "alert-success";
+    case "warning": return "alert-warning";
+    case "info": return "alert-info";
+    case "error": return "alert-error";
+    default: return "alert-info";
+  }
+});
 </script>
 
 <template>
@@ -32,6 +55,31 @@ const showDrawer = ref(true);
       <BottomBar />
     </div>
   </div>
+
+  <!-- Toast Notifications -->
+  <div class="toast toast-end toast-bottom z-50">
+    <Transition name="slide-fade">
+      <div v-if="appStore.userNotification" class="alert" :class="toastClass">
+        <component :is="toastIcon" :size="20" weight="bold" />
+        <span>{{ appStore.userNotification.message }}</span>
+      </div>
+    </Transition>
+  </div>
 </template>
 
-<style scoped></style>
+<style scoped>
+.slide-fade-enter-active {
+  transition: all 0.3s ease-out;
+}
+.slide-fade-leave-active {
+  transition: all 0.2s ease-in;
+}
+.slide-fade-enter-from {
+  transform: translateX(20px);
+  opacity: 0;
+}
+.slide-fade-leave-to {
+  transform: translateX(20px);
+  opacity: 0;
+}
+</style>

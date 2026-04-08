@@ -1,4 +1,10 @@
-export type EnergyMonitorAdapter = string;
+export const EnergyMonitorAdapter = {
+  DUMMY_SOLAR: "dummy_solar",
+  HOME_ASSISTANT_API: "home_assistant_api",
+  HOME_ASSISTANT_MQTT: "home_assistant_mqtt"
+} as const;
+
+export type EnergyMonitorAdapter = typeof EnergyMonitorAdapter[keyof typeof EnergyMonitorAdapter];
 
 export interface EnergyMonitorConfig {
   [key: string]: any;

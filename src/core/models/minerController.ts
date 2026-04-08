@@ -1,4 +1,10 @@
-export type MinerControllerAdapter = string;
+export const MinerControllerAdapter = {
+  DUMMY: "dummy",
+  GENERIC_SOCKET_HOME_ASSISTANT_API: "generic_socket_home_assistant_api",
+  PYASIC: "pyasic"
+} as const;
+
+export type MinerControllerAdapter = typeof MinerControllerAdapter[keyof typeof MinerControllerAdapter];
 
 export interface MinerControllerConfig {
   [key: string]: any;

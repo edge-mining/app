@@ -1,13 +1,20 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useOptimizationUnitStore } from "../../core/stores/optimizationUnitStore";
 import { usePolicyStore } from "../../core/stores/policyStore";
 import { useMinerStore } from "../../core/stores/minerStore";
 import { useEnergySourceStore } from "../../core/stores/energySourceStore";
 import { useForecastProviderStore } from "../../core/stores/forecastProviderStore";
 import { useNotifierStore } from "../../core/stores/notifierStore";
-import OptimizationUnitRow from "../../components/optimizationUnits/OptimizationUnitRow.vue";
+import OptimizationUnitCard from "../../components/optimizationUnits/OptimizationUnitCard.vue";
+import OptimizationUnitFormModal from "../../components/optimizationUnits/OptimizationUnitFormModal.vue";
 import type { OptimizationUnit } from "../../core/models/optimizationUnit";
+import type { OptimizationUnitCreate } from "../../core/models/optimizationUnit";
+import {
+  PhPlus,
+  PhGear,
+  PhPower,
+} from "@phosphor-icons/vue";
 
 const optimizationUnitStore = useOptimizationUnitStore();
 const policyStore = usePolicyStore();
@@ -16,22 +23,41 @@ const energySourceStore = useEnergySourceStore();
 const forecastProviderStore = useForecastProviderStore();
 const notifierStore = useNotifierStore();
 
-// Form data used for both add and edit
-const formData = ref({
-  name: "",
-  description: "",
-  policy_id: undefined as string | undefined,
-  energy_source_id: undefined as string | undefined,
-  home_forecast_provider_id: undefined as string | undefined,
+// Modal state
+const showModal = ref(false);
+const editingUnit = ref<OptimizationUnit | undefined>(undefined);
+const isEditMode = ref(false);
+
+// Filter state
+const selectedFilter = ref<"all" | "enabled" | "disabled">("all");
+
+const filterTabs = [
+  { value: "all" as const, label: "All", icon: PhGear },
+  { value: "enabled" as const, label: "Enabled", icon: PhPower },
+  { value: "disabled" as const, label: "Disabled", icon: PhPower },
+];
+
+const filteredUnits = computed(() => {
+  if (selectedFilter.value === "enabled") {
+    return optimizationUnitStore.optimizationUnits.filter((u) => u.is_enabled);
+  }
+  if (selectedFilter.value === "disabled") {
+    return optimizationUnitStore.optimizationUnits.filter((u) => !u.is_enabled);
+  }
+  return optimizationUnitStore.optimizationUnits;
 });
 
-const editingUnitId = ref<string | undefined>(undefined);
-const showModal = ref(false);
-const isEditing = ref(false);
+// Stats
+const stats = computed(() => {
+  const units = optimizationUnitStore.optimizationUnits;
+  const totalUnits = units.length;
+  const enabledUnits = units.filter((u) => u.is_enabled).length;
+  const withPolicy = units.filter((u) => u.policy_id).length;
+  const uniqueMinerIds = new Set(units.flatMap((u) => u.target_miner_ids));
+  const totalMiners = uniqueMinerIds.size;
 
-// Multi-select state for miners and notifiers
-const selectedMinerIds = ref<string[]>([]);
-const selectedNotifierIds = ref<string[]>([]);
+  return { totalUnits, enabledUnits, withPolicy, totalMiners };
+});
 
 onMounted(() => {
   optimizationUnitStore.loadOptimizationUnits();
@@ -42,88 +68,59 @@ onMounted(() => {
   notifierStore.loadNotifiers();
 });
 
-function resetForm() {
-  formData.value = {
-    name: "",
-    description: "",
-    policy_id: undefined,
-    energy_source_id: undefined,
-    home_forecast_provider_id: undefined,
-  };
-  selectedMinerIds.value = [];
-  selectedNotifierIds.value = [];
-  editingUnitId.value = undefined;
-}
-
-function addUnit() {
-  resetForm();
-  isEditing.value = false;
+function openAddModal() {
+  editingUnit.value = undefined;
+  isEditMode.value = false;
   showModal.value = true;
 }
 
 function handleEdit(unit: OptimizationUnit) {
-  formData.value = {
-    name: unit.name,
-    description: unit.description || "",
-    policy_id: unit.policy_id,
-    energy_source_id: unit.energy_source_id,
-    home_forecast_provider_id: unit.home_forecast_provider_id,
-  };
-  selectedMinerIds.value = [...unit.target_miner_ids];
-  selectedNotifierIds.value = [...unit.notifier_ids];
-  editingUnitId.value = unit.id;
-  isEditing.value = true;
+  editingUnit.value = { ...unit };
+  isEditMode.value = true;
   showModal.value = true;
 }
 
-function cancelModal() {
-  resetForm();
-  isEditing.value = false;
+function handleCloseModal() {
   showModal.value = false;
+  editingUnit.value = undefined;
 }
 
-function confirmAdd() {
-  const unitToAdd = {
-    name: formData.value.name,
-    description: formData.value.description || undefined,
-    policy_id: formData.value.policy_id,
-    target_miner_ids: selectedMinerIds.value,
-    energy_source_id: formData.value.energy_source_id,
-    home_forecast_provider_id: formData.value.home_forecast_provider_id,
-    notifier_ids: selectedNotifierIds.value,
-  };
-  optimizationUnitStore.addOptimizationUnit(unitToAdd).then(() => {
-    optimizationUnitStore.loadOptimizationUnits();
-    resetForm();
-    showModal.value = false;
-  });
-}
-
-function confirmEdit() {
-  if (!editingUnitId.value) return;
-  const unitToUpdate = {
-    name: formData.value.name,
-    description: formData.value.description || undefined,
-    policy_id: formData.value.policy_id,
-    target_miner_ids: selectedMinerIds.value,
-    energy_source_id: formData.value.energy_source_id,
-    home_forecast_provider_id: formData.value.home_forecast_provider_id,
-    notifier_ids: selectedNotifierIds.value,
-  };
-  optimizationUnitStore
-    .updateOptimizationUnit(editingUnitId.value, unitToUpdate)
-    .then(() => {
-      optimizationUnitStore.loadOptimizationUnits();
-      resetForm();
-      isEditing.value = false;
-      showModal.value = false;
-    });
+function handleSave(data: OptimizationUnitCreate) {
+  if (isEditMode.value && editingUnit.value?.id) {
+    optimizationUnitStore
+      .updateOptimizationUnit(editingUnit.value.id, data)
+      .then(() => {
+        optimizationUnitStore.loadOptimizationUnits();
+        handleCloseModal();
+      })
+      .showToasts(
+        "Optimization unit updated successfully",
+        "Failed to update optimization unit"
+      );
+  } else {
+    optimizationUnitStore
+      .addOptimizationUnit(data)
+      .then(() => {
+        optimizationUnitStore.loadOptimizationUnits();
+        handleCloseModal();
+      })
+      .showToasts(
+        "Optimization unit created successfully",
+        "Failed to create optimization unit"
+      );
+  }
 }
 
 function handleDelete(unit: OptimizationUnit) {
-  optimizationUnitStore.deleteOptimizationUnit(unit.id!).then(() => {
-    optimizationUnitStore.loadOptimizationUnits();
-  });
+  optimizationUnitStore
+    .deleteOptimizationUnit(unit.id!)
+    .then(() => {
+      optimizationUnitStore.loadOptimizationUnits();
+    })
+    .showToasts(
+      "Optimization unit deleted successfully",
+      "Failed to delete optimization unit"
+    );
 }
 
 function handleToggleEnabled(unit: OptimizationUnit) {
@@ -131,207 +128,168 @@ function handleToggleEnabled(unit: OptimizationUnit) {
     ? optimizationUnitStore.disableOptimizationUnit(unit.id!)
     : optimizationUnitStore.enableOptimizationUnit(unit.id!);
 
-  action.then(() => {
-    optimizationUnitStore.loadOptimizationUnits();
-  });
+  const verb = unit.is_enabled ? "disabled" : "enabled";
+  action
+    .then(() => {
+      optimizationUnitStore.loadOptimizationUnits();
+    })
+    .showToasts(
+      `Optimization unit ${verb} successfully`,
+      `Failed to ${verb.replace("d", "")} optimization unit`
+    );
 }
 
-function toggleMinerSelection(minerId: string) {
-  const index = selectedMinerIds.value.indexOf(minerId);
-  if (index === -1) {
-    selectedMinerIds.value.push(minerId);
-  } else {
-    selectedMinerIds.value.splice(index, 1);
-  }
-}
-
-function toggleNotifierSelection(notifierId: string) {
-  const index = selectedNotifierIds.value.indexOf(notifierId);
-  if (index === -1) {
-    selectedNotifierIds.value.push(notifierId);
-  } else {
-    selectedNotifierIds.value.splice(index, 1);
-  }
-}
-
-function isMinerSelected(minerId: string): boolean {
-  return selectedMinerIds.value.includes(minerId);
-}
-
-function isNotifierSelected(notifierId: string): boolean {
-  return selectedNotifierIds.value.includes(notifierId);
-}
-
-function handleSubmit() {
-  if (isEditing.value) {
-    confirmEdit();
-  } else {
-    confirmAdd();
-  }
+function getFilterCount(filter: string): number {
+  if (filter === "all") return stats.value.totalUnits;
+  if (filter === "enabled") return stats.value.enabledUnits;
+  return stats.value.totalUnits - stats.value.enabledUnits;
 }
 </script>
 
 <template>
   <div class="card">
     <div class="card-header">
-      <h2>Optimization Units Settings</h2>
+      <!-- Header -->
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <h1 class="text-2xl font-bold text-base-content">Optimization Units</h1>
+          <p class="text-sm text-base-content/60 mt-1">
+            Configure units that orchestrate miners, energy sources, and policies
+          </p>
+        </div>
+
+        <button class="btn btn-primary gap-2" @click="openAddModal">
+          <PhPlus :size="20" weight="bold" />
+          Add Unit
+        </button>
+      </div>
     </div>
     <div class="card-body">
-      <div class="overflow-x-auto">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Enabled</th>
-              <th>Name / Description</th>
-              <th>ID</th>
-              <th>Assignments</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <OptimizationUnitRow v-for="(unit, i) in optimizationUnitStore.optimizationUnits" :key="unit.id"
-              v-model="optimizationUnitStore.optimizationUnits[i]" @edit="handleEdit" @delete="handleDelete"
-              @toggle-enabled="handleToggleEnabled" />
+      <div class="space-y-6">
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+          <div class="stat-card bg-neutral-800/80 border border-base-300/40 rounded-xl p-3 sm:p-4 min-w-0">
+            <div class="stat-value text-primary">{{ stats.totalUnits }}</div>
+            <div class="stat-label">Total Units</div>
+          </div>
+          <div class="stat-card bg-neutral-800/80 border border-base-300/40 rounded-xl p-3 sm:p-4 min-w-0">
+            <div class="stat-value text-teal-400">
+              {{ stats.enabledUnits }} / {{ stats.totalUnits }}
+            </div>
+            <div class="stat-label">Enabled</div>
+          </div>
+          <div class="stat-card bg-neutral-800/80 border border-base-300/40 rounded-xl p-3 sm:p-4 min-w-0">
+            <div class="stat-value text-info">{{ stats.withPolicy }}</div>
+            <div class="stat-label">With Policy</div>
+          </div>
+          <div class="stat-card bg-neutral-800/80 border border-base-300/40 rounded-xl p-3 sm:p-4 min-w-0">
+            <div class="stat-value text-amber-400">{{ stats.totalMiners }}</div>
+            <div class="stat-label">Assigned Miners</div>
+          </div>
+        </div>
 
-            <tr>
-              <th colspan="5" class="text-center">
-                <button class="btn btn-primary" @click="addUnit">
-                  Add Optimization Unit
-                </button>
-              </th>
-            </tr>
-          </tbody>
-        </table>
+        <!-- Filter Tabs -->
+        <div class="flex gap-2 flex-wrap">
+          <button
+            v-for="filter in filterTabs"
+            :key="filter.value"
+            class="btn btn-sm gap-2 transition-all"
+            :class="[
+              selectedFilter === filter.value
+                ? 'btn-primary'
+                : 'btn-ghost opacity-70 hover:opacity-100',
+            ]"
+            @click="selectedFilter = filter.value"
+          >
+            <component :is="filter.icon" :size="16" />
+            {{ filter.label }}
+            <span
+              v-if="getFilterCount(filter.value) > 0"
+              class="badge badge-sm"
+              :class="selectedFilter === filter.value ? 'bg-white/20 text-neutral-900' : 'badge-neutral'"
+            >
+              {{ getFilterCount(filter.value) }}
+            </span>
+          </button>
+        </div>
+
+        <!-- Cards Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <OptimizationUnitCard
+            v-for="unit in filteredUnits"
+            :key="unit.id"
+            :unit="unit"
+            @edit="handleEdit"
+            @delete="handleDelete"
+            @toggle-enabled="handleToggleEnabled"
+          />
+
+          <!-- Empty State -->
+          <div
+            v-if="filteredUnits.length === 0"
+            class="col-span-full flex flex-col items-center justify-center py-16 text-center"
+          >
+            <div class="w-20 h-20 rounded-full bg-base-200 flex items-center justify-center mb-4">
+              <PhGear :size="40" class="text-base-content/30" />
+            </div>
+            <h3 class="text-lg font-semibold text-base-content/80">
+              {{ selectedFilter === "all" ? "No optimization units yet" : "No units with this status" }}
+            </h3>
+            <p class="text-sm text-base-content/50 mt-1 max-w-sm">
+              {{
+                selectedFilter === "all"
+                  ? "Create your first optimization unit to coordinate miners, energy sources, and policies."
+                  : "Try selecting a different filter or add a new optimization unit."
+              }}
+            </p>
+            <button
+              v-if="selectedFilter === 'all'"
+              class="btn btn-primary btn-sm mt-4 gap-2"
+              @click="openAddModal"
+            >
+              <PhPlus :size="16" />
+              Add Unit
+            </button>
+          </div>
+        </div>
+
+        <!-- Form Modal -->
+        <OptimizationUnitFormModal
+          :open="showModal"
+          :unit="editingUnit"
+          :is-edit="isEditMode"
+          @close="handleCloseModal"
+          @save="handleSave"
+        />
       </div>
     </div>
   </div>
-
-  <!-- Modal for adding/editing optimization unit -->
-  <dialog :class="['modal', { 'modal-open': showModal }]">
-    <div class="modal-box max-w-3xl">
-      <h3 class="font-bold text-lg mb-4">
-        {{ isEditing ? "Edit Optimization Unit" : "Add Optimization Unit" }}
-      </h3>
-
-      <form @submit.prevent="handleSubmit" class="flex flex-col gap-4">
-        <!-- Basic Info -->
-        <div class="form-control">
-          <label class="label">
-            <span class="label-text">Name <span class="text-error">*</span></span>
-          </label>
-          <input v-model="formData.name" type="text" placeholder="Optimization unit name" required
-            class="input input-bordered" />
-        </div>
-
-        <div class="form-control">
-          <label class="label">
-            <span class="label-text">Description</span>
-          </label>
-          <textarea v-model="formData.description" placeholder="Optimization unit description"
-            class="textarea textarea-bordered" rows="2"></textarea>
-        </div>
-
-        <!-- Policy Selection -->
-        <div class="form-control">
-          <label class="label">
-            <span class="label-text">Policy</span>
-          </label>
-          <select v-model="formData.policy_id" class="select select-bordered">
-            <option :value="undefined">No policy selected</option>
-            <option v-for="policy in policyStore.policies" :key="policy.id" :value="policy.id?.toString()">
-              {{ policy.name }}
-            </option>
-          </select>
-        </div>
-
-        <!-- Energy Source Selection -->
-        <div class="form-control">
-          <label class="label">
-            <span class="label-text">Energy Source</span>
-          </label>
-          <select v-model="formData.energy_source_id" class="select select-bordered">
-            <option :value="undefined">No energy source selected</option>
-            <option v-for="source in energySourceStore.energySources" :key="source.id" :value="source.id?.toString()">
-              {{ source.name }}
-            </option>
-          </select>
-        </div>
-
-        <!-- Forecast Provider Selection -->
-        <div class="form-control">
-          <label class="label">
-            <span class="label-text">Home Forecast Provider</span>
-          </label>
-          <select v-model="formData.home_forecast_provider_id" class="select select-bordered">
-            <option :value="undefined">No forecast provider selected</option>
-            <option v-for="provider in forecastProviderStore.forecastProviders" :key="provider.id"
-              :value="provider.id?.toString()">
-              {{ provider.name }}
-            </option>
-          </select>
-        </div>
-
-        <!-- Miners Multi-Select -->
-        <div class="form-control">
-          <label class="label">
-            <span class="label-text">Target Miners</span>
-          </label>
-          <div class="border border-base-300 rounded-lg p-3 max-h-48 overflow-y-auto">
-            <div v-if="minerStore.miners.length === 0" class="text-base-content/50 text-center py-2">
-              No miners available
-            </div>
-            <div v-for="miner in minerStore.miners" :key="miner.id" class="form-control">
-              <label class="label cursor-pointer justify-start gap-3 py-1">
-                <input type="checkbox" class="checkbox checkbox-sm checkbox-primary"
-                  :checked="isMinerSelected(miner.id!.toString())"
-                  @change="toggleMinerSelection(miner.id!.toString())" />
-                <span class="label-text">{{ miner.name }}</span>
-              </label>
-            </div>
-          </div>
-          <label class="label">
-            <span class="label-text-alt">{{ selectedMinerIds.length }} miners selected</span>
-          </label>
-        </div>
-
-        <!-- Notifiers Multi-Select -->
-        <div class="form-control">
-          <label class="label">
-            <span class="label-text">Notifiers</span>
-          </label>
-          <div class="border border-base-300 rounded-lg p-3 max-h-48 overflow-y-auto">
-            <div v-if="notifierStore.notifiers.length === 0" class="text-base-content/50 text-center py-2">
-              No notifiers available
-            </div>
-            <div v-for="notifier in notifierStore.notifiers" :key="notifier.id" class="form-control">
-              <label class="label cursor-pointer justify-start gap-3 py-1">
-                <input type="checkbox" class="checkbox checkbox-sm checkbox-primary"
-                  :checked="isNotifierSelected(notifier.id!.toString())"
-                  @change="toggleNotifierSelection(notifier.id!.toString())" />
-                <span class="label-text">{{ notifier.name }}</span>
-              </label>
-            </div>
-          </div>
-          <label class="label">
-            <span class="label-text-alt">{{ selectedNotifierIds.length }} notifiers selected</span>
-          </label>
-        </div>
-
-        <!-- Modal actions -->
-        <div class="modal-action">
-          <button type="button" class="btn btn-secondary" @click="cancelModal">
-            Cancel
-          </button>
-          <button type="submit" class="btn btn-primary">
-            {{ isEditing ? "Save" : "Add" }}
-          </button>
-        </div>
-      </form>
-    </div>
-    <form method="dialog" class="modal-backdrop">
-      <button @click="cancelModal">close</button>
-    </form>
-  </dialog>
 </template>
 
-<style scoped></style>
+<style scoped>
+.stat-card {
+  transition: all 0.2s ease;
+}
+
+.stat-card:hover {
+  border-color: oklch(50% 0 0 / 0.5);
+}
+
+.stat-value {
+  font-weight: 700;
+  font-size: clamp(1.25rem, 4vw, 1.875rem);
+  line-height: 1.2;
+}
+
+.stat-label {
+  font-size: clamp(0.7rem, 2vw, 0.875rem);
+  color: oklch(80% 0 0 / 0.6);
+  margin-top: 0.125rem;
+}
+
+@media (max-width: 640px) {
+  .stat-value {
+    font-size: 1.25rem;
+  }
+}
+</style>

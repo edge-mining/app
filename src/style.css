@@ -89,3 +89,21 @@
     0 10px 15px -3px oklch(0% 0 0 / 0.4),
     0 20px 25px -5px oklch(0% 0 0 / 0.3);
 }
+
+.marquee-on-overflow {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.badge:has(.marquee-on-overflow) {
+  justify-content: flex-start;
+}
+
+.overflow-hidden:hover .marquee-on-overflow {
+  animation: marquee-bounce 3s ease-in-out infinite alternate;
+}
+
+@keyframes marquee-bounce {
+  0%, 20% { transform: translateX(0); }
+  80%, 100% { transform: translateX(min(0px, calc(-100% + 9rem))); }
+}

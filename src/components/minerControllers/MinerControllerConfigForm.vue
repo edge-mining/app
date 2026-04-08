@@ -209,7 +209,7 @@ const isPasswordField = (fieldName: string): boolean => {
 
       <!-- Object type (nested properties) -->
       <div
-        v-else-if="getFieldType(property, schema) === 'object'"
+        v-else-if="getFieldType(property, schema) === 'object' && config[fieldName]"
         class="border border-base-300 rounded-lg p-3 space-y-3"
       >
         <div

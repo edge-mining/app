@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import type { EnergyMonitor } from "../models/energyMonitor";
+import type { EnergyMonitor, EnergyMonitorAdapter } from "../models/energyMonitor";
 import { EnergyMonitorService } from "../services/energyMonitorService";
 
 export const useEnergyMonitorStore = defineStore("energyMonitor", () => {
@@ -8,7 +8,7 @@ export const useEnergyMonitorStore = defineStore("energyMonitor", () => {
 
   // State
   const energyMonitors = ref<EnergyMonitor[]>([]);
-  const adapterTypes = ref<string[]>([]);
+  const adapterTypes = ref<EnergyMonitorAdapter[]>([]);
 
   // Actions
   function loadEnergyMonitors() {

@@ -27,11 +27,11 @@ export const useExternalServiceStore = defineStore("externalService", () => {
 
   async function loadServicesStatus() {
     const statusPromises = externalServices.value.map((svc) => 
-      service.getServiceStatus(String(svc.id))
+      service.getServiceStatus(String(svc.id)).then((status) => ({ id: String(svc.id), status }))
     );
-    const statuses = await Promise.all(statusPromises);
-    statuses.forEach((status) => {
-      serviceStatuses.value.set(status.name, status);
+    const results = await Promise.all(statusPromises);
+    results.forEach(({ id, status }) => {
+      serviceStatuses.value.set(id, status);
     });
   }
 

@@ -34,10 +34,10 @@ export const useAppStore = defineStore("app", () => {
       notification.message,
       extra
     );
-    // userNotification.value = {
-    //   status,
-    //   message: msg,
-    // };
+    userNotification.value = notification;
+    setTimeout(() => {
+      userNotification.value = undefined;
+    }, 4000);
   }
 
   function showSuccessToast(message: string) {

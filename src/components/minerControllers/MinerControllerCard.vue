@@ -1,0 +1,260 @@
+<script setup lang="ts">
+import type { MinerController, MinerControllerAdapter } from "../../core/models/minerController";
+import type { Miner } from "../../core/models/miner";
+import { useExternalServiceStore } from "../../core/stores/externalServiceStore";
+import { computed, ref } from "vue";
+import {
+  PhPencil,
+  PhTrash,
+  PhGear,
+  PhCpu,
+  PhLink,
+  PhPlugs,
+  PhHardDrive,
+  PhPlug,
+} from "@phosphor-icons/vue";
+import ConfirmDialog from "../ConfirmDialog.vue";
+import EdgeMiningCard, { type CardStyleConfig } from "../EdgeMiningCard.vue";
+import DummyMinerIcon from "../icons/DummyMinerIcon.vue";
+import ResourceId from "../ResourceId.vue";
+import { formatType } from "../../core/utils/index";
+
+const props = defineProps<{
+  minerController: MinerController;
+  allMiners?: Miner[];
+}>();
+
+const emit = defineEmits<{
+  edit: [minerController: MinerController];
+  delete: [minerController: MinerController];
+}>();
+
+const externalServiceStore = useExternalServiceStore();
+const showDeleteConfirm = ref(false);
+
+// External service linked
+const externalService = computed(() => {
+  if (!props.minerController.external_service_id) return null;
+  return externalServiceStore.externalServices.find(
+    (es) => es.id?.toString() === props.minerController.external_service_id
+  );
+});
+
+// Assigned miners
+const assignedMiners = computed(() => {
+  if (!props.allMiners || !props.minerController.id) return [];
+  return props.allMiners.filter(
+    (miner) => miner.controller_id === props.minerController.id
+  );
+});
+
+const activeAssignedMiners = computed(() => {
+  return assignedMiners.value.filter((m) => m.active);
+});
+
+const runningAssignedMiners = computed(() => {
+  return assignedMiners.value.filter((m) => m.status === "on");
+});
+
+// Adapter type configuration for styling
+const adapterConfig = computed(() => {
+  const type = props.minerController.adapter_type;
+  
+  // Define configs for known adapter types
+  const configs: Record<MinerControllerAdapter, { icon: typeof PhGear; styleConfig: CardStyleConfig; badgeClass: string }> = {
+    dummy: {
+      icon: DummyMinerIcon as any,
+      badgeClass: "bg-slate-500/20 text-slate-400",
+      styleConfig: {
+        gradient: "hover:from-slate-500/20 hover:to-gray-500/10",
+        iconColor: "text-slate-400",
+        accentBorder: "border-l-base-300/50 hover:border-l-slate-500",
+      },
+    },
+    pyasic: {
+      icon: PhHardDrive,
+      badgeClass: "bg-emerald-500/20 text-emerald-400",
+      styleConfig: {
+        gradient: "hover:from-emerald-500/20 hover:to-green-500/10",
+        iconColor: "text-emerald-400",
+        accentBorder: "border-l-base-300/50 hover:border-l-emerald-500",
+      },
+    },
+    generic_socket_home_assistant_api: {
+      icon: PhPlug,
+      badgeClass: "bg-sky-500/20 text-sky-400",
+      styleConfig: {
+        gradient: "hover:from-sky-500/20 hover:to-blue-500/10",
+        iconColor: "text-sky-400",
+        accentBorder: "border-l-base-300/50 hover:border-l-sky-500",
+      },
+    },
+  };
+
+  return (
+    configs[type] || {
+      icon: PhGear,
+      badgeClass: "bg-slate-500/20 text-slate-400",
+      styleConfig: {
+        gradient: "hover:from-slate-500/20 hover:to-gray-500/10",
+        iconColor: "text-slate-400",
+        accentBorder: "border-l-base-300/50 hover:border-l-slate-500",
+      },
+    }
+  );
+});
+
+function handleEdit() {
+  emit("edit", props.minerController);
+}
+
+function handleDeleteClick() {
+  showDeleteConfirm.value = true;
+}
+
+function confirmDelete() {
+  showDeleteConfirm.value = false;
+  emit("delete", props.minerController);
+}
+
+function cancelDelete() {
+  showDeleteConfirm.value = false;
+}
+</script>
+
+<template>
+  <EdgeMiningCard
+    :icon="adapterConfig.icon"
+    :style-config="adapterConfig.styleConfig"
+    card-class="min-h-[220px]"
+  >
+    <!-- Title -->
+    <template #title>
+      {{ minerController.name }}
+    </template>
+
+    <!-- Badges -->
+    <template #badges>
+      <!-- Adapter Type Badge -->
+      <span class="badge badge-sm max-w-[10rem] px-2 overflow-hidden" :class="adapterConfig.badgeClass" :title="formatType(minerController.adapter_type)">
+        <span class="marquee-on-overflow">{{ formatType(minerController.adapter_type) }}</span>
+      </span>
+      
+      <!-- ID -->
+      <ResourceId v-if="minerController.id" :id="minerController.id" />
+    </template>
+
+    <!-- Actions -->
+    <template #actions>
+      <button
+        class="btn btn-ghost btn-sm btn-square hover:bg-primary/20"
+        title="Edit"
+        @click="handleEdit"
+      >
+        <PhPencil :size="18" class="text-primary" />
+      </button>
+      <button
+        class="btn btn-ghost btn-sm btn-square hover:bg-error/20"
+        title="Delete"
+        @click="handleDeleteClick"
+      >
+        <PhTrash :size="18" class="text-error" />
+      </button>
+    </template>
+
+    <!-- Main Content -->
+    <div class="py-1">
+      <div class="flex items-center gap-2 mb-2">
+        <PhCpu :size="16" class="text-base-content/50" />
+        <span class="text-sm font-medium text-base-content/70">Assigned Miners</span>
+      </div>
+      
+      <div v-if="assignedMiners.length > 0" class="space-y-2">
+        <!-- Stats Row -->
+        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-1.5">
+            <span class="text-2xl font-bold text-base-content">{{ assignedMiners.length }}</span>
+            <span class="text-xs text-base-content/50">total</span>
+          </div>
+          <div class="h-6 w-px bg-base-300/50"></div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-lg font-semibold text-emerald-400">{{ runningAssignedMiners.length }}</span>
+            <span class="text-xs text-base-content/50">running</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-lg font-semibold text-sky-400">{{ activeAssignedMiners.length }}</span>
+            <span class="text-xs text-base-content/50">active</span>
+          </div>
+        </div>
+
+        <!-- Miner Names (collapsed, show first few) -->
+        <div class="flex flex-wrap gap-1.5">
+          <span
+            v-for="miner in assignedMiners.slice(0, 4)"
+            :key="miner.id"
+            class="badge badge-sm badge-ghost"
+            :class="{ 'badge-success badge-outline': miner.status === 'on' }"
+          >
+            {{ miner.name }}
+          </span>
+          <span
+            v-if="assignedMiners.length > 4"
+            class="badge badge-sm badge-ghost"
+          >
+            +{{ assignedMiners.length - 4 }} more
+          </span>
+        </div>
+      </div>
+      
+      <div v-else class="text-sm text-base-content/40 italic py-2">
+        No miners assigned
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <template #footer>
+      <div class="flex items-start justify-between gap-2">
+        <!-- External Service -->
+        <div v-if="externalService" class="flex items-center gap-2 min-w-0 flex-shrink">
+          <div class="h-6 w-6 rounded-full bg-info/20 flex items-center justify-center flex-shrink-0">
+            <PhPlugs :size="14" class="text-info" />
+          </div>
+          <div class="min-w-0">
+            <div class="text-[10px] uppercase tracking-wider text-base-content/40">
+              External Service
+            </div>
+            <div class="text-sm text-base-content/80 leading-tight truncate">
+              {{ externalService.name }}
+            </div>
+          </div>
+        </div>
+        <div v-else class="flex items-center gap-2 text-base-content/30">
+          <PhLink :size="14" />
+          <span class="text-xs italic">No service linked</span>
+        </div>
+
+        <!-- Config indicator -->
+        <div 
+          v-if="minerController.config && Object.keys(minerController.config).length > 0"
+          class="flex items-center gap-1 text-xs text-base-content/40 flex-shrink-0"
+          :title="`${Object.keys(minerController.config).length} config properties`"
+        >
+          <PhGear :size="14" />
+          <span>{{ Object.keys(minerController.config).length }} props</span>
+        </div>
+      </div>
+    </template>
+  </EdgeMiningCard>
+
+  <!-- Delete Confirmation Dialog -->
+  <ConfirmDialog
+    :open="showDeleteConfirm"
+    title="Delete Miner Controller"
+    :message="`Are you sure you want to delete '${minerController.name}'? ${assignedMiners.length > 0 ? `This will unlink ${assignedMiners.length} miner(s).` : ''}`"
+    confirm-text="Delete"
+    variant="danger"
+    @confirm="confirmDelete"
+    @cancel="cancelDelete"
+  />
+</template>
+

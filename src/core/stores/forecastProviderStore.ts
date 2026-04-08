@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import type { ForecastProvider } from "../models/forecastProvider";
+import type { ForecastProvider, ForecastProviderAdapter } from "../models/forecastProvider";
 import { ForecastProviderService } from "../services/forecastProviderService";
 
 export const useForecastProviderStore = defineStore("forecastProvider", () => {
@@ -8,7 +8,7 @@ export const useForecastProviderStore = defineStore("forecastProvider", () => {
 
   // State
   const forecastProviders = ref<ForecastProvider[]>([]);
-  const adapterTypes = ref<string[]>([]);
+  const adapterTypes = ref<ForecastProviderAdapter[]>([]);
 
   // Actions
   function loadForecastProviders() {
