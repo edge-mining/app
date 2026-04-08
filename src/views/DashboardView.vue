@@ -535,6 +535,7 @@ const forecastIntervalData = computed<ForecastIntervalData[]>(() => {
           :chart-height="140"
           :has-data="minerOnOffEvents.length > 0"
           :maximizable="false"
+          :show-marker-toggle="false"
         >
           <div v-if="minerOnOffEvents.length > 0" class="space-y-1.5 max-h-[120px] overflow-y-auto">
             <div
