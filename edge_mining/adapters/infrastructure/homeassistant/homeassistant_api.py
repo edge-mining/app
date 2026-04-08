@@ -23,6 +23,7 @@ from homeassistant_api.errors import (
     RequestTimeoutError,
     UnauthorizedError,
 )
+from requests.exceptions import ConnectionError as RequestsConnectionError
 
 from edge_mining.adapters.infrastructure.homeassistant.utils import (
     STATE_SERVICE_MAP,
@@ -93,6 +94,12 @@ class ServiceHomeAssistantAPI(ExternalServicePort):
             self.client = None
             if self.logger:
                 self.logger.error(f"Home Assistant API error during connection: {e}")
+        except RequestsConnectionError:
+            self.client = None
+            if self.logger:
+                self.logger.warning(
+                    f"Home Assistant is unreachable at {self.api_url}. The service will be marked as disconnected."
+                )
         except Exception as e:
             self.client = None
             if self.logger:
