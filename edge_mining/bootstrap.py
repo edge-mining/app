@@ -313,12 +313,14 @@ def configure_dependencies(logger: LoggerPort, settings: AppSettings) -> Service
         miner_repo=persistence_settings.miner_repo,
         adapter_service=adapter_service,
         sun_factory=sun_factory,
+        event_bus=event_bus,
         logger=logger,
     )
 
     miner_action_service = MinerActionService(
         adapter_service=adapter_service,
         miner_repo=persistence_settings.miner_repo,
+        event_bus=event_bus,
         logger=logger,
     )
 

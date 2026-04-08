@@ -18,6 +18,7 @@ from edge_mining.adapters.domain.policy.fast_api.router import router as policy_
 from edge_mining.adapters.infrastructure.api.setup import get_logger, get_optimization_service, get_service_container
 from edge_mining.adapters.infrastructure.external_services.fast_api.router import router as external_services_router
 from edge_mining.adapters.infrastructure.rule_engine.fast_api.router import router as rule_engine_router
+from edge_mining.adapters.infrastructure.websocket.router import router as ws_router
 from edge_mining.application.services.optimization_service import OptimizationService
 from edge_mining.shared.logging.port import LoggerPort
 
@@ -79,6 +80,7 @@ app.include_router(external_services_router, prefix="/api/v1", tags=["external_s
 app.include_router(rule_engine_router, prefix="/api/v1", tags=["rule_engine"])
 app.include_router(notification_router, prefix="/api/v1", tags=["notification"])
 app.include_router(forecast_router, prefix="/api/v1", tags=["forecast"])
+app.include_router(ws_router, tags=["websocket"])
 # Add more routers here (e.g., for configuration)
 
 
