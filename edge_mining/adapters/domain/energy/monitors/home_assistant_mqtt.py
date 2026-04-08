@@ -327,7 +327,7 @@ class MqttEnergyMonitor(EnergyMonitorPort):
         except (ValueError, TypeError):
             return None
 
-    def get_current_energy_state(self) -> Optional[EnergyStateSnapshot]:
+    async def get_current_energy_state(self) -> Optional[EnergyStateSnapshot]:
         """
         Give the latest energy state snapshot based on received MQTT messages.
         Checks if the data is too old and logs warnings if values are stale or missing."""

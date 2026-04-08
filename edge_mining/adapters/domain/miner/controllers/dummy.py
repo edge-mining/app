@@ -68,7 +68,7 @@ class DummyMinerController(
 
     # --- ModelDetectionPort ---
 
-    def get_model(self) -> Optional[str]:
+    async def get_model(self) -> Optional[str]:
         """Gets the model of the miner."""
         if self.logger:
             self.logger.debug("DummyController: Returning dummy model")
@@ -76,7 +76,7 @@ class DummyMinerController(
 
     # --- MiningControlPort ---
 
-    def start_mining(self) -> bool:
+    async def start_miner(self) -> bool:
         """Start the miner."""
         if self.logger:
             self.logger.debug(f"DummyController: Received START (current: {self._status.name})")
@@ -86,7 +86,7 @@ class DummyMinerController(
                 self.logger.debug("DummyController: Setting status to STARTING")
         return True
 
-    def stop_mining(self) -> bool:
+    async def stop_miner(self) -> bool:
         """Stop the miner."""
         if self.logger:
             self.logger.debug(f"DummyController: Received STOP (current: {self._status.name})")
@@ -98,7 +98,7 @@ class DummyMinerController(
 
     # --- StatusMonitorPort ---
 
-    def get_status(self) -> MinerStatus:
+    async def get_miner_status(self) -> MinerStatus:
         """Get the status of the miner."""
         if self._status == MinerStatus.STARTING:
             if random.random() < 0.8:
@@ -125,7 +125,7 @@ class DummyMinerController(
 
     # --- PowerMonitorPort ---
 
-    def get_power(self) -> Optional[Watts]:
+    async def get_miner_power(self) -> Optional[Watts]:
         """Get the power of the miner."""
         status = self._status
         if status == MinerStatus.ON:
@@ -146,7 +146,7 @@ class DummyMinerController(
 
     # --- HashrateMonitorPort ---
 
-    def get_hashrate(self) -> Optional[HashRate]:
+    async def get_miner_hashrate(self) -> Optional[HashRate]:
         """Get the hash rate of the miner."""
         status = self._status
         if status == MinerStatus.ON:

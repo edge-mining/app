@@ -9,8 +9,8 @@ from edge_mining.adapters.infrastructure.homeassistant.homeassistant_api import 
     ServiceHomeAssistantAPI,
 )
 from edge_mining.domain.common import Watts
-from edge_mining.domain.miner.common import MinerStatus
 from edge_mining.domain.miner.aggregate_roots import Miner
+from edge_mining.domain.miner.common import MinerStatus
 from edge_mining.domain.miner.exceptions import MinerControllerConfigurationError, MinerControllerError
 from edge_mining.domain.miner.ports import (
     PowerControlPort,
@@ -115,7 +115,7 @@ class GenericSocketHomeAssistantAPIMinerController(
         if self.logger:
             self.logger.debug("Fetching power consumption from Home Assistant...")
 
-        state_power, _ = self.home_assistant.get_entity_state(self.entity_power)
+        state_power, _ = await self.home_assistant.get_entity_state(self.entity_power)
         power_watts = self.home_assistant.parse_power(
             state_power,
             self.unit_power,
@@ -134,7 +134,7 @@ class GenericSocketHomeAssistantAPIMinerController(
         if self.logger:
             self.logger.debug("Fetching miner status from Home Assistant...")
 
-        state_switch, _ = self.home_assistant.get_entity_state(self.entity_switch)
+        state_switch, _ = await self.home_assistant.get_entity_state(self.entity_switch)
         state_status = self.home_assistant.parse_bool(state_switch, self.entity_switch or "N/A")
 
         state_map: Dict[Optional[bool], MinerStatus] = {
@@ -157,7 +157,7 @@ class GenericSocketHomeAssistantAPIMinerController(
         if self.logger:
             self.logger.debug("Sending power off command to miner via Home Assistant...")
 
-        success = self.home_assistant.set_entity_state(
+        success = await self.home_assistant.set_entity_state(
             self.entity_switch,
             str(False),
         )
@@ -172,7 +172,7 @@ class GenericSocketHomeAssistantAPIMinerController(
         if self.logger:
             self.logger.debug("Sending power on command to miner via Home Assistant...")
 
-        success = self.home_assistant.set_entity_state(
+        success = await self.home_assistant.set_entity_state(
             self.entity_switch,
             str(True),
         )

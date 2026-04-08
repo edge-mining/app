@@ -149,7 +149,7 @@ class OptimizationService(OptimizationServiceInterface):
         # --- Energy Monitor ---
         energy_monitor: Optional[EnergyMonitorPort] = None
         if energy_source and energy_source.energy_monitor_id:
-            energy_monitor = self.adapter_service.get_energy_monitor(energy_source)
+            energy_monitor = await self.adapter_service.get_energy_monitor(energy_source)
             if not energy_monitor:
                 if self.logger:
                     self.logger.error(
@@ -161,7 +161,7 @@ class OptimizationService(OptimizationServiceInterface):
         # --- Forecast Provider ---
         forecast_provider: Optional[ForecastProviderPort] = None
         if energy_source and energy_source.forecast_provider_id:
-            forecast_provider = self.adapter_service.get_forecast_provider(energy_source)
+            forecast_provider = await self.adapter_service.get_forecast_provider(energy_source)
             # Forecast is optional, so log a warning if it's missing but continue
             if not forecast_provider:
                 if self.logger:
@@ -192,7 +192,7 @@ class OptimizationService(OptimizationServiceInterface):
         if energy_source and energy_monitor:
             try:
                 energy_state: Optional[EnergyStateSnapshot] = None
-                energy_state = energy_monitor.get_current_energy_state()
+                energy_state = await energy_monitor.get_current_energy_state()
                 if not energy_state:
                     if self.logger:
                         self.logger.error(
@@ -219,7 +219,7 @@ class OptimizationService(OptimizationServiceInterface):
         forecast_data: Optional[Forecast] = None
         if forecast_provider:
             try:
-                forecast_data = forecast_provider.get_forecast()
+                forecast_data = await forecast_provider.get_forecast()
             except Exception as e:
                 if self.logger:
                     self.logger.warning(
@@ -309,7 +309,7 @@ class OptimizationService(OptimizationServiceInterface):
         tracker_current_hashrate: Optional[HashRate] = None
         mining_performance_tracker: Optional[MiningPerformanceTrackerPort] = None
         if optimization_unit.performance_tracker_id:
-            mining_performance_tracker = self.adapter_service.get_mining_performance_tracker(
+            mining_performance_tracker = await self.adapter_service.get_mining_performance_tracker(
                 optimization_unit.performance_tracker_id
             )
         # Mining performance tracker is optional, so log a warning if it's missing
@@ -394,7 +394,7 @@ class OptimizationService(OptimizationServiceInterface):
         # --- Notifiers ---
         unit_notifiers: List[NotificationPort] = []
         try:
-            unit_notifiers = self.adapter_service.get_notifiers(optimization_unit.notifier_ids)
+            unit_notifiers = await self.adapter_service.get_notifiers(optimization_unit.notifier_ids)
         except Exception as e:
             if self.logger:
                 self.logger.error(f"Error getting notifiers for optimization unit '{optimization_unit.name}': {e}")
@@ -444,7 +444,7 @@ class OptimizationService(OptimizationServiceInterface):
         energy_monitor: Optional[EnergyMonitorPort] = None
         if energy_source.energy_monitor_id:
             try:
-                energy_monitor = self.adapter_service.get_energy_monitor(energy_source)
+                energy_monitor = await self.adapter_service.get_energy_monitor(energy_source)
             except Exception as e:
                 if self.logger:
                     self.logger.critical(f"Error getting energy monitor for energy source '{energy_source.name}': {e}")
@@ -466,7 +466,7 @@ class OptimizationService(OptimizationServiceInterface):
         forecast_provider: Optional[ForecastProviderPort] = None
         if energy_source.forecast_provider_id:
             try:
-                forecast_provider = self.adapter_service.get_forecast_provider(energy_source)
+                forecast_provider = await self.adapter_service.get_forecast_provider(energy_source)
             except Exception as e:
                 if self.logger:
                     self.logger.error(f"Error getting forecast provider for energy source '{energy_source.name}': {e}")
@@ -506,7 +506,7 @@ class OptimizationService(OptimizationServiceInterface):
         mining_performance_tracker: Optional[MiningPerformanceTrackerPort] = None
         if optimization_unit.performance_tracker_id:
             try:
-                mining_performance_tracker = self.adapter_service.get_mining_performance_tracker(
+                mining_performance_tracker = await self.adapter_service.get_mining_performance_tracker(
                     optimization_unit.performance_tracker_id
                 )
             except Exception as e:
@@ -529,7 +529,7 @@ class OptimizationService(OptimizationServiceInterface):
         # --- Energy State ---
         try:
             energy_state: Optional[EnergyStateSnapshot] = None
-            energy_state = energy_monitor.get_current_energy_state()
+            energy_state = await energy_monitor.get_current_energy_state()
             if not energy_state:
                 if self.logger:
                     self.logger.error(
@@ -573,7 +573,7 @@ class OptimizationService(OptimizationServiceInterface):
                 # For now, assuming the resolver provides a ready-to-use adapter.
                 # (the configuration has already done outside of the edge mining application)
 
-                forecast_data = forecast_provider.get_forecast()
+                forecast_data = await forecast_provider.get_forecast()
             except Exception as e:
                 if self.logger:
                     self.logger.warning(

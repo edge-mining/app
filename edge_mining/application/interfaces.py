@@ -13,8 +13,8 @@ from edge_mining.domain.forecast.common import ForecastProviderAdapter
 from edge_mining.domain.forecast.entities import ForecastProvider
 from edge_mining.domain.forecast.ports import ForecastProviderPort
 from edge_mining.domain.home_load.ports import HomeForecastProviderPort
-from edge_mining.domain.miner.common import MinerControllerAdapter, MinerFeatureType
 from edge_mining.domain.miner.aggregate_roots import Miner
+from edge_mining.domain.miner.common import MinerControllerAdapter, MinerFeatureType
 from edge_mining.domain.miner.entities import MinerController
 from edge_mining.domain.miner.ports import MinerFeaturePort
 from edge_mining.domain.miner.value_objects import HashRate, MinerStateSnapshot
@@ -45,11 +45,11 @@ class AdapterServiceInterface(ABC):
     """Base interface for all adapter services in the Edge Mining application."""
 
     @abstractmethod
-    def get_energy_monitor(self, energy_source: EnergySource) -> Optional[EnergyMonitorPort]:
+    async def get_energy_monitor(self, energy_source: EnergySource) -> Optional[EnergyMonitorPort]:
         """Get an energy monitor adapter instance."""
 
     @abstractmethod
-    def get_miner_controller_adapter(self, miner: Miner, controller_id: EntityId) -> Optional[MinerFeaturePort]:
+    async def get_miner_controller_adapter(self, miner: Miner, controller_id: EntityId) -> Optional[MinerFeaturePort]:
         """Get a miner controller adapter instance for a specific controller."""
 
     @abstractmethod
@@ -57,19 +57,19 @@ class AdapterServiceInterface(ABC):
         """Get the adapter implementing the highest-priority active feature port for a miner."""
 
     @abstractmethod
-    def get_all_notifiers(self) -> List[NotificationPort]:
+    async def get_all_notifiers(self) -> List[NotificationPort]:
         """Get all notifier adapter instances"""
 
     @abstractmethod
-    def get_notifier(self, notifier_id: EntityId) -> Optional[NotificationPort]:
+    async def get_notifier(self, notifier_id: EntityId) -> Optional[NotificationPort]:
         """Get a specific notifier adapter instance by ID."""
 
     @abstractmethod
-    def get_notifiers(self, notifier_ids: List[EntityId]) -> List[NotificationPort]:
+    async def get_notifiers(self, notifier_ids: List[EntityId]) -> List[NotificationPort]:
         """Get a list of specific notifiers adapter instance by IDs."""
 
     @abstractmethod
-    def get_forecast_provider(self, energy_source: EnergySource) -> Optional[ForecastProviderPort]:
+    async def get_forecast_provider(self, energy_source: EnergySource) -> Optional[ForecastProviderPort]:
         """Get a forecast provider adapter instance."""
 
     @abstractmethod
@@ -79,11 +79,11 @@ class AdapterServiceInterface(ABC):
         """Get an home load forecast provider adapter instance."""
 
     @abstractmethod
-    def get_mining_performance_tracker(self, tracker_id: EntityId) -> Optional[MiningPerformanceTrackerPort]:
+    async def get_mining_performance_tracker(self, tracker_id: EntityId) -> Optional[MiningPerformanceTrackerPort]:
         """Get a mining performance tracker adapter instance."""
 
     @abstractmethod
-    def get_external_service(self, external_service_id: EntityId) -> Optional[ExternalServicePort]:
+    async def get_external_service(self, external_service_id: EntityId) -> Optional[ExternalServicePort]:
         """Get a specific external service instance by ID."""
 
     @abstractmethod
@@ -131,11 +131,11 @@ class MinerActionServiceInterface(ABC):
         """Stop a specific miner."""
 
     @abstractmethod
-    def get_miner_consumption(self, miner_id: EntityId) -> Optional[Watts]:
+    async def get_miner_consumption(self, miner_id: EntityId) -> Optional[Watts]:
         """Gets the current power consumption of the specified miner."""
 
     @abstractmethod
-    def get_miner_hashrate(self, miner_id: EntityId) -> Optional[HashRate]:
+    async def get_miner_hashrate(self, miner_id: EntityId) -> Optional[HashRate]:
         """Gets the current hash rate of the specified miner."""
 
     @abstractmethod

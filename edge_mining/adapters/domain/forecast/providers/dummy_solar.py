@@ -95,7 +95,7 @@ class DummySolarForecastProvider(ForecastProviderPort):
         self.production_end_hour = production_end_hour
         # You can set default values or use the ones from settings if needed
 
-    def get_forecast(self) -> Optional[Forecast]:
+    async def get_forecast(self) -> Optional[Forecast]:
         # Generates a plausible fake solar forecast.
         if self.logger:
             self.logger.debug(

@@ -192,7 +192,7 @@ async def start_miner(
                 # Get the notifiers from the configuration service
                 for notifier_id in notifier_ids:
                     try:
-                        notifier = adapter_service.get_notifier(notifier_id)
+                        notifier = await adapter_service.get_notifier(notifier_id)
                         if notifier is not None:
                             notifiers.append(notifier)
                     except NotifierNotFoundError:
@@ -246,7 +246,7 @@ async def stop_miner(
                 # Get the notifiers from the configuration service
                 for notifier_id in notifier_ids:
                     try:
-                        notifier = adapter_service.get_notifier(notifier_id)
+                        notifier = await adapter_service.get_notifier(notifier_id)
                         if notifier is not None:
                             notifiers.append(notifier)
                     except NotifierNotFoundError:

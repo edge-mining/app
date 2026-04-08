@@ -14,8 +14,8 @@ from pyasic.web.base import BaseWebAPI
 
 from edge_mining.adapters.utils import run_async_func
 from edge_mining.domain.common import Watts
-from edge_mining.domain.miner.common import MinerControllerProtocol, MinerStatus
 from edge_mining.domain.miner.aggregate_roots import Miner
+from edge_mining.domain.miner.common import MinerControllerProtocol, MinerStatus
 from edge_mining.domain.miner.exceptions import MinerControllerConfigurationError
 from edge_mining.domain.miner.ports import (
     BoardTemperatureMonitorPort,
@@ -279,7 +279,7 @@ class PyASICMinerController(
         if mining_state is None:
             if self.logger:
                 self.logger.debug("Mining state is not provided, deriving miner status...")
-            derived_state = self._derive_miner_status()
+            derived_state = await self._derive_miner_status()
             miner_status = state_map.get(derived_state, MinerStatus.UNKNOWN)
         else:
             miner_status = state_map.get(mining_state, MinerStatus.UNKNOWN)
