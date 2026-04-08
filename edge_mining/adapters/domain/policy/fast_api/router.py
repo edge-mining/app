@@ -63,14 +63,14 @@ async def add_policy(
         policy_to_add: OptimizationPolicy = policy_schema.to_model()
 
         # Create policy using configuration service
-        new_policy = config_service.create_policy(
+        new_policy = await config_service.create_policy(
             name=policy_to_add.name,
             description=policy_to_add.description or "",
         )
 
         if policy_to_add.start_rules:
             for rule in policy_to_add.start_rules:
-                config_service.add_rule_to_policy(
+                await config_service.add_rule_to_policy(
                     policy_id=new_policy.id,
                     rule_type=RuleType.START,
                     name=rule.name,
@@ -80,7 +80,7 @@ async def add_policy(
                 )
         if policy_to_add.stop_rules:
             for rule in policy_to_add.stop_rules:
-                config_service.add_rule_to_policy(
+                await config_service.add_rule_to_policy(
                     policy_id=new_policy.id,
                     rule_type=RuleType.STOP,
                     name=rule.name,
@@ -130,7 +130,7 @@ async def update_policy(
             raise HTTPException(status_code=404, detail="Policy not found")
 
         # Update policy fields
-        updated_policy = config_service.update_policy(
+        updated_policy = await config_service.update_policy(
             policy_id=policy_id,
             name=policy_update.name or existing_policy.name,
             description=policy_update.description or existing_policy.description or "",
@@ -159,7 +159,7 @@ async def delete_policy(
             raise HTTPException(status_code=404, detail="Policy not found")
 
         # Delete policy
-        config_service.delete_policy(policy_id)
+        await config_service.delete_policy(policy_id)
 
         return OptimizationPolicySchema.from_model(policy)
 
@@ -243,7 +243,7 @@ async def add_rule_to_policy(
     try:
         rule_to_add: AutomationRule = rule_schema.to_model()
 
-        new_rule = config_service.add_rule_to_policy(
+        new_rule = await config_service.add_rule_to_policy(
             policy_id=policy_id,
             rule_type=rule_type,
             name=rule_to_add.name,
@@ -309,7 +309,7 @@ async def enable_policy_rule(
 ) -> AutomationRuleSchema:
     """Enable a specific rule for a policy"""
     try:
-        rule: AutomationRule = config_service.enable_policy_rule(policy_id, rule_id)
+        rule: AutomationRule = await config_service.enable_policy_rule(policy_id, rule_id)
 
         return AutomationRuleSchema.from_model(rule)
     except PolicyNotFoundError as e:
@@ -328,7 +328,7 @@ async def disable_policy_rule(
 ) -> AutomationRuleSchema:
     """Disable a specific rule for a policy"""
     try:
-        rule: AutomationRule = config_service.disable_policy_rule(policy_id, rule_id)
+        rule: AutomationRule = await config_service.disable_policy_rule(policy_id, rule_id)
 
         return AutomationRuleSchema.from_model(rule)
     except PolicyNotFoundError as e:
@@ -357,7 +357,7 @@ async def update_policy_rule(
         if rule_schema.conditions is not None:
             conditions = rule_schema.conditions.to_model()
 
-        updated_rule = config_service.update_policy_rule(
+        updated_rule = await config_service.update_policy_rule(
             policy_id=policy_id,
             rule_id=rule_id,
             name=rule_schema.name or existing_rule.name,
@@ -392,7 +392,7 @@ async def delete_policy_rule(
         if not rule:
             raise HTTPException(status_code=404, detail="Rule not found")
 
-        deleted_rule = config_service.delete_policy_rule(policy_id, rule_id)
+        deleted_rule = await config_service.delete_policy_rule(policy_id, rule_id)
         return AutomationRuleSchema.from_model(deleted_rule)
 
     except PolicyNotFoundError as e:

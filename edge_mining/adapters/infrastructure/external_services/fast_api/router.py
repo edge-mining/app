@@ -66,7 +66,7 @@ async def add_external_service(
             raise ExternalServiceConfigurationError("External service configuration should be set")
 
         # Add the external service
-        created_service = config_service.create_external_service(
+        created_service = await config_service.create_external_service(
             name=external_service_to_add.name,
             adapter_type=external_service_to_add.adapter_type,
             config=external_service_to_add.config,
@@ -166,7 +166,7 @@ async def update_external_service(
             configuration = ExternalServiceConfig.from_dict(external_service_update.config)
 
         # Update the external service
-        updated_service = config_service.update_external_service(
+        updated_service = await config_service.update_external_service(
             service_id=service_id,
             name=external_service_update.name or "",
             config=cast(ExternalServiceConfig, configuration),
@@ -188,7 +188,7 @@ async def delete_external_service(
 ) -> ExternalServiceSchema:
     """Remove an external service."""
     try:
-        deleted_service = config_service.remove_external_service(service_id)
+        deleted_service = await config_service.remove_external_service(service_id)
 
         response = ExternalServiceSchema.from_model(deleted_service)
 
