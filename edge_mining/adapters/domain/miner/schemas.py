@@ -7,13 +7,13 @@ from typing import Dict, Optional, Union, cast
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
 from edge_mining.domain.common import EntityId, Watts
+from edge_mining.domain.miner.aggregate_roots import Miner
 from edge_mining.domain.miner.common import (
     MinerControllerAdapter,
     MinerControllerProtocol,
     MinerFeatureType,
     MinerStatus,
 )
-from edge_mining.domain.miner.aggregate_roots import Miner
 from edge_mining.domain.miner.entities import MinerController
 from edge_mining.domain.miner.value_objects import HashRate, MinerFeature, MinerStateSnapshot
 from edge_mining.shared.adapter_configs.miner import (

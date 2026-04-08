@@ -11,6 +11,7 @@ from edge_mining.adapters.domain.miner.schemas import (
     MinerControllerSchema,
     MinerControllerUpdateSchema,
     MinerCreateSchema,
+    MinerFeatureSchema,
     MinerSchema,
     MinerStateSnapshotSchema,
     MinerUpdateSchema,
@@ -28,8 +29,8 @@ from edge_mining.application.interfaces import (
     MinerActionServiceInterface,
 )
 from edge_mining.domain.common import EntityId, Watts
-from edge_mining.domain.miner.common import MinerControllerAdapter
 from edge_mining.domain.miner.aggregate_roots import Miner
+from edge_mining.domain.miner.common import MinerControllerAdapter
 from edge_mining.domain.miner.exceptions import (
     MinerControllerAlreadyExistsError,
     MinerControllerConfigurationError,
@@ -322,6 +323,25 @@ async def deactivate_miner(
         response = MinerSchema.from_model(miner)
 
         return response
+    except MinerNotFoundError as e:
+        raise HTTPException(status_code=404, detail="Miner not found") from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/miners/{miner_id}/features", response_model=List[MinerFeatureSchema])
+async def get_miner_features(
+    miner_id: EntityId,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+) -> List[MinerFeatureSchema]:
+    """Get all features associated with a miner."""
+    try:
+        miner = config_service.get_miner(miner_id)
+
+        if miner is None:
+            raise MinerNotFoundError(f"Miner with ID {miner_id} not found")
+
+        return [MinerFeatureSchema.from_model(feature) for feature in miner.features]
     except MinerNotFoundError as e:
         raise HTTPException(status_code=404, detail="Miner not found") from e
     except Exception as e:
