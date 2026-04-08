@@ -102,28 +102,6 @@ const fetchSuccess = ref(false);
 const fetchError = ref<string | null>(null);
 const highlightedFields = ref<Set<string>>(new Set());
 
-function isNonEmpty(value: any): boolean {
-  return value !== null && value !== undefined && value !== "";
-}
-
-function typewriterEffect(
-  target: (char: string) => void,
-  text: string,
-  speed = 30
-): Promise<void> {
-  return new Promise((resolve) => {
-    target("");
-    let i = 0;
-    const interval = setInterval(() => {
-      target(text.slice(0, ++i));
-      if (i >= text.length) {
-        clearInterval(interval);
-        resolve();
-      }
-    }, speed);
-  });
-}
-
 async function fetchMinerDetails() {
   const controllerId = formData.value.controller_id;
   if (!controllerId) return;
