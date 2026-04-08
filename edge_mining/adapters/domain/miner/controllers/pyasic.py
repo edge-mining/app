@@ -303,11 +303,9 @@ class PyASICMinerController(
             return None
 
         miner = self._miner
-        data = await miner.get_data()
-        if data is None or data.temperature_avg is None:
-            return None
+        temperature = await miner.get_env_temp()
 
-        return Temperature(value=float(data.temperature_avg))
+        return Temperature(value=float(temperature)) if temperature is not None else None
 
     # --- BoardTemperatureMonitorPort ---
 
