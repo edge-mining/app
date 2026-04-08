@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { ref, computed } from "vue";
 import { useRoute } from "vue-router";
 import {
   PhPulse,
@@ -13,40 +13,42 @@ import VectorIcon from "./VectorIcon.vue";
 
 const route = useRoute();
 
-const isEnergyOpen = computed(() => {
-  return (
-    route.path.startsWith("/settings/energy-sources") ||
-    route.path.startsWith("/settings/energy-monitors") ||
-    route.path.startsWith("/settings/forecast-providers")
-  );
-});
+const isEnergyOpen = ref(true);
+const isMiningOpen = ref(true);
+const isAutomationOpen = ref(true);
 
-const isMiningOpen = computed(() => {
-  return (
-    route.path.startsWith("/settings/miners") ||
-    route.path.startsWith("/settings/miner-controllers")
-  );
-});
+const isEnergyActive = computed(() =>
+  ["/settings/energy-sources", "/settings/energy-monitors", "/settings/forecast-providers"].some(
+    (p) => route.path.startsWith(p)
+  )
+);
 
-const isAutomationOpen = computed(() => {
-  return (
-    route.path.startsWith("/settings/policies") ||
-    route.path.startsWith("/settings/optimization-units")
-  );
-});
+const isMiningActive = computed(() =>
+  ["/settings/miners", "/settings/miner-controllers"].some((p) =>
+    route.path.startsWith(p)
+  )
+);
 
+const isAutomationActive = computed(() =>
+  ["/settings/optimization-units", "/settings/policies"].some((p) =>
+    route.path.startsWith(p)
+  )
+);
 </script>
 <template>
   <div class="sidebar-container relative h-full">
     <!-- Top glow effect -->
     <div class="sidebar-glow"></div>
-    
+
     <div class="navbar p-4 h-full relative z-10">
       <div class="flex-none h-full">
         <div class="flex flex-row items-center py-4 mb-2">
           <VectorIcon name="logo" class="inline-block size-9" />
           <div class="flex flex-col ml-3">
-            <span class="text-[10px] uppercase tracking-wider text-base-300 font-medium">Edge Mining</span>
+            <span
+              class="text-[10px] uppercase tracking-wider text-base-300 font-medium"
+              >Edge Mining</span
+            >
             <span class="text-sm font-medium">Satoshi Nakamoto</span>
           </div>
         </div>
@@ -60,145 +62,148 @@ const isAutomationOpen = computed(() => {
               active-class="active text-primary"
               exact
             >
-            <PhPulse :size="18" />
-            Dashboard
-          </RouterLink>
-        </li>
+              <PhPulse :size="18" />
+              Dashboard
+            </RouterLink>
+          </li>
 
-        <!-- Optimization -->
-        <li class="w-full">
-          <details :open="isAutomationOpen">
-            <summary
-              class="text-sm font-medium"
-              :class="{ 'text-primary': isAutomationOpen }"
+          <!-- Optimization -->
+          <li class="w-full">
+            <details :open="isAutomationOpen">
+              <summary
+                class="text-sm font-medium"
+                :class="{ 'text-primary': isAutomationActive }"
+                @click.prevent="isAutomationOpen = !isAutomationOpen"
+              >
+                <PhGraph :size="18" />
+                Optimization
+              </summary>
+              <ul class="rounded-t-none p-2 w-full">
+                <li class="w-full">
+                  <RouterLink
+                    to="/settings/optimization-units"
+                    class="w-full text-sm"
+                    active-class="active text-primary"
+                  >
+                    Units
+                  </RouterLink>
+                </li>
+                <li class="w-full">
+                  <RouterLink
+                    to="/settings/policies"
+                    class="w-full text-sm"
+                    active-class="active text-primary"
+                  >
+                    Policies
+                  </RouterLink>
+                </li>
+              </ul>
+            </details>
+          </li>
+
+          <!-- Energy -->
+          <li class="w-full">
+            <details :open="isEnergyOpen">
+              <summary
+                class="text-sm font-medium"
+                :class="{ 'text-primary': isEnergyActive }"
+                @click.prevent="isEnergyOpen = !isEnergyOpen"
+              >
+                <PhLightning :size="18" />
+                Energy
+              </summary>
+              <ul class="rounded-t-none p-2 w-full">
+                <li class="w-full">
+                  <RouterLink
+                    to="/settings/energy-sources"
+                    class="w-full text-sm"
+                    active-class="active text-primary"
+                  >
+                    Energy Sources
+                  </RouterLink>
+                </li>
+                <li class="w-full">
+                  <RouterLink
+                    to="/settings/energy-monitors"
+                    class="w-full text-sm"
+                    active-class="active text-primary"
+                  >
+                    Energy Monitors
+                  </RouterLink>
+                </li>
+                <li class="w-full">
+                  <RouterLink
+                    to="/settings/forecast-providers"
+                    class="w-full text-sm"
+                    active-class="active text-primary"
+                  >
+                    Forecast Providers
+                  </RouterLink>
+                </li>
+              </ul>
+            </details>
+          </li>
+
+          <!-- Mining -->
+          <li class="w-full">
+            <details :open="isMiningOpen">
+              <summary
+                class="text-sm font-medium"
+                :class="{ 'text-primary': isMiningActive }"
+                @click.prevent="isMiningOpen = !isMiningOpen"
+              >
+                <PhCpu :size="18" />
+                Mining
+              </summary>
+              <ul class="rounded-t-none p-2 w-full">
+                <li class="w-full">
+                  <RouterLink
+                    to="/settings/miners"
+                    class="w-full text-sm"
+                    active-class="active text-primary"
+                  >
+                    Miners
+                  </RouterLink>
+                </li>
+                <li class="w-full">
+                  <RouterLink
+                    to="/settings/miner-controllers"
+                    class="w-full text-sm"
+                    active-class="active text-primary"
+                  >
+                    Miner Controllers
+                  </RouterLink>
+                </li>
+              </ul>
+            </details>
+          </li>
+
+          <!-- Integrations -->
+          <li class="w-full">
+            <RouterLink
+              to="/settings/external-services"
+              class="w-full text-sm font-medium"
+              active-class="active text-primary"
             >
-              <PhGraph :size="18" />
-              Optimization
-            </summary>
-            <ul class="rounded-t-none p-2 w-full">
-              <li class="w-full">
-                <RouterLink
-                  to="/settings/optimization-units"
-                  class="w-full text-sm"
-                  active-class="active text-primary"
-                >
-                  Units
-                </RouterLink>
-              </li>
-              <li class="w-full">
-                <RouterLink
-                  to="/settings/policies"
-                  class="w-full text-sm"
-                  active-class="active text-primary"
-                >
-                  Policies
-                </RouterLink>
-              </li>
-            </ul>
-          </details>
-        </li>
+              <PhPlug :size="18" />
+              External Services
+            </RouterLink>
+          </li>
 
-        <!-- Energy -->
-        <li class="w-full">
-          <details :open="isEnergyOpen">
-            <summary
-              class="text-sm font-medium"
-              :class="{ 'text-primary': isEnergyOpen }"
+          <!-- Notifiers -->
+          <li class="w-full">
+            <RouterLink
+              to="/settings/notifiers"
+              class="w-full text-sm font-medium"
+              active-class="active text-primary"
             >
-              <PhLightning :size="18" />
-              Energy
-            </summary>
-            <ul class="rounded-t-none p-2 w-full">
-              <li class="w-full">
-                <RouterLink
-                  to="/settings/energy-sources"
-                  class="w-full text-sm"
-                  active-class="active text-primary"
-                >
-                  Energy Sources
-                </RouterLink>
-              </li>
-              <li class="w-full">
-                <RouterLink
-                  to="/settings/energy-monitors"
-                  class="w-full text-sm"
-                  active-class="active text-primary"
-                >
-                  Energy Monitors
-                </RouterLink>
-              </li>
-              <li class="w-full">
-                <RouterLink
-                  to="/settings/forecast-providers"
-                  class="w-full text-sm"
-                  active-class="active text-primary"
-                >
-                  Forecast Providers
-                </RouterLink>
-              </li>
-            </ul>
-          </details>
-        </li>
-
-        <!-- Mining -->
-        <li class="w-full">
-          <details :open="isMiningOpen">
-            <summary
-              class="text-sm font-medium"
-              :class="{ 'text-primary': isMiningOpen }"
-            >
-              <PhCpu :size="18" />
-              Mining
-            </summary>
-            <ul class="rounded-t-none p-2 w-full">
-              <li class="w-full">
-                <RouterLink
-                  to="/settings/miners"
-                  class="w-full text-sm"
-                  active-class="active text-primary"
-                >
-                  Miners
-                </RouterLink>
-              </li>
-              <li class="w-full">
-                <RouterLink
-                  to="/settings/miner-controllers"
-                  class="w-full text-sm"
-                  active-class="active text-primary"
-                >
-                  Miner Controllers
-                </RouterLink>
-              </li>
-            </ul>
-          </details>
-        </li>
-
-        <!-- Integrations -->
-        <li class="w-full">
-          <RouterLink
-            to="/settings/external-services"
-            class="w-full text-sm font-medium"
-            active-class="active text-primary"
-          >
-            <PhPlug :size="18" />
-            External Services
-          </RouterLink>
-        </li>
-
-        <!-- Notifiers -->
-        <li class="w-full">
-          <RouterLink
-            to="/settings/notifiers"
-            class="w-full text-sm font-medium"
-            active-class="active text-primary"
-          >
-            <PhBell :size="18" />
-            Notifiers
-          </RouterLink>
-        </li>
-      </ul>
+              <PhBell :size="18" />
+              Notifiers
+            </RouterLink>
+          </li>
+        </ul>
+      </div>
     </div>
-  </div>
   </div>
 </template>
 
