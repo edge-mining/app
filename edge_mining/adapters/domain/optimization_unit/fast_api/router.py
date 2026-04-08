@@ -56,7 +56,7 @@ async def add_optimization_unit(
         optimization_unit_to_add: EnergyOptimizationUnit = optimization_unit_data.to_model()
 
         # Add the optimization unit
-        created_unit = config_service.create_optimization_unit(
+        created_unit = await config_service.create_optimization_unit(
             name=optimization_unit_to_add.name,
             description=optimization_unit_to_add.description,
             policy_id=optimization_unit_to_add.policy_id,
@@ -140,7 +140,7 @@ async def update_optimization_unit(
             notifier_ids = [EntityId(uuid.UUID(notifier_id)) for notifier_id in optimization_unit_update.notifier_ids]
 
         # Update the optimization unit
-        updated_unit = config_service.update_optimization_unit(
+        updated_unit = await config_service.update_optimization_unit(
             unit_id=unit_id,
             name=optimization_unit_update.name or "",
             description=optimization_unit_update.description,
@@ -168,7 +168,7 @@ async def delete_optimization_unit(
 ) -> EnergyOptimizationUnitSchema:
     """Remove an optimization unit."""
     try:
-        deleted_unit = config_service.remove_optimization_unit(unit_id)
+        deleted_unit = await config_service.remove_optimization_unit(unit_id)
 
         response = EnergyOptimizationUnitSchema.from_model(deleted_unit)
 
@@ -191,7 +191,7 @@ async def enable_optimization_unit(
         if optimization_unit is None:
             raise OptimizationUnitNotFoundError(f"Optimization Unit with ID {unit_id} not found")
 
-        enabled_unit = config_service.activate_optimization_unit(unit_id)
+        enabled_unit = await config_service.activate_optimization_unit(unit_id)
 
         response = EnergyOptimizationUnitSchema.from_model(enabled_unit)
 
@@ -216,7 +216,7 @@ async def disable_optimization_unit(
         if optimization_unit is None:
             raise OptimizationUnitNotFoundError(f"Optimization Unit with ID {unit_id} not found")
 
-        disabled_unit = config_service.deactivate_optimization_unit(unit_id)
+        disabled_unit = await config_service.deactivate_optimization_unit(unit_id)
 
         response = EnergyOptimizationUnitSchema.from_model(disabled_unit)
 
@@ -240,7 +240,7 @@ async def assign_energy_source(
         if optimization_unit is None:
             raise OptimizationUnitNotFoundError(f"Optimization Unit with ID {unit_id} not found")
 
-        updated_unit = config_service.assign_energy_source_to_optimization_unit(unit_id, energy_source_id)
+        updated_unit = await config_service.assign_energy_source_to_optimization_unit(unit_id, energy_source_id)
 
         response = EnergyOptimizationUnitSchema.from_model(updated_unit)
 
@@ -264,7 +264,7 @@ async def assign_policy(
         if optimization_unit is None:
             raise OptimizationUnitNotFoundError(f"Optimization Unit with ID {unit_id} not found")
 
-        updated_unit = config_service.assign_policy_to_optimization_unit(unit_id, policy_id)
+        updated_unit = await config_service.assign_policy_to_optimization_unit(unit_id, policy_id)
 
         response = EnergyOptimizationUnitSchema.from_model(updated_unit)
 
@@ -288,7 +288,7 @@ async def assign_miners(
         if optimization_unit is None:
             raise OptimizationUnitNotFoundError(f"Optimization Unit with ID {unit_id} not found")
 
-        updated_unit = config_service.assign_miners_to_optimization_unit(unit_id, miner_ids)
+        updated_unit = await config_service.assign_miners_to_optimization_unit(unit_id, miner_ids)
 
         response = EnergyOptimizationUnitSchema.from_model(updated_unit)
 
@@ -312,7 +312,7 @@ async def add_target_miner(
         if optimization_unit is None:
             raise OptimizationUnitNotFoundError(f"Optimization Unit with ID {unit_id} not found")
 
-        updated_unit = config_service.add_miner_to_optimization_unit(unit_id, miner_id)
+        updated_unit = await config_service.add_miner_to_optimization_unit(unit_id, miner_id)
 
         response = EnergyOptimizationUnitSchema.from_model(updated_unit)
 
@@ -336,7 +336,7 @@ async def remove_target_miner(
         if optimization_unit is None:
             raise OptimizationUnitNotFoundError(f"Optimization Unit with ID {unit_id} not found")
 
-        updated_unit = config_service.remove_miner_from_optimization_unit(unit_id, miner_id)
+        updated_unit = await config_service.remove_miner_from_optimization_unit(unit_id, miner_id)
 
         response = EnergyOptimizationUnitSchema.from_model(updated_unit)
 
@@ -360,7 +360,7 @@ async def assign_notifiers(
         if optimization_unit is None:
             raise OptimizationUnitNotFoundError(f"Optimization Unit with ID {unit_id} not found")
 
-        updated_unit = config_service.assign_notifiers_to_optimization_unit(unit_id, notifier_ids)
+        updated_unit = await config_service.assign_notifiers_to_optimization_unit(unit_id, notifier_ids)
 
         response = EnergyOptimizationUnitSchema.from_model(updated_unit)
 
@@ -384,7 +384,7 @@ async def add_notifier(
         if optimization_unit is None:
             raise OptimizationUnitNotFoundError(f"Optimization Unit with ID {unit_id} not found")
 
-        updated_unit = config_service.add_notifier_to_optimization_unit(unit_id, notifier_id)
+        updated_unit = await config_service.add_notifier_to_optimization_unit(unit_id, notifier_id)
 
         response = EnergyOptimizationUnitSchema.from_model(updated_unit)
 
@@ -408,7 +408,7 @@ async def remove_notifier(
         if optimization_unit is None:
             raise OptimizationUnitNotFoundError(f"Optimization Unit with ID {unit_id} not found")
 
-        updated_unit = config_service.remove_notifier_from_optimization_unit(unit_id, notifier_id)
+        updated_unit = await config_service.remove_notifier_from_optimization_unit(unit_id, notifier_id)
 
         response = EnergyOptimizationUnitSchema.from_model(updated_unit)
 
@@ -426,7 +426,7 @@ async def get_decisional_context(
 ) -> DecisionalContextSchema:
     """Get the current decisional context for an optimization unit."""
     try:
-        context = optimization_service.get_decisional_context(unit_id)
+        context = await optimization_service.get_decisional_context(unit_id)
 
         if context is None:
             raise OptimizationUnitNotFoundError(f"Optimization Unit with ID {unit_id} not found")

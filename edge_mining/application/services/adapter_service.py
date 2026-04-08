@@ -19,7 +19,9 @@ from edge_mining.adapters.domain.notification.notifiers.telegram import Telegram
 from edge_mining.adapters.domain.performance.trackers.dummy import DummyMiningPerformanceTracker
 from edge_mining.adapters.infrastructure.homeassistant.homeassistant_api import ServiceHomeAssistantAPIFactory
 from edge_mining.adapters.infrastructure.rule_engine.factory import RuleEngineFactory
-from edge_mining.application.interfaces import AdapterServiceInterface
+from edge_mining.application.events.common import ConfigurationUpdatedEventType
+from edge_mining.application.events.configuration_events import ConfigurationUpdatedEvent
+from edge_mining.application.interfaces import AdapterServiceInterface, EventBusInterface
 from edge_mining.domain.common import EntityId
 from edge_mining.domain.energy.common import EnergyMonitorAdapter
 from edge_mining.domain.energy.entities import EnergyMonitor, EnergySource
@@ -67,6 +69,7 @@ class AdapterService(AdapterServiceInterface):
         mining_performance_tracker_repo: MiningPerformanceTrackerRepository,
         home_forecast_provider_repo: HomeForecastProviderRepository,
         external_service_repo: ExternalServiceRepository,
+        event_bus: EventBusInterface,
         logger: Optional[LoggerPort] = None,
     ):
         self.energy_monitor_repo = energy_monitor_repo
@@ -94,6 +97,16 @@ class AdapterService(AdapterServiceInterface):
         self._service_cache: Dict[EntityId, ExternalServicePort] = {}
 
         self.logger = logger
+
+        self._subscribe_events(event_bus)
+
+    def _subscribe_events(self, event_bus: EventBusInterface) -> None:
+        """Register all event subscriptions for this service."""
+        event_bus.subscribe(
+            ConfigurationUpdatedEvent,
+            self.on_configuration_updated,
+            blocking=True,
+        )
 
     def _initialize_external_service(self, external_service: ExternalService) -> Optional[ExternalServicePort]:
         """Initialize an external service"""
@@ -753,3 +766,19 @@ class AdapterService(AdapterServiceInterface):
         else:
             if self.logger:
                 self.logger.warning(f"No external service found with ID {external_service_id} to remove.")
+
+    async def on_configuration_updated(self, event: ConfigurationUpdatedEvent) -> None:
+        """Handler for cache invalidation when a configuration changes."""
+        if self.logger:
+            self.logger.debug(f"Cache invalidation: {event.entity_type} " f"{event.entity_id} ({event.action})")
+
+        if event.entity_id is None:
+            return
+
+        if event.entity_type == ConfigurationUpdatedEventType.EXTERNAL_SERVICE:
+            # Invalidate the external service AND all adapters that may depend on it
+            self._service_cache.pop(event.entity_id, None)
+            self._instance_cache.clear()
+        else:
+            # Invalidate the specific adapter
+            self._instance_cache.pop(event.entity_id, None)

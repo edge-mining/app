@@ -10,8 +10,13 @@ It is responsible for:
 import asyncio
 from typing import List, Optional
 
+from edge_mining.domain.energy.events import EnergyStateSnapshotUpdatedEvent
+from edge_mining.domain.miner.events import MinerStateChangedEvent
+from edge_mining.domain.optimization_unit.events import RuleEngagedEvent
+from edge_mining.domain.policy.events import DecisionalContextUpdatedEvent
 from edge_mining.application.interfaces import (
     AdapterServiceInterface,
+    EventBusInterface,
     OptimizationServiceInterface,
     SunFactoryInterface,
 )
@@ -54,6 +59,7 @@ class OptimizationService(OptimizationServiceInterface):
         miner_repo: MinerRepository,
         adapter_service: AdapterServiceInterface,
         sun_factory: SunFactoryInterface,
+        event_bus: Optional[EventBusInterface] = None,
         logger: Optional[LoggerPort] = None,
     ):
         # Domains
@@ -67,6 +73,7 @@ class OptimizationService(OptimizationServiceInterface):
         # Infrastructure
         self.sun_factory = sun_factory
         self.adapter_service = adapter_service
+        self._event_bus = event_bus
         self.logger = logger
 
     async def _notify_unit(self, notifiers: List[NotificationPort], title: str, message: str):
@@ -84,7 +91,7 @@ class OptimizationService(OptimizationServiceInterface):
                 if self.logger:
                     self.logger.error(f"Failed to send notification via {type(notifier).__name__}: {e}")
 
-    def test_rules(self, rules: List[AutomationRule], decisional_context: DecisionalContext) -> bool:
+    async def test_rules(self, rules: List[AutomationRule], decisional_context: DecisionalContext) -> bool:
         """Test a specific automation rule against a given context."""
         # Create the rule engine instance
         rule_engine = self.adapter_service.get_rule_engine()
@@ -111,7 +118,7 @@ class OptimizationService(OptimizationServiceInterface):
         # Evaluate the rules in the rule engine
         return rule_engine.evaluate(decisional_context)
 
-    def get_decisional_context(self, optimization_unit_id: EntityId) -> Optional[DecisionalContext]:
+    async def get_decisional_context(self, optimization_unit_id: EntityId) -> Optional[DecisionalContext]:
         """Get the decisional context for a specific optimization unit."""
         optimization_unit = self.optimization_unit_repo.get_by_id(optimization_unit_id)
         if not optimization_unit:
@@ -174,7 +181,7 @@ class OptimizationService(OptimizationServiceInterface):
                 )
 
         # --- Energy State ---
-        if energy_monitor:
+        if energy_source and energy_monitor:
             try:
                 energy_state: Optional[EnergyStateSnapshot] = None
                 energy_state = energy_monitor.get_current_energy_state()
@@ -184,6 +191,16 @@ class OptimizationService(OptimizationServiceInterface):
                             f"Could not retrieve energy state for optimization unit '{optimization_unit.name}'. "
                             "Skipping."
                         )
+                # Publish energy state snapshot event
+                if self._event_bus:
+                    await self._event_bus.publish(
+                        EnergyStateSnapshotUpdatedEvent(
+                            optimization_unit_id=optimization_unit.id,
+                            optimization_unit_name=optimization_unit.name,
+                            energy_source_id=energy_source.id,
+                            energy_state_snapshot=energy_state,
+                        )
+                    )
             except Exception as e:
                 if self.logger:
                     self.logger.error(
@@ -331,6 +348,17 @@ class OptimizationService(OptimizationServiceInterface):
             miner=miner,
             miner_state=miner_state,
         )
+
+        # Publish decisional context event
+        if self._event_bus:
+            await self._event_bus.publish(
+                DecisionalContextUpdatedEvent(
+                    optimization_unit_id=optimization_unit.id,
+                    optimization_unit_name=optimization_unit.name,
+                    context=context,
+                    target_miner_ids=list(optimization_unit.target_miner_ids),
+                )
+            )
 
         return context
 
@@ -507,6 +535,17 @@ class OptimizationService(OptimizationServiceInterface):
                     "Failed to retrieve energy state.",
                 )
                 return
+
+            # Publish energy state snapshot event
+            if self._event_bus:
+                await self._event_bus.publish(
+                    EnergyStateSnapshotUpdatedEvent(
+                        optimization_unit_id=optimization_unit.id,
+                        optimization_unit_name=optimization_unit.name,
+                        energy_source_id=energy_source.id,
+                        energy_state_snapshot=energy_state,
+                    )
+                )
         except Exception as e:
             if self.logger:
                 self.logger.error(f"Error getting energy state for optimization unit '{optimization_unit.name}': {e}")
@@ -594,6 +633,17 @@ class OptimizationService(OptimizationServiceInterface):
             tracker_current_hashrate=tracker_current_hashrate,
             sun=sun,
         )
+
+        # Publish decisional context event
+        if self._event_bus:
+            await self._event_bus.publish(
+                DecisionalContextUpdatedEvent(
+                    optimization_unit_id=optimization_unit.id,
+                    optimization_unit_name=optimization_unit.name,
+                    context=context,
+                    target_miner_ids=list(optimization_unit.target_miner_ids),
+                )
+            )
 
         # TODO: should we manage miners singularly or together?
         # TODO: should we serialize the miner process or run them in parallel?
@@ -739,6 +789,20 @@ class OptimizationService(OptimizationServiceInterface):
                     f"Optimization unit '{optimization_unit.name}', "
                     f"Miner {miner_id}: Status={current_status.name}, "
                     f"Policy='{policy.name}', Decision={decision.name}"
+                )
+
+            # Publish rule engaged event
+            if self._event_bus:
+                await self._event_bus.publish(
+                    RuleEngagedEvent(
+                        optimization_unit_id=optimization_unit.id,
+                        optimization_unit_name=optimization_unit.name,
+                        policy_id=policy.id,
+                        policy_name=policy.name,
+                        miner_id=miner_id,
+                        decision=decision,
+                        miner_status=current_status.name,
+                    )
                 )
 
             await self._execute_miner_decision(

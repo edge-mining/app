@@ -23,6 +23,8 @@ from edge_mining.shared.external_services.entities import ExternalService
 from edge_mining.shared.interfaces.config import ForecastProviderConfig
 from edge_mining.shared.logging.port import LoggerPort
 
+from edge_mining.adapters.utils import run_async_func
+
 
 def select_forecast_provider_adapter() -> Optional[ForecastProviderAdapter]:
     """Select a forecast provider adapter from the available options."""
@@ -163,11 +165,13 @@ def handle_add_forecast_provider(
 
     added: Optional[ForecastProvider] = None
     try:
-        added = configuration_service.create_forecast_provider(
-            name=name,
-            adapter_type=adapter_type,
-            config=config,
-            external_service_id=external_service_id,
+        added = run_async_func(
+            configuration_service.create_forecast_provider(
+                name=name,
+                adapter_type=adapter_type,
+                config=config,
+                external_service_id=external_service_id,
+            )
         )
         click.echo(
             click.style(
@@ -431,12 +435,14 @@ def update_single_forecast_provider(
         )
 
     try:
-        updated: ForecastProvider = configuration_service.update_forecast_provider(
-            provider_id=forecast_provider.id,
-            name=name,
-            adapter_type=forecast_provider.adapter_type,
-            config=config,
-            external_service_id=external_service_id,
+        updated: ForecastProvider = run_async_func(
+            configuration_service.update_forecast_provider(
+                provider_id=forecast_provider.id,
+                name=name,
+                adapter_type=forecast_provider.adapter_type,
+                config=config,
+                external_service_id=external_service_id,
+            )
         )
         logger.debug(f"Forecast Provider '{updated.name}' updated successfully.")
         click.echo(
@@ -470,7 +476,7 @@ def delete_single_forecast_provider(
         return False
 
     try:
-        configuration_service.remove_forecast_provider(forecast_provider.id)
+        run_async_func(configuration_service.remove_forecast_provider(forecast_provider.id))
         logger.debug(f"Forecast Provider '{forecast_provider.name}' deleted successfully.")
         click.echo(
             click.style(

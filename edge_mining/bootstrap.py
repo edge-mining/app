@@ -65,6 +65,7 @@ from edge_mining.adapters.infrastructure.external_services.repositories import (
 )
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.base import BaseSQLAlchemyRepository
 from edge_mining.adapters.infrastructure.persistence.sqlite import BaseSqliteRepository
+from edge_mining.adapters.infrastructure.event_bus.in_memory_event_bus import InMemoryEventBus
 from edge_mining.adapters.infrastructure.sun.factories import AstralSunFactory
 from edge_mining.application.interfaces import SunFactoryInterface
 from edge_mining.application.services.adapter_service import AdapterService
@@ -124,6 +125,11 @@ def configure_persistence(logger: LoggerPort, settings: AppSettings) -> Persiste
         policies_persistence_adapter,
     ]:
         db_url = settings.db_path
+        if db_url.startswith("sqlite:///"):
+            db_dir = os.path.dirname(db_url.replace("sqlite:///", ""))
+            if db_dir and not os.path.exists(db_dir):
+                logger.debug(f"Creating database directory: {db_dir}")
+                os.makedirs(db_dir, exist_ok=True)
 
         logger.debug(f"Using SQLAlchemy persistence adapter (DB URL: {db_url}).")
         sqlalchemy_db = BaseSQLAlchemyRepository(
@@ -285,6 +291,9 @@ def configure_dependencies(logger: LoggerPort, settings: AppSettings) -> Service
 
     logger.debug("Instantiating application services...")
 
+    # --- Event Bus ---
+    event_bus = InMemoryEventBus(logger)
+
     adapter_service = AdapterService(
         energy_monitor_repo=persistence_settings.energy_monitor_repo,
         miner_controller_repo=persistence_settings.miner_controller_repo,
@@ -293,6 +302,7 @@ def configure_dependencies(logger: LoggerPort, settings: AppSettings) -> Service
         home_forecast_provider_repo=persistence_settings.home_forecast_provider_repo,
         mining_performance_tracker_repo=persistence_settings.mining_performance_tracker_repo,
         external_service_repo=persistence_settings.external_service_repo,
+        event_bus=event_bus,
         logger=logger,
     )
 
@@ -303,22 +313,29 @@ def configure_dependencies(logger: LoggerPort, settings: AppSettings) -> Service
         miner_repo=persistence_settings.miner_repo,
         adapter_service=adapter_service,
         sun_factory=sun_factory,
+        event_bus=event_bus,
         logger=logger,
     )
 
     miner_action_service = MinerActionService(
         adapter_service=adapter_service,
         miner_repo=persistence_settings.miner_repo,
+        event_bus=event_bus,
         logger=logger,
     )
 
-    config_service = ConfigurationService(persistence_settings=persistence_settings, logger=logger)
+    config_service = ConfigurationService(
+        persistence_settings=persistence_settings,
+        event_bus=event_bus,
+        logger=logger,
+    )
 
     services = Services(
         adapter_service=adapter_service,
         optimization_service=optimization_service,
         miner_action_service=miner_action_service,
         configuration_service=config_service,
+        event_bus=event_bus,
     )
 
     logger.debug("Dependency configuration complete.")

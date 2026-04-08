@@ -15,6 +15,8 @@ from edge_mining.domain.miner.exceptions import (
 from edge_mining.domain.miner.ports import MinerRepository
 from edge_mining.domain.miner.value_objects import HashRate, MinerStateSnapshot
 from edge_mining.domain.notification.ports import NotificationPort
+from edge_mining.domain.miner.events import MinerStateChangedEvent
+from edge_mining.application.interfaces import EventBusInterface
 from edge_mining.shared.logging.port import LoggerPort
 
 
@@ -25,6 +27,7 @@ class MinerActionService(MinerActionServiceInterface):
         self,
         adapter_service: AdapterServiceInterface,
         miner_repo: MinerRepository,
+        event_bus: Optional[EventBusInterface] = None,
         logger: Optional[LoggerPort] = None,
     ):
         # Services
@@ -34,6 +37,7 @@ class MinerActionService(MinerActionServiceInterface):
         self.miner_repo = miner_repo
 
         # Infrastructure
+        self._event_bus = event_bus
         self.logger = logger
 
     async def _notify(self, notifiers: List[NotificationPort], title: str, message: str):
@@ -79,6 +83,17 @@ class MinerActionService(MinerActionServiceInterface):
             if self.logger:
                 self.logger.info(f"Miner {miner.id} ({miner.name}) started successfully.")
 
+            # Publish miner state changed event
+            if self._event_bus:
+                await self._event_bus.publish(
+                    MinerStateChangedEvent(
+                        miner_id=miner.id,
+                        miner_name=miner.name,
+                        old_status=current_status,
+                        new_status=MinerStatus.ON,
+                    )
+                )
+
             if notifiers:
                 await self._notify(
                     notifiers,
@@ -121,6 +136,17 @@ class MinerActionService(MinerActionServiceInterface):
         if success:
             if self.logger:
                 self.logger.info(f"Miner {miner.id} ({miner.name}) stopped successfully.")
+
+            # Publish miner state changed event
+            if self._event_bus:
+                await self._event_bus.publish(
+                    MinerStateChangedEvent(
+                        miner_id=miner.id,
+                        miner_name=miner.name,
+                        old_status=current_status,
+                        new_status=MinerStatus.OFF,
+                    )
+                )
 
             if notifiers:
                 await self._notify(
