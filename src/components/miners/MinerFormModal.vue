@@ -74,10 +74,22 @@ watch(
   { immediate: true }
 );
 
-// Available controllers not yet selected
+// Controller IDs already assigned to other miners
+const assignedControllerIds = computed(() => {
+  if (!props.allMiners) return new Set<string>();
+  return new Set(
+    props.allMiners
+      .filter((m) => m.id !== formData.value.id)
+      .flatMap((m) => m.controller_ids ?? [])
+  );
+});
+
+// Available controllers: not yet selected for this miner AND not assigned to other miners
 const availableControllers = computed(() => {
   return minerControllerStore.minerControllers.filter(
-    (controller) => !selectedControllerIds.value.includes(controller.id!)
+    (controller) =>
+      !selectedControllerIds.value.includes(controller.id!) &&
+      !assignedControllerIds.value.has(controller.id!)
   );
 });
 
