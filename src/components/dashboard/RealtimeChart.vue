@@ -52,7 +52,7 @@ const series = computed(() => {
 });
 
 const annotations = computed(() => {
-  if (!props.showMinerEvents || !props.minerEvents?.length) return {};
+  if (!props.showMinerEvents || !props.minerEvents?.length) return { xaxis: [] };
   return {
     xaxis: props.minerEvents.map((evt) => ({
       x: evt.time * 1000,
@@ -74,12 +74,13 @@ const annotations = computed(() => {
 });
 
 const chartOptions = computed(() => {
-  // Access reactive data props so this computed re-evaluates when series change.
+  // Access reactive props so this computed re-evaluates when they change.
   // This forces vue3-apexcharts to use updateOptions (full DOM cleanup) instead
   // of updateSeries (fast path), preventing an ApexCharts 5.x bug where
   // fastUpdate accumulates tooltip DOM elements without removing old ones.
   void props.data;
   void props.secondaryData;
+  void props.showMinerEvents;
 
   return {
   chart: {
