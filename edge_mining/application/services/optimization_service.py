@@ -284,17 +284,17 @@ class OptimizationService(OptimizationServiceInterface):
                         self.logger.error(f"No status monitor port for miner {miner_id}. Skipping.")
                     continue
 
-                current_status = status_port.get_status()
+                current_status = await status_port.get_status()
 
                 hashrate_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.HASHRATE_MONITORING)
                 current_hashrate = None
                 if hashrate_port and isinstance(hashrate_port, HashrateMonitorPort):
-                    current_hashrate = hashrate_port.get_hashrate()
+                    current_hashrate = await hashrate_port.get_hashrate()
 
                 power_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.POWER_MONITORING)
                 current_power = None
                 if power_port and isinstance(power_port, PowerMonitorPort):
-                    current_power = power_port.get_power()
+                    current_power = await power_port.get_power()
 
                 # Build the miner state snapshot
                 miner_state = MinerStateSnapshot(
@@ -729,17 +729,17 @@ class OptimizationService(OptimizationServiceInterface):
         # Get current status and make decision
         try:
             # Query current state via feature ports
-            current_status = status_port.get_status()
+            current_status = await status_port.get_status()
 
             hashrate_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.HASHRATE_MONITORING)
             current_hashrate = None
             if hashrate_port and isinstance(hashrate_port, HashrateMonitorPort):
-                current_hashrate = hashrate_port.get_hashrate()
+                current_hashrate = await hashrate_port.get_hashrate()
 
             power_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.POWER_MONITORING)
             current_power = None
             if power_port and isinstance(power_port, PowerMonitorPort):
-                current_power = power_port.get_power()
+                current_power = await power_port.get_power()
 
             # Build the miner state snapshot
             miner_state = MinerStateSnapshot(
@@ -754,7 +754,7 @@ class OptimizationService(OptimizationServiceInterface):
                 from edge_mining.domain.miner.ports import ModelDetectionPort
 
                 if isinstance(model_port, ModelDetectionPort):
-                    current_model = model_port.get_model()
+                    current_model = await model_port.get_model()
                     if current_model and miner.model != current_model:
                         miner.model = current_model
                         self.miner_repo.update(miner)
@@ -867,9 +867,9 @@ class OptimizationService(OptimizationServiceInterface):
             if self.logger:
                 self.logger.info(f"Executing START for miner {miner_id} via {type(mining_port).__name__}")
             if isinstance(mining_port, MiningControlPort):
-                success = mining_port.start_mining()
+                success = await mining_port.start_mining()
             elif isinstance(mining_port, PowerControlPort):
-                success = mining_port.power_on()
+                success = await mining_port.power_on()
             action_taken = True
             if success:
                 await self._notify_unit(
@@ -888,9 +888,9 @@ class OptimizationService(OptimizationServiceInterface):
             if self.logger:
                 self.logger.info(f"Executing STOP for miner {miner_id} via {type(mining_port).__name__}")
             if isinstance(mining_port, MiningControlPort):
-                success = mining_port.stop_mining()
+                success = await mining_port.stop_mining()
             elif isinstance(mining_port, PowerControlPort):
-                success = mining_port.power_off()
+                success = await mining_port.power_off()
             action_taken = True
             if success:
                 await self._notify_unit(
@@ -915,7 +915,7 @@ class OptimizationService(OptimizationServiceInterface):
                 miner = self.miner_repo.get_by_id(miner_id)
 
                 # Get new miner state to publish in the event
-                new_status = status_port.get_status()
+                new_status = await status_port.get_status()
 
                 # Publish miner state changed event
                 if self._event_bus:

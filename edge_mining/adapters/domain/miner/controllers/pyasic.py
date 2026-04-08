@@ -12,7 +12,6 @@ from pyasic.rpc.base import BaseMinerRPCAPI
 from pyasic.ssh.base import BaseSSH
 from pyasic.web.base import BaseWebAPI
 
-from edge_mining.adapters.utils import run_async_func
 from edge_mining.domain.common import Watts
 from edge_mining.domain.miner.aggregate_roots import Miner
 from edge_mining.domain.miner.common import MinerControllerProtocol, MinerStatus
@@ -125,11 +124,11 @@ class PyASICMinerController(
         if self.logger:
             self.logger.debug(f"Entities Configured: IP={self.ip}")
 
-    def _get_miner(self) -> None:
+    async def _get_miner(self) -> None:
         """Retrieve the pyasic miner instance."""
         if self._miner is None:
             try:
-                miner = run_async_func(pyasic.get_miner(self.ip))
+                miner = await pyasic.get_miner(self.ip)
                 if miner is not None:
                     self._miner = cast(AnyMiner, miner)
 
@@ -177,13 +176,13 @@ class PyASICMinerController(
 
     # --- ModelDetectionPort ---
 
-    def get_model(self) -> Optional[str]:
+    async def get_model(self) -> Optional[str]:
         """Gets the model of the miner."""
 
         if self.logger:
             self.logger.debug(f"Fetching model from {self.ip}...")
 
-        self._get_miner()
+        await self._get_miner()
 
         if not self._miner:
             if self.logger:
@@ -194,13 +193,13 @@ class PyASICMinerController(
 
     # --- HashrateMonitorPort ---
 
-    def get_hashrate(self) -> Optional[HashRate]:
+    async def get_hashrate(self) -> Optional[HashRate]:
         """Gets the current hash rate, if available."""
 
         if self.logger:
             self.logger.debug(f"Fetching hashrate from {self.ip}...")
 
-        self._get_miner()
+        await self._get_miner()
 
         if not self._miner:
             if self.logger:
@@ -208,7 +207,7 @@ class PyASICMinerController(
             return None
 
         miner = self._miner
-        hashrate: Optional[AlgoHashRate] = run_async_func(miner.get_hashrate())
+        hashrate: Optional[AlgoHashRate] = await miner.get_hashrate()
         if hashrate is None:
             if self.logger:
                 self.logger.debug(f"Failed to fetch hashrate from {self.ip}...")
@@ -226,12 +225,12 @@ class PyASICMinerController(
 
     # --- PowerMonitorPort ---
 
-    def get_power(self) -> Optional[Watts]:
+    async def get_power(self) -> Optional[Watts]:
         """Gets the current power consumption, if available."""
         if self.logger:
             self.logger.debug(f"Fetching power consumption from {self.ip}...")
 
-        self._get_miner()
+        await self._get_miner()
 
         if not self._miner:
             if self.logger:
@@ -239,7 +238,7 @@ class PyASICMinerController(
             return None
 
         miner = self._miner
-        wattage = run_async_func(miner.get_wattage())
+        wattage = await miner.get_wattage()
         if wattage is None:
             if self.logger:
                 self.logger.debug(f"Failed to fetch power consumption from {self.ip}...")
@@ -253,12 +252,12 @@ class PyASICMinerController(
 
     # --- StatusMonitorPort ---
 
-    def get_status(self) -> MinerStatus:
+    async def get_status(self) -> MinerStatus:
         """Gets the current operational status of the miner."""
         if self.logger:
             self.logger.debug(f"Fetching miner status from {self.ip}...")
 
-        self._get_miner()
+        await self._get_miner()
 
         if not self._miner:
             if self.logger:
@@ -266,7 +265,7 @@ class PyASICMinerController(
             return MinerStatus.UNKNOWN
 
         miner = self._miner
-        mining_state = run_async_func(miner.is_mining())
+        mining_state = await miner.is_mining()
 
         # Map the bool result from is_mining() to MinerStatus
         state_map: Dict[Optional[bool], MinerStatus] = {
@@ -291,12 +290,12 @@ class PyASICMinerController(
 
     # --- ChipTemperatureMonitorPort ---
 
-    def get_chip_temperature(self) -> Optional[Temperature]:
+    async def get_chip_temperature(self) -> Optional[Temperature]:
         """Gets the current chip temperature, if available."""
         if self.logger:
             self.logger.debug(f"Fetching chip temperature from {self.ip}...")
 
-        self._get_miner()
+        await self._get_miner()
 
         if not self._miner:
             if self.logger:
@@ -304,7 +303,7 @@ class PyASICMinerController(
             return None
 
         miner = self._miner
-        data = run_async_func(miner.get_data())
+        data = await miner.get_data()
         if data is None or data.temperature_avg is None:
             return None
 
@@ -312,18 +311,18 @@ class PyASICMinerController(
 
     # --- BoardTemperatureMonitorPort ---
 
-    def get_board_temperature(self) -> Optional[Temperature]:
+    async def get_board_temperature(self) -> Optional[Temperature]:
         """Gets the current board temperature, if available."""
         if self.logger:
             self.logger.debug(f"Fetching board temperature from {self.ip}...")
 
-        self._get_miner()
+        await self._get_miner()
 
         if not self._miner:
             return None
 
         miner = self._miner
-        data = run_async_func(miner.get_data())
+        data = await miner.get_data()
         if data is None or not data.hashboards:
             return None
 
@@ -336,18 +335,18 @@ class PyASICMinerController(
 
     # --- InletTemperatureMonitorPort ---
 
-    def get_inlet_temperature(self) -> Optional[Temperature]:
+    async def get_inlet_temperature(self) -> Optional[Temperature]:
         """Gets the current inlet air temperature, if available."""
         if self.logger:
             self.logger.debug(f"Fetching inlet temperature from {self.ip}...")
 
-        self._get_miner()
+        await self._get_miner()
 
         if not self._miner:
             return None
 
         miner = self._miner
-        data = run_async_func(miner.get_data())
+        data = await miner.get_data()
         if data is None or data.env_temp is None:
             return None
 
@@ -355,7 +354,7 @@ class PyASICMinerController(
 
     # --- OutletTemperatureMonitorPort ---
 
-    def get_outlet_temperature(self) -> Optional[Temperature]:
+    async def get_outlet_temperature(self) -> Optional[Temperature]:
         """Gets the current outlet air temperature, if available."""
         if self.logger:
             self.logger.debug(f"Fetching outlet temperature from {self.ip}...")
@@ -366,18 +365,18 @@ class PyASICMinerController(
 
     # --- InternalFanSpeedMonitorPort ---
 
-    def get_internal_fan_speed(self) -> Optional[FanSpeed]:
+    async def get_internal_fan_speed(self) -> Optional[FanSpeed]:
         """Gets the current internal fan speed, if available."""
         if self.logger:
             self.logger.debug(f"Fetching internal fan speed from {self.ip}...")
 
-        self._get_miner()
+        await self._get_miner()
 
         if not self._miner:
             return None
 
         miner = self._miner
-        data = run_async_func(miner.get_data())
+        data = await miner.get_data()
         if data is None or not data.fans:
             return None
 
@@ -390,18 +389,18 @@ class PyASICMinerController(
 
     # --- VoltageMonitorPort ---
 
-    def get_voltage(self) -> Optional[Voltage]:
+    async def get_voltage(self) -> Optional[Voltage]:
         """Gets the current voltage, if available."""
         if self.logger:
             self.logger.debug(f"Fetching voltage from {self.ip}...")
 
-        self._get_miner()
+        await self._get_miner()
 
         if not self._miner:
             return None
 
         miner = self._miner
-        data = run_async_func(miner.get_data())
+        data = await miner.get_data()
         if data is None or data.voltage is None:
             return None
 
@@ -409,18 +408,18 @@ class PyASICMinerController(
 
     # --- FrequencyMonitorPort ---
 
-    def get_frequency(self) -> Optional[Frequency]:
+    async def get_frequency(self) -> Optional[Frequency]:
         """Gets the current chip operating frequency, if available."""
         if self.logger:
             self.logger.debug(f"Fetching frequency from {self.ip}...")
 
-        self._get_miner()
+        await self._get_miner()
 
         if not self._miner:
             return None
 
         miner = self._miner
-        data = run_async_func(miner.get_data())
+        data = await miner.get_data()
         if data is None or data.frequency_avg is None:
             return None
 
@@ -428,12 +427,12 @@ class PyASICMinerController(
 
     # --- MiningControlPort ---
 
-    def start_mining(self) -> bool:
+    async def start_mining(self) -> bool:
         """Attempts to start mining. Returns True on success."""
         if self.logger:
             self.logger.debug(f"Sending start command to miner at {self.ip}...")
 
-        self._get_miner()
+        await self._get_miner()
 
         if not self._miner:
             if self.logger:
@@ -441,19 +440,19 @@ class PyASICMinerController(
             return False
 
         miner = self._miner
-        success = run_async_func(miner.resume_mining())
+        success = await miner.resume_mining()
 
         if self.logger:
             self.logger.debug(f"Start command sent. Success: {success}")
 
         return success or False
 
-    def stop_mining(self) -> bool:
+    async def stop_mining(self) -> bool:
         """Attempts to stop mining. Returns True on success."""
         if self.logger:
             self.logger.debug(f"Sending stop command to miner at {self.ip}...")
 
-        self._get_miner()
+        await self._get_miner()
 
         if not self._miner:
             if self.logger:
@@ -461,7 +460,7 @@ class PyASICMinerController(
             return False
 
         miner = self._miner
-        success = run_async_func(miner.stop_mining())
+        success = await miner.stop_mining()
 
         if self.logger:
             self.logger.debug(f"Stop command sent. Success: {success}")
@@ -470,12 +469,12 @@ class PyASICMinerController(
 
     # --- InternalFanControlPort ---
 
-    def set_internal_fan_speed(self, speed_percent: float) -> bool:
+    async def set_internal_fan_speed(self, speed_percent: float) -> bool:
         """Sets internal fan speed as a percentage (0-100). Returns True on success."""
         if self.logger:
             self.logger.debug(f"Setting internal fan speed to {speed_percent}% on {self.ip}...")
 
-        self._get_miner()
+        await self._get_miner()
 
         if not self._miner:
             if self.logger:
@@ -484,7 +483,7 @@ class PyASICMinerController(
 
         miner = self._miner
         try:
-            success = run_async_func(miner.set_fan_speed(int(speed_percent)))
+            success = await miner.set_fan_speed(int(speed_percent))
             if self.logger:
                 self.logger.debug(f"Fan speed set. Success: {success}")
             return success or False
@@ -495,7 +494,7 @@ class PyASICMinerController(
 
     # --- Private helpers ---
 
-    def _derive_miner_status(self) -> Optional[bool]:
+    async def _derive_miner_status(self) -> Optional[bool]:
         """Derives the miner status based on hashrate and power consumption.
 
         Returns True if miner is ON (both hashrate > 0 and power > IDLE_WATTAGE_THRESHOLD),
@@ -506,8 +505,8 @@ class PyASICMinerController(
         """
         IDLE_WATTAGE_THRESHOLD = 1  # Low threshold to work with low-power miners (e.g., Bitaxe ~13W)
 
-        hashrate: Optional[HashRate] = self.get_hashrate()
-        wattage: Optional[Watts] = self.get_power()
+        hashrate: Optional[HashRate] = await self.get_hashrate()
+        wattage: Optional[Watts] = await self.get_power()
 
         if self.logger:
             self.logger.debug(

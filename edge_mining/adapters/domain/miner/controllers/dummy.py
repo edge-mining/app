@@ -164,7 +164,7 @@ class DummyMinerController(
 
     # --- ChipTemperatureMonitorPort ---
 
-    def get_chip_temperature(self) -> Optional[Temperature]:
+    async def get_chip_temperature(self) -> Optional[Temperature]:
         """Get simulated chip temperature."""
         if self._status == MinerStatus.ON:
             temp = Temperature(value=round(random.uniform(55.0, 85.0), 1))
@@ -178,7 +178,7 @@ class DummyMinerController(
 
     # --- BoardTemperatureMonitorPort ---
 
-    def get_board_temperature(self) -> Optional[Temperature]:
+    async def get_board_temperature(self) -> Optional[Temperature]:
         """Get simulated board temperature."""
         if self._status == MinerStatus.ON:
             temp = Temperature(value=round(random.uniform(45.0, 70.0), 1))
@@ -192,7 +192,7 @@ class DummyMinerController(
 
     # --- InletTemperatureMonitorPort ---
 
-    def get_inlet_temperature(self) -> Optional[Temperature]:
+    async def get_inlet_temperature(self) -> Optional[Temperature]:
         """Get simulated inlet air temperature."""
         temp = Temperature(value=round(random.uniform(18.0, 35.0), 1))
         if self.logger:
@@ -201,7 +201,7 @@ class DummyMinerController(
 
     # --- OutletTemperatureMonitorPort ---
 
-    def get_outlet_temperature(self) -> Optional[Temperature]:
+    async def get_outlet_temperature(self) -> Optional[Temperature]:
         """Get simulated outlet air temperature."""
         if self._status == MinerStatus.ON:
             temp = Temperature(value=round(random.uniform(40.0, 65.0), 1))
@@ -213,7 +213,7 @@ class DummyMinerController(
 
     # --- InternalFanSpeedMonitorPort ---
 
-    def get_internal_fan_speed(self) -> Optional[FanSpeed]:
+    async def get_internal_fan_speed(self) -> Optional[FanSpeed]:
         """Get simulated internal fan speed."""
         if self._status == MinerStatus.ON:
             rpm = random.uniform(3000.0, 6000.0)
@@ -228,7 +228,7 @@ class DummyMinerController(
 
     # --- ExternalFanSpeedMonitorPort ---
 
-    def get_external_fan_speed(self) -> Optional[FanSpeed]:
+    async def get_external_fan_speed(self) -> Optional[FanSpeed]:
         """Get simulated external fan speed."""
         if self._external_fan_speed > 0:
             rpm = self._external_fan_speed * 60.0  # percent to RPM approximation
@@ -241,7 +241,7 @@ class DummyMinerController(
 
     # --- VoltageMonitorPort ---
 
-    def get_voltage(self) -> Optional[Voltage]:
+    async def get_voltage(self) -> Optional[Voltage]:
         """Get simulated voltage."""
         if self._status == MinerStatus.ON:
             v = Voltage(value=round(random.uniform(11.8, 12.6), 2))
@@ -255,7 +255,7 @@ class DummyMinerController(
 
     # --- FrequencyMonitorPort ---
 
-    def get_frequency(self) -> Optional[Frequency]:
+    async def get_frequency(self) -> Optional[Frequency]:
         """Get simulated chip frequency."""
         if self._status == MinerStatus.ON:
             f = Frequency(value=round(random.uniform(400.0, 650.0), 1))
@@ -267,7 +267,7 @@ class DummyMinerController(
 
     # --- PowerControlPort ---
 
-    def power_on(self) -> bool:
+    async def power_on(self) -> bool:
         """Simulate hard power on."""
         if self.logger:
             self.logger.debug(f"DummyController: Received POWER ON (current: {self._status.name})")
@@ -275,7 +275,7 @@ class DummyMinerController(
             self._status = MinerStatus.STARTING
         return True
 
-    def power_off(self) -> bool:
+    async def power_off(self) -> bool:
         """Simulate hard power off."""
         if self.logger:
             self.logger.debug(f"DummyController: Received POWER OFF (current: {self._status.name})")
@@ -284,7 +284,7 @@ class DummyMinerController(
 
     # --- InternalFanControlPort ---
 
-    def set_internal_fan_speed(self, speed_percent: float) -> bool:
+    async def set_internal_fan_speed(self, speed_percent: float) -> bool:
         """Simulate setting internal fan speed."""
         if self.logger:
             self.logger.debug(f"DummyController: Setting internal fan speed to {speed_percent:.0f}%")
@@ -293,7 +293,7 @@ class DummyMinerController(
 
     # --- ExternalFanControlPort ---
 
-    def set_external_fan_speed(self, speed_percent: float) -> bool:
+    async def set_external_fan_speed(self, speed_percent: float) -> bool:
         """Simulate setting external fan speed."""
         if self.logger:
             self.logger.debug(f"DummyController: Setting external fan speed to {speed_percent:.0f}%")

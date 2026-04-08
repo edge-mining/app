@@ -56,7 +56,7 @@ class HashrateMonitorPort(MinerFeaturePort):
     feature_type = MinerFeatureType.HASHRATE_MONITORING
 
     @abstractmethod
-    def get_hashrate(self) -> Optional[HashRate]:
+    async def get_hashrate(self) -> Optional[HashRate]:
         """Gets the current hash rate, if available."""
         raise NotImplementedError
 
@@ -67,7 +67,7 @@ class PowerMonitorPort(MinerFeaturePort):
     feature_type = MinerFeatureType.POWER_MONITORING
 
     @abstractmethod
-    def get_power(self) -> Optional[Watts]:
+    async def get_power(self) -> Optional[Watts]:
         """Gets the current power consumption, if available."""
         raise NotImplementedError
 
@@ -78,7 +78,7 @@ class StatusMonitorPort(MinerFeaturePort):
     feature_type = MinerFeatureType.STATUS_MONITORING
 
     @abstractmethod
-    def get_status(self) -> MinerStatus:
+    async def get_status(self) -> MinerStatus:
         """Gets the current operational status of the miner."""
         raise NotImplementedError
 
@@ -89,7 +89,7 @@ class ChipTemperatureMonitorPort(MinerFeaturePort):
     feature_type = MinerFeatureType.CHIP_TEMPERATURE_MONITORING
 
     @abstractmethod
-    def get_chip_temperature(self) -> Optional[Temperature]:
+    async def get_chip_temperature(self) -> Optional[Temperature]:
         """Gets the current chip temperature, if available."""
         raise NotImplementedError
 
@@ -100,7 +100,7 @@ class BoardTemperatureMonitorPort(MinerFeaturePort):
     feature_type = MinerFeatureType.BOARD_TEMPERATURE_MONITORING
 
     @abstractmethod
-    def get_board_temperature(self) -> Optional[Temperature]:
+    async def get_board_temperature(self) -> Optional[Temperature]:
         """Gets the current board temperature, if available."""
         raise NotImplementedError
 
@@ -111,7 +111,7 @@ class InletTemperatureMonitorPort(MinerFeaturePort):
     feature_type = MinerFeatureType.INLET_TEMPERATURE_MONITORING
 
     @abstractmethod
-    def get_inlet_temperature(self) -> Optional[Temperature]:
+    async def get_inlet_temperature(self) -> Optional[Temperature]:
         """Gets the current inlet air temperature, if available."""
         raise NotImplementedError
 
@@ -122,7 +122,7 @@ class OutletTemperatureMonitorPort(MinerFeaturePort):
     feature_type = MinerFeatureType.OUTLET_TEMPERATURE_MONITORING
 
     @abstractmethod
-    def get_outlet_temperature(self) -> Optional[Temperature]:
+    async def get_outlet_temperature(self) -> Optional[Temperature]:
         """Gets the current outlet air temperature, if available."""
         raise NotImplementedError
 
@@ -133,7 +133,7 @@ class InternalFanSpeedMonitorPort(MinerFeaturePort):
     feature_type = MinerFeatureType.FAN_SPEED_INTERNAL_MONITORING
 
     @abstractmethod
-    def get_internal_fan_speed(self) -> Optional[FanSpeed]:
+    async def get_internal_fan_speed(self) -> Optional[FanSpeed]:
         """Gets the current internal fan speed, if available."""
         raise NotImplementedError
 
@@ -144,7 +144,7 @@ class ExternalFanSpeedMonitorPort(MinerFeaturePort):
     feature_type = MinerFeatureType.FAN_SPEED_EXTERNAL_MONITORING
 
     @abstractmethod
-    def get_external_fan_speed(self) -> Optional[FanSpeed]:
+    async def get_external_fan_speed(self) -> Optional[FanSpeed]:
         """Gets the current external fan speed, if available."""
         raise NotImplementedError
 
@@ -155,7 +155,7 @@ class VoltageMonitorPort(MinerFeaturePort):
     feature_type = MinerFeatureType.VOLTAGE_MONITORING
 
     @abstractmethod
-    def get_voltage(self) -> Optional[Voltage]:
+    async def get_voltage(self) -> Optional[Voltage]:
         """Gets the current voltage, if available."""
         raise NotImplementedError
 
@@ -166,7 +166,7 @@ class FrequencyMonitorPort(MinerFeaturePort):
     feature_type = MinerFeatureType.FREQUENCY_MONITORING
 
     @abstractmethod
-    def get_frequency(self) -> Optional[Frequency]:
+    async def get_frequency(self) -> Optional[Frequency]:
         """Gets the current chip operating frequency, if available."""
         raise NotImplementedError
 
@@ -180,12 +180,12 @@ class MiningControlPort(MinerFeaturePort):
     feature_type = MinerFeatureType.MINING_CONTROL
 
     @abstractmethod
-    def start_mining(self) -> bool:
+    async def start_mining(self) -> bool:
         """Attempts to start mining. Returns True on success."""
         raise NotImplementedError
 
     @abstractmethod
-    def stop_mining(self) -> bool:
+    async def stop_mining(self) -> bool:
         """Attempts to stop mining. Returns True on success."""
         raise NotImplementedError
 
@@ -196,12 +196,12 @@ class PowerControlPort(MinerFeaturePort):
     feature_type = MinerFeatureType.POWER_CONTROL
 
     @abstractmethod
-    def power_on(self) -> bool:
+    async def power_on(self) -> bool:
         """Attempts to power on the miner. Returns True on success."""
         raise NotImplementedError
 
     @abstractmethod
-    def power_off(self) -> bool:
+    async def power_off(self) -> bool:
         """Attempts to power off the miner. Returns True on success."""
         raise NotImplementedError
 
@@ -212,7 +212,7 @@ class InternalFanControlPort(MinerFeaturePort):
     feature_type = MinerFeatureType.INTERNAL_FAN_CONTROL
 
     @abstractmethod
-    def set_internal_fan_speed(self, speed_percent: float) -> bool:
+    async def set_internal_fan_speed(self, speed_percent: float) -> bool:
         """Sets internal fan speed as a percentage (0-100). Returns True on success."""
         raise NotImplementedError
 
@@ -223,7 +223,7 @@ class ExternalFanControlPort(MinerFeaturePort):
     feature_type = MinerFeatureType.EXTERNAL_FAN_CONTROL
 
     @abstractmethod
-    def set_external_fan_speed(self, speed_percent: float) -> bool:
+    async def set_external_fan_speed(self, speed_percent: float) -> bool:
         """Sets external fan speed as a percentage (0-100). Returns True on success."""
         raise NotImplementedError
 
@@ -237,7 +237,7 @@ class ModelDetectionPort(MinerFeaturePort):
     feature_type = MinerFeatureType.MODEL_DETECTION
 
     @abstractmethod
-    def get_model(self) -> Optional[str]:
+    async def get_model(self) -> Optional[str]:
         """Gets the model of the miner, if available."""
         raise NotImplementedError
 

@@ -46,11 +46,11 @@ class MinerActionService(MinerActionServiceInterface):
         self._event_bus = event_bus
         self.logger = logger
 
-    def _try_update_model(self, miner: Miner) -> None:
+    async def _try_update_model(self, miner: Miner) -> None:
         """Update miner model from MODEL_DETECTION feature port if available."""
         model_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.MODEL_DETECTION)
         if model_port and isinstance(model_port, ModelDetectionPort):
-            current_model = model_port.get_model()
+            current_model = await model_port.get_model()
             if current_model and miner.model != current_model:
                 miner.model = current_model
                 self.miner_repo.update(miner)
@@ -91,16 +91,16 @@ class MinerActionService(MinerActionServiceInterface):
         status_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.STATUS_MONITORING)
         current_status = MinerStatus.UNKNOWN
         if status_port and isinstance(status_port, StatusMonitorPort):
-            current_status = status_port.get_status()
+            current_status = await status_port.get_status()
 
         # Update model
-        self._try_update_model(miner)
+        await self._try_update_model(miner)
 
         success = False
         if mining_port and isinstance(mining_port, MiningControlPort):
-            success = mining_port.start_mining()
+            success = await mining_port.start_mining()
         elif power_ctrl_port and isinstance(power_ctrl_port, PowerControlPort):
-            success = power_ctrl_port.power_on()
+            success = await power_ctrl_port.power_on()
 
         if success:
             if self.logger:
@@ -153,16 +153,16 @@ class MinerActionService(MinerActionServiceInterface):
         status_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.STATUS_MONITORING)
         current_status = MinerStatus.UNKNOWN
         if status_port and isinstance(status_port, StatusMonitorPort):
-            current_status = status_port.get_status()
+            current_status = await status_port.get_status()
 
         # Update model
-        self._try_update_model(miner)
+        await self._try_update_model(miner)
 
         success = False
         if mining_port and isinstance(mining_port, MiningControlPort):
-            success = mining_port.stop_mining()
+            success = await mining_port.stop_mining()
         elif power_ctrl_port and isinstance(power_ctrl_port, PowerControlPort):
-            success = power_ctrl_port.power_off()
+            success = await power_ctrl_port.power_off()
 
         if success:
             if self.logger:
@@ -205,7 +205,7 @@ class MinerActionService(MinerActionServiceInterface):
         if not port or not isinstance(port, PowerMonitorPort):
             raise MinerControllerConfigurationError(f"No power monitor available for miner {miner_id}.")
 
-        return port.get_power()
+        return await port.get_power()
 
     async def get_miner_hashrate(self, miner_id: EntityId) -> Optional[HashRate]:
         """Gets the current hash rate of the specified miner."""
@@ -221,9 +221,9 @@ class MinerActionService(MinerActionServiceInterface):
         if not port or not isinstance(port, HashrateMonitorPort):
             raise MinerControllerConfigurationError(f"No hashrate monitor available for miner {miner_id}.")
 
-        self._try_update_model(miner)
+        await self._try_update_model(miner)
 
-        return port.get_hashrate()
+        return await port.get_hashrate()
 
     async def get_miner_status(self, miner_id: EntityId) -> MinerStateSnapshot:
         """Gets the current status of the specified miner as a state snapshot."""
@@ -239,19 +239,19 @@ class MinerActionService(MinerActionServiceInterface):
         status_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.STATUS_MONITORING)
         current_status = MinerStatus.UNKNOWN
         if status_port and isinstance(status_port, StatusMonitorPort):
-            current_status = status_port.get_status()
+            current_status = await status_port.get_status()
 
         hashrate_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.HASHRATE_MONITORING)
         current_hashrate = None
         if hashrate_port and isinstance(hashrate_port, HashrateMonitorPort):
-            current_hashrate = hashrate_port.get_hashrate()
+            current_hashrate = await hashrate_port.get_hashrate()
 
         power_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.POWER_MONITORING)
         current_power = None
         if power_port and isinstance(power_port, PowerMonitorPort):
-            current_power = power_port.get_power()
+            current_power = await power_port.get_power()
 
-        self._try_update_model(miner)
+        await self._try_update_model(miner)
 
         return MinerStateSnapshot(
             status=current_status,
@@ -297,19 +297,19 @@ class MinerActionService(MinerActionServiceInterface):
                     error_count += 1
                     continue
 
-                current_status = status_port.get_status()
+                current_status = await status_port.get_status()
 
                 hashrate_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.HASHRATE_MONITORING)
                 current_hashrate = None
                 if hashrate_port and isinstance(hashrate_port, HashrateMonitorPort):
-                    current_hashrate = hashrate_port.get_hashrate()
+                    current_hashrate = await hashrate_port.get_hashrate()
 
                 power_port = self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.POWER_MONITORING)
                 current_power = None
                 if power_port and isinstance(power_port, PowerMonitorPort):
-                    current_power = power_port.get_power()
+                    current_power = await power_port.get_power()
 
-                self._try_update_model(miner)
+                await self._try_update_model(miner)
 
                 synced_count += 1
 
@@ -353,17 +353,17 @@ class MinerActionService(MinerActionServiceInterface):
         status_port = self.adapter_service.get_miner_feature_port(temp_miner, MinerFeatureType.STATUS_MONITORING)
         current_status = MinerStatus.UNKNOWN
         if status_port and isinstance(status_port, StatusMonitorPort):
-            current_status = status_port.get_status()
+            current_status = await status_port.get_status()
 
         hashrate_port = self.adapter_service.get_miner_feature_port(temp_miner, MinerFeatureType.HASHRATE_MONITORING)
         current_hashrate = None
         if hashrate_port and isinstance(hashrate_port, HashrateMonitorPort):
-            current_hashrate = hashrate_port.get_hashrate()
+            current_hashrate = await hashrate_port.get_hashrate()
 
         power_port = self.adapter_service.get_miner_feature_port(temp_miner, MinerFeatureType.POWER_MONITORING)
         current_power = None
         if power_port and isinstance(power_port, PowerMonitorPort):
-            current_power = power_port.get_power()
+            current_power = await power_port.get_power()
 
         has_no_details = all(
             (

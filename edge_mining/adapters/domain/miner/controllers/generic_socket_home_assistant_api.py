@@ -110,7 +110,7 @@ class GenericSocketHomeAssistantAPIMinerController(
 
     # --- PowerMonitorPort ---
 
-    def get_power(self) -> Optional[Watts]:
+    async def get_power(self) -> Optional[Watts]:
         """Gets the current power consumption, if available."""
         if self.logger:
             self.logger.debug("Fetching power consumption from Home Assistant...")
@@ -129,7 +129,7 @@ class GenericSocketHomeAssistantAPIMinerController(
 
     # --- StatusMonitorPort ---
 
-    def get_status(self) -> MinerStatus:
+    async def get_status(self) -> MinerStatus:
         """Gets the current operational status of the miner."""
         if self.logger:
             self.logger.debug("Fetching miner status from Home Assistant...")
@@ -152,7 +152,7 @@ class GenericSocketHomeAssistantAPIMinerController(
 
     # --- PowerControlPort ---
 
-    def power_off(self) -> bool:
+    async def power_off(self) -> bool:
         """Attempts to power off the miner via smart plug. Returns True on success."""
         if self.logger:
             self.logger.debug("Sending power off command to miner via Home Assistant...")
@@ -167,7 +167,7 @@ class GenericSocketHomeAssistantAPIMinerController(
 
         return success
 
-    def power_on(self) -> bool:
+    async def power_on(self) -> bool:
         """Attempts to power on the miner via smart plug. Returns True on success."""
         if self.logger:
             self.logger.debug("Sending power on command to miner via Home Assistant...")

@@ -1581,7 +1581,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         if not self.adapter_service:
             raise MinerControllerConfigurationError("Adapter service is required to discover supported features.")
 
-        adapter = self.adapter_service.get_miner_controller_adapter(miner, controller_id)
+        adapter = await self.adapter_service.get_miner_controller_adapter(miner, controller_id)
         if not adapter:
             raise MinerControllerConfigurationError(f"Could not initialize adapter for controller {controller_id}.")
 
