@@ -121,7 +121,7 @@ const chartOptions = computed(() => {
     labels: {
       show: true,
       style: { colors: "rgba(255,255,255,0.3)", fontSize: "10px" },
-      datetimeFormatter: { hour: "HH:mm", minute: "mm:ss" }, // Detailed time
+      datetimeFormatter: { hour: "HH:mm", minute: "HH:mm" }, // Detailed time
     },
     axisBorder: { show: false },
     axisTicks: { show: false },
