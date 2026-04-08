@@ -14,12 +14,15 @@ withDefaults(
     hasData?: boolean;
     /** Whether the maximize feature is enabled */
     maximizable?: boolean;
+    /** Whether to show the miner event marker toggle */
+    showMarkerToggle?: boolean;
   }>(),
   {
     chartHeight: 180,
     hasData: false,
     iconColor: "text-base-content/40",
     maximizable: true,
+    showMarkerToggle: true,
   }
 );
 
@@ -62,7 +65,7 @@ function toggleMaximize() {
         
         <!-- Toggle Miner Events -->
         <button 
-          v-if="hasData"
+          v-if="hasData && showMarkerToggle"
           @click="showMinerEvents = !showMinerEvents"
           class="flex items-center justify-center w-6 h-6 rounded hover:bg-base-content/10 transition-colors"
           :class="showMinerEvents ? 'text-base-content/60' : 'text-base-content/20'"
