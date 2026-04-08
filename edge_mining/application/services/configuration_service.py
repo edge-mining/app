@@ -27,8 +27,8 @@ from edge_mining.domain.forecast.ports import ForecastProviderRepository
 from edge_mining.domain.home_load.entities import HomeForecastProvider
 from edge_mining.domain.home_load.exceptions import HomeForecastProviderNotFoundError
 from edge_mining.domain.home_load.ports import HomeForecastProviderRepository
-from edge_mining.domain.miner.common import MinerControllerAdapter
 from edge_mining.domain.miner.aggregate_roots import Miner
+from edge_mining.domain.miner.common import MinerControllerAdapter
 from edge_mining.domain.miner.entities import MinerController
 from edge_mining.domain.miner.exceptions import (
     MinerControllerConfigurationError,
