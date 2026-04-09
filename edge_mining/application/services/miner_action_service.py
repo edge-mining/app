@@ -13,8 +13,8 @@ from edge_mining.domain.miner.exceptions import (
     MinerNotFoundError,
 )
 from edge_mining.domain.miner.ports import (
-    ChipTemperatureMonitorPort,
     DeviceInfoPort,
+    HashboardMonitorPort,
     HashrateMonitorPort,
     InternalFanSpeedMonitorPort,
     MinerRepository,
@@ -369,11 +369,11 @@ class MinerActionService(MinerActionServiceInterface):
             current_power = await power_port.get_power()
 
         temperature_port = await self.adapter_service.get_miner_feature_port(
-            temp_miner, MinerFeatureType.CHIP_TEMPERATURE_MONITORING
+            temp_miner, MinerFeatureType.HASHBOARD_MONITORING
         )
-        current_chip_temperature = None
-        if temperature_port and isinstance(temperature_port, ChipTemperatureMonitorPort):
-            current_chip_temperature = await temperature_port.get_chip_temperature()
+        current_hashboards = []
+        if temperature_port and isinstance(temperature_port, HashboardMonitorPort):
+            current_hashboards = await temperature_port.get_hashboards()
 
         internal_fan_port = await self.adapter_service.get_miner_feature_port(
             temp_miner, MinerFeatureType.FAN_SPEED_INTERNAL_MONITORING
@@ -405,7 +405,7 @@ class MinerActionService(MinerActionServiceInterface):
             status=current_status,
             hash_rate=current_hashrate,
             power_consumption=current_power,
-            chip_temperature=current_chip_temperature,
+            hashboards=current_hashboards,
             internal_fan_speed=internal_fan_speed,
         )
 

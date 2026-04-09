@@ -30,7 +30,7 @@ from edge_mining.domain.miner.common import MinerFeatureType, MinerStatus
 from edge_mining.domain.miner.events import MinerStateChangedEvent
 from edge_mining.domain.miner.exceptions import MinerError
 from edge_mining.domain.miner.ports import (
-    ChipTemperatureMonitorPort,
+    HashboardMonitorPort,
     HashrateMonitorPort,
     InternalFanSpeedMonitorPort,
     MinerFeaturePort,
@@ -302,17 +302,17 @@ class OptimizationService(OptimizationServiceInterface):
                 if power_port and isinstance(power_port, PowerMonitorPort):
                     current_power = await power_port.get_power()
 
-                temperature_port = await self.adapter_service.get_miner_feature_port(
-                    miner, MinerFeatureType.CHIP_TEMPERATURE_MONITORING
+                hashboard_port = await self.adapter_service.get_miner_feature_port(
+                    miner, MinerFeatureType.HASHBOARD_MONITORING
                 )
-                current_chip_temperature = None
-                if temperature_port and isinstance(temperature_port, ChipTemperatureMonitorPort):
-                    current_chip_temperature = await temperature_port.get_chip_temperature()
+                current_hashboards = []
+                if hashboard_port and isinstance(hashboard_port, HashboardMonitorPort):
+                    current_hashboards = await hashboard_port.get_hashboards()
 
                 internal_fan_port = await self.adapter_service.get_miner_feature_port(
                     miner, MinerFeatureType.FAN_SPEED_INTERNAL_MONITORING
                 )
-                internal_fan_speed = None
+                internal_fan_speed = []
                 if internal_fan_port and isinstance(internal_fan_port, InternalFanSpeedMonitorPort):
                     internal_fan_speed = await internal_fan_port.get_internal_fan_speed()
 
@@ -321,7 +321,7 @@ class OptimizationService(OptimizationServiceInterface):
                     status=current_status,
                     hash_rate=current_hashrate,
                     power_consumption=current_power,
-                    chip_temperature=current_chip_temperature,
+                    hashboards=current_hashboards,
                     internal_fan_speed=internal_fan_speed,
                 )
 

@@ -17,10 +17,8 @@ from edge_mining.domain.miner.aggregate_roots import Miner
 from edge_mining.domain.miner.common import MinerControllerProtocol, MinerStatus
 from edge_mining.domain.miner.exceptions import MinerControllerConfigurationError
 from edge_mining.domain.miner.ports import (
-    BoardTemperatureMonitorPort,
-    ChipTemperatureMonitorPort,
     DeviceInfoPort,
-    FrequencyMonitorPort,
+    HashboardMonitorPort,
     HashrateMonitorPort,
     InletTemperatureMonitorPort,
     InternalFanControlPort,
@@ -31,11 +29,10 @@ from edge_mining.domain.miner.ports import (
     OutletTemperatureMonitorPort,
     PowerMonitorPort,
     StatusMonitorPort,
-    VoltageMonitorPort,
 )
 from edge_mining.domain.miner.value_objects import (
     FanSpeed,
-    Frequency,
+    HashboardSnapshot,
     HashRate,
     MinerInfo,
     Temperature,
@@ -89,13 +86,10 @@ class PyASICMinerController(
     HashrateMonitorPort,
     PowerMonitorPort,
     StatusMonitorPort,
-    ChipTemperatureMonitorPort,
-    BoardTemperatureMonitorPort,
+    HashboardMonitorPort,
     InletTemperatureMonitorPort,
     OutletTemperatureMonitorPort,
     InternalFanSpeedMonitorPort,
-    VoltageMonitorPort,
-    FrequencyMonitorPort,
     MiningControlPort,
     InternalFanControlPort,
     DeviceInfoPort,
@@ -372,48 +366,75 @@ class PyASICMinerController(
 
         return miner_status
 
-    # --- ChipTemperatureMonitorPort ---
+    # --- HashboardMonitorPort ---
 
-    async def get_chip_temperature(self) -> Optional[Temperature]:
-        """Gets the current chip temperature, if available."""
+    async def get_hashboards(self) -> List[HashboardSnapshot]:
+        """Gets the current state of all hashboards."""
         if self.logger:
-            self.logger.debug(f"Fetching chip temperature from {self.ip}...")
+            self.logger.debug(f"Fetching hashboard data from {self.ip}...")
 
         await self._get_miner()
 
         if not self._miner:
             if self.logger:
                 self.logger.error(f"Failed to retrieve miner instance from {self.ip}...")
-            return None
+            return []
 
         miner = self._miner
-        temperature = await miner.get_env_temp()
+        hashboards = await miner.get_hashboards()
+        if not hashboards:
+            return []
 
-        return Temperature(value=float(temperature)) if temperature is not None else None
+        snapshots: List[HashboardSnapshot] = []
+        for idx, hb in enumerate(hashboards):
+            chip_temp = Temperature(value=float(hb.chip_temp)) if hb.chip_temp is not None else None
+            board_temp = Temperature(value=float(hb.temp)) if hb.temp is not None else None
 
-    # --- BoardTemperatureMonitorPort ---
+            hb_hashrate = None
+            if hb.hashrate is not None:
+                hr_val, hr_unit = self._normalize_hashrate_unit(
+                    value=float(hb.hashrate),
+                    unit=str(hb.hashrate.unit) if hasattr(hb.hashrate, "unit") else "TH/s",
+                )
+                hb_hashrate = HashRate(value=hr_val, unit=hr_unit)
 
-    async def get_board_temperature(self) -> Optional[Temperature]:
-        """Gets the current board temperature, if available."""
+            hb_voltage = None
+            if hb.voltage is not None:
+                hb_voltage = Voltage(value=float(hb.voltage.value))
+
+            hb_frequency = None
+
+            hb_expected_hashrate = None
+            # if hb.expected_hashrate is not None:
+            #     ehr_val, ehr_unit = self._normalize_hashrate_unit(
+            #         value=float(hb.expected_hashrate),
+            #         unit=str(hb.expected_hashrate.unit) if hasattr(hb.expected_hashrate, "unit") else "TH/s",
+            #     )
+            #     hb_expected_hashrate = HashRate(value=ehr_val, unit=ehr_unit)
+
+            hb_hashrate_error = None
+            # if hb.hashrate is not None and hb.expected_hashrate is not None:
+            #     error_val = float(hb.expected_hashrate) - float(hb.hashrate)
+            #     error_unit = hb_hashrate.unit if hb_hashrate else "TH/s"
+            #     hb_hashrate_error = HashRate(value=round(error_val, 4), unit=error_unit)
+
+            snapshots.append(
+                HashboardSnapshot(
+                    index=idx,
+                    chip_temperature=chip_temp,
+                    board_temperature=board_temp,
+                    voltage=hb_voltage,
+                    frequency=hb_frequency,
+                    hash_rate=hb_hashrate,
+                    nominal_hash_rate=hb_expected_hashrate,
+                    hash_rate_error=hb_hashrate_error,
+                )
+            )
+
         if self.logger:
-            self.logger.debug(f"Fetching board temperature from {self.ip}...")
+            self.logger.debug(f"Hashboard data fetched: {len(snapshots)} boards from {self.ip}")
 
-        await self._get_miner()
-
-        if not self._miner:
-            return None
-
-        miner = self._miner
-        data = await miner.get_data()
-        if data is None or not data.hashboards:
-            return None
-
-        # Average board temperature across all hashboards
-        temps = [hb.temp for hb in data.hashboards if hb.temp is not None]
-        if not temps:
-            return None
-
-        return Temperature(value=round(sum(temps) / len(temps), 1))
+        return snapshots
 
     # --- InletTemperatureMonitorPort ---
 
@@ -469,44 +490,6 @@ class PyASICMinerController(
                 miner_fans.append(FanSpeed(value=float(fan.speed)))
 
         return miner_fans
-
-    # --- VoltageMonitorPort ---
-
-    async def get_voltage(self) -> Optional[Voltage]:
-        """Gets the current voltage, if available."""
-        if self.logger:
-            self.logger.debug(f"Fetching voltage from {self.ip}...")
-
-        await self._get_miner()
-
-        if not self._miner:
-            return None
-
-        miner = self._miner
-        data = await miner.get_data()
-        if data is None or data.voltage is None:
-            return None
-
-        return Voltage(value=float(data.voltage))
-
-    # --- FrequencyMonitorPort ---
-
-    async def get_frequency(self) -> Optional[Frequency]:
-        """Gets the current chip operating frequency, if available."""
-        if self.logger:
-            self.logger.debug(f"Fetching frequency from {self.ip}...")
-
-        await self._get_miner()
-
-        if not self._miner:
-            return None
-
-        miner = self._miner
-        data = await miner.get_data()
-        if data is None or data.frequency_avg is None:
-            return None
-
-        return Frequency(value=float(data.frequency_avg))
 
     # --- MiningControlPort ---
 

@@ -19,6 +19,7 @@ from edge_mining.domain.miner.value_objects import (
     FanSpeed,
     Frequency,
     HashRate,
+    HashboardSnapshot,
     MinerFeature,
     MinerStateSnapshot,
     Temperature,
@@ -240,20 +241,75 @@ class MinerSchema(BaseModel):
         }
 
 
+class HashboardSnapshotSchema(BaseModel):
+    """Schema for HashboardSnapshot value object."""
+
+    index: int = Field(..., description="Hashboard slot/position index")
+    chip_temperature: Optional[TemperatureSchema] = Field(default=None, description="Chip temperature")
+    board_temperature: Optional[TemperatureSchema] = Field(default=None, description="Board temperature")
+    voltage: Optional[VoltageSchema] = Field(default=None, description="Voltage")
+    frequency: Optional[FrequencySchema] = Field(default=None, description="Frequency")
+    hash_rate: Optional[HashRateSchema] = Field(default=None, description="Current hash rate")
+    nominal_hash_rate: Optional[HashRateSchema] = Field(default=None, description="Nominal hash rate")
+    hash_rate_error: Optional[HashRateSchema] = Field(default=None, description="Hash rate error")
+
+    @classmethod
+    def from_model(cls, hb: HashboardSnapshot) -> "HashboardSnapshotSchema":
+        """Create HashboardSnapshotSchema from a HashboardSnapshot value object."""
+        return cls(
+            index=hb.index,
+            chip_temperature=(
+                TemperatureSchema(value=hb.chip_temperature.value, unit=hb.chip_temperature.unit)
+                if hb.chip_temperature
+                else None
+            ),
+            board_temperature=(
+                TemperatureSchema(value=hb.board_temperature.value, unit=hb.board_temperature.unit)
+                if hb.board_temperature
+                else None
+            ),
+            voltage=VoltageSchema(value=hb.voltage.value, unit=hb.voltage.unit) if hb.voltage else None,
+            frequency=FrequencySchema(value=hb.frequency.value, unit=hb.frequency.unit) if hb.frequency else None,
+            hash_rate=(HashRateSchema(value=hb.hash_rate.value, unit=hb.hash_rate.unit) if hb.hash_rate else None),
+            nominal_hash_rate=(
+                HashRateSchema(value=hb.nominal_hash_rate.value, unit=hb.nominal_hash_rate.unit)
+                if hb.nominal_hash_rate
+                else None
+            ),
+            hash_rate_error=(
+                HashRateSchema(value=hb.hash_rate_error.value, unit=hb.hash_rate_error.unit)
+                if hb.hash_rate_error
+                else None
+            ),
+        )
+
+    def to_model(self) -> HashboardSnapshot:
+        """Convert HashboardSnapshotSchema to HashboardSnapshot value object."""
+        return HashboardSnapshot(
+            index=self.index,
+            chip_temperature=self.chip_temperature.to_model() if self.chip_temperature else None,
+            board_temperature=self.board_temperature.to_model() if self.board_temperature else None,
+            voltage=self.voltage.to_model() if self.voltage else None,
+            frequency=self.frequency.to_model() if self.frequency else None,
+            hash_rate=self.hash_rate.to_model() if self.hash_rate else None,
+            nominal_hash_rate=self.nominal_hash_rate.to_model() if self.nominal_hash_rate else None,
+            hash_rate_error=self.hash_rate_error.to_model() if self.hash_rate_error else None,
+        )
+
+
 class MinerStateSnapshotSchema(BaseModel):
     """Schema for MinerStateSnapshot value object (runtime operational state)."""
 
     status: MinerStatus = Field(default=MinerStatus.UNKNOWN, description="Current miner status")
     hash_rate: Optional[HashRateSchema] = Field(default=None, description="Current hash rate")
     power_consumption: Optional[float] = Field(default=None, description="Current power consumption in Watts")
-    chip_temperature: Optional[TemperatureSchema] = Field(default=None, description="Chip temperature")
-    board_temperature: Optional[TemperatureSchema] = Field(default=None, description="Board temperature")
     inlet_temperature: Optional[TemperatureSchema] = Field(default=None, description="Inlet temperature")
     outlet_temperature: Optional[TemperatureSchema] = Field(default=None, description="Outlet temperature")
     internal_fan_speed: list[FanSpeedSchema] = Field(default_factory=list, description="Internal fan speeds")
     external_fan_speed: Optional[FanSpeedSchema] = Field(default=None, description="External fan speed")
-    voltage: Optional[VoltageSchema] = Field(default=None, description="Voltage")
-    frequency: Optional[FrequencySchema] = Field(default=None, description="Frequency")
+    hashboards: list[HashboardSnapshotSchema] = Field(default_factory=list, description="Per-hashboard data")
+    blocks_found: Optional[int] = Field(default=None, description="Blocks found count")
+    system_uptime: Optional[int] = Field(default=None, description="System uptime in seconds")
 
     @classmethod
     def from_model(cls, snapshot: MinerStateSnapshot) -> "MinerStateSnapshotSchema":
@@ -266,16 +322,6 @@ class MinerStateSnapshotSchema(BaseModel):
             status=snapshot.status,
             hash_rate=hash_rate,
             power_consumption=snapshot.power_consumption,
-            chip_temperature=(
-                TemperatureSchema(value=snapshot.chip_temperature.value, unit=snapshot.chip_temperature.unit)
-                if snapshot.chip_temperature
-                else None
-            ),
-            board_temperature=(
-                TemperatureSchema(value=snapshot.board_temperature.value, unit=snapshot.board_temperature.unit)
-                if snapshot.board_temperature
-                else None
-            ),
             inlet_temperature=(
                 TemperatureSchema(value=snapshot.inlet_temperature.value, unit=snapshot.inlet_temperature.unit)
                 if snapshot.inlet_temperature
@@ -292,14 +338,9 @@ class MinerStateSnapshotSchema(BaseModel):
                 if snapshot.external_fan_speed
                 else None
             ),
-            voltage=(
-                VoltageSchema(value=snapshot.voltage.value, unit=snapshot.voltage.unit) if snapshot.voltage else None
-            ),
-            frequency=(
-                FrequencySchema(value=snapshot.frequency.value, unit=snapshot.frequency.unit)
-                if snapshot.frequency
-                else None
-            ),
+            hashboards=[HashboardSnapshotSchema.from_model(hb) for hb in snapshot.hashboards],
+            blocks_found=snapshot.blocks_found,
+            system_uptime=snapshot.system_uptime,
         )
 
     def to_model(self) -> MinerStateSnapshot:
@@ -308,14 +349,13 @@ class MinerStateSnapshotSchema(BaseModel):
             status=MinerStatus(self.status) if isinstance(self.status, str) else self.status,
             hash_rate=(HashRate(value=self.hash_rate.value, unit=self.hash_rate.unit) if self.hash_rate else None),
             power_consumption=Watts(self.power_consumption) if self.power_consumption is not None else None,
-            chip_temperature=self.chip_temperature.to_model() if self.chip_temperature else None,
-            board_temperature=self.board_temperature.to_model() if self.board_temperature else None,
             inlet_temperature=self.inlet_temperature.to_model() if self.inlet_temperature else None,
             outlet_temperature=self.outlet_temperature.to_model() if self.outlet_temperature else None,
             internal_fan_speed=[fs.to_model() for fs in self.internal_fan_speed],
             external_fan_speed=self.external_fan_speed.to_model() if self.external_fan_speed else None,
-            voltage=self.voltage.to_model() if self.voltage else None,
-            frequency=self.frequency.to_model() if self.frequency else None,
+            hashboards=[hb.to_model() for hb in self.hashboards],
+            blocks_found=self.blocks_found,
+            system_uptime=self.system_uptime,
         )
 
     class Config:

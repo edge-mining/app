@@ -9,11 +9,10 @@ from edge_mining.domain.miner.common import MinerFeatureType, MinerStatus
 from edge_mining.domain.miner.entities import MinerController
 from edge_mining.domain.miner.value_objects import (
     FanSpeed,
-    Frequency,
+    HashboardSnapshot,
     HashRate,
     MinerInfo,
     Temperature,
-    Voltage,
 )
 
 # --- Feature Ports ---
@@ -84,25 +83,14 @@ class StatusMonitorPort(MinerFeaturePort):
         raise NotImplementedError
 
 
-class ChipTemperatureMonitorPort(MinerFeaturePort):
-    """Port for monitoring ASIC chip temperature."""
+class HashboardMonitorPort(MinerFeaturePort):
+    """Port for monitoring per-hashboard data (temperatures, voltage, frequency, hashrate)."""
 
-    feature_type = MinerFeatureType.CHIP_TEMPERATURE_MONITORING
-
-    @abstractmethod
-    async def get_chip_temperature(self) -> Optional[Temperature]:
-        """Gets the current chip temperature, if available."""
-        raise NotImplementedError
-
-
-class BoardTemperatureMonitorPort(MinerFeaturePort):
-    """Port for monitoring board temperature."""
-
-    feature_type = MinerFeatureType.BOARD_TEMPERATURE_MONITORING
+    feature_type = MinerFeatureType.HASHBOARD_MONITORING
 
     @abstractmethod
-    async def get_board_temperature(self) -> Optional[Temperature]:
-        """Gets the current board temperature, if available."""
+    async def get_hashboards(self) -> List[HashboardSnapshot]:
+        """Gets the current state of all hashboards."""
         raise NotImplementedError
 
 
@@ -147,28 +135,6 @@ class ExternalFanSpeedMonitorPort(MinerFeaturePort):
     @abstractmethod
     async def get_external_fan_speed(self) -> Optional[FanSpeed]:
         """Gets the current external fan speed, if available."""
-        raise NotImplementedError
-
-
-class VoltageMonitorPort(MinerFeaturePort):
-    """Port for monitoring miner voltage."""
-
-    feature_type = MinerFeatureType.VOLTAGE_MONITORING
-
-    @abstractmethod
-    async def get_voltage(self) -> Optional[Voltage]:
-        """Gets the current voltage, if available."""
-        raise NotImplementedError
-
-
-class FrequencyMonitorPort(MinerFeaturePort):
-    """Port for monitoring chip operating frequency."""
-
-    feature_type = MinerFeatureType.FREQUENCY_MONITORING
-
-    @abstractmethod
-    async def get_frequency(self) -> Optional[Frequency]:
-        """Gets the current chip operating frequency, if available."""
         raise NotImplementedError
 
 

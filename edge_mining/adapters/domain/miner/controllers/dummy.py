@@ -6,12 +6,10 @@ from typing import List, Optional
 from edge_mining.domain.common import Watts
 from edge_mining.domain.miner.common import MinerStatus
 from edge_mining.domain.miner.ports import (
-    BoardTemperatureMonitorPort,
-    ChipTemperatureMonitorPort,
     DeviceInfoPort,
     ExternalFanControlPort,
     ExternalFanSpeedMonitorPort,
-    FrequencyMonitorPort,
+    HashboardMonitorPort,
     HashrateMonitorPort,
     InletTemperatureMonitorPort,
     InternalFanControlPort,
@@ -21,9 +19,16 @@ from edge_mining.domain.miner.ports import (
     PowerControlPort,
     PowerMonitorPort,
     StatusMonitorPort,
-    VoltageMonitorPort,
 )
-from edge_mining.domain.miner.value_objects import FanSpeed, Frequency, HashRate, MinerInfo, Temperature, Voltage
+from edge_mining.domain.miner.value_objects import (
+    FanSpeed,
+    Frequency,
+    HashboardSnapshot,
+    HashRate,
+    MinerInfo,
+    Temperature,
+    Voltage,
+)
 from edge_mining.shared.logging.port import LoggerPort
 
 
@@ -31,14 +36,11 @@ class DummyMinerController(
     HashrateMonitorPort,
     PowerMonitorPort,
     StatusMonitorPort,
-    ChipTemperatureMonitorPort,
-    BoardTemperatureMonitorPort,
+    HashboardMonitorPort,
     InletTemperatureMonitorPort,
     OutletTemperatureMonitorPort,
     InternalFanSpeedMonitorPort,
     ExternalFanSpeedMonitorPort,
-    VoltageMonitorPort,
-    FrequencyMonitorPort,
     MiningControlPort,
     PowerControlPort,
     InternalFanControlPort,
@@ -181,33 +183,57 @@ class DummyMinerController(
                 self.logger.debug(f"DummyController: Reporting hash rate 0 (status: {status.name})")
             return HashRate(value=0.0, unit="TH/s")
 
-    # --- ChipTemperatureMonitorPort ---
+    # --- HashboardMonitorPort ---
 
-    async def get_chip_temperature(self) -> Optional[Temperature]:
-        """Get simulated chip temperature."""
-        if self._status == MinerStatus.ON:
-            temp = Temperature(value=round(random.uniform(55.0, 85.0), 1))
-        elif self._status in (MinerStatus.STARTING, MinerStatus.STOPPING):
-            temp = Temperature(value=round(random.uniform(30.0, 55.0), 1))
-        else:
-            temp = Temperature(value=round(random.uniform(20.0, 30.0), 1))
+    async def get_hashboards(self) -> List[HashboardSnapshot]:
+        """Get simulated hashboard data."""
+        num_boards = 3
+        snapshots: List[HashboardSnapshot] = []
+        for i in range(num_boards):
+            if self._status == MinerStatus.ON:
+                chip_temp = Temperature(value=round(random.uniform(55.0, 85.0), 1))
+                board_temp = Temperature(value=round(random.uniform(45.0, 70.0), 1))
+                voltage = Voltage(value=round(random.uniform(11.8, 12.6), 2))
+                frequency = Frequency(value=round(random.uniform(400.0, 650.0), 1))
+                hr_value = round(random.uniform(0, self._hashrate_max.value / num_boards), 2)
+                nominal_hr = round(self._hashrate_max.value / num_boards, 2)
+                hash_rate = HashRate(value=hr_value, unit=self._hashrate_max.unit)
+                nominal_hash_rate = HashRate(value=nominal_hr, unit=self._hashrate_max.unit)
+                error_val = round(nominal_hr - hr_value, 4)
+                hash_rate_error = HashRate(value=error_val, unit=self._hashrate_max.unit)
+            elif self._status in (MinerStatus.STARTING, MinerStatus.STOPPING):
+                chip_temp = Temperature(value=round(random.uniform(30.0, 55.0), 1))
+                board_temp = Temperature(value=round(random.uniform(25.0, 45.0), 1))
+                voltage = Voltage(value=round(random.uniform(11.0, 12.0), 2))
+                frequency = Frequency(value=0.0)
+                hash_rate = HashRate(value=0.0, unit=self._hashrate_max.unit)
+                nominal_hash_rate = None
+                hash_rate_error = None
+            else:
+                chip_temp = Temperature(value=round(random.uniform(20.0, 30.0), 1))
+                board_temp = Temperature(value=round(random.uniform(18.0, 28.0), 1))
+                voltage = Voltage(value=0.0)
+                frequency = Frequency(value=0.0)
+                hash_rate = HashRate(value=0.0, unit=self._hashrate_max.unit)
+                nominal_hash_rate = None
+                hash_rate_error = None
+
+            snapshots.append(
+                HashboardSnapshot(
+                    index=i,
+                    chip_temperature=chip_temp,
+                    board_temperature=board_temp,
+                    voltage=voltage,
+                    frequency=frequency,
+                    hash_rate=hash_rate,
+                    nominal_hash_rate=nominal_hash_rate,
+                    hash_rate_error=hash_rate_error,
+                )
+            )
+
         if self.logger:
-            self.logger.debug(f"DummyController: Reporting chip temperature {temp.value}{temp.unit}")
-        return temp
-
-    # --- BoardTemperatureMonitorPort ---
-
-    async def get_board_temperature(self) -> Optional[Temperature]:
-        """Get simulated board temperature."""
-        if self._status == MinerStatus.ON:
-            temp = Temperature(value=round(random.uniform(45.0, 70.0), 1))
-        elif self._status in (MinerStatus.STARTING, MinerStatus.STOPPING):
-            temp = Temperature(value=round(random.uniform(25.0, 45.0), 1))
-        else:
-            temp = Temperature(value=round(random.uniform(18.0, 28.0), 1))
-        if self.logger:
-            self.logger.debug(f"DummyController: Reporting board temperature {temp.value}{temp.unit}")
-        return temp
+            self.logger.debug(f"DummyController: Reporting {len(snapshots)} hashboards")
+        return snapshots
 
     # --- InletTemperatureMonitorPort ---
 
@@ -257,32 +283,6 @@ class DummyMinerController(
         if self.logger:
             self.logger.debug(f"DummyController: Reporting external fan speed {fan.value} {fan.unit}")
         return fan
-
-    # --- VoltageMonitorPort ---
-
-    async def get_voltage(self) -> Optional[Voltage]:
-        """Get simulated voltage."""
-        if self._status == MinerStatus.ON:
-            v = Voltage(value=round(random.uniform(11.8, 12.6), 2))
-        elif self._status in (MinerStatus.STARTING, MinerStatus.STOPPING):
-            v = Voltage(value=round(random.uniform(11.0, 12.0), 2))
-        else:
-            v = Voltage(value=0.0)
-        if self.logger:
-            self.logger.debug(f"DummyController: Reporting voltage {v.value}{v.unit}")
-        return v
-
-    # --- FrequencyMonitorPort ---
-
-    async def get_frequency(self) -> Optional[Frequency]:
-        """Get simulated chip frequency."""
-        if self._status == MinerStatus.ON:
-            f = Frequency(value=round(random.uniform(400.0, 650.0), 1))
-        else:
-            f = Frequency(value=0.0)
-        if self.logger:
-            self.logger.debug(f"DummyController: Reporting frequency {f.value} {f.unit}")
-        return f
 
     # --- PowerControlPort ---
 
