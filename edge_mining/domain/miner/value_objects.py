@@ -56,6 +56,9 @@ class MinerInfo(ValueObject):
     firmware_version: Optional[str] = None
     mac_address: Optional[str] = None
     hostname: Optional[str] = None
+    hashboard_count: Optional[int] = None
+    chip_count: Optional[int] = None
+    fan_count: Optional[int] = None
 
 
 @dataclass(frozen=True)

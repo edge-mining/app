@@ -194,6 +194,10 @@ class PyASICMinerController(
                 self.logger.error(f"Failed to retrieve miner instance from {self.ip}...")
             return None
 
+        hashboard_count = self._miner.expected_hashboards
+        chip_count = self._miner.expected_chips
+        fan_count = self._miner.expected_fans
+
         serial_number = await self._miner.get_serial_number()
         mac_address = await self._miner.get_mac()
         model = await self._miner.get_model()
@@ -206,6 +210,9 @@ class PyASICMinerController(
             firmware_version=str(firmware_version) if firmware_version is not None else None,
             mac_address=str(mac_address) if mac_address is not None else None,
             hostname=str(hostname) if hostname is not None else None,
+            hashboard_count=int(hashboard_count) if hashboard_count is not None else None,
+            chip_count=int(chip_count) if chip_count is not None else None,
+            fan_count=int(fan_count) if fan_count is not None else None,
         )
 
     # --- MaxPowerDetectionPort ---
