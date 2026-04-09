@@ -15,7 +15,15 @@ from edge_mining.domain.miner.common import (
     MinerStatus,
 )
 from edge_mining.domain.miner.entities import MinerController
-from edge_mining.domain.miner.value_objects import HashRate, MinerFeature, MinerStateSnapshot
+from edge_mining.domain.miner.value_objects import (
+    FanSpeed,
+    Frequency,
+    HashRate,
+    MinerFeature,
+    MinerStateSnapshot,
+    Temperature,
+    Voltage,
+)
 from edge_mining.shared.adapter_configs.miner import (
     MinerControllerDummyConfig,
     MinerControllerGenericSocketHomeAssistantAPIConfig,
@@ -51,6 +59,50 @@ class HashRateSchema(BaseModel):
     def to_model(self) -> HashRate:
         """Convert HashRateSchema to HashRate domain value object."""
         return HashRate(value=self.value, unit=self.unit)
+
+
+class TemperatureSchema(BaseModel):
+    """Schema for Temperature value object."""
+
+    value: float = Field(..., description="Temperature value")
+    unit: str = Field(default="°C", description="Temperature unit")
+
+    def to_model(self) -> Temperature:
+        """Convert TemperatureSchema to Temperature domain value object."""
+        return Temperature(value=self.value, unit=self.unit)
+
+
+class FanSpeedSchema(BaseModel):
+    """Schema for FanSpeed value object."""
+
+    value: float = Field(..., ge=0, description="Fan speed value, must be zero or positive")
+    unit: str = Field(default="RPM", description="Fan speed unit")
+
+    def to_model(self) -> FanSpeed:
+        """Convert FanSpeedSchema to FanSpeed domain value object."""
+        return FanSpeed(value=self.value, unit=self.unit)
+
+
+class VoltageSchema(BaseModel):
+    """Schema for Voltage value object."""
+
+    value: float = Field(..., description="Voltage value")
+    unit: str = Field(default="V", description="Voltage unit")
+
+    def to_model(self) -> Voltage:
+        """Convert VoltageSchema to Voltage domain value object."""
+        return Voltage(value=self.value, unit=self.unit)
+
+
+class FrequencySchema(BaseModel):
+    """Schema for Frequency value object."""
+
+    value: float = Field(..., ge=0, description="Frequency value, must be zero or positive")
+    unit: str = Field(default="MHz", description="Frequency unit")
+
+    def to_model(self) -> Frequency:
+        """Convert FrequencySchema to Frequency domain value object."""
+        return Frequency(value=self.value, unit=self.unit)
 
 
 class MinerFeatureSchema(BaseModel):
@@ -194,6 +246,14 @@ class MinerStateSnapshotSchema(BaseModel):
     status: MinerStatus = Field(default=MinerStatus.UNKNOWN, description="Current miner status")
     hash_rate: Optional[HashRateSchema] = Field(default=None, description="Current hash rate")
     power_consumption: Optional[float] = Field(default=None, description="Current power consumption in Watts")
+    chip_temperature: Optional[TemperatureSchema] = Field(default=None, description="Chip temperature")
+    board_temperature: Optional[TemperatureSchema] = Field(default=None, description="Board temperature")
+    inlet_temperature: Optional[TemperatureSchema] = Field(default=None, description="Inlet temperature")
+    outlet_temperature: Optional[TemperatureSchema] = Field(default=None, description="Outlet temperature")
+    internal_fan_speed: list[FanSpeedSchema] = Field(default_factory=list, description="Internal fan speeds")
+    external_fan_speed: Optional[FanSpeedSchema] = Field(default=None, description="External fan speed")
+    voltage: Optional[VoltageSchema] = Field(default=None, description="Voltage")
+    frequency: Optional[FrequencySchema] = Field(default=None, description="Frequency")
 
     @classmethod
     def from_model(cls, snapshot: MinerStateSnapshot) -> "MinerStateSnapshotSchema":
@@ -206,6 +266,40 @@ class MinerStateSnapshotSchema(BaseModel):
             status=snapshot.status,
             hash_rate=hash_rate,
             power_consumption=snapshot.power_consumption,
+            chip_temperature=(
+                TemperatureSchema(value=snapshot.chip_temperature.value, unit=snapshot.chip_temperature.unit)
+                if snapshot.chip_temperature
+                else None
+            ),
+            board_temperature=(
+                TemperatureSchema(value=snapshot.board_temperature.value, unit=snapshot.board_temperature.unit)
+                if snapshot.board_temperature
+                else None
+            ),
+            inlet_temperature=(
+                TemperatureSchema(value=snapshot.inlet_temperature.value, unit=snapshot.inlet_temperature.unit)
+                if snapshot.inlet_temperature
+                else None
+            ),
+            outlet_temperature=(
+                TemperatureSchema(value=snapshot.outlet_temperature.value, unit=snapshot.outlet_temperature.unit)
+                if snapshot.outlet_temperature
+                else None
+            ),
+            internal_fan_speed=[FanSpeedSchema(value=fs.value, unit=fs.unit) for fs in snapshot.internal_fan_speed],
+            external_fan_speed=(
+                FanSpeedSchema(value=snapshot.external_fan_speed.value, unit=snapshot.external_fan_speed.unit)
+                if snapshot.external_fan_speed
+                else None
+            ),
+            voltage=(
+                VoltageSchema(value=snapshot.voltage.value, unit=snapshot.voltage.unit) if snapshot.voltage else None
+            ),
+            frequency=(
+                FrequencySchema(value=snapshot.frequency.value, unit=snapshot.frequency.unit)
+                if snapshot.frequency
+                else None
+            ),
         )
 
     def to_model(self) -> MinerStateSnapshot:
@@ -214,6 +308,14 @@ class MinerStateSnapshotSchema(BaseModel):
             status=MinerStatus(self.status) if isinstance(self.status, str) else self.status,
             hash_rate=(HashRate(value=self.hash_rate.value, unit=self.hash_rate.unit) if self.hash_rate else None),
             power_consumption=Watts(self.power_consumption) if self.power_consumption is not None else None,
+            chip_temperature=self.chip_temperature.to_model() if self.chip_temperature else None,
+            board_temperature=self.board_temperature.to_model() if self.board_temperature else None,
+            inlet_temperature=self.inlet_temperature.to_model() if self.inlet_temperature else None,
+            outlet_temperature=self.outlet_temperature.to_model() if self.outlet_temperature else None,
+            internal_fan_speed=[fs.to_model() for fs in self.internal_fan_speed],
+            external_fan_speed=self.external_fan_speed.to_model() if self.external_fan_speed else None,
+            voltage=self.voltage.to_model() if self.voltage else None,
+            frequency=self.frequency.to_model() if self.frequency else None,
         )
 
     class Config:
