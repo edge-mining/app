@@ -268,16 +268,24 @@ def _restore_miner_composites(mapper, connection, target: Any) -> None:
 
 
 def load_features_for_miner(session, miner_id: EntityId) -> list[MinerFeature]:
-    """Load MinerFeature VOs from the miner_features table for a given miner."""
+    """Load MinerFeature VOs from the miner_features table for a given miner.
+
+    Unknown feature types (e.g. removed/renamed) are silently skipped.
+    """
     from sqlalchemy import select
 
     stmt = select(miner_features_table).where(miner_features_table.c.miner_id == str(miner_id))
     rows = session.execute(stmt).fetchall()
     features = []
     for row in rows:
+        try:
+            feature_type = MinerFeatureType(row.feature_type)
+        except ValueError:
+            # Skip features whose type no longer exists in the enum
+            continue
         features.append(
             MinerFeature(
-                feature_type=MinerFeatureType(row.feature_type),
+                feature_type=feature_type,
                 controller_id=EntityId(uuid.UUID(row.controller_id)),
                 priority=row.priority,
                 enabled=bool(row.enabled),

@@ -162,6 +162,7 @@ class BaseSQLAlchemyRepository:
         This method handles the complete database initialization workflow:
         1. Imports all table definitions (via registry_loader imported at module level)
         2. Runs Alembic migrations to create/update the database schema
+        3. Validates data integrity
 
         Database schema creation is EXCLUSIVELY managed through Alembic migrations:
         - On first run: Alembic creates the database and applies the initial migration
@@ -201,3 +202,61 @@ class BaseSQLAlchemyRepository:
                 self.logger.warning(
                     "Automatic migrations disabled. Database must be initialized manually with: alembic upgrade head"
                 )
+
+        # Validate data integrity after migrations
+        self._cleanup_unknown_miner_features()
+
+    def _cleanup_unknown_miner_features(self) -> None:
+        """Remove miner_features rows whose feature_type is not in MinerFeatureType.
+
+        This handles the case where feature types were renamed or removed between
+        application versions, preventing load errors at runtime.
+        """
+        from sqlalchemy import select
+
+        from edge_mining.adapters.domain.miner.tables import miner_features_table
+        from edge_mining.domain.miner.common import MinerFeatureType
+
+        valid_types = {ft.value for ft in MinerFeatureType}
+
+        try:
+            session = self.get_session()
+            try:
+                rows = session.execute(
+                    select(
+                        miner_features_table.c.id,
+                        miner_features_table.c.feature_type,
+                        miner_features_table.c.miner_id,
+                    )
+                ).fetchall()
+
+                unknown_rows = [r for r in rows if r.feature_type not in valid_types]
+
+                if not unknown_rows:
+                    return
+
+                unknown_ids = [r.id for r in unknown_rows]
+                unknown_descriptions = [
+                    f"feature_type='{r.feature_type}' (miner_id={r.miner_id})" for r in unknown_rows
+                ]
+
+                if self.logger:
+                    self.logger.warning(
+                        f"Found {len(unknown_rows)} miner feature(s) with unknown type, removing: "
+                        + ", ".join(unknown_descriptions)
+                    )
+
+                session.execute(miner_features_table.delete().where(miner_features_table.c.id.in_(unknown_ids)))
+                session.commit()
+
+                if self.logger:
+                    self.logger.info(f"Removed {len(unknown_ids)} obsolete miner feature(s) from database.")
+            except Exception as e:
+                session.rollback()
+                if self.logger:
+                    self.logger.error(f"Failed to clean up unknown miner features: {e}")
+            finally:
+                session.close()
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Failed to clean up unknown miner features: {e}")
