@@ -3,7 +3,7 @@ pyasic adapter (Implementation of Feature Ports)
 that controls a miner via pyasic.
 """
 
-from typing import Dict, Optional, Tuple, cast
+from typing import Dict, List, Optional, Tuple, cast
 
 import pyasic
 from pyasic import AnyMiner
@@ -440,27 +440,28 @@ class PyASICMinerController(
 
     # --- InternalFanSpeedMonitorPort ---
 
-    async def get_internal_fan_speed(self) -> Optional[FanSpeed]:
+    async def get_internal_fan_speed(self) -> List[FanSpeed]:
         """Gets the current internal fan speed, if available."""
+        miner_fans: List[FanSpeed] = []
+
         if self.logger:
             self.logger.debug(f"Fetching internal fan speed from {self.ip}...")
 
         await self._get_miner()
 
         if not self._miner:
-            return None
+            return []
 
         miner = self._miner
-        data = await miner.get_data()
-        if data is None or not data.fans:
-            return None
+        fans = await miner.get_fans()
+        if fans is None:
+            return []
 
-        # Average fan speed across all fans
-        speeds = [fan.speed for fan in data.fans if fan.speed is not None and fan.speed > 0]
-        if not speeds:
-            return None
+        for fan in fans:
+            if fan.speed is not None:
+                miner_fans.append(FanSpeed(value=float(fan.speed)))
 
-        return FanSpeed(value=round(sum(speeds) / len(speeds), 0))
+        return miner_fans
 
     # --- VoltageMonitorPort ---
 

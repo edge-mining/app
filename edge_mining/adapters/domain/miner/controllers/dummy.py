@@ -1,7 +1,7 @@
 """Dummy adapter (Implementation of Feature Ports) that simulates a miner for Edge Mining Application"""
 
 import random
-from typing import Optional
+from typing import List, Optional
 
 from edge_mining.domain.common import Watts
 from edge_mining.domain.miner.common import MinerStatus
@@ -232,7 +232,7 @@ class DummyMinerController(
 
     # --- InternalFanSpeedMonitorPort ---
 
-    async def get_internal_fan_speed(self) -> Optional[FanSpeed]:
+    async def get_internal_fan_speed(self) -> List[FanSpeed]:
         """Get simulated internal fan speed."""
         if self._status == MinerStatus.ON:
             rpm = random.uniform(3000.0, 6000.0)
@@ -243,7 +243,7 @@ class DummyMinerController(
         fan = FanSpeed(value=round(rpm, 0))
         if self.logger:
             self.logger.debug(f"DummyController: Reporting internal fan speed {fan.value} {fan.unit}")
-        return fan
+        return [fan]
 
     # --- ExternalFanSpeedMonitorPort ---
 

@@ -1,7 +1,7 @@
 """Collection of Value Objects for the Mining Device Management domain of the Edge Mining application."""
 
-from dataclasses import dataclass
-from typing import Optional
+from dataclasses import dataclass, field
+from typing import List, Optional
 
 from edge_mining.domain.common import EntityId, ValueObject, Watts
 from edge_mining.domain.miner.common import MinerFeatureType, MinerStatus
@@ -87,7 +87,7 @@ class MinerStateSnapshot(ValueObject):
     board_temperature: Optional[Temperature] = None
     inlet_temperature: Optional[Temperature] = None
     outlet_temperature: Optional[Temperature] = None
-    internal_fan_speed: Optional[FanSpeed] = None
+    internal_fan_speed: List[FanSpeed] = field(default_factory=list)
     external_fan_speed: Optional[FanSpeed] = None
     voltage: Optional[Voltage] = None
     frequency: Optional[Frequency] = None

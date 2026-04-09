@@ -134,8 +134,8 @@ class InternalFanSpeedMonitorPort(MinerFeaturePort):
     feature_type = MinerFeatureType.FAN_SPEED_INTERNAL_MONITORING
 
     @abstractmethod
-    async def get_internal_fan_speed(self) -> Optional[FanSpeed]:
-        """Gets the current internal fan speed, if available."""
+    async def get_internal_fan_speed(self) -> List[FanSpeed]:
+        """Gets the current internal fans speed, if available."""
         raise NotImplementedError
 
 

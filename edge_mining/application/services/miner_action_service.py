@@ -378,7 +378,7 @@ class MinerActionService(MinerActionServiceInterface):
         internal_fan_port = await self.adapter_service.get_miner_feature_port(
             temp_miner, MinerFeatureType.FAN_SPEED_INTERNAL_MONITORING
         )
-        internal_fan_speed = None
+        internal_fan_speed = []
         if internal_fan_port and isinstance(internal_fan_port, InternalFanSpeedMonitorPort):
             internal_fan_speed = await internal_fan_port.get_internal_fan_speed()
 
