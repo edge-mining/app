@@ -35,7 +35,8 @@ from edge_mining.domain.home_load.ports import HomeForecastProviderPort, HomeFor
 from edge_mining.domain.miner.aggregate_roots import Miner
 from edge_mining.domain.miner.common import MinerControllerAdapter, MinerFeatureType
 from edge_mining.domain.miner.entities import MinerController
-from edge_mining.domain.miner.ports import MinerControllerRepository, MinerFeaturePort
+from edge_mining.domain.miner.ports import MinerControllerRepository, MinerFeaturePort, MinerRepository
+from edge_mining.domain.miner.value_objects import MinerFeature
 from edge_mining.domain.notification.common import NotificationAdapter
 from edge_mining.domain.notification.entities import Notifier
 from edge_mining.domain.notification.ports import NotificationPort, NotifierRepository
@@ -65,6 +66,7 @@ class AdapterService(AdapterServiceInterface):
         self,
         energy_monitor_repo: EnergyMonitorRepository,
         miner_controller_repo: MinerControllerRepository,
+        miner_repo: MinerRepository,
         notifier_repo: NotifierRepository,
         forecast_provider_repo: ForecastProviderRepository,
         mining_performance_tracker_repo: MiningPerformanceTrackerRepository,
@@ -75,6 +77,7 @@ class AdapterService(AdapterServiceInterface):
     ):
         self.energy_monitor_repo = energy_monitor_repo
         self.miner_controller_repo = miner_controller_repo
+        self.miner_repo = miner_repo
         self.notifier_repo = notifier_repo
         self.forecast_provider_repo = forecast_provider_repo
         self.mining_performance_tracker_repo = mining_performance_tracker_repo
@@ -625,13 +628,66 @@ class AdapterService(AdapterServiceInterface):
             return None
         return await self._initialize_miner_controller_adapter(miner, miner_controller)
 
+    async def sync_miner_features(self, miner: Miner) -> bool:
+        """Reconcile stored features with what controllers actually support.
+
+        For each controller associated with the miner, discovers which features
+        the adapter supports and adds missing ones / removes stale ones.
+        Returns True if any changes were made (and persisted).
+        """
+        changed = False
+        controller_ids = miner.get_controller_ids()
+
+        for controller_id in controller_ids:
+            adapter = await self.get_miner_controller_adapter(miner, controller_id)
+            if not adapter:
+                continue
+
+            supported = set(adapter.__class__.get_supported_features())
+            stored = {f.feature_type for f in miner.get_features_by_controller(controller_id)}
+
+            # Add missing features
+            for feature_type in supported - stored:
+                feature = MinerFeature(
+                    feature_type=feature_type,
+                    controller_id=controller_id,
+                    priority=50,
+                    enabled=True,
+                )
+                try:
+                    miner.add_feature(feature)
+                    changed = True
+                except ValueError:
+                    pass
+
+            # Remove stale features (stored but no longer supported)
+            for feature_type in stored - supported:
+                miner.remove_feature(feature_type, controller_id)
+                changed = True
+
+        if changed:
+            self.miner_repo.update(miner)
+            if self.logger:
+                self.logger.info(f"Reconciled features for miner {miner.name}.")
+
+        return changed
+
     async def get_miner_feature_port(self, miner: Miner, feature_type: MinerFeatureType) -> Optional[MinerFeaturePort]:
         """Get the adapter implementing the highest-priority active feature for a miner.
 
         Resolves the active MinerFeature for the given feature_type, retrieves
         the associated controller adapter, and verifies it supports the feature.
+        If the feature is not found, triggers a one-time reconciliation to catch
+        features added or removed by code changes.
         """
         active_feature = miner.get_active_feature(feature_type)
+
+        # Lazy reconciliation: if feature not found, sync and retry once
+        if not active_feature:
+            reconciled = await self.sync_miner_features(miner)
+            if reconciled:
+                active_feature = miner.get_active_feature(feature_type)
+
         if not active_feature:
             if self.logger:
                 self.logger.debug(f"No active feature of type {feature_type.value} for miner {miner.name}.")

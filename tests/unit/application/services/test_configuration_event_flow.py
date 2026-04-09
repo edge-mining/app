@@ -186,6 +186,7 @@ async def test_end_to_end_cache_invalidation(mock_persistence, logger):
     adapter_service = AdapterService(
         energy_monitor_repo=mock_persistence.energy_monitor_repo,
         miner_controller_repo=mock_persistence.miner_controller_repo,
+        miner_repo=mock_persistence.miner_repo,
         notifier_repo=mock_persistence.notifier_repo,
         forecast_provider_repo=mock_persistence.forecast_provider_repo,
         home_forecast_provider_repo=mock_persistence.home_forecast_provider_repo,
@@ -233,6 +234,7 @@ async def test_external_service_update_clears_all_instance_cache(mock_persistenc
     adapter_service = AdapterService(
         energy_monitor_repo=mock_persistence.energy_monitor_repo,
         miner_controller_repo=mock_persistence.miner_controller_repo,
+        miner_repo=mock_persistence.miner_repo,
         notifier_repo=mock_persistence.notifier_repo,
         forecast_provider_repo=mock_persistence.forecast_provider_repo,
         home_forecast_provider_repo=mock_persistence.home_forecast_provider_repo,

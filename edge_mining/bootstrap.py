@@ -297,6 +297,7 @@ def configure_dependencies(logger: LoggerPort, settings: AppSettings) -> Service
     adapter_service = AdapterService(
         energy_monitor_repo=persistence_settings.energy_monitor_repo,
         miner_controller_repo=persistence_settings.miner_controller_repo,
+        miner_repo=persistence_settings.miner_repo,
         notifier_repo=persistence_settings.notifier_repo,
         forecast_provider_repo=persistence_settings.forecast_provider_repo,
         home_forecast_provider_repo=persistence_settings.home_forecast_provider_repo,

@@ -57,6 +57,13 @@ class AdapterServiceInterface(ABC):
         """Get the adapter implementing the highest-priority active feature port for a miner."""
 
     @abstractmethod
+    async def sync_miner_features(self, miner: Miner) -> bool:
+        """Reconcile stored features with what controllers actually support.
+
+        Returns True if any changes were made.
+        """
+
+    @abstractmethod
     async def get_all_notifiers(self) -> List[NotificationPort]:
         """Get all notifier adapter instances"""
 
