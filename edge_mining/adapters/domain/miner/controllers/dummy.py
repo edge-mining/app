@@ -8,6 +8,7 @@ from edge_mining.domain.miner.common import MinerStatus
 from edge_mining.domain.miner.ports import (
     BoardTemperatureMonitorPort,
     ChipTemperatureMonitorPort,
+    DeviceInfoPort,
     ExternalFanControlPort,
     ExternalFanSpeedMonitorPort,
     FrequencyMonitorPort,
@@ -16,14 +17,13 @@ from edge_mining.domain.miner.ports import (
     InternalFanControlPort,
     InternalFanSpeedMonitorPort,
     MiningControlPort,
-    ModelDetectionPort,
     OutletTemperatureMonitorPort,
     PowerControlPort,
     PowerMonitorPort,
     StatusMonitorPort,
     VoltageMonitorPort,
 )
-from edge_mining.domain.miner.value_objects import FanSpeed, Frequency, HashRate, Temperature, Voltage
+from edge_mining.domain.miner.value_objects import FanSpeed, Frequency, HashRate, MinerInfo, Temperature, Voltage
 from edge_mining.shared.logging.port import LoggerPort
 
 
@@ -43,7 +43,7 @@ class DummyMinerController(
     PowerControlPort,
     InternalFanControlPort,
     ExternalFanControlPort,
-    ModelDetectionPort,
+    DeviceInfoPort,
 ):
     """Simulates miner control without real hardware.
 
@@ -66,13 +66,32 @@ class DummyMinerController(
         self._internal_fan_speed: float = 0.0
         self._external_fan_speed: float = 0.0
 
-    # --- ModelDetectionPort ---
+    # --- DeviceInfoPort ---
 
-    async def get_model(self) -> Optional[str]:
-        """Gets the model of the miner."""
+    async def get_device_info(self) -> Optional[MinerInfo]:
+        """Gets the device information of the miner."""
         if self.logger:
-            self.logger.debug("DummyController: Returning dummy model")
-        return "Dummy Miner S0"
+            self.logger.debug("DummyController: Fetching device info...")
+
+        # Simulate some dummy device info
+        model = "DummyMiner X1"
+        serial_number = "DMX1-01}"
+        firmware_version = "1.0.0"
+        mac_address = "00:11:22:33:10:99"
+        hostname = "edgemining-dummyminer"
+
+        info = MinerInfo(
+            model=model,
+            serial_number=serial_number,
+            firmware_version=firmware_version,
+            mac_address=mac_address,
+            hostname=hostname,
+        )
+
+        if self.logger:
+            self.logger.debug(f"DummyController: Device info fetched: {info}")
+
+        return info
 
     # --- MiningControlPort ---
 

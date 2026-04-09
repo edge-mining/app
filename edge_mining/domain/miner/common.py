@@ -39,9 +39,9 @@ class MinerFeatureType(Enum):
     EXTERNAL_FAN_CONTROL = "external_fan_control"
 
     # Info
-    MODEL_DETECTION = "model_detection"
     MAX_POWER_DETECTION = "max_power_detection"
     MAX_HASHRATE_DETECTION = "max_hashrate_detection"
+    DEVICE_INFO_DETECTION = "device_info_detection"
 
 
 class MinerControllerAdapter(AdapterType):

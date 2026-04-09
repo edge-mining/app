@@ -19,6 +19,7 @@ from edge_mining.domain.miner.exceptions import MinerControllerConfigurationErro
 from edge_mining.domain.miner.ports import (
     BoardTemperatureMonitorPort,
     ChipTemperatureMonitorPort,
+    DeviceInfoPort,
     FrequencyMonitorPort,
     HashrateMonitorPort,
     InletTemperatureMonitorPort,
@@ -27,7 +28,6 @@ from edge_mining.domain.miner.ports import (
     MaxHashrateDetectionPort,
     MaxPowerDetectionPort,
     MiningControlPort,
-    ModelDetectionPort,
     OutletTemperatureMonitorPort,
     PowerMonitorPort,
     StatusMonitorPort,
@@ -37,6 +37,7 @@ from edge_mining.domain.miner.value_objects import (
     FanSpeed,
     Frequency,
     HashRate,
+    MinerInfo,
     Temperature,
     Voltage,
 )
@@ -97,7 +98,7 @@ class PyASICMinerController(
     FrequencyMonitorPort,
     MiningControlPort,
     InternalFanControlPort,
-    ModelDetectionPort,
+    DeviceInfoPort,
     MaxPowerDetectionPort,
     MaxHashrateDetectionPort,
 ):
@@ -178,10 +179,10 @@ class PyASICMinerController(
                 if self.logger:
                     self.logger.error(f"Failed to retrieve miner instance from {self.ip}: {e}")
 
-    # --- ModelDetectionPort ---
+    # --- DeviceInfoDetectionPort ---
 
-    async def get_model(self) -> Optional[str]:
-        """Gets the model of the miner."""
+    async def get_device_info(self) -> Optional[MinerInfo]:
+        """Gets the device identification information of the miner, if available."""
 
         if self.logger:
             self.logger.debug(f"Fetching model from {self.ip}...")
@@ -193,7 +194,19 @@ class PyASICMinerController(
                 self.logger.error(f"Failed to retrieve miner instance from {self.ip}...")
             return None
 
-        return self._miner.model or None
+        serial_number = await self._miner.get_serial_number()
+        mac_address = await self._miner.get_mac()
+        model = await self._miner.get_model()
+        firmware_version = await self._miner.get_fw_ver()
+        hostname = await self._miner.get_hostname()
+
+        return MinerInfo(
+            model=str(model) if model is not None else None,
+            serial_number=str(serial_number) if serial_number is not None else None,
+            firmware_version=str(firmware_version) if firmware_version is not None else None,
+            mac_address=str(mac_address) if mac_address is not None else None,
+            hostname=str(hostname) if hostname is not None else None,
+        )
 
     # --- MaxPowerDetectionPort ---
 

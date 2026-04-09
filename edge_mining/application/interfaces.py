@@ -17,7 +17,7 @@ from edge_mining.domain.miner.aggregate_roots import Miner
 from edge_mining.domain.miner.common import MinerControllerAdapter, MinerFeatureType
 from edge_mining.domain.miner.entities import MinerController
 from edge_mining.domain.miner.ports import MinerFeaturePort
-from edge_mining.domain.miner.value_objects import HashRate, MinerStateSnapshot
+from edge_mining.domain.miner.value_objects import HashRate, MinerInfo, MinerStateSnapshot
 from edge_mining.domain.notification.common import NotificationAdapter
 from edge_mining.domain.notification.entities import Notifier
 from edge_mining.domain.notification.ports import NotificationPort
@@ -141,6 +141,10 @@ class MinerActionServiceInterface(ABC):
     @abstractmethod
     async def get_miner_status(self, miner_id: EntityId) -> Optional[MinerStateSnapshot]:
         """Gets the current status of the specified miner as a state snapshot."""
+
+    @abstractmethod
+    async def get_miner_info(self, miner_id: EntityId) -> Optional[MinerInfo]:
+        """Gets the information of the specified miner."""
 
     @abstractmethod
     async def sync_all_miners(self, include_inactive: bool = False) -> None:

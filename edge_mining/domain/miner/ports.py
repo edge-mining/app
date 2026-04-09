@@ -11,6 +11,7 @@ from edge_mining.domain.miner.value_objects import (
     FanSpeed,
     Frequency,
     HashRate,
+    MinerInfo,
     Temperature,
     Voltage,
 )
@@ -231,17 +232,6 @@ class ExternalFanControlPort(MinerFeaturePort):
 # --- Info Ports ---
 
 
-class ModelDetectionPort(MinerFeaturePort):
-    """Port for detecting miner hardware model."""
-
-    feature_type = MinerFeatureType.MODEL_DETECTION
-
-    @abstractmethod
-    async def get_model(self) -> Optional[str]:
-        """Gets the model of the miner, if available."""
-        raise NotImplementedError
-
-
 class MaxPowerDetectionPort(MinerFeaturePort):
     """Port for detecting miner maximum power consumption."""
 
@@ -261,6 +251,17 @@ class MaxHashrateDetectionPort(MinerFeaturePort):
     @abstractmethod
     async def get_max_hashrate(self) -> Optional[HashRate]:
         """Gets the maximum hash rate of the miner, if available."""
+        raise NotImplementedError
+
+
+class DeviceInfoPort(MinerFeaturePort):
+    """Port for detecting miner device information (model, serial number, firmware version, etc.)."""
+
+    feature_type = MinerFeatureType.DEVICE_INFO_DETECTION
+
+    @abstractmethod
+    async def get_device_info(self) -> Optional[MinerInfo]:
+        """Gets the device identification information of the miner, if available."""
         raise NotImplementedError
 
 

@@ -48,6 +48,17 @@ class Frequency(ValueObject):
 
 
 @dataclass(frozen=True)
+class MinerInfo(ValueObject):
+    """Value Object for miner device information."""
+
+    model: Optional[str] = None
+    serial_number: Optional[str] = None
+    firmware_version: Optional[str] = None
+    mac_address: Optional[str] = None
+    hostname: Optional[str] = None
+
+
+@dataclass(frozen=True)
 class MinerFeature(ValueObject):
     """Value Object representing a single capability provided by a controller to a miner.
 

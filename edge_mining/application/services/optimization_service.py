@@ -772,17 +772,6 @@ class OptimizationService(OptimizationServiceInterface):
                 power_consumption=current_power,
             )
 
-            # Update model if available and it has changed (static config update)
-            model_port = await self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.MODEL_DETECTION)
-            if model_port:
-                from edge_mining.domain.miner.ports import ModelDetectionPort
-
-                if isinstance(model_port, ModelDetectionPort):
-                    current_model = await model_port.get_model()
-                    if current_model and miner.model != current_model:
-                        miner.model = current_model
-                        self.miner_repo.update(miner)
-
             # Creates a copy of the context with the miner included, so that the policy
             # can access miner-specific data, without modifying the original context.
             # This is important to keep the context consistent across all miners in

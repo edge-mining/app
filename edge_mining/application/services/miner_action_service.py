@@ -14,16 +14,16 @@ from edge_mining.domain.miner.exceptions import (
 )
 from edge_mining.domain.miner.ports import (
     ChipTemperatureMonitorPort,
+    DeviceInfoPort,
     HashrateMonitorPort,
     InternalFanSpeedMonitorPort,
     MinerRepository,
     MiningControlPort,
-    ModelDetectionPort,
     PowerControlPort,
     PowerMonitorPort,
     StatusMonitorPort,
 )
-from edge_mining.domain.miner.value_objects import HashRate, MinerFeature, MinerStateSnapshot
+from edge_mining.domain.miner.value_objects import HashRate, MinerFeature, MinerInfo, MinerStateSnapshot
 from edge_mining.domain.notification.ports import NotificationPort
 from edge_mining.shared.logging.port import LoggerPort
 
@@ -48,14 +48,21 @@ class MinerActionService(MinerActionServiceInterface):
         self._event_bus = event_bus
         self.logger = logger
 
-    async def _try_update_model(self, miner: Miner) -> None:
-        """Update miner model from MODEL_DETECTION feature port if available."""
-        model_port = await self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.MODEL_DETECTION)
-        if model_port and isinstance(model_port, ModelDetectionPort):
-            current_model = await model_port.get_model()
-            if current_model and miner.model != current_model:
-                miner.model = current_model
-                self.miner_repo.update(miner)
+    async def get_miner_info(self, miner_id: EntityId) -> Optional[MinerInfo]:
+        """Gets the information of the specified miner."""
+        if self.logger:
+            self.logger.info(f"Getting info for miner {miner_id}")
+
+        miner: Optional[Miner] = self.miner_repo.get_by_id(miner_id)
+
+        if not miner:
+            raise MinerNotFoundError(f"Miner with ID {miner_id} not found.")
+
+        port = await self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.DEVICE_INFO_DETECTION)
+        if not port or not isinstance(port, DeviceInfoPort):
+            raise MinerControllerConfigurationError(f"No device info port available for miner {miner_id}.")
+
+        return await port.get_device_info()
 
     async def _notify(self, notifiers: List[NotificationPort], title: str, message: str):
         """Sends a notification using the configured notifiers."""
@@ -94,9 +101,6 @@ class MinerActionService(MinerActionServiceInterface):
         current_status = MinerStatus.UNKNOWN
         if status_port and isinstance(status_port, StatusMonitorPort):
             current_status = await status_port.get_status()
-
-        # Update model
-        await self._try_update_model(miner)
 
         success = False
         if mining_port and isinstance(mining_port, MiningControlPort):
@@ -156,9 +160,6 @@ class MinerActionService(MinerActionServiceInterface):
         current_status = MinerStatus.UNKNOWN
         if status_port and isinstance(status_port, StatusMonitorPort):
             current_status = await status_port.get_status()
-
-        # Update model
-        await self._try_update_model(miner)
 
         success = False
         if mining_port and isinstance(mining_port, MiningControlPort):
@@ -223,8 +224,6 @@ class MinerActionService(MinerActionServiceInterface):
         if not port or not isinstance(port, HashrateMonitorPort):
             raise MinerControllerConfigurationError(f"No hashrate monitor available for miner {miner_id}.")
 
-        await self._try_update_model(miner)
-
         return await port.get_hashrate()
 
     async def get_miner_status(self, miner_id: EntityId) -> MinerStateSnapshot:
@@ -252,8 +251,6 @@ class MinerActionService(MinerActionServiceInterface):
         current_power = None
         if power_port and isinstance(power_port, PowerMonitorPort):
             current_power = await power_port.get_power()
-
-        await self._try_update_model(miner)
 
         return MinerStateSnapshot(
             status=current_status,
@@ -314,8 +311,6 @@ class MinerActionService(MinerActionServiceInterface):
                 current_power = None
                 if power_port and isinstance(power_port, PowerMonitorPort):
                     current_power = await power_port.get_power()
-
-                await self._try_update_model(miner)
 
                 synced_count += 1
 
