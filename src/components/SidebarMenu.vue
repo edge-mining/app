@@ -49,7 +49,7 @@ const isAutomationActive = computed(() =>
               class="text-[10px] uppercase tracking-wider text-base-300 font-medium"
               >Edge Mining</span
             >
-            <span class="text-sm font-medium">Satoshi Nakamoto</span>
+            <!-- <span class="text-sm font-medium">Satoshi Nakamoto</span> -->
           </div>
         </div>
 
