@@ -13,6 +13,7 @@ from edge_mining.adapters.domain.miner.schemas import (
     MinerControllerUpdateSchema,
     MinerCreateSchema,
     MinerFeatureSchema,
+    MinerInfoSchema,
     MinerSchema,
     MinerStateSnapshotSchema,
     MinerUpdateSchema,
@@ -290,6 +291,27 @@ async def get_miner_status(
         return response
     except MinerNotFoundError as e:
         raise HTTPException(status_code=404, detail="Miner not found") from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/miners/{miner_id}/info", response_model=Optional[MinerInfoSchema])
+async def get_miner_info(
+    miner_id: EntityId,
+    action_service: Annotated[MinerActionServiceInterface, Depends(get_miner_action_service)],
+) -> Optional[MinerInfoSchema]:
+    """Get device information for a specific miner."""
+    try:
+        info = await action_service.get_miner_info(miner_id)
+
+        if info is None:
+            return None
+
+        return MinerInfoSchema.from_model(info)
+    except MinerNotFoundError as e:
+        raise HTTPException(status_code=404, detail="Miner not found") from e
+    except MinerControllerConfigurationError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 

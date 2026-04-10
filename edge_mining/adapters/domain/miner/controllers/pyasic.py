@@ -201,15 +201,46 @@ class PyASICMinerController(
                 self.logger.error(f"Failed to retrieve miner instance from {self.ip}...")
             return None
 
-        hashboard_count = self._miner.expected_hashboards
-        chip_count = self._miner.expected_chips
-        fan_count = self._miner.expected_fans
+        miner = self._miner
 
-        serial_number = await self._miner.get_serial_number()
-        mac_address = await self._miner.get_mac()
-        model = await self._miner.get_model()
-        firmware_version = await self._miner.get_fw_ver()
-        hostname = await self._miner.get_hostname()
+        # --- pyasic native values (may be None for some firmwares) ---
+        hashboard_count = miner.expected_hashboards
+        chip_count = miner.expected_chips
+        fan_count = miner.expected_fans
+
+        serial_number = await miner.get_serial_number()
+        mac_address = await miner.get_mac()
+        model = await miner.get_model()
+        firmware_version = await miner.get_fw_ver()
+        hostname = await miner.get_hostname()
+
+        # --- RPC fallbacks for missing fields ---
+        if miner.rpc is not None:
+            rpc_info = await self._fetch_device_info_from_rpc(miner)
+
+            if firmware_version is None and rpc_info.get("firmware_version"):
+                firmware_version = rpc_info["firmware_version"]
+
+            if (model is None or str(model) in ("", "Unknown", "Unknown (BOS+)")) and rpc_info.get("model"):
+                model = rpc_info["model"]
+
+            if hashboard_count is None and rpc_info.get("hashboard_count") is not None:
+                hashboard_count = rpc_info["hashboard_count"]
+
+            if chip_count is None and rpc_info.get("chip_count") is not None:
+                chip_count = rpc_info["chip_count"]
+
+            if fan_count is None and rpc_info.get("fan_count") is not None:
+                fan_count = rpc_info["fan_count"]
+
+            if mac_address is None and rpc_info.get("mac_address"):
+                mac_address = rpc_info["mac_address"]
+
+            if hostname is None and rpc_info.get("hostname"):
+                hostname = rpc_info["hostname"]
+
+            if serial_number is None and rpc_info.get("serial_number"):
+                serial_number = rpc_info["serial_number"]
 
         return MinerInfo(
             model=str(model) if model is not None else None,
@@ -221,6 +252,178 @@ class PyASICMinerController(
             chip_count=int(chip_count) if chip_count is not None else None,
             fan_count=int(fan_count) if fan_count is not None else None,
         )
+
+    async def _fetch_device_info_from_rpc(self, miner: AnyMiner) -> dict:
+        """Fetch device info fields from direct RPC commands and the Luci web API.
+
+        Queries RPC (version, config, devdetails, fans, pools) and
+        Luci web endpoints (iface_status, cfg_data) to fill gaps
+        left by pyasic native methods.
+        """
+        info: Dict[str, object] = {}
+
+        # --- version → firmware_version ---
+        try:
+            ver_data = await miner.rpc.send_command("version")
+            version_entries = ver_data.get("VERSION", [])
+            if version_entries:
+                entry = version_entries[0]
+                # Try BOSer, then CGMiner, then BMMiner key
+                fw = entry.get("BOSer") or entry.get("CGMiner") or entry.get("BMMiner")
+                if fw:
+                    info["firmware_version"] = str(fw)
+        except Exception as e:
+            if self.logger:
+                self.logger.debug(f"RPC version failed for device info: {e}")
+
+        # --- config → hashboard_count (ASC Count) ---
+        try:
+            cfg_data = await miner.rpc.send_command("config")
+            config_entries = cfg_data.get("CONFIG", [])
+            if config_entries:
+                asc_count = config_entries[0].get("ASC Count")
+                if asc_count is not None and int(asc_count) > 0:
+                    info["hashboard_count"] = int(asc_count)
+        except Exception as e:
+            if self.logger:
+                self.logger.debug(f"RPC config failed for device info: {e}")
+
+        # --- devdetails → model, chip_count (intermittent on some firmwares) ---
+        try:
+            dd_data = await miner.rpc.send_command("devdetails")
+            details = dd_data.get("DEVDETAILS", [])
+            if details:
+                model_str = details[0].get("Model")
+                if model_str:
+                    info["model"] = str(model_str)
+                # Chips per board × number of boards = total chip count
+                chips_per_board = details[0].get("Chips")
+                if chips_per_board is not None:
+                    board_count = info.get("hashboard_count") or len(details)
+                    info["chip_count"] = int(chips_per_board) * int(board_count)
+        except Exception as e:
+            if self.logger:
+                self.logger.debug(f"RPC devdetails failed for device info: {e}")
+
+        # --- fans → fan_count ---
+        try:
+            fans_data = await miner.rpc.send_command("fans")
+            fans_list = fans_data.get("FANS", [])
+            if fans_list:
+                info["fan_count"] = len(fans_list)
+        except Exception as e:
+            if self.logger:
+                self.logger.debug(f"RPC fans failed for device info: {e}")
+
+        # --- pools → hostname (from pool worker name) ---
+        try:
+            pools_data = await miner.rpc.send_command("pools")
+            pools_list = pools_data.get("POOLS", [])
+            for pool in pools_list:
+                user = pool.get("User", "")
+                if "." in user:
+                    # Worker name format: "username.worker" — worker is often the hostname
+                    worker = user.rsplit(".", 1)[1]
+                    if worker:
+                        info["hostname"] = str(worker)
+                        break
+        except Exception as e:
+            if self.logger:
+                self.logger.debug(f"RPC pools failed for device info: {e}")
+
+        # --- Luci web API → mac_address ---
+        # --- GraphQL API → model, hostname, serial_number (hwid) ---
+        web_info = await self._fetch_device_info_from_web()
+        if web_info.get("mac_address"):
+            info["mac_address"] = web_info["mac_address"]
+        if web_info.get("model") and "model" not in info:
+            info["model"] = web_info["model"]
+        if web_info.get("hostname"):
+            info.setdefault("hostname", web_info["hostname"])
+        if web_info.get("serial_number"):
+            info["serial_number"] = web_info["serial_number"]
+
+        if self.logger:
+            self.logger.debug(f"RPC device info fallback: {info}")
+
+        return info
+
+    async def _fetch_device_info_from_web(self) -> dict:
+        """Fetch device info from the miner's web APIs (GraphQL + Luci).
+
+        - GraphQL (/graphql): hwid (serial), hostname, modelName — no auth required.
+        - Luci (form auth): MAC address from iface_status/lan — requires credentials.
+        """
+        import httpx
+
+        info: Dict[str, str] = {}
+        base_url = f"http://{self.ip}"
+
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(10.0)) as client:
+                # --- GraphQL (no auth needed) → serial_number, hostname, model ---
+                try:
+                    gql_query = {"query": "{ bos { hostname hwid } bosminer { info { modelName } } }"}
+                    resp = await client.post(f"{base_url}/graphql", json=gql_query)
+                    if resp.status_code == 200:
+                        gql_data = resp.json().get("data", {})
+                        bos = gql_data.get("bos") or {}
+                        bosminer = gql_data.get("bosminer") or {}
+
+                        hwid = bos.get("hwid")
+                        if hwid:
+                            info["serial_number"] = str(hwid)
+
+                        hostname = bos.get("hostname")
+                        if hostname:
+                            info["hostname"] = str(hostname)
+
+                        model_name = (bosminer.get("info") or {}).get("modelName")
+                        if model_name:
+                            info["model"] = str(model_name)
+                except Exception as e:
+                    if self.logger:
+                        self.logger.debug(f"GraphQL device info failed: {e}")
+
+                # --- Luci (form auth) → MAC address ---
+                if self.password:
+                    try:
+                        luci_headers = {
+                            "User-Agent": "BTC Tools v0.1",
+                            "Content-Type": "application/x-www-form-urlencoded",
+                        }
+                        login_data = {
+                            "luci_username": self.username or "root",
+                            "luci_password": self.password,
+                        }
+                        await client.post(
+                            f"{base_url}/cgi-bin/luci",
+                            headers=luci_headers,
+                            data=login_data,
+                        )
+
+                        if client.cookies:
+                            resp = await client.get(
+                                f"{base_url}/cgi-bin/luci/admin/network/iface_status/lan",
+                                headers={"User-Agent": "BTC Tools v0.1"},
+                            )
+                            if resp.status_code == 200:
+                                data = resp.json()
+                                if isinstance(data, list) and data:
+                                    mac = data[0].get("macaddr")
+                                    if mac:
+                                        info["mac_address"] = str(mac).upper()
+                        elif self.logger:
+                            self.logger.debug("Luci form auth failed (no session cookie)")
+                    except Exception as e:
+                        if self.logger:
+                            self.logger.debug(f"Luci MAC fetch failed: {e}")
+
+        except Exception as e:
+            if self.logger:
+                self.logger.debug(f"Web device info fetch failed: {e}")
+
+        return info
 
     # --- MaxPowerDetectionPort ---
 

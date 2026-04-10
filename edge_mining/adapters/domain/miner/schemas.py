@@ -21,6 +21,7 @@ from edge_mining.domain.miner.value_objects import (
     HashboardSnapshot,
     HashRate,
     MinerFeature,
+    MinerInfo,
     MinerStateSnapshot,
     Temperature,
     Voltage,
@@ -401,6 +402,33 @@ class MinerStateSnapshotSchema(BaseModel):
         json_encoders = {
             MinerStatus: lambda v: v.value,
         }
+
+
+class MinerInfoSchema(BaseModel):
+    """Schema for MinerInfo value object."""
+
+    model: Optional[str] = Field(default=None, description="Miner model")
+    serial_number: Optional[str] = Field(default=None, description="Serial number")
+    firmware_version: Optional[str] = Field(default=None, description="Firmware version")
+    mac_address: Optional[str] = Field(default=None, description="MAC address")
+    hostname: Optional[str] = Field(default=None, description="Hostname")
+    hashboard_count: Optional[int] = Field(default=None, description="Number of hashboards")
+    chip_count: Optional[int] = Field(default=None, description="Number of chips")
+    fan_count: Optional[int] = Field(default=None, description="Number of fans")
+
+    @classmethod
+    def from_model(cls, info: MinerInfo) -> "MinerInfoSchema":
+        """Create MinerInfoSchema from a MinerInfo value object."""
+        return cls(
+            model=info.model,
+            serial_number=info.serial_number,
+            firmware_version=info.firmware_version,
+            mac_address=info.mac_address,
+            hostname=info.hostname,
+            hashboard_count=info.hashboard_count,
+            chip_count=info.chip_count,
+            fan_count=info.fan_count,
+        )
 
 
 class MinerCreateSchema(BaseModel):

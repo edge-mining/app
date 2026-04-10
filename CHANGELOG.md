@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Helper functions: `load_features_for_miner()`, `save_features_for_miner()`
 
 - **New API Endpoints** (`edge_mining/adapters/domain/miner/fast_api/router.py`):
+  - `GET /miners/{miner_id}/info` — Get miner device information (model, serial number, firmware version, etc.)
   - `GET /miners/{miner_id}/features` — List miner features
   - `POST /miners/{miner_id}/features/{controller_id}/{feature_type}/enable` — Enable a feature
   - `POST /miners/{miner_id}/features/{controller_id}/{feature_type}/disable` — Disable a feature
