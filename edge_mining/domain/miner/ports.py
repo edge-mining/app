@@ -138,6 +138,22 @@ class ExternalFanSpeedMonitorPort(MinerFeaturePort):
         raise NotImplementedError
 
 
+class OperationalMonitorPort(MinerFeaturePort):
+    """Port for monitoring overall miner operational state (e.g., blocks found, uptime)."""
+
+    feature_type = MinerFeatureType.OPERATIONAL_MONITORING
+
+    @abstractmethod
+    async def get_blocks_found(self) -> Optional[int]:
+        """Gets the total number of blocks found by the miner, if available."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_system_uptime(self) -> Optional[int]:
+        """Gets the system uptime in seconds, if available."""
+        raise NotImplementedError
+
+
 # --- Control Ports (write) ---
 
 

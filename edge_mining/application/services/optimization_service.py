@@ -36,6 +36,7 @@ from edge_mining.domain.miner.ports import (
     MinerFeaturePort,
     MinerRepository,
     MiningControlPort,
+    OperationalMonitorPort,
     PowerControlPort,
     PowerMonitorPort,
     StatusMonitorPort,
@@ -290,6 +291,15 @@ class OptimizationService(OptimizationServiceInterface):
 
                 current_status = await status_port.get_status()
 
+                operational_port = await self.adapter_service.get_miner_feature_port(
+                    miner, MinerFeatureType.OPERATIONAL_MONITORING
+                )
+                blocks_found = None
+                system_uptime = None
+                if operational_port and isinstance(operational_port, OperationalMonitorPort):
+                    blocks_found = await operational_port.get_blocks_found()
+                    system_uptime = await operational_port.get_system_uptime()
+
                 hashrate_port = await self.adapter_service.get_miner_feature_port(
                     miner, MinerFeatureType.HASHRATE_MONITORING
                 )
@@ -323,6 +333,8 @@ class OptimizationService(OptimizationServiceInterface):
                     power_consumption=current_power,
                     hashboards=current_hashboards,
                     internal_fan_speed=internal_fan_speed,
+                    blocks_found=blocks_found,
+                    system_uptime=system_uptime,
                 )
 
                 break  # We found a valid miner and controller, we can stop looking for more miners
@@ -753,6 +765,15 @@ class OptimizationService(OptimizationServiceInterface):
             # Query current state via feature ports
             current_status = await status_port.get_status()
 
+            operational_port = await self.adapter_service.get_miner_feature_port(
+                miner, MinerFeatureType.OPERATIONAL_MONITORING
+            )
+            blocks_found = None
+            system_uptime = None
+            if operational_port and isinstance(operational_port, OperationalMonitorPort):
+                blocks_found = await operational_port.get_blocks_found()
+                system_uptime = await operational_port.get_system_uptime()
+
             hashrate_port = await self.adapter_service.get_miner_feature_port(
                 miner, MinerFeatureType.HASHRATE_MONITORING
             )
@@ -770,6 +791,8 @@ class OptimizationService(OptimizationServiceInterface):
                 status=current_status,
                 hash_rate=current_hashrate,
                 power_consumption=current_power,
+                blocks_found=blocks_found,
+                system_uptime=system_uptime,
             )
 
             # Creates a copy of the context with the miner included, so that the policy

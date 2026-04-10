@@ -19,6 +19,7 @@ from edge_mining.domain.miner.ports import (
     InternalFanSpeedMonitorPort,
     MinerRepository,
     MiningControlPort,
+    OperationalMonitorPort,
     PowerControlPort,
     PowerMonitorPort,
     StatusMonitorPort,
@@ -252,10 +253,22 @@ class MinerActionService(MinerActionServiceInterface):
         if power_port and isinstance(power_port, PowerMonitorPort):
             current_power = await power_port.get_power()
 
+        operational_port = await self.adapter_service.get_miner_feature_port(
+            miner, MinerFeatureType.OPERATIONAL_MONITORING
+        )
+        blocks_found = None
+        system_uptime = None
+        if operational_port and isinstance(operational_port, OperationalMonitorPort):
+            # If operational monitoring is available, it may provide blocks found and uptime
+            blocks_found = await operational_port.get_blocks_found()
+            system_uptime = await operational_port.get_system_uptime()
+
         return MinerStateSnapshot(
             status=current_status,
             hash_rate=current_hashrate,
             power_consumption=current_power,
+            blocks_found=blocks_found,
+            system_uptime=system_uptime,
         )
 
     async def sync_all_miners(self, include_inactive: bool = False) -> None:
@@ -356,6 +369,15 @@ class MinerActionService(MinerActionServiceInterface):
         if status_port and isinstance(status_port, StatusMonitorPort):
             current_status = await status_port.get_status()
 
+        operational_port = await self.adapter_service.get_miner_feature_port(
+            temp_miner, MinerFeatureType.OPERATIONAL_MONITORING
+        )
+        blocks_found = None
+        system_uptime = None
+        if operational_port and isinstance(operational_port, OperationalMonitorPort):
+            blocks_found = await operational_port.get_blocks_found()
+            system_uptime = await operational_port.get_system_uptime()
+
         hashrate_port = await self.adapter_service.get_miner_feature_port(
             temp_miner, MinerFeatureType.HASHRATE_MONITORING
         )
@@ -407,6 +429,8 @@ class MinerActionService(MinerActionServiceInterface):
             power_consumption=current_power,
             hashboards=current_hashboards,
             internal_fan_speed=internal_fan_speed,
+            blocks_found=blocks_found,
+            system_uptime=system_uptime,
         )
 
         if self.logger:

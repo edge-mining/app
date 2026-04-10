@@ -15,6 +15,7 @@ from edge_mining.domain.miner.ports import (
     InternalFanControlPort,
     InternalFanSpeedMonitorPort,
     MiningControlPort,
+    OperationalMonitorPort,
     OutletTemperatureMonitorPort,
     PowerControlPort,
     PowerMonitorPort,
@@ -46,6 +47,7 @@ class DummyMinerController(
     InternalFanControlPort,
     ExternalFanControlPort,
     DeviceInfoPort,
+    OperationalMonitorPort,
 ):
     """Simulates miner control without real hardware.
 
@@ -143,6 +145,14 @@ class DummyMinerController(
         if self.logger:
             self.logger.debug(f"DummyController: Reporting status {status.name}")
         return status
+
+    async def get_blocks_found(self) -> Optional[int]:
+        """Gets the total number of blocks found."""
+        return 0
+
+    async def get_system_uptime(self) -> Optional[int]:
+        """Gets the system uptime in seconds."""
+        return 3600
 
     # --- PowerMonitorPort ---
 

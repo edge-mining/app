@@ -28,6 +28,7 @@ class MinerFeatureType(Enum):
     OUTLET_TEMPERATURE_MONITORING = "outlet_temperature_monitoring"
     FAN_SPEED_INTERNAL_MONITORING = "fan_speed_internal_monitoring"
     FAN_SPEED_EXTERNAL_MONITORING = "fan_speed_external_monitoring"
+    OPERATIONAL_MONITORING = "operational_monitoring"
 
     # Control (write)
     MINING_CONTROL = "mining_control"

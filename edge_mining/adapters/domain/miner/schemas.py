@@ -310,6 +310,18 @@ class MinerStateSnapshotSchema(BaseModel):
     hashboards: list[HashboardSnapshotSchema] = Field(default_factory=list, description="Per-hashboard data")
     blocks_found: Optional[int] = Field(default=None, description="Blocks found count")
     system_uptime: Optional[int] = Field(default=None, description="System uptime in seconds")
+    max_chip_temperature: Optional[TemperatureSchema] = Field(
+        default=None, description="Maximum chip temperature across all hashboards"
+    )
+    max_board_temperature: Optional[TemperatureSchema] = Field(
+        default=None, description="Maximum board temperature across all hashboards"
+    )
+    avg_chip_temperature: Optional[TemperatureSchema] = Field(
+        default=None, description="Average chip temperature across all hashboards"
+    )
+    avg_board_temperature: Optional[TemperatureSchema] = Field(
+        default=None, description="Average board temperature across all hashboards"
+    )
 
     @classmethod
     def from_model(cls, snapshot: MinerStateSnapshot) -> "MinerStateSnapshotSchema":
@@ -317,6 +329,11 @@ class MinerStateSnapshotSchema(BaseModel):
         hash_rate: Optional[HashRateSchema] = None
         if snapshot.hash_rate:
             hash_rate = HashRateSchema(value=snapshot.hash_rate.value, unit=snapshot.hash_rate.unit)
+
+        max_chip_temp = snapshot.max_chip_temperature
+        max_board_temp = snapshot.max_board_temperature
+        avg_chip_temp = snapshot.avg_chip_temperature
+        avg_board_temp = snapshot.avg_board_temperature
 
         return cls(
             status=snapshot.status,
@@ -341,6 +358,18 @@ class MinerStateSnapshotSchema(BaseModel):
             hashboards=[HashboardSnapshotSchema.from_model(hb) for hb in snapshot.hashboards],
             blocks_found=snapshot.blocks_found,
             system_uptime=snapshot.system_uptime,
+            max_chip_temperature=(
+                TemperatureSchema(value=max_chip_temp.value, unit=max_chip_temp.unit) if max_chip_temp else None
+            ),
+            max_board_temperature=(
+                TemperatureSchema(value=max_board_temp.value, unit=max_board_temp.unit) if max_board_temp else None
+            ),
+            avg_chip_temperature=(
+                TemperatureSchema(value=avg_chip_temp.value, unit=avg_chip_temp.unit) if avg_chip_temp else None
+            ),
+            avg_board_temperature=(
+                TemperatureSchema(value=avg_board_temp.value, unit=avg_board_temp.unit) if avg_board_temp else None
+            ),
         )
 
     def to_model(self) -> MinerStateSnapshot:
