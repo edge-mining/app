@@ -12,6 +12,10 @@ const CHART_COLOR_BATTERY = 'rgba(45, 212, 191, 0.9)';   // teal-400
 const CHART_COLOR_BATTERY_POWER = 'rgba(129, 140, 248, 0.9)'; // indigo-400
 const CHART_COLOR_GRID = 'rgba(56, 189, 248, 0.9)';      // sky-400
 const CHART_COLOR_CONSUMPTION = 'rgba(251, 146, 60, 0.9)'; // orange-400
+const CHART_COLOR_CHIP_TEMP = 'rgba(248, 113, 113, 0.9)'; // red-400
+const CHART_COLOR_BOARD_TEMP = 'rgba(251, 146, 60, 0.9)'; // orange-400
+const CHART_COLOR_FAN_INTERNAL = 'rgba(56, 189, 248, 0.9)'; // sky-400
+const CHART_COLOR_FAN_EXTERNAL = 'rgba(129, 140, 248, 0.9)'; // indigo-400
 import KpiCard from "../components/dashboard/KpiCard.vue";
 import MinerTile from "../components/dashboard/MinerTile.vue";
 import ChartPanel from "../components/dashboard/ChartPanel.vue";
@@ -20,6 +24,7 @@ import ActivityFeed from "../components/dashboard/ActivityFeed.vue";
 import SunCard from "../components/dashboard/SunCard.vue";
 import ForecastSummaryCard from "../components/dashboard/ForecastSummaryCard.vue";
 import ForecastChart from "../components/dashboard/ForecastChart.vue";
+import TempFanChart from "../components/dashboard/TempFanChart.vue";
 import type { ForecastIntervalData } from "../components/dashboard/ForecastChart.vue";
 import {
   PhCpu,
@@ -36,11 +41,12 @@ import {
   PhHouseLine,
   PhThermometer,
   PhCloudSun,
+  PhWind,
 } from "@phosphor-icons/vue";
 
 const minerStore = useMinerStore();
 const optimizationUnitStore = useOptimizationUnitStore();
-const { lastUpdated, isPolling, events, hashRateSeries, powerSeries, energyProductionSeries, batterySOCSeries, batteryPowerSeries, gridPowerSeries, consumptionSeries, minerOnOffEvents, forecastPowerPoints, latestDecisionalContexts } = useDashboardPolling(5000);
+const { lastUpdated, isPolling, events, hashRateSeries, powerSeries, energyProductionSeries, batterySOCSeries, batteryPowerSeries, gridPowerSeries, consumptionSeries, maxChipTempSeries, maxBoardTempSeries, internalFanSpeedSeries, externalFanSpeedSeries, minerOnOffEvents, forecastPowerPoints, latestDecisionalContexts } = useDashboardPolling(5000);
 
 // ---------- KPI computations ----------
 
@@ -127,6 +133,14 @@ function formatBatteryValue(v: number): string {
   return `${Math.round(v)}%`;
 }
 
+function formatTemperatureValue(v: number): string {
+  return `${v.toFixed(1)} °C`;
+}
+
+function formatFanSpeedValue(v: number): string {
+  return `${Math.round(v)} RPM`;
+}
+
 
 // Energy KPIs from latest decisional contexts
 const latestEnergyProduction = computed(() => {
@@ -147,6 +161,14 @@ const latestGridPower = computed(() => {
 const latestConsumption = computed(() => {
   const last = consumptionSeries.value;
   return last.length > 0 ? last[last.length - 1].value : 0;
+});
+
+// Check if temperature or fan data is available
+const hasTempFanData = computed(() => {
+  return maxChipTempSeries.value.length > 1 ||
+    maxBoardTempSeries.value.length > 1 ||
+    internalFanSpeedSeries.value.length > 1 ||
+    externalFanSpeedSeries.value.length > 1;
 });
 
 // Forecast chart data: energy (Wh) per interval + max power per interval
@@ -321,11 +343,27 @@ const forecastIntervalData = computed<ForecastIntervalData[]>(() => {
               />
             </ChartPanel>
             <ChartPanel
-              title="Temperature"
+              title="Temperature & Fan"
               :icon="PhThermometer"
               icon-color="text-red-400"
               :chart-height="160"
-            />
+              :has-data="hasTempFanData"
+              :show-marker-toggle="false"
+              v-slot="{ expanded, expandedHeight }"
+            >
+              <TempFanChart
+                v-if="hasTempFanData"
+                :chip-temp-data="maxChipTempSeries"
+                :board-temp-data="maxBoardTempSeries"
+                :internal-fan-data="internalFanSpeedSeries"
+                :external-fan-data="externalFanSpeedSeries"
+                :height="expanded ? expandedHeight : 136"
+                :chip-temp-color="CHART_COLOR_CHIP_TEMP"
+                :board-temp-color="CHART_COLOR_BOARD_TEMP"
+                :internal-fan-color="CHART_COLOR_FAN_INTERNAL"
+                :external-fan-color="CHART_COLOR_FAN_EXTERNAL"
+              />
+            </ChartPanel>
           </div>
         </div>
 

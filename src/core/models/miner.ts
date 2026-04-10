@@ -46,17 +46,56 @@ export interface Miner {
   controller_ids?: string[];
 }
 
+// Temperature value object
+export interface Temperature {
+  value: number;
+  unit: string; // e.g., '°C'
+}
+
+// Fan speed value object
+export interface FanSpeed {
+  value: number;
+  unit: string; // e.g., 'RPM'
+}
+
+// Voltage value object
+export interface Voltage {
+  value: number;
+  unit: string; // e.g., 'V'
+}
+
+// Frequency value object
+export interface Frequency {
+  value: number;
+  unit: string; // e.g., 'MHz'
+}
+
+// Hashboard snapshot
+export interface HashboardSnapshot {
+  index: number;
+  chip_temperature?: Temperature;
+  board_temperature?: Temperature;
+  voltage?: Voltage;
+  frequency?: Frequency;
+  hash_rate?: HashRate;
+  nominal_hash_rate?: HashRate;
+  hash_rate_error?: HashRate;
+}
+
 // Runtime operational state
 export interface MinerStateSnapshot {
   status: MinerStatus;
   hash_rate?: HashRate;
   power_consumption?: number;
-  temperature_board?: number;
-  temperature_chip?: number;
-  temperature_intake?: number;
-  temperature_exhaust?: number;
-  fan_speed_internal?: number;
-  fan_speed_psu?: number;
-  voltage?: number;
-  frequency?: number;
+  inlet_temperature?: Temperature;
+  outlet_temperature?: Temperature;
+  internal_fan_speed: FanSpeed[];
+  external_fan_speed?: FanSpeed;
+  hashboards: HashboardSnapshot[];
+  blocks_found?: number;
+  system_uptime?: number;
+  max_chip_temperature?: Temperature;
+  max_board_temperature?: Temperature;
+  avg_chip_temperature?: Temperature;
+  avg_board_temperature?: Temperature;
 }
