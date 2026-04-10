@@ -253,13 +253,24 @@ class MinerActionService(MinerActionServiceInterface):
         if power_port and isinstance(power_port, PowerMonitorPort):
             current_power = await power_port.get_power()
 
+        hashboard_port = await self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.HASHBOARD_MONITORING)
+        current_hashboards = []
+        if hashboard_port and isinstance(hashboard_port, HashboardMonitorPort):
+            current_hashboards = await hashboard_port.get_hashboards()
+
+        internal_fan_port = await self.adapter_service.get_miner_feature_port(
+            miner, MinerFeatureType.FAN_SPEED_INTERNAL_MONITORING
+        )
+        internal_fan_speed = []
+        if internal_fan_port and isinstance(internal_fan_port, InternalFanSpeedMonitorPort):
+            internal_fan_speed = await internal_fan_port.get_internal_fan_speed()
+
         operational_port = await self.adapter_service.get_miner_feature_port(
             miner, MinerFeatureType.OPERATIONAL_MONITORING
         )
         blocks_found = None
         system_uptime = None
         if operational_port and isinstance(operational_port, OperationalMonitorPort):
-            # If operational monitoring is available, it may provide blocks found and uptime
             blocks_found = await operational_port.get_blocks_found()
             system_uptime = await operational_port.get_system_uptime()
 
@@ -267,6 +278,8 @@ class MinerActionService(MinerActionServiceInterface):
             status=current_status,
             hash_rate=current_hashrate,
             power_consumption=current_power,
+            hashboards=current_hashboards,
+            internal_fan_speed=internal_fan_speed,
             blocks_found=blocks_found,
             system_uptime=system_uptime,
         )
