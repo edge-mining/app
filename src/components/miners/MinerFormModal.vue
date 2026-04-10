@@ -57,6 +57,7 @@ const originalControllerIds = ref<string[]>([]);
 // Feature state (working copy for editing)
 const localFeatures = ref<MinerFeature[]>([]);
 const originalFeatures = ref<MinerFeature[]>([]);
+const showFeatures = ref(false);
 
 // Watch for changes in the prop to reset form
 watch(
@@ -74,6 +75,7 @@ watch(
         originalControllerIds.value = [...(props.miner.controller_ids ?? [])];
         localFeatures.value = (props.miner.features ?? []).map((f) => ({ ...f }));
         originalFeatures.value = (props.miner.features ?? []).map((f) => ({ ...f }));
+        showFeatures.value = false;
       } else {
         formData.value = {
           name: "",
@@ -85,6 +87,7 @@ watch(
         originalControllerIds.value = [];
         localFeatures.value = [];
         originalFeatures.value = [];
+        showFeatures.value = false;
       }
     }
   },
@@ -262,6 +265,22 @@ function updateFeaturePriority(featureType: MinerFeatureType, controllerId: stri
       priority: Math.max(1, Math.min(100, priority)),
     };
   }
+}
+
+// Swap priority between two controllers for a given feature type
+// direction: 'up' = swap with higher-priority neighbor, 'down' = swap with lower-priority neighbor
+function swapFeaturePriority(featureType: MinerFeatureType, controllerId: string, direction: 'up' | 'down') {
+  const group = featuresByType.value.get(featureType);
+  if (!group || group.length < 2) return;
+  const currentIdx = group.findIndex((f) => f.controller_id === controllerId);
+  if (currentIdx === -1) return;
+  // group is sorted descending by priority: index 0 = highest
+  const neighborIdx = direction === 'up' ? currentIdx - 1 : currentIdx + 1;
+  if (neighborIdx < 0 || neighborIdx >= group.length) return;
+  const currentPriority = group[currentIdx].priority;
+  const neighborPriority = group[neighborIdx].priority;
+  updateFeaturePriority(featureType, controllerId, neighborPriority);
+  updateFeaturePriority(featureType, group[neighborIdx].controller_id, currentPriority);
 }
 
 // Check if features have been modified
@@ -480,12 +499,20 @@ function handleSave() {
 
         <!-- Controller Features Section -->
         <template v-if="localFeatures.length > 0 && selectedControllerIds.length > 0">
-          <div class="divider text-xs text-base-content/50 my-4">
-            <PhArrowsDownUp :size="14" />
-            CONTROLLER FEATURES
+          <!-- Manage Features toggle button -->
+          <div class="flex items-center justify-center my-2">
+            <button
+              type="button"
+              class="btn btn-xs btn-ghost gap-1.5 text-base-content/50 hover:text-base-content"
+              @click="showFeatures = !showFeatures"
+            >
+              <PhArrowsDownUp :size="14" />
+              {{ showFeatures ? 'Hide Features' : 'Manage Features' }}
+              <span v-if="hasFeatureChanges" class="badge badge-xs badge-warning">modified</span>
+            </button>
           </div>
 
-          <div class="space-y-2">
+          <div v-if="showFeatures" class="space-y-2">
             <div
               v-for="[featureType, features] in featuresByType"
               :key="featureType"
@@ -543,9 +570,10 @@ function handleSave() {
                     <button
                       type="button"
                       class="btn btn-ghost btn-xs btn-square min-h-0 h-5 w-5"
-                      :disabled="!feature.enabled || feature.priority >= 100"
-                      @click="updateFeaturePriority(feature.feature_type, feature.controller_id, feature.priority + 10)"
-                      title="Priority +10"
+                      :class="{ 'invisible': !(features.length > 1 && features[features.length - 1].controller_id === feature.controller_id) }"
+                      :disabled="!feature.enabled"
+                      @click="swapFeaturePriority(feature.feature_type, feature.controller_id, 'up')"
+                      title="Increase priority"
                     >
                       <PhCaretUp :size="12" />
                     </button>
@@ -561,9 +589,10 @@ function handleSave() {
                     <button
                       type="button"
                       class="btn btn-ghost btn-xs btn-square min-h-0 h-5 w-5"
-                      :disabled="!feature.enabled || feature.priority <= 1"
-                      @click="updateFeaturePriority(feature.feature_type, feature.controller_id, feature.priority - 10)"
-                      title="Priority -10"
+                      :class="{ 'invisible': !(features.length > 1 && features[0].controller_id === feature.controller_id) }"
+                      :disabled="!feature.enabled"
+                      @click="swapFeaturePriority(feature.feature_type, feature.controller_id, 'down')"
+                      title="Decrease priority"
                     >
                       <PhCaretDown :size="12" />
                     </button>
