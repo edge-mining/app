@@ -266,6 +266,24 @@ class ConfigurationServiceInterface(ABC):
         """Remove all features provided by a controller from a miner."""
 
     @abstractmethod
+    async def enable_miner_feature(
+        self, miner_id: EntityId, controller_id: EntityId, feature_type: MinerFeatureType
+    ) -> Miner:
+        """Enable a specific feature on a miner."""
+
+    @abstractmethod
+    async def disable_miner_feature(
+        self, miner_id: EntityId, controller_id: EntityId, feature_type: MinerFeatureType
+    ) -> Miner:
+        """Disable a specific feature on a miner."""
+
+    @abstractmethod
+    async def set_miner_feature_priority(
+        self, miner_id: EntityId, controller_id: EntityId, feature_type: MinerFeatureType, priority: int
+    ) -> Miner:
+        """Set the priority of a specific feature on a miner."""
+
+    @abstractmethod
     def check_miner_controller(self, controller: MinerController) -> bool:
         """Check if a miner controller is valid and can be used."""
 

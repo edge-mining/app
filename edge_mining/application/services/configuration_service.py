@@ -28,7 +28,7 @@ from edge_mining.domain.home_load.entities import HomeForecastProvider
 from edge_mining.domain.home_load.exceptions import HomeForecastProviderNotFoundError
 from edge_mining.domain.home_load.ports import HomeForecastProviderRepository
 from edge_mining.domain.miner.aggregate_roots import Miner
-from edge_mining.domain.miner.common import MinerControllerAdapter
+from edge_mining.domain.miner.common import MinerControllerAdapter, MinerFeatureType
 from edge_mining.domain.miner.entities import MinerController
 from edge_mining.domain.miner.exceptions import (
     MinerControllerConfigurationError,
@@ -1614,6 +1614,44 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         miner.remove_features_by_controller(controller_id)
         self.miner_repo.update(miner)
+
+    async def enable_miner_feature(
+        self, miner_id: EntityId, controller_id: EntityId, feature_type: MinerFeatureType
+    ) -> Miner:
+        """Enable a specific feature on a miner."""
+        self.logger.info(f"Enabling feature {feature_type} from controller {controller_id} on miner {miner_id}")
+        miner = self.miner_repo.get_by_id(miner_id)
+        if not miner:
+            raise MinerNotFoundError(f"Miner with ID {miner_id} not found.")
+        miner.enable_feature(feature_type, controller_id)
+        self.miner_repo.update(miner)
+        return miner
+
+    async def disable_miner_feature(
+        self, miner_id: EntityId, controller_id: EntityId, feature_type: MinerFeatureType
+    ) -> Miner:
+        """Disable a specific feature on a miner."""
+        self.logger.info(f"Disabling feature {feature_type} from controller {controller_id} on miner {miner_id}")
+        miner = self.miner_repo.get_by_id(miner_id)
+        if not miner:
+            raise MinerNotFoundError(f"Miner with ID {miner_id} not found.")
+        miner.disable_feature(feature_type, controller_id)
+        self.miner_repo.update(miner)
+        return miner
+
+    async def set_miner_feature_priority(
+        self, miner_id: EntityId, controller_id: EntityId, feature_type: MinerFeatureType, priority: int
+    ) -> Miner:
+        """Set the priority of a specific feature on a miner."""
+        self.logger.info(
+            f"Setting priority {priority} for feature {feature_type} from controller {controller_id} on miner {miner_id}"
+        )
+        miner = self.miner_repo.get_by_id(miner_id)
+        if not miner:
+            raise MinerNotFoundError(f"Miner with ID {miner_id} not found.")
+        miner.set_priority(feature_type, controller_id, priority)
+        self.miner_repo.update(miner)
+        return miner
 
     def check_miner_controller(self, controller: MinerController) -> bool:
         """Check if a miner controller is valid and can be used."""

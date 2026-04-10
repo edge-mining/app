@@ -18,8 +18,8 @@ from edge_mining.domain.miner.entities import MinerController
 from edge_mining.domain.miner.value_objects import (
     FanSpeed,
     Frequency,
-    HashRate,
     HashboardSnapshot,
+    HashRate,
     MinerFeature,
     MinerStateSnapshot,
     Temperature,
@@ -104,6 +104,12 @@ class FrequencySchema(BaseModel):
     def to_model(self) -> Frequency:
         """Convert FrequencySchema to Frequency domain value object."""
         return Frequency(value=self.value, unit=self.unit)
+
+
+class FeaturePrioritySchema(BaseModel):
+    """Schema for setting feature priority."""
+
+    priority: int = Field(..., ge=1, le=100, description="Priority value (1-100, higher wins)")
 
 
 class MinerFeatureSchema(BaseModel):

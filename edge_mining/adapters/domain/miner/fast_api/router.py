@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from edge_mining.adapters.domain.miner.schemas import (
     MINER_CONTROLLER_CONFIG_SCHEMA_MAP,
+    FeaturePrioritySchema,
     MinerControllerCreateSchema,
     MinerControllerSchema,
     MinerControllerUpdateSchema,
@@ -30,7 +31,7 @@ from edge_mining.application.interfaces import (
 )
 from edge_mining.domain.common import EntityId, Watts
 from edge_mining.domain.miner.aggregate_roots import Miner
-from edge_mining.domain.miner.common import MinerControllerAdapter
+from edge_mining.domain.miner.common import MinerControllerAdapter, MinerFeatureType
 from edge_mining.domain.miner.exceptions import (
     MinerControllerAlreadyExistsError,
     MinerControllerConfigurationError,
@@ -342,6 +343,67 @@ async def get_miner_features(
             raise MinerNotFoundError(f"Miner with ID {miner_id} not found")
 
         return [MinerFeatureSchema.from_model(feature) for feature in miner.features]
+    except MinerNotFoundError as e:
+        raise HTTPException(status_code=404, detail="Miner not found") from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/miners/{miner_id}/features/{controller_id}/{feature_type}/enable", response_model=MinerSchema)
+async def enable_miner_feature(
+    miner_id: EntityId,
+    controller_id: EntityId,
+    feature_type: str,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+) -> MinerSchema:
+    """Enable a specific feature on a miner."""
+    try:
+        ft = MinerFeatureType(feature_type)
+        miner = await config_service.enable_miner_feature(miner_id, controller_id, ft)
+        return MinerSchema.from_model(miner)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid feature type: {feature_type}") from e
+    except MinerNotFoundError as e:
+        raise HTTPException(status_code=404, detail="Miner not found") from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/miners/{miner_id}/features/{controller_id}/{feature_type}/disable", response_model=MinerSchema)
+async def disable_miner_feature(
+    miner_id: EntityId,
+    controller_id: EntityId,
+    feature_type: str,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+) -> MinerSchema:
+    """Disable a specific feature on a miner."""
+    try:
+        ft = MinerFeatureType(feature_type)
+        miner = await config_service.disable_miner_feature(miner_id, controller_id, ft)
+        return MinerSchema.from_model(miner)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid feature type: {feature_type}") from e
+    except MinerNotFoundError as e:
+        raise HTTPException(status_code=404, detail="Miner not found") from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.put("/miners/{miner_id}/features/{controller_id}/{feature_type}/priority", response_model=MinerSchema)
+async def set_miner_feature_priority(
+    miner_id: EntityId,
+    controller_id: EntityId,
+    feature_type: str,
+    body: FeaturePrioritySchema,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+) -> MinerSchema:
+    """Set the priority of a specific feature on a miner."""
+    try:
+        ft = MinerFeatureType(feature_type)
+        miner = await config_service.set_miner_feature_priority(miner_id, controller_id, ft, body.priority)
+        return MinerSchema.from_model(miner)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except MinerNotFoundError as e:
         raise HTTPException(status_code=404, detail="Miner not found") from e
     except Exception as e:
