@@ -1,5 +1,5 @@
 import { BaseService } from "./baseService";
-import type { Miner, MinerStateSnapshot } from "../models/miner";
+import type { Miner, MinerFeature, MinerStateSnapshot } from "../models/miner";
 
 export class MinerService extends BaseService {
   getMiners(): Promise<Miner[]> {
@@ -48,5 +48,17 @@ export class MinerService extends BaseService {
 
   unlinkMinerController(minerId: string, controllerId: string): Promise<Miner> {
     return this.post<Miner>(`/miners/${minerId}/unlink-controller`, {}, { params: { controller_id: controllerId } }).getData();
+  }
+
+  enableFeature(minerId: string, controllerId: string, featureType: string): Promise<Miner> {
+    return this.post<Miner>(`/miners/${minerId}/features/${controllerId}/${featureType}/enable`).getData();
+  }
+
+  disableFeature(minerId: string, controllerId: string, featureType: string): Promise<Miner> {
+    return this.post<Miner>(`/miners/${minerId}/features/${controllerId}/${featureType}/disable`).getData();
+  }
+
+  setFeaturePriority(minerId: string, controllerId: string, featureType: string, priority: number): Promise<Miner> {
+    return this.put<Miner>(`/miners/${minerId}/features/${controllerId}/${featureType}/priority`, { priority }).getData();
   }
 }

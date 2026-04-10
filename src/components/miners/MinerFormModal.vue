@@ -13,7 +13,15 @@ import {
   PhCheck,
   PhPlus,
   PhTrash,
+  PhEye,
+  PhToggleRight,
+  PhMagnifyingGlass,
+  PhWarningCircle,
+  PhArrowsDownUp,
+  PhCaretUp,
+  PhCaretDown,
 } from "@phosphor-icons/vue";
+import type { MinerFeature } from "../../core/models/miner";
 import { formatType } from "../../core/utils/formatters";
 
 const props = defineProps<{
@@ -25,7 +33,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: [];
-  save: [miner: Miner, controllerChanges: { add: string[]; remove: string[] }];
+  save: [miner: Miner, controllerChanges: { add: string[]; remove: string[] }, featureUpdates: MinerFeature[]];
 }>();
 
 const minerControllerStore = useMinerControllerStore();
@@ -46,6 +54,10 @@ const formData = ref<Miner>({
 const selectedControllerIds = ref<string[]>([]);
 const originalControllerIds = ref<string[]>([]);
 
+// Feature state (working copy for editing)
+const localFeatures = ref<MinerFeature[]>([]);
+const originalFeatures = ref<MinerFeature[]>([]);
+
 // Watch for changes in the prop to reset form
 watch(
   () => props.open,
@@ -60,6 +72,8 @@ watch(
         };
         selectedControllerIds.value = [...(props.miner.controller_ids ?? [])];
         originalControllerIds.value = [...(props.miner.controller_ids ?? [])];
+        localFeatures.value = (props.miner.features ?? []).map((f) => ({ ...f }));
+        originalFeatures.value = (props.miner.features ?? []).map((f) => ({ ...f }));
       } else {
         formData.value = {
           name: "",
@@ -69,6 +83,8 @@ watch(
         };
         selectedControllerIds.value = [];
         originalControllerIds.value = [];
+        localFeatures.value = [];
+        originalFeatures.value = [];
       }
     }
   },
@@ -161,11 +177,10 @@ const highlightedFields = ref<Set<string>>(new Set());
 const fieldFetching = ref<Record<string, boolean>>({});
 const fieldFetchSuccess = ref<Record<string, boolean>>({});
 
-// Resolve which selected controllers provide a given feature type (from miner.features)
+// Resolve which selected controllers provide a given feature type (from localFeatures)
 function controllersForFeature(featureType: MinerFeatureType): string[] {
-  if (!props.miner?.features) return [];
   const seen = new Set<string>();
-  return props.miner.features
+  return localFeatures.value
     .filter(
       (f) =>
         f.feature_type === featureType &&
@@ -180,6 +195,86 @@ function controllersForFeature(featureType: MinerFeatureType): string[] {
       return true;
     });
 }
+
+// --- Feature management ---
+
+// Group features by type (only for selected controllers)
+const featuresByType = computed(() => {
+  const groups = new Map<MinerFeatureType, MinerFeature[]>();
+  for (const feature of localFeatures.value) {
+    if (!selectedControllerIds.value.includes(feature.controller_id)) continue;
+    const existing = groups.get(feature.feature_type) || [];
+    existing.push(feature);
+    groups.set(feature.feature_type, existing);
+  }
+  // Sort each group by priority descending
+  for (const [key, features] of groups) {
+    groups.set(key, features.sort((a, b) => b.priority - a.priority));
+  }
+  return groups;
+});
+
+// Feature category icon
+function getFeatureCategoryIcon(featureType: string) {
+  if (featureType.endsWith('_control')) return PhToggleRight;
+  if (featureType === 'model_detection') return PhMagnifyingGlass;
+  return PhEye;
+}
+
+// Determine role of a feature within its group
+function getFeatureRole(feature: MinerFeature): 'active' | 'fallback' | 'disabled' {
+  if (!feature.enabled) return 'disabled';
+  const group = featuresByType.value.get(feature.feature_type) || [];
+  const enabledFeatures = group.filter((f) => f.enabled);
+  if (enabledFeatures.length === 0) return 'disabled';
+  // The one with highest priority is active
+  if (enabledFeatures[0].controller_id === feature.controller_id) return 'active';
+  return 'fallback';
+}
+
+// Check if a feature type has multiple enabled providers
+function hasMultipleProviders(featureType: MinerFeatureType): boolean {
+  const group = featuresByType.value.get(featureType) || [];
+  return group.filter((f) => f.enabled).length > 1;
+}
+
+// Toggle feature enabled state
+function toggleFeatureEnabled(featureType: MinerFeatureType, controllerId: string) {
+  const idx = localFeatures.value.findIndex(
+    (f) => f.feature_type === featureType && f.controller_id === controllerId
+  );
+  if (idx !== -1) {
+    localFeatures.value[idx] = {
+      ...localFeatures.value[idx],
+      enabled: !localFeatures.value[idx].enabled,
+    };
+  }
+}
+
+// Update feature priority
+function updateFeaturePriority(featureType: MinerFeatureType, controllerId: string, priority: number) {
+  const idx = localFeatures.value.findIndex(
+    (f) => f.feature_type === featureType && f.controller_id === controllerId
+  );
+  if (idx !== -1) {
+    localFeatures.value[idx] = {
+      ...localFeatures.value[idx],
+      priority: Math.max(1, Math.min(100, priority)),
+    };
+  }
+}
+
+// Check if features have been modified
+const hasFeatureChanges = computed(() => {
+  if (localFeatures.value.length !== originalFeatures.value.length) return true;
+  return localFeatures.value.some((f) => {
+    const orig = originalFeatures.value.find(
+      (o) => o.feature_type === f.feature_type && o.controller_id === f.controller_id
+    );
+    if (!orig) return true;
+    return f.enabled !== orig.enabled || f.priority !== orig.priority;
+  });
+});
 
 const modelControllers = computed(() => controllersForFeature(MinerFeatureType.MODEL_DETECTION));
 const hashRateControllers = computed(() => controllersForFeature(MinerFeatureType.HASHRATE_MONITORING));
@@ -225,7 +320,9 @@ function handleSave() {
     // Remove controller-related fields from miner payload (backend no longer accepts them)
     delete rawData.features;
     delete rawData.controller_ids;
-    emit("save", rawData, { ...controllerChanges.value });
+    // Clone features for emission
+    const rawFeatures: MinerFeature[] = JSON.parse(JSON.stringify(toRaw(localFeatures.value)));
+    emit("save", rawData, { ...controllerChanges.value }, rawFeatures);
   }
 }
 </script>
@@ -380,6 +477,127 @@ function handleSave() {
             <span>{{ fetchError }}</span>
           </div>
         </div>
+
+        <!-- Controller Features Section -->
+        <template v-if="localFeatures.length > 0 && selectedControllerIds.length > 0">
+          <div class="divider text-xs text-base-content/50 my-4">
+            <PhArrowsDownUp :size="14" />
+            CONTROLLER FEATURES
+          </div>
+
+          <div class="space-y-2">
+            <div
+              v-for="[featureType, features] in featuresByType"
+              :key="featureType"
+              class="bg-base-200/30 rounded-lg px-3 py-2.5"
+            >
+              <!-- Feature Type Header -->
+              <div class="flex items-center gap-2 mb-1.5">
+                <component :is="getFeatureCategoryIcon(featureType)" :size="14" class="text-info flex-shrink-0" />
+                <span class="text-sm font-medium text-base-content">{{ formatType(featureType) }}</span>
+                <span
+                  v-if="hasMultipleProviders(featureType)"
+                  class="badge badge-xs badge-warning gap-1"
+                  title="Multiple controllers provide this feature"
+                >
+                  <PhWarningCircle :size="10" />
+                  {{ features.filter((f) => f.enabled).length }} providers
+                </span>
+              </div>
+
+              <!-- Controllers providing this feature -->
+              <div class="space-y-1">
+                <div
+                  v-for="feature in features"
+                  :key="feature.controller_id"
+                  class="flex items-center gap-2 py-1 pl-5"
+                  :class="{ 'opacity-40': !feature.enabled }"
+                >
+                  <!-- Role indicator dot -->
+                  <span
+                    class="w-2 h-2 rounded-full flex-shrink-0"
+                    :class="{
+                      'bg-success': getFeatureRole(feature) === 'active',
+                      'bg-warning': getFeatureRole(feature) === 'fallback',
+                      'bg-base-content/20': getFeatureRole(feature) === 'disabled',
+                    }"
+                  />
+
+                  <!-- Controller name -->
+                  <span class="text-xs flex-1 truncate">
+                    {{ getControllerName(feature.controller_id) }}
+                  </span>
+
+                  <!-- Adapter type badge -->
+                  <span
+                    v-if="getControllerAdapterType(feature.controller_id)"
+                    class="badge badge-xs"
+                    :class="getAdapterBadgeClass(feature.controller_id)"
+                  >
+                    {{ formatType(getControllerAdapterType(feature.controller_id)!) }}
+                  </span>
+
+                  <!-- Priority input -->
+                  <div class="flex items-center gap-0.5 ml-1">
+                    <span class="text-[10px] text-base-content/40 uppercase">Pri</span>
+                    <button
+                      type="button"
+                      class="btn btn-ghost btn-xs btn-square min-h-0 h-5 w-5"
+                      :disabled="!feature.enabled || feature.priority >= 100"
+                      @click="updateFeaturePriority(feature.feature_type, feature.controller_id, feature.priority + 10)"
+                      title="Priority +10"
+                    >
+                      <PhCaretUp :size="12" />
+                    </button>
+                    <input
+                      type="number"
+                      :value="feature.priority"
+                      @change="updateFeaturePriority(feature.feature_type, feature.controller_id, parseInt(($event.target as HTMLInputElement).value) || 50)"
+                      min="1"
+                      max="100"
+                      class="input input-xs input-bordered w-14 text-center"
+                      :disabled="!feature.enabled"
+                    />
+                    <button
+                      type="button"
+                      class="btn btn-ghost btn-xs btn-square min-h-0 h-5 w-5"
+                      :disabled="!feature.enabled || feature.priority <= 1"
+                      @click="updateFeaturePriority(feature.feature_type, feature.controller_id, feature.priority - 10)"
+                      title="Priority -10"
+                    >
+                      <PhCaretDown :size="12" />
+                    </button>
+                  </div>
+
+                  <!-- Enable/disable toggle -->
+                  <input
+                    type="checkbox"
+                    class="toggle toggle-xs toggle-primary"
+                    :checked="feature.enabled"
+                    @change="toggleFeatureEnabled(feature.feature_type, feature.controller_id)"
+                  />
+
+                  <!-- Role badge -->
+                  <span
+                    class="badge badge-xs w-16 justify-center"
+                    :class="{
+                      'badge-success': getFeatureRole(feature) === 'active',
+                      'badge-warning': getFeatureRole(feature) === 'fallback',
+                      'badge-ghost text-base-content/30': getFeatureRole(feature) === 'disabled',
+                    }"
+                  >
+                    {{ getFeatureRole(feature) === 'active' ? 'Active' : getFeatureRole(feature) === 'fallback' ? 'Fallback' : 'Off' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Note for newly added controllers -->
+          <p v-if="controllerChanges.add.length > 0" class="text-xs text-base-content/40 mt-2 italic">
+            Features for newly added controllers will appear after saving.
+          </p>
+        </template>
 
         <!-- Performance Settings -->
         <div class="divider text-xs text-base-content/50 my-4">

@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import type { Miner, MinerStateSnapshot } from "../models/miner";
+import type { Miner, MinerFeature, MinerStateSnapshot } from "../models/miner";
 import { MinerService } from "../services/minerService";
 
 export const useMinerStore = defineStore("miner", () => {
@@ -67,6 +67,18 @@ export const useMinerStore = defineStore("miner", () => {
     return service.unlinkMinerController(minerId, controllerId);
   }
 
+  function enableFeature(minerId: string, controllerId: string, featureType: string) {
+    return service.enableFeature(minerId, controllerId, featureType);
+  }
+
+  function disableFeature(minerId: string, controllerId: string, featureType: string) {
+    return service.disableFeature(minerId, controllerId, featureType);
+  }
+
+  function setFeaturePriority(minerId: string, controllerId: string, featureType: string, priority: number) {
+    return service.setFeaturePriority(minerId, controllerId, featureType, priority);
+  }
+
   return {
     //STATE
     miners,
@@ -84,5 +96,8 @@ export const useMinerStore = defineStore("miner", () => {
     getMinerState,
     setMinerController,
     unlinkMinerController,
+    enableFeature,
+    disableFeature,
+    setFeaturePriority,
   };
 });

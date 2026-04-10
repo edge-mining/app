@@ -4,7 +4,7 @@ import { useMinerStore } from "../../core/stores/minerStore";
 import { useMinerControllerStore } from "../../core/stores/minerControllerStore";
 import MinerCard from "../../components/miners/MinerCard.vue";
 import MinerFormModal from "../../components/miners/MinerFormModal.vue";
-import type { Miner, MinerStatus } from "../../core/models/miner";
+import type { Miner, MinerFeature, MinerStatus } from "../../core/models/miner";
 import {
   PhPlus,
   PhPower,
@@ -161,12 +161,37 @@ async function applyControllerChanges(minerId: string, changes: { add: string[];
   }
 }
 
-function handleSave(miner: Miner, controllerChanges: { add: string[]; remove: string[] }) {
+async function applyFeatureChanges(minerId: string, features: MinerFeature[], originalMiner?: Miner) {
+  const originalFeatures = originalMiner?.features ?? [];
+  const promises: Promise<any>[] = [];
+  for (const feature of features) {
+    const original = originalFeatures.find(
+      (f) => f.feature_type === feature.feature_type && f.controller_id === feature.controller_id
+    );
+    if (!original) continue; // New features are auto-created by set-controller
+    if (feature.enabled !== original.enabled) {
+      if (feature.enabled) {
+        promises.push(minerStore.enableFeature(minerId, feature.controller_id, feature.feature_type));
+      } else {
+        promises.push(minerStore.disableFeature(minerId, feature.controller_id, feature.feature_type));
+      }
+    }
+    if (feature.priority !== original.priority) {
+      promises.push(minerStore.setFeaturePriority(minerId, feature.controller_id, feature.feature_type, feature.priority));
+    }
+  }
+  if (promises.length > 0) {
+    await Promise.all(promises);
+  }
+}
+
+function handleSave(miner: Miner, controllerChanges: { add: string[]; remove: string[] }, featureUpdates: MinerFeature[]) {
   if (isEditMode.value && miner.id) {
     minerStore
       .updateMiner(miner.id.toString(), miner)
       .then(async () => {
         await applyControllerChanges(miner.id!.toString(), controllerChanges);
+        await applyFeatureChanges(miner.id!.toString(), featureUpdates, editingMiner.value);
         minerStore.loadMiners();
         handleCloseModal();
       })
