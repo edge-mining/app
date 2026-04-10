@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import type { Miner, MinerFeature, MinerStateSnapshot } from "../models/miner";
+import type { Miner, MinerStateSnapshot } from "../models/miner";
 import { MinerService } from "../services/minerService";
 
 export const useMinerStore = defineStore("miner", () => {

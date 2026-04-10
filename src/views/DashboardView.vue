@@ -41,7 +41,6 @@ import {
   PhHouseLine,
   PhThermometer,
   PhCloudSun,
-  PhWind,
 } from "@phosphor-icons/vue";
 
 const minerStore = useMinerStore();
@@ -131,14 +130,6 @@ function formatPowerValue(v: number): string {
 
 function formatBatteryValue(v: number): string {
   return `${Math.round(v)}%`;
-}
-
-function formatTemperatureValue(v: number): string {
-  return `${v.toFixed(1)} °C`;
-}
-
-function formatFanSpeedValue(v: number): string {
-  return `${Math.round(v)} RPM`;
 }
 
 
