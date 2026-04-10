@@ -8,6 +8,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0-rev1]
 
 ### Added
+- **Event-Driven Architecture**:
+  - `InMemoryEventBus` (`edge_mining/adapters/infrastructure/event_bus/in_memory_event_bus.py`): Dual delivery mode event bus supporting blocking and fire-and-forget handlers via `asyncio.create_task()`
+  - `ConfigurationUpdatedEvent` (`edge_mining/application/events/configuration_events.py`): Application-level event for cache invalidation with `ConfigurationUpdatedEventType` and `ConfigurationAction` enums
+  - `MinerStateChangedEvent` (`edge_mining/domain/miner/events.py`): Emitted on miner start/stop with old and new status
+  - `EnergyStateSnapshotUpdatedEvent` (`edge_mining/domain/energy/events.py`): Emitted when energy state is read
+  - `RuleEngagedEvent` (`edge_mining/domain/optimization_unit/events.py`): Emitted when a policy rule produces a mining decision
+  - `DecisionalContextUpdatedEvent` (`edge_mining/domain/policy/events.py`): Emitted when decisional context is composed
+
+- **WebSocket Infrastructure**:
+  - `WebSocketManager` (`edge_mining/adapters/infrastructure/websocket/manager.py`): Real-time event broadcasting to connected clients with wildcard topic subscriptions (e.g. `energy.*`, `miner.state`)
+  - `WebSocketEventHandler` base class and 5 domain handlers: `MinerWebSocketHandler`, `EnergyWebSocketHandler`, `PolicyWebSocketHandler`, `OptimizationUnitWebSocketHandler`, `ConfigurationWebSocketHandler`
+  - Available topics: `config.updated`, `energy.state`, `miner.state`, `policy.context`, `rule.engaged`
+  - `WebSocketMessage` NamedTuple and `WebSocketEventRegistration` dataclass for type-safe event routing
+
+- **Testing**:
+  - Unit tests for all 5 domain events (`tests/unit/application/events/`)
+  - Unit tests for `DomainEvent` base class (`tests/unit/domain/test_events.py`)
+  - Unit tests for `WebSocketManager` (`tests/unit/adapters/infrastructure/websocket/test_websocket_manager.py`): lifecycle, subscriptions, wildcard matching, broadcast
+  - Unit tests for `InMemoryEventBus` (`tests/unit/adapters/infrastructure/test_in_memory_event_bus.py`)
+  - Integration tests for configuration event flow (`tests/unit/application/services/test_configuration_event_flow.py`)
+
+- **Documentation**:
+  - `docs/architecture/event_bus.md` — Event Bus architecture design
+  - `docs/WEBSOCKET.md` — WebSocket client guide and architecture
+
 - **`MinerStateSnapshot` Value Object** (`edge_mining/domain/miner/value_objects.py`):
   - New frozen dataclass representing the runtime operational state of a miner
   - Fields: `status` (MinerStatus), `hash_rate` (Optional[HashRate]), `power_consumption` (Optional[Watts])
@@ -49,6 +74,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `GET /miners/{miner_id}/status`: Now returns `MinerStateSnapshotSchema` instead of `MinerSchema`
   - `GET /miner-controllers/{controller_id}/miner-details`: Now returns `MinerStateSnapshotSchema`
 
+- **`AdapterService`** (`edge_mining/application/services/adapter_service.py`):
+  - Event subscription for `ConfigurationUpdatedEvent` to invalidate service caches
+
+- **`ConfigurationService`** (`edge_mining/application/services/configuration_service.py`):
+  - Publishes `ConfigurationUpdatedEvent` on all configuration changes
+
+- **`MinerActionService`** (`edge_mining/application/services/miner_action_service.py`):
+  - `start_miner()`/`stop_miner()` now publish `MinerStateChangedEvent` via event bus
+
+- **`bootstrap.py`**: Instantiates `InMemoryEventBus` and injects it into all services; adds `init_websocket_dependencies()` call at startup; runs `sync_all_miners()` on application start
+
 - **CLI Commands** (`edge_mining/adapters/domain/miner/cli/commands.py`):
   - Removed status display from `list_miners()` and `print_miner_details()`
 
@@ -72,8 +108,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removed columns `status`, `hash_rate`, `power_consumption` from `miners` table definition
   - Removed `MinerStatusType()` reference (custom type no longer exists)
 
+- **WebSocket event handlers**: Refactored to use topic strings and return `WebSocketMessage` payloads; `broadcast_message()` updated to use `WebSocketMessage` type
+
+- **`FORECAST_PROVIDER`** added to `ConfigurationUpdatedEventType` enum
+
 ### Fixed
 - Fixed unterminated string literal in `MinerActionServiceInterface` docstring
+- Fixed connection error handling for Home Assistant API with client reset and improved logging
+- Fixed external service update logic to handle missing configuration classes
+- Fixed database directory creation for SQLite connections when using SQLAlchemy persistence adapter
+- Fixed critical error handling replaced with warnings for missing energy values in Home Assistant monitors
+- Fixed missing import for sqlalchemy in migration script
 
 ## [0.1.0]
 
