@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch, toRaw } from "vue";
-import { MinerFeatureType, type Miner, type MinerStateSnapshot } from "../../core/models/miner";
+import { MinerFeatureType, type Miner, type MinerLimit } from "../../core/models/miner";
 import { useMinerControllerStore } from "../../core/stores/minerControllerStore";
-import { MinerControllerService } from "../../core/services/minerControllerService";
+import { MinerService } from "../../core/services/minerService";
 import {
   PhX,
   PhFloppyDisk,
@@ -37,7 +37,7 @@ const emit = defineEmits<{
 }>();
 
 const minerControllerStore = useMinerControllerStore();
-const minerControllerService = new MinerControllerService();
+const minerService = new MinerService();
 
 // Hash rate unit options
 const hashRateUnits = ["H/s", "KH/s", "MH/s", "GH/s", "TH/s", "PH/s", "EH/s"];
@@ -180,25 +180,6 @@ const highlightedFields = ref<Set<string>>(new Set());
 const fieldFetching = ref<Record<string, boolean>>({});
 const fieldFetchSuccess = ref<Record<string, boolean>>({});
 
-// Resolve which selected controllers provide a given feature type (from localFeatures)
-function controllersForFeature(featureType: MinerFeatureType): string[] {
-  const seen = new Set<string>();
-  return localFeatures.value
-    .filter(
-      (f) =>
-        f.feature_type === featureType &&
-        f.enabled &&
-        selectedControllerIds.value.includes(f.controller_id)
-    )
-    .sort((a, b) => b.priority - a.priority)
-    .map((f) => f.controller_id)
-    .filter((id) => {
-      if (seen.has(id)) return false;
-      seen.add(id);
-      return true;
-    });
-}
-
 // --- Feature management ---
 
 // Group features by type (only for selected controllers)
@@ -295,25 +276,26 @@ const hasFeatureChanges = computed(() => {
   });
 });
 
-const modelControllers = computed(() => controllersForFeature(MinerFeatureType.MODEL_DETECTION));
-const hashRateControllers = computed(() => controllersForFeature(MinerFeatureType.HASHRATE_MONITORING));
-const powerControllers = computed(() => controllersForFeature(MinerFeatureType.POWER_MONITORING));
 
-async function fetchField(field: string, controllerId: string) {
+async function fetchLimit(field: "hash_rate_max" | "power_consumption_max") {
+  if (!formData.value.id) {
+    fetchError.value = "Miner must be saved before fetching limits";
+    return;
+  }
   fieldFetching.value = { ...fieldFetching.value, [field]: true };
   fieldFetchSuccess.value = { ...fieldFetchSuccess.value, [field]: false };
   fetchError.value = null;
   try {
-    const snapshot: MinerStateSnapshot = await minerControllerService.getMinerDetails(controllerId);
+    const limits: MinerLimit = await minerService.getMinerLimits(formData.value.id);
     let updated = false;
-    if (field === "hash_rate_max" && snapshot.hash_rate && snapshot.hash_rate.value > 0) {
+    if (field === "hash_rate_max" && limits.max_hash_rate && limits.max_hash_rate.value > 0) {
       formData.value.hash_rate_max = {
-        value: snapshot.hash_rate.value,
-        unit: snapshot.hash_rate.unit || "TH/s",
+        value: limits.max_hash_rate.value,
+        unit: limits.max_hash_rate.unit || "TH/s",
       };
       updated = true;
-    } else if (field === "power_consumption_max" && snapshot.power_consumption && snapshot.power_consumption > 0) {
-      formData.value.power_consumption_max = snapshot.power_consumption;
+    } else if (field === "power_consumption_max" && limits.max_power && limits.max_power > 0) {
+      formData.value.power_consumption_max = limits.max_power;
       updated = true;
     }
     if (updated) {
@@ -326,7 +308,7 @@ async function fetchField(field: string, controllerId: string) {
     }
   } catch (error: any) {
     fetchError.value =
-      error?.response?.data?.detail || error?.message || "Failed to fetch from controller";
+      error?.response?.data?.detail || error?.message || "Failed to fetch limits";
   } finally {
     fieldFetching.value = { ...fieldFetching.value, [field]: false };
   }
@@ -398,31 +380,6 @@ function handleSave() {
                 class="input input-bordered w-full flex-1 transition-colors duration-500"
                 :class="{ 'input-success border-success': highlightedFields.has('model') }"
               />
-              <!-- Fetch Model: single controller -->
-              <button
-                v-if="modelControllers.length === 1"
-                type="button"
-                class="btn btn-sm btn-square"
-                :class="fieldFetchSuccess['model'] ? 'btn-success' : 'btn-ghost'"
-                :disabled="fieldFetching['model']"
-                @click="fetchField('model', modelControllers[0])"
-                :title="`Fetch from ${getControllerName(modelControllers[0])}`"
-              >
-                <PhCheck v-if="fieldFetchSuccess['model']" :size="16" />
-                <PhDownloadSimple v-else :size="16" :class="{ 'animate-bounce': fieldFetching['model'] }" />
-              </button>
-              <!-- Fetch Model: multiple controllers -->
-              <div v-else-if="modelControllers.length > 1" class="dropdown dropdown-end">
-                <label tabindex="0" class="btn btn-sm btn-square" :class="fieldFetchSuccess['model'] ? 'btn-success' : 'btn-ghost'">
-                  <PhCheck v-if="fieldFetchSuccess['model']" :size="16" />
-                  <PhDownloadSimple v-else :size="16" :class="{ 'animate-bounce': fieldFetching['model'] }" />
-                </label>
-                <ul tabindex="0" class="dropdown-content z-[1] menu p-1 shadow-lg bg-base-200 rounded-box w-52">
-                  <li v-for="cid in modelControllers" :key="cid">
-                    <a @click="fetchField('model', cid)">{{ getControllerName(cid) }} <span v-if="getControllerAdapterType(cid)" class="badge badge-xs" :class="getAdapterBadgeClass(cid)">{{ formatType(getControllerAdapterType(cid)!) }}</span></a>
-                  </li>
-                </ul>
-              </div>
             </div>
           </div>
         </div>
@@ -660,31 +617,19 @@ function handleSave() {
                   {{ unit }}
                 </option>
               </select>
-              <!-- Fetch Hash Rate: single controller -->
+              <!-- Fetch limits from miner -->
               <button
-                v-if="hashRateControllers.length === 1"
+                v-if="isEdit && formData.id"
                 type="button"
                 class="btn btn-sm btn-square"
                 :class="fieldFetchSuccess['hash_rate_max'] ? 'btn-success' : 'btn-ghost'"
                 :disabled="fieldFetching['hash_rate_max']"
-                @click="fetchField('hash_rate_max', hashRateControllers[0])"
-                :title="`Fetch from ${getControllerName(hashRateControllers[0])}`"
+                @click="fetchLimit('hash_rate_max')"
+                title="Fetch max hash rate from miner"
               >
                 <PhCheck v-if="fieldFetchSuccess['hash_rate_max']" :size="16" />
                 <PhDownloadSimple v-else :size="16" :class="{ 'animate-bounce': fieldFetching['hash_rate_max'] }" />
               </button>
-              <!-- Fetch Hash Rate: multiple controllers -->
-              <div v-else-if="hashRateControllers.length > 1" class="dropdown dropdown-end">
-                <label tabindex="0" class="btn btn-sm btn-square" :class="fieldFetchSuccess['hash_rate_max'] ? 'btn-success' : 'btn-ghost'">
-                  <PhCheck v-if="fieldFetchSuccess['hash_rate_max']" :size="16" />
-                  <PhDownloadSimple v-else :size="16" :class="{ 'animate-bounce': fieldFetching['hash_rate_max'] }" />
-                </label>
-                <ul tabindex="0" class="dropdown-content z-[1] menu p-1 shadow-lg bg-base-200 rounded-box w-52">
-                  <li v-for="cid in hashRateControllers" :key="cid">
-                    <a @click="fetchField('hash_rate_max', cid)">{{ getControllerName(cid) }} <span v-if="getControllerAdapterType(cid)" class="badge badge-xs" :class="getAdapterBadgeClass(cid)">{{ formatType(getControllerAdapterType(cid)!) }}</span></a>
-                  </li>
-                </ul>
-              </div>
             </div>
           </div>
 
@@ -709,31 +654,19 @@ function handleSave() {
                 />
                 <span class="text-sm text-base-content/50">W</span>
               </label>
-              <!-- Fetch Power: single controller -->
+              <!-- Fetch max power from miner -->
               <button
-                v-if="powerControllers.length === 1"
+                v-if="isEdit && formData.id"
                 type="button"
                 class="btn btn-sm btn-square"
                 :class="fieldFetchSuccess['power_consumption_max'] ? 'btn-success' : 'btn-ghost'"
                 :disabled="fieldFetching['power_consumption_max']"
-                @click="fetchField('power_consumption_max', powerControllers[0])"
-                :title="`Fetch from ${getControllerName(powerControllers[0])}`"
+                @click="fetchLimit('power_consumption_max')"
+                title="Fetch max power from miner"
               >
                 <PhCheck v-if="fieldFetchSuccess['power_consumption_max']" :size="16" />
                 <PhDownloadSimple v-else :size="16" :class="{ 'animate-bounce': fieldFetching['power_consumption_max'] }" />
               </button>
-              <!-- Fetch Power: multiple controllers -->
-              <div v-else-if="powerControllers.length > 1" class="dropdown dropdown-end">
-                <label tabindex="0" class="btn btn-sm btn-square" :class="fieldFetchSuccess['power_consumption_max'] ? 'btn-success' : 'btn-ghost'">
-                  <PhCheck v-if="fieldFetchSuccess['power_consumption_max']" :size="16" />
-                  <PhDownloadSimple v-else :size="16" :class="{ 'animate-bounce': fieldFetching['power_consumption_max'] }" />
-                </label>
-                <ul tabindex="0" class="dropdown-content z-[1] menu p-1 shadow-lg bg-base-200 rounded-box w-52">
-                  <li v-for="cid in powerControllers" :key="cid">
-                    <a @click="fetchField('power_consumption_max', cid)">{{ getControllerName(cid) }} <span v-if="getControllerAdapterType(cid)" class="badge badge-xs" :class="getAdapterBadgeClass(cid)">{{ formatType(getControllerAdapterType(cid)!) }}</span></a>
-                  </li>
-                </ul>
-              </div>
             </div>
           </div>
         </div>

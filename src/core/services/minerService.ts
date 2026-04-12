@@ -1,5 +1,5 @@
 import { BaseService } from "./baseService";
-import type { Miner, MinerStateSnapshot } from "../models/miner";
+import type { Miner, MinerLimit, MinerStateSnapshot } from "../models/miner";
 
 export class MinerService extends BaseService {
   getMiners(): Promise<Miner[]> {
@@ -60,5 +60,9 @@ export class MinerService extends BaseService {
 
   setFeaturePriority(minerId: string, controllerId: string, featureType: string, priority: number): Promise<Miner> {
     return this.put<Miner>(`/miners/${minerId}/features/${controllerId}/${featureType}/priority`, { priority }).getData();
+  }
+
+  getMinerLimits(minerId: string): Promise<MinerLimit> {
+    return this.get<MinerLimit>(`/miners/${minerId}/limits`).getData();
   }
 }

@@ -82,6 +82,12 @@ export interface HashboardSnapshot {
   hash_rate_error?: HashRate;
 }
 
+// Miner limits (max power and hash rate from detection ports)
+export interface MinerLimit {
+  max_power?: number;
+  max_hash_rate?: HashRate;
+}
+
 // Runtime operational state
 export interface MinerStateSnapshot {
   status: MinerStatus;
