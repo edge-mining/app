@@ -53,6 +53,7 @@ class MinerInfo(ValueObject):
 
     model: Optional[str] = None
     serial_number: Optional[str] = None
+    firmware_type: Optional[str] = None
     firmware_version: Optional[str] = None
     mac_address: Optional[str] = None
     hostname: Optional[str] = None

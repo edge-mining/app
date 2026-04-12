@@ -80,6 +80,7 @@ class DummyMinerController(
         # Simulate some dummy device info
         model = "DummyMiner X1"
         serial_number = "DMX1-01}"
+        firmware_type = "Stock"
         firmware_version = "1.0.0"
         mac_address = "00:11:22:33:10:99"
         hostname = "edgemining-dummyminer"
@@ -87,6 +88,7 @@ class DummyMinerController(
         info = MinerInfo(
             model=model,
             serial_number=serial_number,
+            firmware_type=firmware_type,
             firmware_version=firmware_version,
             mac_address=mac_address,
             hostname=hostname,

@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **New Value Objects** (`edge_mining/domain/miner/value_objects.py`):
   - Measurement types: `Temperature`, `FanSpeed`, `Voltage`, `Frequency` frozen dataclasses with value and unit
-  - `MinerInfo`: Device information with model, serial number, firmware version, MAC address, hostname, hashboard/chip/fan count
+  - `MinerInfo`: Device information with model, serial number, firmware type (Stock, BOS+, VNish, etc.), firmware version, MAC address, hostname, hashboard/chip/fan count
   - `MinerLimit`: Miner limits with optional `max_power` (Watts) and `max_hash_rate` (HashRate)
   - `HashboardSnapshot`: Per-board metrics (chip/board temperature, voltage, frequency, hash rate, nominal hash rate, hash rate error)
   - Extended `MinerStateSnapshot` with: `inlet_temperature`, `outlet_temperature`, `internal_fan_speed` (list), `hashboards` (list), and convenience properties (`max_chip_temperature`, `avg_board_temperature`, etc.)

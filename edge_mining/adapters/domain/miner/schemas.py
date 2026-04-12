@@ -410,6 +410,9 @@ class MinerInfoSchema(BaseModel):
 
     model: Optional[str] = Field(default=None, description="Miner model")
     serial_number: Optional[str] = Field(default=None, description="Serial number")
+    firmware_type: Optional[str] = Field(
+        default=None, description="Firmware type (e.g. Stock, BOS+, VNish, ePIC, LuxOS)"
+    )
     firmware_version: Optional[str] = Field(default=None, description="Firmware version")
     mac_address: Optional[str] = Field(default=None, description="MAC address")
     hostname: Optional[str] = Field(default=None, description="Hostname")
@@ -423,6 +426,7 @@ class MinerInfoSchema(BaseModel):
         return cls(
             model=info.model,
             serial_number=info.serial_number,
+            firmware_type=info.firmware_type,
             firmware_version=info.firmware_version,
             mac_address=info.mac_address,
             hostname=info.hostname,

@@ -211,6 +211,7 @@ class PyASICMinerController(
         serial_number = await miner.get_serial_number()
         mac_address = await miner.get_mac()
         model = await miner.get_model()
+        firmware_type = str(miner.firmware) if miner.firmware else None
         firmware_version = await miner.get_fw_ver()
         hostname = await miner.get_hostname()
 
@@ -245,6 +246,7 @@ class PyASICMinerController(
         return MinerInfo(
             model=str(model) if model is not None else None,
             serial_number=str(serial_number) if serial_number is not None else None,
+            firmware_type=firmware_type,
             firmware_version=str(firmware_version) if firmware_version is not None else None,
             mac_address=str(mac_address) if mac_address is not None else None,
             hostname=str(hostname) if hostname is not None else None,
