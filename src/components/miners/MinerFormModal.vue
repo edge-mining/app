@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch, toRaw } from "vue";
-import { MinerFeatureType, type Miner, type MinerLimit } from "../../core/models/miner";
+import { MinerFeatureType, type Miner, type MinerInfo, type MinerLimit } from "../../core/models/miner";
 import { useMinerControllerStore } from "../../core/stores/minerControllerStore";
 import { MinerService } from "../../core/services/minerService";
 import {
@@ -59,6 +59,9 @@ const localFeatures = ref<MinerFeature[]>([]);
 const originalFeatures = ref<MinerFeature[]>([]);
 const showFeatures = ref(false);
 
+// Device info state (fetched from /miners/{id}/info)
+const deviceInfo = ref<MinerInfo | null>(null);
+
 // Watch for changes in the prop to reset form
 watch(
   () => props.open,
@@ -76,6 +79,7 @@ watch(
         localFeatures.value = (props.miner.features ?? []).map((f) => ({ ...f }));
         originalFeatures.value = (props.miner.features ?? []).map((f) => ({ ...f }));
         showFeatures.value = false;
+        deviceInfo.value = null;
       } else {
         formData.value = {
           name: "",
@@ -88,6 +92,7 @@ watch(
         localFeatures.value = [];
         originalFeatures.value = [];
         showFeatures.value = false;
+        deviceInfo.value = null;
       }
     }
   },
@@ -277,6 +282,58 @@ const hasFeatureChanges = computed(() => {
 });
 
 
+// Check if miner has the DEVICE_INFO_DETECTION feature enabled
+const hasDeviceInfoFeature = computed(() => {
+  return localFeatures.value.some(
+    (f) =>
+      f.feature_type === MinerFeatureType.DEVICE_INFO_DETECTION &&
+      f.enabled &&
+      selectedControllerIds.value.includes(f.controller_id)
+  );
+});
+
+async function ensureDeviceInfo(): Promise<MinerInfo | null> {
+  if (deviceInfo.value) return deviceInfo.value;
+  if (!formData.value.id) {
+    fetchError.value = "Miner must be saved before fetching info";
+    return null;
+  }
+  const info = await minerService.getMinerInfo(formData.value.id);
+  if (info) deviceInfo.value = info;
+  return info;
+}
+
+async function fetchInfoField(field: "name" | "model") {
+  fieldFetching.value = { ...fieldFetching.value, [field]: true };
+  fieldFetchSuccess.value = { ...fieldFetchSuccess.value, [field]: false };
+  fetchError.value = null;
+  try {
+    const info = await ensureDeviceInfo();
+    if (!info) return;
+    let updated = false;
+    if (field === "name" && info.hostname) {
+      formData.value.name = info.hostname;
+      updated = true;
+    } else if (field === "model" && info.model) {
+      formData.value.model = info.model;
+      updated = true;
+    }
+    if (updated) {
+      highlightedFields.value = new Set([field]);
+      fieldFetchSuccess.value = { ...fieldFetchSuccess.value, [field]: true };
+      setTimeout(() => {
+        fieldFetchSuccess.value = { ...fieldFetchSuccess.value, [field]: false };
+        highlightedFields.value = new Set();
+      }, 3000);
+    }
+  } catch (error: any) {
+    fetchError.value =
+      error?.response?.data?.detail || error?.message || "Failed to fetch miner info";
+  } finally {
+    fieldFetching.value = { ...fieldFetching.value, [field]: false };
+  }
+}
+
 async function fetchLimit(field: "hash_rate_max" | "power_consumption_max") {
   if (!formData.value.id) {
     fetchError.value = "Miner must be saved before fetching limits";
@@ -358,13 +415,29 @@ function handleSave() {
             <label class="label mb-1">
               <span class="label-text font-medium">Name *</span>
             </label>
-            <input
-              v-model="formData.name"
-              type="text"
-              placeholder="Enter miner name"
-              class="input input-bordered w-full"
-              required
-            />
+            <div class="flex gap-2">
+              <input
+                v-model="formData.name"
+                type="text"
+                placeholder="Enter miner name"
+                class="input input-bordered w-full flex-1 transition-colors duration-500"
+                :class="{ 'input-success border-success': highlightedFields.has('name') }"
+                required
+              />
+              <!-- Fetch hostname from device info -->
+              <button
+                v-if="isEdit && formData.id && hasDeviceInfoFeature"
+                type="button"
+                class="btn btn-sm btn-square"
+                :class="fieldFetchSuccess['name'] ? 'btn-success' : 'btn-ghost'"
+                :disabled="fieldFetching['name']"
+                @click="fetchInfoField('name')"
+                title="Fetch hostname from miner"
+              >
+                <PhCheck v-if="fieldFetchSuccess['name']" :size="16" />
+                <PhDownloadSimple v-else :size="16" :class="{ 'animate-bounce': fieldFetching['name'] }" />
+              </button>
+            </div>
           </div>
 
           <!-- Model Input -->
@@ -380,6 +453,19 @@ function handleSave() {
                 class="input input-bordered w-full flex-1 transition-colors duration-500"
                 :class="{ 'input-success border-success': highlightedFields.has('model') }"
               />
+              <!-- Fetch model from device info -->
+              <button
+                v-if="isEdit && formData.id && hasDeviceInfoFeature"
+                type="button"
+                class="btn btn-sm btn-square"
+                :class="fieldFetchSuccess['model'] ? 'btn-success' : 'btn-ghost'"
+                :disabled="fieldFetching['model']"
+                @click="fetchInfoField('model')"
+                title="Fetch model from miner"
+              >
+                <PhCheck v-if="fieldFetchSuccess['model']" :size="16" />
+                <PhDownloadSimple v-else :size="16" :class="{ 'animate-bounce': fieldFetching['model'] }" />
+              </button>
             </div>
           </div>
         </div>
@@ -672,16 +758,33 @@ function handleSave() {
         </div>
 
         <!-- Actions -->
-        <div class="flex justify-end gap-3 pt-4 border-t border-base-300/40">
-          <button type="button" class="btn btn-ghost" @click="handleClose">Cancel</button>
-          <button
-            type="submit"
-            class="btn btn-primary"
-            :disabled="!isFormValid"
-          >
-            <PhFloppyDisk :size="18" />
-            {{ isEdit ? "Save Changes" : "Create" }}
-          </button>
+        <div class="flex items-end gap-3 pt-4 border-t border-base-300/40">
+          <!-- Device info (footer left) -->
+          <div v-if="deviceInfo" class="flex-1 text-xs text-base-content/40 space-y-0.5">
+            <div v-if="deviceInfo.firmware_version">
+              <span class="text-base-content/50">Firmware:</span> {{ deviceInfo.firmware_version }}
+            </div>
+            <div v-if="deviceInfo.mac_address">
+              <span class="text-base-content/50">MAC:</span> {{ deviceInfo.mac_address }}
+            </div>
+            <div v-if="deviceInfo.serial_number">
+              <span class="text-base-content/50">S/N:</span> {{ deviceInfo.serial_number }}
+            </div>
+          </div>
+          <div v-else class="flex-1"></div>
+
+          <!-- Buttons (footer right) -->
+          <div class="flex gap-3">
+            <button type="button" class="btn btn-ghost" @click="handleClose">Cancel</button>
+            <button
+              type="submit"
+              class="btn btn-primary"
+              :disabled="!isFormValid"
+            >
+              <PhFloppyDisk :size="18" />
+              {{ isEdit ? "Save Changes" : "Create" }}
+            </button>
+          </div>
         </div>
       </form>
     </div>

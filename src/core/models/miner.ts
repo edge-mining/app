@@ -85,6 +85,18 @@ export interface HashboardSnapshot {
   hash_rate_error?: HashRate;
 }
 
+// Miner device information (from DeviceInfoPort)
+export interface MinerInfo {
+  model?: string;
+  serial_number?: string;
+  firmware_version?: string;
+  mac_address?: string;
+  hostname?: string;
+  hashboard_count?: number;
+  chip_count?: number;
+  fan_count?: number;
+}
+
 // Miner limits (max power and hash rate from detection ports)
 export interface MinerLimit {
   max_power?: number;
