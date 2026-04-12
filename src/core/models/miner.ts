@@ -8,22 +8,25 @@ export type MinerStatus = 'unknown' | 'off' | 'on' | 'starting' | 'stopping' | '
 
 // Feature types matching backend MinerFeatureType enum
 export const MinerFeatureType = {
+  // Monitoring (read-only)
   HASHRATE_MONITORING: 'hashrate_monitoring',
   POWER_MONITORING: 'power_monitoring',
   STATUS_MONITORING: 'status_monitoring',
-  TEMPERATURE_BOARD_MONITORING: 'temperature_board_monitoring',
-  TEMPERATURE_CHIP_MONITORING: 'temperature_chip_monitoring',
-  TEMPERATURE_INTAKE_MONITORING: 'temperature_intake_monitoring',
-  TEMPERATURE_EXHAUST_MONITORING: 'temperature_exhaust_monitoring',
+  HASHBOARD_MONITORING: 'hashboard_monitoring',
+  INLET_TEMPERATURE_MONITORING: 'inlet_temperature_monitoring',
+  OUTLET_TEMPERATURE_MONITORING: 'outlet_temperature_monitoring',
   FAN_SPEED_INTERNAL_MONITORING: 'fan_speed_internal_monitoring',
-  FAN_SPEED_PSU_MONITORING: 'fan_speed_psu_monitoring',
-  VOLTAGE_MONITORING: 'voltage_monitoring',
-  FREQUENCY_MONITORING: 'frequency_monitoring',
+  FAN_SPEED_EXTERNAL_MONITORING: 'fan_speed_external_monitoring',
+  OPERATIONAL_MONITORING: 'operational_monitoring',
+  // Control (write)
   MINING_CONTROL: 'mining_control',
   POWER_CONTROL: 'power_control',
-  FREQUENCY_CONTROL: 'frequency_control',
-  FAN_SPEED_CONTROL: 'fan_speed_control',
-  MODEL_DETECTION: 'model_detection',
+  INTERNAL_FAN_CONTROL: 'internal_fan_control',
+  EXTERNAL_FAN_CONTROL: 'external_fan_control',
+  // Info
+  MAX_POWER_DETECTION: 'max_power_detection',
+  MAX_HASHRATE_DETECTION: 'max_hashrate_detection',
+  DEVICE_INFO_DETECTION: 'device_info_detection',
 } as const;
 
 export type MinerFeatureType = typeof MinerFeatureType[keyof typeof MinerFeatureType];
