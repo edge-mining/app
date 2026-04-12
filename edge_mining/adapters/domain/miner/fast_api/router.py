@@ -14,6 +14,7 @@ from edge_mining.adapters.domain.miner.schemas import (
     MinerCreateSchema,
     MinerFeatureSchema,
     MinerInfoSchema,
+    MinerLimitSchema,
     MinerSchema,
     MinerStateSnapshotSchema,
     MinerUpdateSchema,
@@ -308,6 +309,24 @@ async def get_miner_info(
             return None
 
         return MinerInfoSchema.from_model(info)
+    except MinerNotFoundError as e:
+        raise HTTPException(status_code=404, detail="Miner not found") from e
+    except MinerControllerConfigurationError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/miners/{miner_id}/limits", response_model=Optional[MinerLimitSchema])
+async def get_miner_limits(
+    miner_id: EntityId,
+    action_service: Annotated[MinerActionServiceInterface, Depends(get_miner_action_service)],
+) -> Optional[MinerLimitSchema]:
+    """Get limits for a specific miner."""
+    try:
+        limits = await action_service.get_miner_limits(miner_id)
+
+        return MinerLimitSchema.from_model(limits)
     except MinerNotFoundError as e:
         raise HTTPException(status_code=404, detail="Miner not found") from e
     except MinerControllerConfigurationError as e:

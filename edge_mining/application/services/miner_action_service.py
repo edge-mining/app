@@ -17,6 +17,8 @@ from edge_mining.domain.miner.ports import (
     HashboardMonitorPort,
     HashrateMonitorPort,
     InternalFanSpeedMonitorPort,
+    MaxHashrateDetectionPort,
+    MaxPowerDetectionPort,
     MinerRepository,
     MiningControlPort,
     OperationalMonitorPort,
@@ -24,7 +26,7 @@ from edge_mining.domain.miner.ports import (
     PowerMonitorPort,
     StatusMonitorPort,
 )
-from edge_mining.domain.miner.value_objects import HashRate, MinerFeature, MinerInfo, MinerStateSnapshot
+from edge_mining.domain.miner.value_objects import HashRate, MinerFeature, MinerInfo, MinerLimit, MinerStateSnapshot
 from edge_mining.domain.notification.ports import NotificationPort
 from edge_mining.shared.logging.port import LoggerPort
 
@@ -64,6 +66,36 @@ class MinerActionService(MinerActionServiceInterface):
             raise MinerControllerConfigurationError(f"No device info port available for miner {miner_id}.")
 
         return await port.get_device_info()
+
+    async def get_miner_limits(self, miner_id: EntityId) -> Optional[MinerLimit]:
+        """Gets the limits of the specified miner."""
+        if self.logger:
+            self.logger.info(f"Getting limits for miner {miner_id}")
+
+        miner: Optional[Miner] = self.miner_repo.get_by_id(miner_id)
+
+        if not miner:
+            raise MinerNotFoundError(f"Miner with ID {miner_id} not found.")
+
+        # --- Retrieve max power limit ---
+        max_power = None
+        power_port = await self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.MAX_POWER_DETECTION)
+        if power_port and isinstance(power_port, MaxPowerDetectionPort):
+            max_power = await power_port.get_max_power()
+        else:
+            if self.logger:
+                self.logger.warning(f"No max power detection port available for miner {miner_id}. Returning None.")
+
+        # --- Retrieve max hash rate limit ---
+        max_hash_rate = None
+        hashrate_port = await self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.HASHRATE_MONITORING)
+        if hashrate_port and isinstance(hashrate_port, MaxHashrateDetectionPort):
+            max_hash_rate = await hashrate_port.get_max_hashrate()
+        else:
+            if self.logger:
+                self.logger.warning(f"No hashrate monitor port available for miner {miner_id}. Returning None.")
+
+        return MinerLimit(max_power=max_power, max_hash_rate=max_hash_rate) if max_power or max_hash_rate else None
 
     async def _notify(self, notifiers: List[NotificationPort], title: str, message: str):
         """Sends a notification using the configured notifiers."""

@@ -22,6 +22,7 @@ from edge_mining.domain.miner.value_objects import (
     HashRate,
     MinerFeature,
     MinerInfo,
+    MinerLimit,
     MinerStateSnapshot,
     Temperature,
     Voltage,
@@ -428,6 +429,43 @@ class MinerInfoSchema(BaseModel):
             hashboard_count=info.hashboard_count,
             chip_count=info.chip_count,
             fan_count=info.fan_count,
+        )
+
+
+class MinerLimitSchema(BaseModel):
+    """Schema for MinerLimit value object."""
+
+    max_power: Optional[float] = Field(default=None, ge=0, description="Maximum power consumption in Watts")
+    max_hash_rate: Optional[HashRateSchema] = Field(default=None, description="Maximum hash rate")
+
+    @field_validator("max_power")
+    @classmethod
+    def validate_max_power(cls, v: Optional[float]) -> Optional[float]:
+        """Validate that max_power is non-negative if provided."""
+        if v is not None and v < 0:
+            raise ValueError("max_power cannot be negative")
+        return v
+
+    def to_model(self) -> MinerLimit:
+        """Convert MinerLimitSchema to MinerLimit value object."""
+        return MinerLimit(
+            max_power=Watts(self.max_power) if self.max_power is not None else None,
+            max_hash_rate=self.max_hash_rate.to_model() if self.max_hash_rate else None,
+        )
+
+    @classmethod
+    def from_model(cls, limit: Optional[MinerLimit]) -> "MinerLimitSchema":
+        """Create MinerLimitSchema from a MinerLimit value object."""
+        if not limit:
+            return cls()
+
+        max_hash_rate_schema: Optional[HashRateSchema] = None
+        if limit.max_hash_rate:
+            max_hash_rate_schema = HashRateSchema(value=limit.max_hash_rate.value, unit=limit.max_hash_rate.unit)
+
+        return cls(
+            max_power=limit.max_power if limit.max_power else None,
+            max_hash_rate=max_hash_rate_schema,
         )
 
 

@@ -25,12 +25,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **New Value Objects** (`edge_mining/domain/miner/value_objects.py`):
   - Measurement types: `Temperature`, `FanSpeed`, `Voltage`, `Frequency` frozen dataclasses with value and unit
   - `MinerInfo`: Device information with model, serial number, firmware version, MAC address, hostname, hashboard/chip/fan count
+  - `MinerLimit`: Miner limits with optional `max_power` (Watts) and `max_hash_rate` (HashRate)
   - `HashboardSnapshot`: Per-board metrics (chip/board temperature, voltage, frequency, hash rate, nominal hash rate, hash rate error)
   - Extended `MinerStateSnapshot` with: `inlet_temperature`, `outlet_temperature`, `internal_fan_speed` (list), `hashboards` (list), and convenience properties (`max_chip_temperature`, `avg_board_temperature`, etc.)
 
 - **New Pydantic Schemas** (`edge_mining/adapters/domain/miner/schemas.py`):
   - `TemperatureSchema`, `FanSpeedSchema`, `VoltageSchema`, `FrequencySchema` with unit validation
   - `HashboardSnapshotSchema`, `MinerInfoSchema`, `MinerFeatureSchema`, `FeaturePrioritySchema`
+  - `MinerLimitSchema` with validation, `from_model()`/`to_model()` conversion for `MinerLimit` value object
 
 - **`miner_features` Database Table** (`edge_mining/adapters/domain/miner/tables.py`):
   - Columns: `id`, `miner_id` (FK), `controller_id` (FK), `feature_type`, `priority` (default 50), `enabled` (default True)
@@ -38,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **New API Endpoints** (`edge_mining/adapters/domain/miner/fast_api/router.py`):
   - `GET /miners/{miner_id}/info` — Get miner device information (model, serial number, firmware version, etc.)
+  - `GET /miners/{miner_id}/limits` — Get miner limits (max power, max hash rate) via `MaxPowerDetectionPort` and `MaxHashrateDetectionPort`
   - `GET /miners/{miner_id}/features` — List miner features
   - `POST /miners/{miner_id}/features/{controller_id}/{feature_type}/enable` — Enable a feature
   - `POST /miners/{miner_id}/features/{controller_id}/{feature_type}/disable` — Disable a feature
@@ -64,6 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`MinerActionService`** (`edge_mining/application/services/miner_action_service.py`):
   - Uses `AdapterService` to dynamically resolve feature ports instead of direct controller access
   - New `get_miner_info()` method using `DeviceInfoPort`
+  - New `get_miner_limits()` method using `MaxPowerDetectionPort` and `MaxHashrateDetectionPort`
 
 - **CLI Commands** (`edge_mining/adapters/domain/miner/cli/commands.py`):
   - Refactored miner controller handling to support linking after creation
@@ -159,6 +163,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removed status display from `list_miners()` and `print_miner_details()`
 
 - **Application Interfaces** (`edge_mining/application/interfaces.py`):
+  - New `get_miner_limits()` abstract method in `MinerActionServiceInterface`
   - `get_miner_status()`: Return type changed from `Optional[MinerStatus]` to `Optional[MinerStateSnapshot]`
   - `get_miner_details_from_controller()`: Return type changed from `Optional[Miner]` to `Optional[MinerStateSnapshot]`
   - `add_miner()`: Removed `status` parameter

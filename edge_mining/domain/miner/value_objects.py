@@ -62,6 +62,14 @@ class MinerInfo(ValueObject):
 
 
 @dataclass(frozen=True)
+class MinerLimit(ValueObject):
+    """Value Object representing limits for a miner."""
+
+    max_power: Optional[Watts] = None
+    max_hash_rate: Optional[HashRate] = None
+
+
+@dataclass(frozen=True)
 class MinerFeature(ValueObject):
     """Value Object representing a single capability provided by a controller to a miner.
 
