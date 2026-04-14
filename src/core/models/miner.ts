@@ -89,6 +89,7 @@ export interface HashboardSnapshot {
 export interface MinerInfo {
   model?: string;
   serial_number?: string;
+  firmware_type?: string;
   firmware_version?: string;
   mac_address?: string;
   hostname?: string;

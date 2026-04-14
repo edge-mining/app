@@ -760,15 +760,22 @@ function handleSave() {
         <!-- Actions -->
         <div class="flex items-end gap-3 pt-4 border-t border-base-300/40">
           <!-- Device info (footer left) -->
-          <div v-if="deviceInfo" class="flex-1 text-xs text-base-content/40 space-y-0.5">
-            <div v-if="deviceInfo.firmware_version">
-              <span class="text-base-content/50">Firmware:</span> {{ deviceInfo.firmware_version }}
+          <div v-if="deviceInfo" class="flex-1 text-xs text-base-content/40 truncate">
+            <div>
+              <template v-if="deviceInfo.firmware_type">
+                <span class="text-base-content/50">FW:</span> {{ deviceInfo.firmware_type }}<template v-if="deviceInfo.firmware_version"> {{ deviceInfo.firmware_version }}</template>
+              </template>
+              <template v-else-if="deviceInfo.firmware_version">
+                <span class="text-base-content/50">FW:</span> {{ deviceInfo.firmware_version }}
+              </template>
             </div>
-            <div v-if="deviceInfo.mac_address">
-              <span class="text-base-content/50">MAC:</span> {{ deviceInfo.mac_address }}
-            </div>
-            <div v-if="deviceInfo.serial_number">
-              <span class="text-base-content/50">S/N:</span> {{ deviceInfo.serial_number }}
+            <div>
+              <template v-if="deviceInfo.mac_address">
+                <span class="text-base-content/50">MAC:</span> {{ deviceInfo.mac_address }}
+              </template>
+              <template v-if="deviceInfo.serial_number">
+                <span v-if="deviceInfo.mac_address"> · </span><span class="text-base-content/50">S/N:</span> {{ deviceInfo.serial_number }}
+              </template>
             </div>
           </div>
           <div v-else class="flex-1"></div>
