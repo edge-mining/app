@@ -14,7 +14,8 @@ from edge_mining.adapters.utils import run_async_func
 from edge_mining.application.interfaces import ConfigurationServiceInterface, MinerActionServiceInterface
 from edge_mining.domain.common import EntityId, Watts
 from edge_mining.domain.miner.common import MinerControllerAdapter, MinerControllerProtocol
-from edge_mining.domain.miner.entities import Miner, MinerController
+from edge_mining.domain.miner.aggregate_roots import Miner
+from edge_mining.domain.miner.entities import MinerController
 from edge_mining.domain.miner.value_objects import HashRate
 from edge_mining.shared.adapter_configs.miner import (
     MinerControllerDummyConfig,
@@ -41,16 +42,13 @@ def handle_add_miner(configuration_service: ConfigurationServiceInterface, logge
     new_miner.model = model if model else None
     new_miner.hash_rate_max = HashRate(value=hash_rate_max, unit=hash_rate_unit)
     new_miner.power_consumption_max = Watts(power_consumption_max)
-    new_miner.controller_id = None
 
-    # Select a Miner Controller
+    # Select a Miner Controller (will be linked after creation)
     miner_controller: Optional[MinerController] = None
 
     miner_controllers = configuration_service.list_miner_controllers()
     if miner_controllers:
         miner_controller = select_miner_controller(configuration_service, logger)
-        if miner_controller:
-            new_miner.controller_id = miner_controller.id
     else:
         click.echo("")
         click.echo(click.style("No Miner Controller configured.", fg="yellow"))
@@ -72,11 +70,10 @@ def handle_add_miner(configuration_service: ConfigurationServiceInterface, logge
                     click.style(
                         f"Miner Controller '{miner_controller.name}', "
                         f"Type: {miner_controller.adapter_type.name} "
-                        f"(ID: {miner_controller.id}) successfully added to current miner.",
+                        f"(ID: {miner_controller.id}) successfully added.",
                         fg="green",
                     )
                 )
-                new_miner.controller_id = miner_controller.id
         else:
             click.echo(
                 click.style(
@@ -92,9 +89,13 @@ def handle_add_miner(configuration_service: ConfigurationServiceInterface, logge
                 model=new_miner.model,
                 hash_rate_max=new_miner.hash_rate_max,
                 power_consumption_max=new_miner.power_consumption_max,
-                controller_id=new_miner.controller_id,
             )
         )
+
+        # Link controller if selected
+        if miner_controller:
+            run_async_func(configuration_service.set_miner_controller(miner_controller.id, added.id))
+
         click.echo(
             click.style(
                 f"Miner '{added.name}' (ID: {added.id}) successfully added.",
@@ -278,12 +279,11 @@ def update_single_miner(
     )
 
     # Select a Miner Controller
-    controller_id = selected_miner.controller_id
     miner_controllers = configuration_service.list_miner_controllers()
     if miner_controllers:
         miner_controller = select_miner_controller(configuration_service, logger)
         if miner_controller:
-            controller_id = miner_controller.id
+            click.echo(click.style(f"Controller '{miner_controller.name}' will be linked after update.", fg="yellow"))
         else:
             click.echo(click.style("Miner Controller will not be changed!", fg="yellow"))
 
@@ -297,9 +297,15 @@ def update_single_miner(
                 model=model if model else None,
                 hash_rate_max=hash_rate_max,
                 power_consumption_max=Watts(power_consumption),
-                controller_id=EntityId(controller_id) if controller_id else None,
             )
         )
+
+        # If a new controller was selected, link it
+        if miner_controllers and miner_controller:
+            run_async_func(configuration_service.set_miner_controller(miner_controller.id, updated.id))
+            # Re-read miner to get updated features
+            updated = configuration_service.get_miner(updated.id) or updated
+
         click.echo(
             click.style(
                 f"Miner '{updated.name}' (ID: {updated.id}) successfully updated.",
@@ -363,19 +369,14 @@ def assign_controller_to_miner(
         return None
 
     try:
-        selected_miner.controller_id = controller.id
+        run_async_func(configuration_service.set_miner_controller(controller.id, selected_miner.id))
 
-        updated_miner = run_async_func(
-            configuration_service.update_miner(
-                miner_id=selected_miner.id,
-                name=selected_miner.name,
-                model=selected_miner.model,
-                hash_rate_max=selected_miner.hash_rate_max,
-                power_consumption_max=selected_miner.power_consumption_max,
-                controller_id=selected_miner.controller_id,
-                active=selected_miner.active,
-            )
-        )
+        # Re-read miner to get updated features
+        updated_miner = configuration_service.get_miner(selected_miner.id)
+        if not updated_miner:
+            click.echo(click.style("Error: could not re-read miner after linking controller.", fg="red"))
+            return None
+
         click.echo(
             click.style(
                 f"Controller Miner '{controller.name}' successfully assigned "
@@ -511,13 +512,15 @@ def print_miner_details(
     )
     click.echo("| Max Power Consumption: " + str(miner.power_consumption_max) + " W")
     click.echo("| Active: " + click.style(miner.active, fg="green" if miner.active else "red"))
-    click.echo("| Controller ID: " + (str(miner.controller_id) if miner.controller_id else "None"))
 
-    if show_controller_details:
-        if miner.controller_id:
-            controller = configuration_service.get_miner_controller(miner.controller_id)
+    controller_ids = miner.get_controller_ids()
+    click.echo("| Controllers: " + (str(len(controller_ids)) if controller_ids else "None"))
+
+    if show_controller_details and controller_ids:
+        for cid in controller_ids:
+            controller = configuration_service.get_miner_controller(cid)
             if controller:
-                click.echo("\nCONTROLLER DETAILS:")
+                click.echo(f"\nCONTROLLER DETAILS (ID: {cid}):")
                 print_miner_controller_details(
                     controller=controller,
                     configuration_service=configuration_service,
@@ -525,8 +528,13 @@ def print_miner_details(
                     show_external_service=show_external_service,
                 )
             else:
-                # If the controller is not found, we can still show the ID
-                click.echo("| Controller ID: " + click.style(str(miner.controller_id), fg="red") + " (not found)")
+                click.echo("| Controller ID: " + click.style(str(cid), fg="red") + " (not found)")
+
+    if miner.features:
+        click.echo("\nFEATURES:")
+        for f in miner.features:
+            status = click.style("enabled", fg="green") if f.enabled else click.style("disabled", fg="red")
+            click.echo(f"  - {f.feature_type.value} (controller: {f.controller_id}, priority: {f.priority}, {status})")
 
     click.echo("")
 
@@ -550,7 +558,7 @@ def manage_single_miner_menu(
         click.echo("5. Delete Miner")
         click.echo("")
 
-        if miner.controller_id:
+        if miner.get_controller_ids():
             click.echo("6. Start Miner")
             click.echo("7. Stop Miner")
             click.echo("8. Get Miner Status")
@@ -616,21 +624,21 @@ def manage_single_miner_menu(
             if delete_status:
                 return "b"  # Return to menu if deletion was successful
 
-        elif choice == "6" and miner.controller_id:
+        elif choice == "6" and miner.get_controller_ids():
             miner = start_miner(
                 miner=miner,
                 configuration_service=configuration_service,
                 miner_action_service=miner_action_service,
             )
             continue
-        elif choice == "7" and miner.controller_id:
+        elif choice == "7" and miner.get_controller_ids():
             miner = stop_miner(
                 miner=miner,
                 configuration_service=configuration_service,
                 miner_action_service=miner_action_service,
             )
             continue
-        elif choice == "8" and miner.controller_id:
+        elif choice == "8" and miner.get_controller_ids():
             updated_miner = get_miner_status(
                 miner=miner,
                 configuration_service=configuration_service,

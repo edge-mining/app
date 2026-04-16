@@ -9,7 +9,7 @@ from edge_mining.application.events.common import (
     ConfigurationUpdatedEventType,
 )
 from edge_mining.application.events.configuration_events import ConfigurationUpdatedEvent
-from edge_mining.application.interfaces import ConfigurationServiceInterface, EventBusInterface
+from edge_mining.application.interfaces import AdapterServiceInterface, ConfigurationServiceInterface, EventBusInterface
 from edge_mining.domain.common import EntityId, Watts
 from edge_mining.domain.energy.common import EnergyMonitorAdapter, EnergySourceType
 from edge_mining.domain.energy.entities import EnergyMonitor, EnergySource
@@ -27,15 +27,16 @@ from edge_mining.domain.forecast.ports import ForecastProviderRepository
 from edge_mining.domain.home_load.entities import HomeForecastProvider
 from edge_mining.domain.home_load.exceptions import HomeForecastProviderNotFoundError
 from edge_mining.domain.home_load.ports import HomeForecastProviderRepository
-from edge_mining.domain.miner.common import MinerControllerAdapter
-from edge_mining.domain.miner.entities import Miner, MinerController
+from edge_mining.domain.miner.aggregate_roots import Miner
+from edge_mining.domain.miner.common import MinerControllerAdapter, MinerFeatureType
+from edge_mining.domain.miner.entities import MinerController
 from edge_mining.domain.miner.exceptions import (
     MinerControllerConfigurationError,
     MinerControllerNotFoundError,
     MinerNotFoundError,
 )
 from edge_mining.domain.miner.ports import MinerControllerRepository, MinerRepository
-from edge_mining.domain.miner.value_objects import HashRate
+from edge_mining.domain.miner.value_objects import HashRate, MinerFeature
 from edge_mining.domain.notification.common import NotificationAdapter
 from edge_mining.domain.notification.entities import Notifier
 from edge_mining.domain.notification.exceptions import NotifierConfigurationError, NotifierNotFoundError
@@ -101,7 +102,13 @@ from edge_mining.shared.settings.ports import SettingsRepository
 class ConfigurationService(ConfigurationServiceInterface):
     """Handles configuration of miners, policies, and system settings."""
 
-    def __init__(self, persistence_settings: PersistenceSettings, event_bus: EventBusInterface, logger: LoggerPort):
+    def __init__(
+        self,
+        persistence_settings: PersistenceSettings,
+        event_bus: EventBusInterface,
+        logger: LoggerPort,
+        adapter_service: Optional[AdapterServiceInterface] = None,
+    ):
         # Domains
         self.external_service_repo: ExternalServiceRepository = persistence_settings.external_service_repo
         self.energy_source_repo: EnergySourceRepository = persistence_settings.energy_source_repo
@@ -123,6 +130,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         # Infrastructure
         self._event_bus = event_bus
         self.logger = logger
+        self.adapter_service = adapter_service
 
     # --- External Service Management ---
     async def create_external_service(
@@ -1296,7 +1304,6 @@ class ConfigurationService(ConfigurationServiceInterface):
         model: Optional[str] = None,
         hash_rate_max: Optional[HashRate] = None,
         power_consumption_max: Optional[Watts] = None,
-        controller_id: Optional[EntityId] = None,
         active: bool = True,
     ) -> Miner:
         """Add a miner to the system."""
@@ -1314,7 +1321,6 @@ class ConfigurationService(ConfigurationServiceInterface):
             model=model,
             hash_rate_max=hash_rate_max,
             power_consumption_max=power_consumption_max,
-            controller_id=controller_id,
             active=active,
         )
 
@@ -1356,7 +1362,6 @@ class ConfigurationService(ConfigurationServiceInterface):
         model: Optional[str] = None,
         hash_rate_max: Optional[HashRate] = None,
         power_consumption_max: Optional[Watts] = None,
-        controller_id: Optional[EntityId] = None,
         active: bool = True,
     ) -> Miner:
         """Update a miner in the system."""
@@ -1371,7 +1376,6 @@ class ConfigurationService(ConfigurationServiceInterface):
         miner.model = model
         miner.hash_rate_max = hash_rate_max
         miner.power_consumption_max = power_consumption_max
-        miner.controller_id = controller_id
         miner.active = active
 
         self.check_miner(miner)
@@ -1425,11 +1429,11 @@ class ConfigurationService(ConfigurationServiceInterface):
         if not miner:
             raise MinerNotFoundError("Miner not found.")
 
-        # Check if the controller exists
-        if miner.controller_id:
-            controller = self.miner_controller_repo.get_by_id(miner.controller_id)
+        # Verify all referenced controllers exist
+        for controller_id in miner.get_controller_ids():
+            controller = self.miner_controller_repo.get_by_id(controller_id)
             if not controller:
-                raise MinerControllerNotFoundError(f"Miner Controller with ID {miner.controller_id} not found.")
+                raise MinerControllerNotFoundError(f"Miner Controller with ID {controller_id} not found.")
 
         self.logger.debug(f"Miner {miner.id} ({miner.name}) is valid.")
         return True
@@ -1478,14 +1482,16 @@ class ConfigurationService(ConfigurationServiceInterface):
         return self.miner_controller_repo.get_all()
 
     async def unlink_miner_controller(self, miner_controller_id: EntityId) -> None:
-        """Unlink a miner controller from all miners."""
+        """Unlink a miner controller from all miners (remove all features from that controller)."""
         self.logger.info(f"Unlinking controller {miner_controller_id} from all miners")
 
         miners: List[Miner] = self.miner_repo.get_by_controller_id(miner_controller_id)
 
         for miner in miners:
-            self.logger.info(f"Unlinking miner {miner.name} ({miner.id}) from controller {miner_controller_id}")
-            miner.controller_id = None
+            self.logger.info(
+                f"Removing features from miner {miner.name} ({miner.id}) for controller {miner_controller_id}"
+            )
+            miner.remove_features_by_controller(miner_controller_id)
             self.miner_repo.update(miner)
 
     async def remove_miner_controller(self, controller_id: EntityId) -> MinerController:
@@ -1559,7 +1565,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         return controller
 
     async def set_miner_controller(self, controller_id: EntityId, miner_id: EntityId) -> None:
-        """Set a miner controller to a miner."""
+        """Associate a controller to a miner, auto-creating features for all supported feature types."""
         self.logger.info(f"Adding controller {controller_id} to miner {miner_id}")
 
         miner = self.miner_repo.get_by_id(miner_id)
@@ -1567,11 +1573,85 @@ class ConfigurationService(ConfigurationServiceInterface):
         if not miner:
             raise MinerNotFoundError(f"Miner with ID {miner_id} not found.")
 
-        if not self.miner_controller_repo.get_by_id(controller_id):
+        controller = self.miner_controller_repo.get_by_id(controller_id)
+        if not controller:
             raise MinerControllerNotFoundError(f"Controller with ID {controller_id} does not exist.")
 
-        miner.controller_id = controller_id
+        # Discover supported features via adapter's MRO
+        if not self.adapter_service:
+            raise MinerControllerConfigurationError("Adapter service is required to discover supported features.")
+
+        adapter = await self.adapter_service.get_miner_controller_adapter(miner, controller_id)
+        if not adapter:
+            raise MinerControllerConfigurationError(f"Could not initialize adapter for controller {controller_id}.")
+
+        supported_features = adapter.__class__.get_supported_features()
+
+        # Auto-create features (enabled=True, priority=50)
+        for feature_type in supported_features:
+            feature = MinerFeature(
+                feature_type=feature_type,
+                controller_id=controller_id,
+                priority=50,
+                enabled=True,
+            )
+            try:
+                miner.add_feature(feature)
+            except ValueError:
+                # Feature already exists for this (type, controller) pair — skip
+                pass
+
         self.miner_repo.update(miner)
+
+    async def unlink_controller_from_miner(self, controller_id: EntityId, miner_id: EntityId) -> None:
+        """Remove all features provided by a controller from a specific miner."""
+        self.logger.info(f"Unlinking controller {controller_id} from miner {miner_id}")
+
+        miner = self.miner_repo.get_by_id(miner_id)
+
+        if not miner:
+            raise MinerNotFoundError(f"Miner with ID {miner_id} not found.")
+
+        miner.remove_features_by_controller(controller_id)
+        self.miner_repo.update(miner)
+
+    async def enable_miner_feature(
+        self, miner_id: EntityId, controller_id: EntityId, feature_type: MinerFeatureType
+    ) -> Miner:
+        """Enable a specific feature on a miner."""
+        self.logger.info(f"Enabling feature {feature_type} from controller {controller_id} on miner {miner_id}")
+        miner = self.miner_repo.get_by_id(miner_id)
+        if not miner:
+            raise MinerNotFoundError(f"Miner with ID {miner_id} not found.")
+        miner.enable_feature(feature_type, controller_id)
+        self.miner_repo.update(miner)
+        return miner
+
+    async def disable_miner_feature(
+        self, miner_id: EntityId, controller_id: EntityId, feature_type: MinerFeatureType
+    ) -> Miner:
+        """Disable a specific feature on a miner."""
+        self.logger.info(f"Disabling feature {feature_type} from controller {controller_id} on miner {miner_id}")
+        miner = self.miner_repo.get_by_id(miner_id)
+        if not miner:
+            raise MinerNotFoundError(f"Miner with ID {miner_id} not found.")
+        miner.disable_feature(feature_type, controller_id)
+        self.miner_repo.update(miner)
+        return miner
+
+    async def set_miner_feature_priority(
+        self, miner_id: EntityId, controller_id: EntityId, feature_type: MinerFeatureType, priority: int
+    ) -> Miner:
+        """Set the priority of a specific feature on a miner."""
+        self.logger.info(
+            f"Setting priority {priority} for feature {feature_type} from controller {controller_id} on miner {miner_id}"
+        )
+        miner = self.miner_repo.get_by_id(miner_id)
+        if not miner:
+            raise MinerNotFoundError(f"Miner with ID {miner_id} not found.")
+        miner.set_priority(feature_type, controller_id, priority)
+        self.miner_repo.update(miner)
+        return miner
 
     def check_miner_controller(self, controller: MinerController) -> bool:
         """Check if a miner controller is valid and can be used."""

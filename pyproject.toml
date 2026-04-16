@@ -68,7 +68,7 @@ solar = [
     "astral>=3.2",
 ]
 pyasic = [
-    "pyasic==0.76.5"
+    "pyasic==0.78.10"
 ]
 all = [
     "edge-mining[api,homeassistant,mqtt,telegram,solar,pyasic]",

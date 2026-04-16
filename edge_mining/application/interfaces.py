@@ -13,10 +13,11 @@ from edge_mining.domain.forecast.common import ForecastProviderAdapter
 from edge_mining.domain.forecast.entities import ForecastProvider
 from edge_mining.domain.forecast.ports import ForecastProviderPort
 from edge_mining.domain.home_load.ports import HomeForecastProviderPort
-from edge_mining.domain.miner.common import MinerControllerAdapter
-from edge_mining.domain.miner.entities import Miner, MinerController
-from edge_mining.domain.miner.ports import MinerControlPort
-from edge_mining.domain.miner.value_objects import HashRate, MinerStateSnapshot
+from edge_mining.domain.miner.aggregate_roots import Miner
+from edge_mining.domain.miner.common import MinerControllerAdapter, MinerFeatureType
+from edge_mining.domain.miner.entities import MinerController
+from edge_mining.domain.miner.ports import MinerFeaturePort
+from edge_mining.domain.miner.value_objects import HashRate, MinerInfo, MinerLimit, MinerStateSnapshot
 from edge_mining.domain.notification.common import NotificationAdapter
 from edge_mining.domain.notification.entities import Notifier
 from edge_mining.domain.notification.ports import NotificationPort
@@ -48,8 +49,19 @@ class AdapterServiceInterface(ABC):
         """Get an energy monitor adapter instance."""
 
     @abstractmethod
-    async def get_miner_controller(self, miner: Miner) -> Optional[MinerControlPort]:
-        """Get a miner controller adapter instance"""
+    async def get_miner_controller_adapter(self, miner: Miner, controller_id: EntityId) -> Optional[MinerFeaturePort]:
+        """Get a miner controller adapter instance for a specific controller."""
+
+    @abstractmethod
+    async def get_miner_feature_port(self, miner: Miner, feature_type: MinerFeatureType) -> Optional[MinerFeaturePort]:
+        """Get the adapter implementing the highest-priority active feature port for a miner."""
+
+    @abstractmethod
+    async def sync_miner_features(self, miner: Miner) -> bool:
+        """Reconcile stored features with what controllers actually support.
+
+        Returns True if any changes were made.
+        """
 
     @abstractmethod
     async def get_all_notifiers(self) -> List[NotificationPort]:
@@ -138,6 +150,14 @@ class MinerActionServiceInterface(ABC):
         """Gets the current status of the specified miner as a state snapshot."""
 
     @abstractmethod
+    async def get_miner_info(self, miner_id: EntityId) -> Optional[MinerInfo]:
+        """Gets the information of the specified miner."""
+
+    @abstractmethod
+    async def get_miner_limits(self, miner_id: EntityId) -> Optional[MinerLimit]:
+        """Gets the limits of the specified miner."""
+
+    @abstractmethod
     async def sync_all_miners(self, include_inactive: bool = False) -> None:
         """Synchronizes the status of all miners from their controllers."""
 
@@ -157,7 +177,6 @@ class ConfigurationServiceInterface(ABC):
         model: Optional[str] = None,
         hash_rate_max: Optional[HashRate] = None,
         power_consumption_max: Optional[Watts] = None,
-        controller_id: Optional[EntityId] = None,
         active: bool = True,
     ) -> Miner:
         """Add a miner to the system."""
@@ -182,7 +201,6 @@ class ConfigurationServiceInterface(ABC):
         model: Optional[str] = None,
         hash_rate_max: Optional[HashRate] = None,
         power_consumption_max: Optional[Watts] = None,
-        controller_id: Optional[EntityId] = None,
         active: bool = True,
     ) -> Miner:
         """Update a miner in the system."""
@@ -245,7 +263,29 @@ class ConfigurationServiceInterface(ABC):
 
     @abstractmethod
     async def set_miner_controller(self, controller_id: EntityId, miner_id: EntityId) -> None:
-        """Set a miner controller to a miner."""
+        """Associate a controller to a miner, auto-creating features for all supported feature types."""
+
+    @abstractmethod
+    async def unlink_controller_from_miner(self, controller_id: EntityId, miner_id: EntityId) -> None:
+        """Remove all features provided by a controller from a miner."""
+
+    @abstractmethod
+    async def enable_miner_feature(
+        self, miner_id: EntityId, controller_id: EntityId, feature_type: MinerFeatureType
+    ) -> Miner:
+        """Enable a specific feature on a miner."""
+
+    @abstractmethod
+    async def disable_miner_feature(
+        self, miner_id: EntityId, controller_id: EntityId, feature_type: MinerFeatureType
+    ) -> Miner:
+        """Disable a specific feature on a miner."""
+
+    @abstractmethod
+    async def set_miner_feature_priority(
+        self, miner_id: EntityId, controller_id: EntityId, feature_type: MinerFeatureType, priority: int
+    ) -> Miner:
+        """Set the priority of a specific feature on a miner."""
 
     @abstractmethod
     def check_miner_controller(self, controller: MinerController) -> bool:

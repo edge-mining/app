@@ -7,10 +7,14 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from edge_mining.adapters.domain.miner.schemas import (
     MINER_CONTROLLER_CONFIG_SCHEMA_MAP,
+    FeaturePrioritySchema,
     MinerControllerCreateSchema,
     MinerControllerSchema,
     MinerControllerUpdateSchema,
     MinerCreateSchema,
+    MinerFeatureSchema,
+    MinerInfoSchema,
+    MinerLimitSchema,
     MinerSchema,
     MinerStateSnapshotSchema,
     MinerUpdateSchema,
@@ -28,8 +32,8 @@ from edge_mining.application.interfaces import (
     MinerActionServiceInterface,
 )
 from edge_mining.domain.common import EntityId, Watts
-from edge_mining.domain.miner.common import MinerControllerAdapter
-from edge_mining.domain.miner.entities import Miner
+from edge_mining.domain.miner.aggregate_roots import Miner
+from edge_mining.domain.miner.common import MinerControllerAdapter, MinerFeatureType
 from edge_mining.domain.miner.exceptions import (
     MinerControllerAlreadyExistsError,
     MinerControllerConfigurationError,
@@ -99,7 +103,6 @@ async def add_miner(
             model=miner_to_add.model,
             hash_rate_max=miner_to_add.hash_rate_max,
             power_consumption_max=miner_to_add.power_consumption_max,
-            controller_id=miner_to_add.controller_id,
         )
 
         response = MinerSchema.from_model(new_miner)
@@ -133,7 +136,6 @@ async def update_miner(
             model=miner_update.model,
             hash_rate_max=hash_rate_max,
             power_consumption_max=power_consumption_max,
-            controller_id=EntityId(uuid.UUID(miner_update.controller_id)),
             active=miner.active,
         )
 
@@ -294,6 +296,45 @@ async def get_miner_status(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+@router.get("/miners/{miner_id}/info", response_model=Optional[MinerInfoSchema])
+async def get_miner_info(
+    miner_id: EntityId,
+    action_service: Annotated[MinerActionServiceInterface, Depends(get_miner_action_service)],
+) -> Optional[MinerInfoSchema]:
+    """Get device information for a specific miner."""
+    try:
+        info = await action_service.get_miner_info(miner_id)
+
+        if info is None:
+            return None
+
+        return MinerInfoSchema.from_model(info)
+    except MinerNotFoundError as e:
+        raise HTTPException(status_code=404, detail="Miner not found") from e
+    except MinerControllerConfigurationError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/miners/{miner_id}/limits", response_model=Optional[MinerLimitSchema])
+async def get_miner_limits(
+    miner_id: EntityId,
+    action_service: Annotated[MinerActionServiceInterface, Depends(get_miner_action_service)],
+) -> Optional[MinerLimitSchema]:
+    """Get limits for a specific miner."""
+    try:
+        limits = await action_service.get_miner_limits(miner_id)
+
+        return MinerLimitSchema.from_model(limits)
+    except MinerNotFoundError as e:
+        raise HTTPException(status_code=404, detail="Miner not found") from e
+    except MinerControllerConfigurationError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 @router.post("/miners/{miner_id}/activate", response_model=MinerSchema)
 async def activate_miner(
     miner_id: EntityId,
@@ -330,20 +371,101 @@ async def deactivate_miner(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.post("/miners/{miner_id}/set-controller", response_model=MinerSchema)
-async def set_miner_controller(
+@router.get("/miners/{miner_id}/features", response_model=List[MinerFeatureSchema])
+async def get_miner_features(
     miner_id: EntityId,
-    controller_id: EntityId,
     config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
-) -> MinerSchema:
-    """Set the controller for a miner."""
+) -> List[MinerFeatureSchema]:
+    """Get all features associated with a miner."""
     try:
         miner = config_service.get_miner(miner_id)
 
         if miner is None:
             raise MinerNotFoundError(f"Miner with ID {miner_id} not found")
 
-        await config_service.set_miner_controller(miner_id, controller_id)
+        return [MinerFeatureSchema.from_model(feature) for feature in miner.features]
+    except MinerNotFoundError as e:
+        raise HTTPException(status_code=404, detail="Miner not found") from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/miners/{miner_id}/features/{controller_id}/{feature_type}/enable", response_model=MinerSchema)
+async def enable_miner_feature(
+    miner_id: EntityId,
+    controller_id: EntityId,
+    feature_type: str,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+) -> MinerSchema:
+    """Enable a specific feature on a miner."""
+    try:
+        ft = MinerFeatureType(feature_type)
+        miner = await config_service.enable_miner_feature(miner_id, controller_id, ft)
+        return MinerSchema.from_model(miner)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid feature type: {feature_type}") from e
+    except MinerNotFoundError as e:
+        raise HTTPException(status_code=404, detail="Miner not found") from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/miners/{miner_id}/features/{controller_id}/{feature_type}/disable", response_model=MinerSchema)
+async def disable_miner_feature(
+    miner_id: EntityId,
+    controller_id: EntityId,
+    feature_type: str,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+) -> MinerSchema:
+    """Disable a specific feature on a miner."""
+    try:
+        ft = MinerFeatureType(feature_type)
+        miner = await config_service.disable_miner_feature(miner_id, controller_id, ft)
+        return MinerSchema.from_model(miner)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid feature type: {feature_type}") from e
+    except MinerNotFoundError as e:
+        raise HTTPException(status_code=404, detail="Miner not found") from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.put("/miners/{miner_id}/features/{controller_id}/{feature_type}/priority", response_model=MinerSchema)
+async def set_miner_feature_priority(
+    miner_id: EntityId,
+    controller_id: EntityId,
+    feature_type: str,
+    body: FeaturePrioritySchema,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+) -> MinerSchema:
+    """Set the priority of a specific feature on a miner."""
+    try:
+        ft = MinerFeatureType(feature_type)
+        miner = await config_service.set_miner_feature_priority(miner_id, controller_id, ft, body.priority)
+        return MinerSchema.from_model(miner)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except MinerNotFoundError as e:
+        raise HTTPException(status_code=404, detail="Miner not found") from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/miners/{miner_id}/set-controller", response_model=MinerSchema)
+async def set_miner_controller(
+    miner_id: EntityId,
+    controller_id: EntityId,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+) -> MinerSchema:
+    """Associate a controller to a miner, auto-creating features for all supported feature types."""
+    try:
+        await config_service.set_miner_controller(controller_id, miner_id)
+
+        # Re-read the miner to get updated features
+        miner = config_service.get_miner(miner_id)
+
+        if miner is None:
+            raise MinerNotFoundError(f"Miner with ID {miner_id} not found")
 
         response = MinerSchema.from_model(miner)
 
@@ -352,6 +474,32 @@ async def set_miner_controller(
         raise HTTPException(status_code=404, detail="Miner not found") from e
     except MinerControllerNotFoundError as e:
         raise HTTPException(status_code=404, detail="Miner controller not found") from e
+    except MinerControllerConfigurationError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/miners/{miner_id}/unlink-controller", response_model=MinerSchema)
+async def unlink_controller_from_miner(
+    miner_id: EntityId,
+    controller_id: EntityId,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+) -> MinerSchema:
+    """Remove all features provided by a controller from a miner."""
+    try:
+        await config_service.unlink_controller_from_miner(controller_id, miner_id)
+
+        miner = config_service.get_miner(miner_id)
+
+        if miner is None:
+            raise MinerNotFoundError(f"Miner with ID {miner_id} not found")
+
+        response = MinerSchema.from_model(miner)
+
+        return response
+    except MinerNotFoundError as e:
+        raise HTTPException(status_code=404, detail="Miner not found") from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 

@@ -5,6 +5,80 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0-rev2]
+
+### Added
+- **Miner Aggregate Root** (`edge_mining/domain/miner/aggregate_roots.py`):
+  - Promotes `Miner` to a full aggregate root with feature management capabilities
+  - Feature CRUD: `add_feature()`, `remove_feature()`, `remove_features_by_controller()`
+  - Feature queries: `get_active_feature()`, `get_features_by_controller()`, `get_features_by_type()`, `get_controller_ids()`, `has_feature()`
+  - Feature configuration: `enable_feature()`, `disable_feature()`, `set_feature_priority()`
+
+- **Miner Feature System** (`edge_mining/domain/miner/ports.py`):
+  - `MinerFeature` value object with identity based on `(feature_type, controller_id)` pair and configurable priority/enabled state
+  - `MinerFeatureType` enum with 17 values across 4 categories: monitoring (9), control (4), detection (3)
+  - `MinerFeaturePort` abstract base with MRO-based introspection via `get_supported_features()` class method
+  - **Monitoring Ports**: `HashrateMonitorPort`, `PowerMonitorPort`, `StatusMonitorPort`, `HashboardMonitorPort`, `InletTemperatureMonitorPort`, `OutletTemperatureMonitorPort`, `InternalFanSpeedMonitorPort`, `ExternalFanSpeedMonitorPort`, `OperationalMonitorPort`
+  - **Control Ports**: `MiningControlPort`, `PowerControlPort`, `InternalFanControlPort`, `ExternalFanControlPort`
+  - **Detection Ports**: `MaxPowerDetectionPort`, `MaxHashrateDetectionPort`, `DeviceInfoPort`
+
+- **New Value Objects** (`edge_mining/domain/miner/value_objects.py`):
+  - Measurement types: `Temperature`, `FanSpeed`, `Voltage`, `Frequency` frozen dataclasses with value and unit
+  - `MinerInfo`: Device information with model, serial number, firmware type (Stock, BOS+, VNish, etc.), firmware version, MAC address, hostname, hashboard/chip/fan count
+  - `MinerLimit`: Miner limits with optional `max_power` (Watts) and `max_hash_rate` (HashRate)
+  - `HashboardSnapshot`: Per-board metrics (chip/board temperature, voltage, frequency, hash rate, nominal hash rate, hash rate error)
+  - Extended `MinerStateSnapshot` with: `inlet_temperature`, `outlet_temperature`, `internal_fan_speed` (list), `hashboards` (list), and convenience properties (`max_chip_temperature`, `avg_board_temperature`, etc.)
+
+- **New Pydantic Schemas** (`edge_mining/adapters/domain/miner/schemas.py`):
+  - `TemperatureSchema`, `FanSpeedSchema`, `VoltageSchema`, `FrequencySchema` with unit validation
+  - `HashboardSnapshotSchema`, `MinerInfoSchema`, `MinerFeatureSchema`, `FeaturePrioritySchema`
+  - `MinerLimitSchema` with validation, `from_model()`/`to_model()` conversion for `MinerLimit` value object
+
+- **`miner_features` Database Table** (`edge_mining/adapters/domain/miner/tables.py`):
+  - Columns: `id`, `miner_id` (FK), `controller_id` (FK), `feature_type`, `priority` (default 50), `enabled` (default True)
+  - Helper functions: `load_features_for_miner()`, `save_features_for_miner()`
+
+- **New API Endpoints** (`edge_mining/adapters/domain/miner/fast_api/router.py`):
+  - `GET /miners/{miner_id}/info` — Get miner device information (model, serial number, firmware version, etc.)
+  - `GET /miners/{miner_id}/limits` — Get miner limits (max power, max hash rate) via `MaxPowerDetectionPort` and `MaxHashrateDetectionPort`
+  - `GET /miners/{miner_id}/features` — List miner features
+  - `POST /miners/{miner_id}/features/{controller_id}/{feature_type}/enable` — Enable a feature
+  - `POST /miners/{miner_id}/features/{controller_id}/{feature_type}/disable` — Disable a feature
+  - `PUT /miners/{miner_id}/features/{controller_id}/{feature_type}/priority` — Set feature priority
+  - `POST /miners/{miner_id}/link-controller/{controller_id}` — Link controller and auto-create features
+  - `POST /miners/{miner_id}/unlink-controller` — Remove all features from a controller
+
+### Changed
+- **Full Async Refactoring**:
+  - All `MinerActionServiceInterface` methods are now `async`: `start_miner()`, `stop_miner()`, `get_miner_status()`, `get_miner_consumption()`, `get_miner_hashrate()`, `get_miner_info()`, `sync_all_miners()`
+  - All `ConfigurationServiceInterface` miner management methods are now `async`: `add_miner()`, `update_miner()`, `remove_miner()`, `activate_miner()`, `deactivate_miner()`, `add_miner_controller()`, `update_miner_controller()`, `remove_miner_controller()`
+  - Miner controller adapters, energy providers, forecast providers, and external services refactored to support asynchronous operations
+  - Miner feature port methods updated to `async`
+  - `OptimizationService` methods `get_decisional_context()` and `test_rules()` are now `async`
+
+- **`AdapterService`** (`edge_mining/application/services/adapter_service.py`):
+  - New methods: `get_miner_controller_adapter()`, `get_miner_feature_port()` for dynamic port-based adapter resolution
+  - `sync_miner_features()` method for reconciling stored vs. actual controller features
+  - Async initialization of external services with instance caching
+
+- **`ConfigurationService`** (`edge_mining/application/services/configuration_service.py`):
+  - New methods: `set_miner_controller()`, `unlink_controller_from_miner()`, `unlink_miner_controller()`, `enable_miner_feature()`, `disable_miner_feature()`, `set_miner_feature_priority()`
+
+- **`MinerActionService`** (`edge_mining/application/services/miner_action_service.py`):
+  - Uses `AdapterService` to dynamically resolve feature ports instead of direct controller access
+  - New `get_miner_info()` method using `DeviceInfoPort`
+  - New `get_miner_limits()` method using `MaxPowerDetectionPort` and `MaxHashrateDetectionPort`
+
+- **CLI Commands** (`edge_mining/adapters/domain/miner/cli/commands.py`):
+  - Refactored miner controller handling to support linking after creation
+  - New `unlink_controller_from_miner()` command
+  - Uses `run_async_func()` for async service calls
+
+- **Dependencies**: Updated `pyasic` to version `0.78.10`
+
+### Fixed
+- Fixed data integrity validation and cleanup for unknown miner features in database
+
 ## [0.1.0-rev1]
 
 ### Added
@@ -89,6 +163,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removed status display from `list_miners()` and `print_miner_details()`
 
 - **Application Interfaces** (`edge_mining/application/interfaces.py`):
+  - New `get_miner_limits()` abstract method in `MinerActionServiceInterface`
   - `get_miner_status()`: Return type changed from `Optional[MinerStatus]` to `Optional[MinerStateSnapshot]`
   - `get_miner_details_from_controller()`: Return type changed from `Optional[Miner]` to `Optional[MinerStateSnapshot]`
   - `add_miner()`: Removed `status` parameter

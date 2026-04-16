@@ -1,9 +1,9 @@
 """
-pyasic adapter (Implementation of Port)
+pyasic adapter (Implementation of Feature Ports)
 that controls a miner via pyasic.
 """
 
-from typing import Dict, Optional, Tuple, cast
+from typing import Dict, List, Optional, Tuple, cast
 
 import pyasic
 from pyasic import AnyMiner
@@ -12,13 +12,34 @@ from pyasic.rpc.base import BaseMinerRPCAPI
 from pyasic.ssh.base import BaseSSH
 from pyasic.web.base import BaseWebAPI
 
-from edge_mining.adapters.utils import run_async_func
 from edge_mining.domain.common import Watts
+from edge_mining.domain.miner.aggregate_roots import Miner
 from edge_mining.domain.miner.common import MinerControllerProtocol, MinerStatus
-from edge_mining.domain.miner.entities import Miner
 from edge_mining.domain.miner.exceptions import MinerControllerConfigurationError
-from edge_mining.domain.miner.ports import MinerControlPort
-from edge_mining.domain.miner.value_objects import HashRate
+from edge_mining.domain.miner.ports import (
+    DeviceInfoPort,
+    HashboardMonitorPort,
+    HashrateMonitorPort,
+    InletTemperatureMonitorPort,
+    InternalFanControlPort,
+    InternalFanSpeedMonitorPort,
+    MaxHashrateDetectionPort,
+    MaxPowerDetectionPort,
+    MiningControlPort,
+    OperationalMonitorPort,
+    OutletTemperatureMonitorPort,
+    PowerMonitorPort,
+    StatusMonitorPort,
+)
+from edge_mining.domain.miner.value_objects import (
+    FanSpeed,
+    Frequency,
+    HashboardSnapshot,
+    HashRate,
+    MinerInfo,
+    Temperature,
+    Voltage,
+)
 from edge_mining.shared.adapter_configs.miner import MinerControllerPyASICConfig
 from edge_mining.shared.external_services.ports import ExternalServicePort
 from edge_mining.shared.interfaces.config import Configuration
@@ -44,7 +65,7 @@ class PyASICMinerControllerAdapterFactory(MinerControllerAdapterFactory):
         config: Optional[Configuration] = None,
         logger: Optional[LoggerPort] = None,
         external_service: Optional[ExternalServicePort] = None,
-    ) -> MinerControlPort:
+    ) -> "PyASICMinerController":
         """Create a miner controller adapter instance."""
 
         if not isinstance(config, MinerControllerPyASICConfig):
@@ -63,8 +84,22 @@ class PyASICMinerControllerAdapterFactory(MinerControllerAdapterFactory):
         )
 
 
-class PyASICMinerController(MinerControlPort):
-    """Controls a miner via pyasic."""
+class PyASICMinerController(
+    HashrateMonitorPort,
+    PowerMonitorPort,
+    StatusMonitorPort,
+    HashboardMonitorPort,
+    InletTemperatureMonitorPort,
+    OutletTemperatureMonitorPort,
+    InternalFanSpeedMonitorPort,
+    MiningControlPort,
+    InternalFanControlPort,
+    DeviceInfoPort,
+    MaxPowerDetectionPort,
+    MaxHashrateDetectionPort,
+    OperationalMonitorPort,
+):
+    """Controls a miner via pyasic. Implements multiple feature ports."""
 
     def __init__(
         self,
@@ -89,13 +124,16 @@ class PyASICMinerController(MinerControlPort):
 
     def _log_configuration(self):
         if self.logger:
-            self.logger.debug(f"Entities Configured: IP={self.ip}")
+            self.logger.debug(
+                f"PyASIC Controller configured: IP={self.ip}, protocol={self.protocol}, "
+                f"port={self.port}, username={self.username}, pwd={'***' if self.password else None}"
+            )
 
-    def _get_miner(self) -> None:
+    async def _get_miner(self) -> None:
         """Retrieve the pyasic miner instance."""
         if self._miner is None:
             try:
-                miner = run_async_func(pyasic.get_miner(self.ip))
+                miner = await pyasic.get_miner(self.ip)
                 if miner is not None:
                     self._miner = cast(AnyMiner, miner)
 
@@ -136,37 +174,27 @@ class PyASICMinerController(MinerControlPort):
                             self.logger.error(f"Unknown PyASIC Miner Controller Protocol: {self.protocol}")
 
                     if self.logger:
-                        self.logger.debug(f"Successfully retrieved miner instance from {self.ip}")
+                        self.logger.debug(
+                            f"Miner identified: type={type(self._miner).__name__}, "
+                            f"model={self._miner.raw_model}, firmware={self._miner.firmware}, "
+                            f"rpc={type(self._miner.rpc).__name__ if self._miner.rpc else None}, "
+                            f"web={type(self._miner.web).__name__ if self._miner.web else None}, "
+                            f"ssh={type(self._miner.ssh).__name__ if self._miner.ssh else None}, "
+                            f"expected_hashboards={self._miner.expected_hashboards}"
+                        )
             except Exception as e:
                 if self.logger:
                     self.logger.error(f"Failed to retrieve miner instance from {self.ip}: {e}")
 
-    async def get_model(self) -> Optional[str]:
-        """Gets the model of the miner."""
+    # --- DeviceInfoDetectionPort ---
+
+    async def get_device_info(self) -> Optional[MinerInfo]:
+        """Gets the device identification information of the miner, if available."""
 
         if self.logger:
             self.logger.debug(f"Fetching model from {self.ip}...")
 
-        # Get pyasic miner instance
-        self._get_miner()
-
-        if not self._miner:
-            if self.logger:
-                self.logger.error(f"Failed to retrieve miner instance from {self.ip}...")
-            return None
-
-        return self._miner.model or None
-
-    async def get_miner_hashrate(self) -> Optional[HashRate]:
-        """
-        Gets the current hash rate, if available.
-        """
-
-        if self.logger:
-            self.logger.debug(f"Fetching hashrate from from {self.ip}...")
-
-        # Get pyasic miner instance
-        self._get_miner()
+        await self._get_miner()
 
         if not self._miner:
             if self.logger:
@@ -174,7 +202,308 @@ class PyASICMinerController(MinerControlPort):
             return None
 
         miner = self._miner
-        hashrate: Optional[AlgoHashRate] = run_async_func(miner.get_hashrate())
+
+        # --- pyasic native values (may be None for some firmwares) ---
+        hashboard_count = miner.expected_hashboards
+        chip_count = miner.expected_chips
+        fan_count = miner.expected_fans
+
+        serial_number = await miner.get_serial_number()
+        mac_address = await miner.get_mac()
+        model = await miner.get_model()
+        firmware_type = str(miner.firmware) if miner.firmware else None
+        firmware_version = await miner.get_fw_ver()
+        hostname = await miner.get_hostname()
+
+        # --- RPC fallbacks for missing fields ---
+        if miner.rpc is not None:
+            rpc_info = await self._fetch_device_info_from_rpc(miner)
+
+            if firmware_version is None and rpc_info.get("firmware_version"):
+                firmware_version = rpc_info["firmware_version"]
+
+            if (model is None or str(model) in ("", "Unknown", "Unknown (BOS+)")) and rpc_info.get("model"):
+                model = rpc_info["model"]
+
+            if hashboard_count is None and rpc_info.get("hashboard_count") is not None:
+                hashboard_count = rpc_info["hashboard_count"]
+
+            if chip_count is None and rpc_info.get("chip_count") is not None:
+                chip_count = rpc_info["chip_count"]
+
+            if fan_count is None and rpc_info.get("fan_count") is not None:
+                fan_count = rpc_info["fan_count"]
+
+            if mac_address is None and rpc_info.get("mac_address"):
+                mac_address = rpc_info["mac_address"]
+
+            if hostname is None and rpc_info.get("hostname"):
+                hostname = rpc_info["hostname"]
+
+            if serial_number is None and rpc_info.get("serial_number"):
+                serial_number = rpc_info["serial_number"]
+
+        return MinerInfo(
+            model=str(model) if model is not None else None,
+            serial_number=str(serial_number) if serial_number is not None else None,
+            firmware_type=firmware_type,
+            firmware_version=str(firmware_version) if firmware_version is not None else None,
+            mac_address=str(mac_address) if mac_address is not None else None,
+            hostname=str(hostname) if hostname is not None else None,
+            hashboard_count=int(hashboard_count) if hashboard_count is not None else None,
+            chip_count=int(chip_count) if chip_count is not None else None,
+            fan_count=int(fan_count) if fan_count is not None else None,
+        )
+
+    async def _fetch_device_info_from_rpc(self, miner: AnyMiner) -> dict:
+        """Fetch device info fields from direct RPC commands and the Luci web API.
+
+        Queries RPC (version, config, devdetails, fans, pools) and
+        Luci web endpoints (iface_status, cfg_data) to fill gaps
+        left by pyasic native methods.
+        """
+        info: Dict[str, object] = {}
+
+        # --- version → firmware_version ---
+        try:
+            ver_data = await miner.rpc.send_command("version")
+            version_entries = ver_data.get("VERSION", [])
+            if version_entries:
+                entry = version_entries[0]
+                # Try BOSer, then CGMiner, then BMMiner key
+                fw = entry.get("BOSer") or entry.get("CGMiner") or entry.get("BMMiner")
+                if fw:
+                    info["firmware_version"] = str(fw)
+        except Exception as e:
+            if self.logger:
+                self.logger.debug(f"RPC version failed for device info: {e}")
+
+        # --- config → hashboard_count (ASC Count) ---
+        try:
+            cfg_data = await miner.rpc.send_command("config")
+            config_entries = cfg_data.get("CONFIG", [])
+            if config_entries:
+                asc_count = config_entries[0].get("ASC Count")
+                if asc_count is not None and int(asc_count) > 0:
+                    info["hashboard_count"] = int(asc_count)
+        except Exception as e:
+            if self.logger:
+                self.logger.debug(f"RPC config failed for device info: {e}")
+
+        # --- devdetails → model, chip_count (intermittent on some firmwares) ---
+        try:
+            dd_data = await miner.rpc.send_command("devdetails")
+            details = dd_data.get("DEVDETAILS", [])
+            if details:
+                model_str = details[0].get("Model")
+                if model_str:
+                    info["model"] = str(model_str)
+                # Chips per board × number of boards = total chip count
+                chips_per_board = details[0].get("Chips")
+                if chips_per_board is not None:
+                    board_count = info.get("hashboard_count") or len(details)
+                    info["chip_count"] = int(chips_per_board) * int(board_count)
+        except Exception as e:
+            if self.logger:
+                self.logger.debug(f"RPC devdetails failed for device info: {e}")
+
+        # --- fans → fan_count ---
+        try:
+            fans_data = await miner.rpc.send_command("fans")
+            fans_list = fans_data.get("FANS", [])
+            if fans_list:
+                info["fan_count"] = len(fans_list)
+        except Exception as e:
+            if self.logger:
+                self.logger.debug(f"RPC fans failed for device info: {e}")
+
+        # --- pools → hostname (from pool worker name) ---
+        try:
+            pools_data = await miner.rpc.send_command("pools")
+            pools_list = pools_data.get("POOLS", [])
+            for pool in pools_list:
+                user = pool.get("User", "")
+                if "." in user:
+                    # Worker name format: "username.worker" — worker is often the hostname
+                    worker = user.rsplit(".", 1)[1]
+                    if worker:
+                        info["hostname"] = str(worker)
+                        break
+        except Exception as e:
+            if self.logger:
+                self.logger.debug(f"RPC pools failed for device info: {e}")
+
+        # --- Luci web API → mac_address ---
+        # --- GraphQL API → model, hostname, serial_number (hwid) ---
+        web_info = await self._fetch_device_info_from_web()
+        if web_info.get("mac_address"):
+            info["mac_address"] = web_info["mac_address"]
+        if web_info.get("model") and "model" not in info:
+            info["model"] = web_info["model"]
+        if web_info.get("hostname"):
+            info.setdefault("hostname", web_info["hostname"])
+        if web_info.get("serial_number"):
+            info["serial_number"] = web_info["serial_number"]
+
+        if self.logger:
+            self.logger.debug(f"RPC device info fallback: {info}")
+
+        return info
+
+    async def _fetch_device_info_from_web(self) -> dict:
+        """Fetch device info from the miner's web APIs (GraphQL + Luci).
+
+        - GraphQL (/graphql): hwid (serial), hostname, modelName — no auth required.
+        - Luci (form auth): MAC address from iface_status/lan — requires credentials.
+        """
+        import httpx
+
+        info: Dict[str, str] = {}
+        base_url = f"http://{self.ip}"
+
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(10.0)) as client:
+                # --- GraphQL (no auth needed) → serial_number, hostname, model ---
+                try:
+                    gql_query = {"query": "{ bos { hostname hwid } bosminer { info { modelName } } }"}
+                    resp = await client.post(f"{base_url}/graphql", json=gql_query)
+                    if resp.status_code == 200:
+                        gql_data = resp.json().get("data", {})
+                        bos = gql_data.get("bos") or {}
+                        bosminer = gql_data.get("bosminer") or {}
+
+                        hwid = bos.get("hwid")
+                        if hwid:
+                            info["serial_number"] = str(hwid)
+
+                        hostname = bos.get("hostname")
+                        if hostname:
+                            info["hostname"] = str(hostname)
+
+                        model_name = (bosminer.get("info") or {}).get("modelName")
+                        if model_name:
+                            info["model"] = str(model_name)
+                except Exception as e:
+                    if self.logger:
+                        self.logger.debug(f"GraphQL device info failed: {e}")
+
+                # --- Luci (form auth) → MAC address ---
+                if self.password:
+                    try:
+                        luci_headers = {
+                            "User-Agent": "BTC Tools v0.1",
+                            "Content-Type": "application/x-www-form-urlencoded",
+                        }
+                        login_data = {
+                            "luci_username": self.username or "root",
+                            "luci_password": self.password,
+                        }
+                        await client.post(
+                            f"{base_url}/cgi-bin/luci",
+                            headers=luci_headers,
+                            data=login_data,
+                        )
+
+                        if client.cookies:
+                            resp = await client.get(
+                                f"{base_url}/cgi-bin/luci/admin/network/iface_status/lan",
+                                headers={"User-Agent": "BTC Tools v0.1"},
+                            )
+                            if resp.status_code == 200:
+                                data = resp.json()
+                                if isinstance(data, list) and data:
+                                    mac = data[0].get("macaddr")
+                                    if mac:
+                                        info["mac_address"] = str(mac).upper()
+                        elif self.logger:
+                            self.logger.debug("Luci form auth failed (no session cookie)")
+                    except Exception as e:
+                        if self.logger:
+                            self.logger.debug(f"Luci MAC fetch failed: {e}")
+
+        except Exception as e:
+            if self.logger:
+                self.logger.debug(f"Web device info fetch failed: {e}")
+
+        return info
+
+    # --- MaxPowerDetectionPort ---
+
+    async def get_max_power(self) -> Optional[Watts]:
+        """Gets the maximum power consumption of the miner, if available."""
+
+        if self.logger:
+            self.logger.debug(f"Fetching max power from {self.ip}...")
+
+        await self._get_miner()
+
+        if not self._miner:
+            if self.logger:
+                self.logger.error(f"Failed to retrieve miner instance from {self.ip}...")
+            return None
+
+        miner = self._miner
+        wattage = await miner.get_wattage_limit()
+        if wattage is None:
+            if self.logger:
+                self.logger.debug(f"Failed to fetch max power from {self.ip}...")
+            return None
+        max_power_watts = Watts(wattage)
+
+        if self.logger:
+            self.logger.debug(f"Max power fetched: {max_power_watts}")
+
+        return max_power_watts
+
+    # --- MaxHashrateDetectionPort ---
+
+    async def get_max_hashrate(self) -> Optional[HashRate]:
+        """Gets the maximum hash rate of the miner, if available."""
+
+        if self.logger:
+            self.logger.debug(f"Fetching max hash rate from {self.ip}...")
+
+        await self._get_miner()
+
+        if not self._miner:
+            if self.logger:
+                self.logger.error(f"Failed to retrieve miner instance from {self.ip}...")
+            return None
+
+        miner = self._miner
+        hashrate = await miner.get_expected_hashrate()
+        if hashrate is None:
+            if self.logger:
+                self.logger.debug(f"Failed to fetch max hash rate from {self.ip}...")
+            return None
+        normalized_value, normalized_unit = self._normalize_hashrate_unit(
+            value=float(hashrate),
+            unit=str(hashrate.unit),
+        )
+        max_hashrate = HashRate(value=normalized_value, unit=normalized_unit)
+
+        if self.logger:
+            self.logger.debug(f"Max hash rate fetched: {max_hashrate}")
+
+        return max_hashrate
+
+    # --- HashrateMonitorPort ---
+
+    async def get_hashrate(self) -> Optional[HashRate]:
+        """Gets the current hash rate, if available."""
+
+        if self.logger:
+            self.logger.debug(f"Fetching hashrate from {self.ip}...")
+
+        await self._get_miner()
+
+        if not self._miner:
+            if self.logger:
+                self.logger.error(f"Failed to retrieve miner instance from {self.ip}...")
+            return None
+
+        miner = self._miner
+        hashrate: Optional[AlgoHashRate] = await miner.get_hashrate()
         if hashrate is None:
             if self.logger:
                 self.logger.debug(f"Failed to fetch hashrate from {self.ip}...")
@@ -190,13 +519,14 @@ class PyASICMinerController(MinerControlPort):
 
         return real_hashrate
 
-    async def get_miner_power(self) -> Optional[Watts]:
+    # --- PowerMonitorPort ---
+
+    async def get_power(self) -> Optional[Watts]:
         """Gets the current power consumption, if available."""
         if self.logger:
-            self.logger.debug(f"Fetching power consumption from from {self.ip}...")
+            self.logger.debug(f"Fetching power consumption from {self.ip}...")
 
-        # Get pyasic miner instance
-        self._get_miner()
+        await self._get_miner()
 
         if not self._miner:
             if self.logger:
@@ -204,7 +534,7 @@ class PyASICMinerController(MinerControlPort):
             return None
 
         miner = self._miner
-        wattage = run_async_func(miner.get_wattage())
+        wattage = await miner.get_wattage()
         if wattage is None:
             if self.logger:
                 self.logger.debug(f"Failed to fetch power consumption from {self.ip}...")
@@ -216,13 +546,14 @@ class PyASICMinerController(MinerControlPort):
 
         return power_watts
 
-    async def get_miner_status(self) -> MinerStatus:
+    # --- StatusMonitorPort ---
+
+    async def get_status(self) -> MinerStatus:
         """Gets the current operational status of the miner."""
         if self.logger:
             self.logger.debug(f"Fetching miner status from {self.ip}...")
 
-        # Get pyasic miner instance
-        self._get_miner()
+        await self._get_miner()
 
         if not self._miner:
             if self.logger:
@@ -230,7 +561,7 @@ class PyASICMinerController(MinerControlPort):
             return MinerStatus.UNKNOWN
 
         miner = self._miner
-        mining_state = run_async_func(miner.is_mining())
+        mining_state = await miner.is_mining()
 
         # Map the bool result from is_mining() to MinerStatus
         state_map: Dict[Optional[bool], MinerStatus] = {
@@ -253,13 +584,178 @@ class PyASICMinerController(MinerControlPort):
 
         return miner_status
 
-    async def stop_miner(self) -> bool:
-        """Attempts to stop the specified miner. Returns True on success request."""
-        if self.logger:
-            self.logger.debug(f"Sending stop command to miner at {self.ip}...")
+    # --- OperationalMonitorPort ---
 
-        # Get pyasic miner instance
-        self._get_miner()
+    async def get_blocks_found(self) -> Optional[int]:
+        """Gets the total number of blocks found by the miner."""
+        await self._get_miner()
+        if not self._miner or not self._miner.rpc:
+            return None
+        try:
+            summary = await self._miner.rpc.send_command("summary")
+
+            blocks_found = summary.get("SUMMARY", [{}])[0].get("Found Blocks")
+            return blocks_found if blocks_found is not None else None
+        except Exception:
+            return None
+
+    async def get_system_uptime(self) -> Optional[int]:
+        """Gets the system uptime in seconds."""
+        await self._get_miner()
+        if not self._miner or not self._miner.rpc:
+            return None
+        try:
+            summary = await self._miner.rpc.send_command("summary")
+            elapsed = summary.get("SUMMARY", [{}])[0].get("Elapsed")
+            return int(elapsed) if elapsed is not None else None
+        except Exception:
+            return None
+
+    # --- HashboardMonitorPort ---
+
+    async def get_hashboards(self) -> List[HashboardSnapshot]:
+        """Gets the current state of all hashboards."""
+        if self.logger:
+            self.logger.debug(f"Fetching hashboard data from {self.ip}...")
+
+        await self._get_miner()
+
+        if not self._miner:
+            if self.logger:
+                self.logger.error(f"Failed to retrieve miner instance from {self.ip}...")
+            return []
+
+        miner = self._miner
+        hashboards = await miner.get_hashboards()
+
+        if self.logger:
+            self.logger.debug(
+                f"pyasic get_hashboards() returned {len(hashboards)} boards. "
+                f"Raw data: {[(hb.slot, hb.chip_temp, hb.temp, hb.voltage, hb.hashrate) for hb in hashboards]}"
+            )
+
+        # Fallback: if get_hashboards() returns empty (e.g. expected_hashboards is None),
+        # query the RPC directly and build HashBoard objects from raw data.
+        if not hashboards:
+            if self.logger:
+                self.logger.debug(f"get_hashboards() returned empty for {self.ip}, trying RPC fallback...")
+            hashboards = await self._fetch_hashboards_fallback(miner)
+
+        if not hashboards:
+            if self.logger:
+                self.logger.debug(f"No hashboard data available from {self.ip}")
+            return []
+
+        # Supplement missing voltage/frequency from devdetails RPC
+        # pyasic's _get_hashboards() only extracts Chips from devdetails,
+        # but BOSer firmware also reports Voltage and Frequency there.
+        devdetails_extra = await self._fetch_devdetails_extra(miner)
+
+        snapshots: List[HashboardSnapshot] = []
+        for idx, hb in enumerate(hashboards):
+            chip_temp = Temperature(value=float(hb.chip_temp)) if hb.chip_temp is not None else None
+            board_temp = Temperature(value=float(hb.temp)) if hb.temp is not None else None
+
+            hb_hashrate = None
+            if hb.hashrate is not None:
+                hr_val, hr_unit = self._normalize_hashrate_unit(
+                    value=float(hb.hashrate),
+                    unit=str(hb.hashrate.unit) if hasattr(hb.hashrate, "unit") else "TH/s",
+                )
+                hb_hashrate = HashRate(value=hr_val, unit=hr_unit)
+
+            hb_voltage = Voltage(value=round(float(hb.voltage), 2)) if hb.voltage is not None else None
+            hb_frequency: Optional[Frequency] = None
+
+            # Fill voltage/frequency from devdetails if pyasic didn't provide them
+            if idx < len(devdetails_extra):
+                extra = devdetails_extra[idx]
+                if hb_voltage is None and extra.get("voltage") is not None:
+                    hb_voltage = Voltage(value=round(float(extra["voltage"]), 2))
+                if extra.get("frequency") is not None:
+                    hb_frequency = Frequency(value=float(extra["frequency"]))
+
+            snapshots.append(
+                HashboardSnapshot(
+                    index=idx,
+                    chip_temperature=chip_temp,
+                    board_temperature=board_temp,
+                    voltage=hb_voltage,
+                    frequency=hb_frequency,
+                    hash_rate=hb_hashrate,
+                    nominal_hash_rate=None,
+                    hash_rate_error=None,
+                )
+            )
+
+        if self.logger:
+            self.logger.debug(f"Hashboard data fetched: {len(snapshots)} boards from {self.ip}")
+
+        return snapshots
+
+    # --- InletTemperatureMonitorPort ---
+
+    async def get_inlet_temperature(self) -> Optional[Temperature]:
+        """Gets the current inlet air temperature, if available."""
+        if self.logger:
+            self.logger.debug(f"Fetching inlet temperature from {self.ip}...")
+
+        await self._get_miner()
+
+        if not self._miner:
+            return None
+
+        miner = self._miner
+        data = await miner.get_data()
+        if data is None or data.env_temp is None:
+            return None
+
+        return Temperature(value=float(data.env_temp))
+
+    # --- OutletTemperatureMonitorPort ---
+
+    async def get_outlet_temperature(self) -> Optional[Temperature]:
+        """Gets the current outlet air temperature, if available."""
+        if self.logger:
+            self.logger.debug(f"Fetching outlet temperature from {self.ip}...")
+
+        # pyasic does not typically provide separate outlet temperature
+        # Some miners expose this through env_temp or specific board data
+        return None
+
+    # --- InternalFanSpeedMonitorPort ---
+
+    async def get_internal_fan_speed(self) -> List[FanSpeed]:
+        """Gets the current internal fan speed, if available."""
+        miner_fans: List[FanSpeed] = []
+
+        if self.logger:
+            self.logger.debug(f"Fetching internal fan speed from {self.ip}...")
+
+        await self._get_miner()
+
+        if not self._miner:
+            return []
+
+        miner = self._miner
+        fans = await miner.get_fans()
+        if fans is None:
+            return []
+
+        for fan in fans:
+            if fan.speed is not None:
+                miner_fans.append(FanSpeed(value=float(fan.speed)))
+
+        return miner_fans
+
+    # --- MiningControlPort ---
+
+    async def start_mining(self) -> bool:
+        """Attempts to start mining. Returns True on success."""
+        if self.logger:
+            self.logger.debug(f"Sending start command to miner at {self.ip}...")
+
+        await self._get_miner()
 
         if not self._miner:
             if self.logger:
@@ -267,20 +763,41 @@ class PyASICMinerController(MinerControlPort):
             return False
 
         miner = self._miner
-        success = run_async_func(miner.stop_mining())
+        success = await miner.resume_mining()
+
+        if self.logger:
+            self.logger.debug(f"Start command sent. Success: {success}")
+
+        return success or False
+
+    async def stop_mining(self) -> bool:
+        """Attempts to stop mining. Returns True on success."""
+        if self.logger:
+            self.logger.debug(f"Sending stop command to miner at {self.ip}...")
+
+        await self._get_miner()
+
+        if not self._miner:
+            if self.logger:
+                self.logger.error(f"Failed to retrieve miner instance from {self.ip}...")
+            return False
+
+        miner = self._miner
+        success = await miner.stop_mining()
 
         if self.logger:
             self.logger.debug(f"Stop command sent. Success: {success}")
 
         return success or False
 
-    async def start_miner(self) -> bool:
-        """Attempts to start the miner. Returns True on success request."""
-        if self.logger:
-            self.logger.debug(f"Sending start command to miner at {self.ip}...")
+    # --- InternalFanControlPort ---
 
-        # Get pyasic miner instance
-        self._get_miner()
+    async def set_internal_fan_speed(self, speed_percent: float) -> bool:
+        """Sets internal fan speed as a percentage (0-100). Returns True on success."""
+        if self.logger:
+            self.logger.debug(f"Setting internal fan speed to {speed_percent}% on {self.ip}...")
+
+        await self._get_miner()
 
         if not self._miner:
             if self.logger:
@@ -288,12 +805,379 @@ class PyASICMinerController(MinerControlPort):
             return False
 
         miner = self._miner
-        success = run_async_func(miner.resume_mining())
+        try:
+            success = await miner.set_fan_speed(int(speed_percent))
+            if self.logger:
+                self.logger.debug(f"Fan speed set. Success: {success}")
+            return success or False
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Failed to set fan speed on {self.ip}: {e}")
+            return False
+
+    # --- Private helpers ---
+
+    async def _fetch_devdetails_extra(self, miner: AnyMiner) -> List[dict]:
+        """Fetch Voltage and Frequency from devdetails RPC.
+
+        pyasic's _get_hashboards() only extracts Chips from devdetails,
+        but some firmwares (e.g. BOSer) also report Voltage and Frequency.
+        Returns a list of dicts (one per board, positional order) with
+        'voltage' and 'frequency' keys.
+        """
+        if miner.rpc is None:
+            return []
+
+        try:
+            rpc_data = await miner.rpc.send_command("devdetails")
+        except Exception as e:
+            if self.logger:
+                self.logger.debug(f"devdetails RPC failed: {e}")
+            return []
+
+        details = rpc_data.get("DEVDETAILS", [])
+        if not details:
+            return []
+
+        # Sort by ID and extract voltage/frequency by positional index
+        sorted_details = sorted(details, key=lambda d: d.get("ID", 0))
+        result = []
+        for d in sorted_details:
+            result.append(
+                {
+                    "voltage": d.get("Voltage"),
+                    "frequency": d.get("Frequency"),
+                }
+            )
 
         if self.logger:
-            self.logger.debug(f"Start command sent. Success: {success}")
+            self.logger.debug(f"devdetails extra: {result}")
 
-        return success or False
+        return result
+
+    async def _fetch_hashboards_fallback(self, miner: AnyMiner) -> list:
+        """Fallback: fetch hashboard data directly when get_hashboards() returns empty.
+
+        This handles cases where pyasic's expected_hashboards is None (e.g., unrecognized
+        miner model/firmware combination), causing get_hashboards() to return [].
+        Tries gRPC first (BOSer), then RPC (BOSMiner/legacy), building HashBoard objects
+        from the raw response.
+        """
+        if self.logger:
+            self.logger.debug(
+                f"Fallback check: miner.web={miner.web}, "
+                f"type={type(miner.web).__name__ if miner.web else None}, "
+                f"has get_hashboards={hasattr(miner.web, 'get_hashboards') if miner.web else False}, "
+                f"miner type={type(miner).__name__}"
+            )
+
+        # --- Try gRPC (BOSer firmware) ---
+        grpc_result = await self._try_grpc_hashboards(miner)
+        if grpc_result is not None:
+            return grpc_result
+
+        # --- Try Luci web overview (BOSMinerWebAPI) ---
+        luci_result = await self._try_luci_hashboards(miner)
+        if luci_result is not None:
+            return luci_result
+
+        # --- Try RPC (BOSMiner / legacy firmware) ---
+        rpc_result = await self._try_rpc_hashboards(miner)
+        if rpc_result is not None:
+            return rpc_result
+
+        if self.logger:
+            self.logger.debug("No RPC or web interface available for fallback")
+        return []
+
+    async def _try_grpc_hashboards(self, miner: AnyMiner) -> Optional[list]:
+        """Try fetching hashboard data via gRPC. Returns None if not available."""
+        from pyasic.data import HashBoard
+
+        web_api = miner.web
+
+        # If the current web class doesn't support get_hashboards,
+        # try BOSerWebAPI directly (handles pyasic misidentifying BOSer as BOSMiner)
+        if web_api is None or not hasattr(web_api, "get_hashboards"):
+            try:
+                from pyasic.web.braiins_os.boser import BOSerWebAPI
+
+                web_api = BOSerWebAPI(str(miner.ip))
+                if self.logger:
+                    self.logger.debug(f"Created direct BOSerWebAPI for {self.ip}")
+            except ImportError:
+                return None
+
+        try:
+            grpc_data = await web_api.get_hashboards()
+            if self.logger:
+                self.logger.debug(f"gRPC fallback raw response: {grpc_data}")
+        except Exception as e:
+            if self.logger:
+                self.logger.debug(f"gRPC fallback failed: {e}")
+            return None
+
+        if not grpc_data or not grpc_data.get("hashboards"):
+            return None
+
+        grpc_boards = sorted(grpc_data["hashboards"], key=lambda x: int(x.get("id", 0)))
+        hashboards = []
+        for idx, board in enumerate(grpc_boards):
+            hb = HashBoard(slot=idx, expected_chips=miner.expected_chips)
+            hb.missing = False
+
+            if board.get("boardTemp") is not None:
+                hb.temp = int(board["boardTemp"]["degreeC"])
+            if board.get("highestChipTemp") is not None:
+                hb.chip_temp = int(board["highestChipTemp"]["temperature"]["degreeC"])
+            if board.get("chipsCount") is not None:
+                hb.chips = board["chipsCount"]
+            if board.get("serialNumber") is not None:
+                hb.serial_number = board["serialNumber"]
+            if board.get("stats") is not None:
+                try:
+                    real_hr = board["stats"]["realHashrate"]["last5S"]
+                    if real_hr and real_hr.get("gigahashPerSecond") is not None:
+                        hb.hashrate = miner.algo.hashrate(
+                            rate=float(real_hr["gigahashPerSecond"]),
+                            unit=miner.algo.unit.GH,
+                        )
+                except (KeyError, TypeError):
+                    pass
+            hashboards.append(hb)
+
+        if self.logger:
+            self.logger.debug(f"gRPC fallback: found {len(hashboards)} hashboards from {self.ip}")
+        return hashboards
+
+    async def _try_luci_hashboards(self, miner: AnyMiner) -> Optional[list]:
+        """Try fetching hashboard data via Luci web API (get_api_status).
+
+        The get_api_status endpoint returns all RPC data in one call, including
+        temps, devs, devdetails, fans, and summary. This is the most complete
+        data source on BOSer firmware when gRPC is unavailable.
+        """
+        from pyasic.data import HashBoard
+
+        if miner.web is None or not hasattr(miner.web, "get_api_status"):
+            return None
+
+        # Ensure web credentials are set (override defaults if controller has credentials)
+        if self.password:
+            miner.web.pwd = self.password
+        if self.username:
+            miner.web.username = self.username
+
+        try:
+            api_status = await miner.web.get_api_status()
+        except Exception as e:
+            if self.logger:
+                self.logger.debug(f"Luci get_api_status failed: {e}")
+            return None
+
+        if not api_status or not isinstance(api_status, dict):
+            return None
+
+        # Parse temps from api_status (may be "Not ready" on old firmware)
+        temps_list: list = []
+        try:
+            temps_data = api_status["temps"][0]
+            if temps_data.get("TEMPS"):
+                for board in temps_data["TEMPS"]:
+                    temps_list.append(
+                        {
+                            "chip_temp": round(board["Chip"]) if board.get("Chip") is not None else None,
+                            "board_temp": round(board["Board"]) if board.get("Board") is not None else None,
+                        }
+                    )
+            else:
+                status_info = temps_data.get("STATUS", [{}])[0]
+                if self.logger:
+                    self.logger.debug(
+                        f"Luci temps not available: {status_info.get('Msg', 'unknown')} "
+                        f"(code {status_info.get('Code', '?')})"
+                    )
+        except (KeyError, IndexError, TypeError):
+            pass
+
+        # Parse devs from api_status
+        devs_list: list = []
+        try:
+            for dev in api_status["devs"][0]["DEVS"]:
+                devs_list.append({"mhs": dev.get("MHS 1m") or dev.get("MHS 5m") or dev.get("MHS av")})
+        except (KeyError, IndexError, TypeError):
+            pass
+
+        # Parse devdetails from api_status for voltage and frequency
+        details_list: list = []
+        try:
+            for detail in api_status["devdetails"][0]["DEVDETAILS"]:
+                details_list.append(
+                    {
+                        "voltage": detail.get("Voltage"),
+                        "frequency": detail.get("Frequency"),
+                    }
+                )
+        except (KeyError, IndexError, TypeError):
+            pass
+
+        board_count = max(len(temps_list), len(devs_list), len(details_list))
+        if board_count == 0:
+            return None
+
+        hashboards = []
+        for idx in range(board_count):
+            hb = HashBoard(slot=idx, expected_chips=miner.expected_chips)
+            hb.missing = False
+
+            if idx < len(temps_list):
+                t = temps_list[idx]
+                if t.get("chip_temp") is not None:
+                    hb.chip_temp = t["chip_temp"]
+                if t.get("board_temp") is not None:
+                    hb.temp = t["board_temp"]
+
+            if idx < len(devs_list):
+                dev = devs_list[idx]
+                mhs = dev.get("mhs")
+                if mhs is not None:
+                    hb.hashrate = miner.algo.hashrate(rate=mhs, unit=miner.algo.unit.MH)
+
+            if idx < len(details_list):
+                d = details_list[idx]
+                if d.get("voltage") is not None:
+                    hb.voltage = round(float(d["voltage"]), 2)
+
+            hashboards.append(hb)
+
+        if self.logger:
+            self.logger.debug(f"Luci api_status: found {len(hashboards)} hashboards from {self.ip}")
+        return hashboards
+
+    async def _try_rpc_hashboards(self, miner: AnyMiner) -> Optional[list]:
+        """Try fetching hashboard data via RPC. Returns None if not available."""
+        from pyasic.data import HashBoard
+
+        if miner.rpc is None:
+            return None
+
+        try:
+            rpc_data = await miner.rpc.multicommand("temps", "devdetails", "devs", "stats")
+        except Exception as e:
+            if self.logger:
+                self.logger.debug(f"RPC fallback multicommand failed: {e}")
+            return None
+
+        if self.logger:
+            self.logger.debug(f"RPC fallback raw response keys: {list(rpc_data.keys())}")
+
+        # Parse temps by positional index (BOSMiner firmware)
+        temps_list: list = []
+        try:
+            for board in rpc_data["temps"][0]["TEMPS"]:
+                temps_list.append(
+                    {
+                        "chip_temp": round(board["Chip"]) if board.get("Chip") is not None else None,
+                        "board_temp": round(board["Board"]) if board.get("Board") is not None else None,
+                    }
+                )
+        except (KeyError, IndexError, TypeError):
+            pass
+
+        # Parse temps from stats if temps command didn't return data (BOSer firmware).
+        # The stats response contains temperature fields like temp_chip_N, temp_board_N, temp2_N, etc.
+        if not temps_list:
+            try:
+                stats_entries = rpc_data["stats"][0]["STATS"]
+                if self.logger:
+                    self.logger.debug(f"RPC stats entries: {stats_entries}")
+                for stat in stats_entries:
+                    # Look for per-chain temperature keys found in various CGMiner-based firmwares
+                    # Common patterns: temp_chip_1..N, temp_board_1..N, temp2_1..N, temp_1..N
+                    chain_idx = 0
+                    while True:
+                        chain_num = chain_idx + 1
+                        chip_temp = None
+                        board_temp = None
+
+                        # Try various known key patterns for chip temperature
+                        for key in [f"temp_chip_{chain_num}", f"temp2_{chain_num}", f"temp{chain_num}"]:
+                            val = stat.get(key)
+                            if val is not None and float(val) > 0:
+                                chip_temp = round(float(val))
+                                break
+
+                        # Try various known key patterns for board temperature
+                        for key in [f"temp_board_{chain_num}", f"temp_pcb_{chain_num}", f"temp{chain_num}"]:
+                            val = stat.get(key)
+                            if val is not None and float(val) > 0:
+                                # Avoid using the same key for both if chip_temp already used it
+                                if board_temp is None:
+                                    board_temp = round(float(val))
+
+                        if chip_temp is None and board_temp is None:
+                            break
+                        temps_list.append({"chip_temp": chip_temp, "board_temp": board_temp})
+                        chain_idx += 1
+            except (KeyError, IndexError, TypeError):
+                pass
+
+        # Parse devdetails by positional index
+        details_list: list = []
+        try:
+            for detail in rpc_data["devdetails"][0]["DEVDETAILS"]:
+                details_list.append(
+                    {
+                        "chips": detail.get("Chips"),
+                        "voltage": detail.get("Voltage"),
+                        "frequency": detail.get("Frequency"),
+                    }
+                )
+        except (KeyError, IndexError, TypeError):
+            pass
+
+        # Parse devs by positional index
+        devs_list: list = []
+        try:
+            for dev in rpc_data["devs"][0]["DEVS"]:
+                devs_list.append({"mhs": dev.get("MHS 1m") or dev.get("MHS 5m") or dev.get("MHS av")})
+        except (KeyError, IndexError, TypeError):
+            pass
+
+        board_count = max(len(temps_list), len(details_list), len(devs_list))
+        if board_count == 0:
+            return None
+
+        hashboards = []
+        for idx in range(board_count):
+            hb = HashBoard(slot=idx, expected_chips=miner.expected_chips)
+            hb.missing = False
+
+            if idx < len(temps_list):
+                t = temps_list[idx]
+                if t.get("chip_temp") is not None:
+                    hb.chip_temp = t["chip_temp"]
+                if t.get("board_temp") is not None:
+                    hb.temp = t["board_temp"]
+
+            if idx < len(details_list):
+                d = details_list[idx]
+                if d.get("chips") is not None:
+                    hb.chips = d["chips"]
+                if d.get("voltage") is not None:
+                    hb.voltage = round(float(d["voltage"]), 2)
+
+            if idx < len(devs_list):
+                dev = devs_list[idx]
+                mhs = dev.get("mhs")
+                if mhs is not None:
+                    hb.hashrate = miner.algo.hashrate(rate=mhs, unit=miner.algo.unit.MH)
+
+            hashboards.append(hb)
+
+        if self.logger:
+            self.logger.debug(f"RPC fallback: found {len(hashboards)} hashboards from {self.ip}")
+        return hashboards
 
     async def _derive_miner_status(self) -> Optional[bool]:
         """Derives the miner status based on hashrate and power consumption.
@@ -306,8 +1190,8 @@ class PyASICMinerController(MinerControlPort):
         """
         IDLE_WATTAGE_THRESHOLD = 1  # Low threshold to work with low-power miners (e.g., Bitaxe ~13W)
 
-        hashrate: Optional[HashRate] = await self.get_miner_hashrate()
-        wattage: Optional[Watts] = await self.get_miner_power()
+        hashrate: Optional[HashRate] = await self.get_hashrate()
+        wattage: Optional[Watts] = await self.get_power()
 
         if self.logger:
             self.logger.debug(

@@ -32,9 +32,11 @@ from edge_mining.domain.forecast.ports import ForecastProviderPort, ForecastProv
 from edge_mining.domain.home_load.common import HomeForecastProviderAdapter
 from edge_mining.domain.home_load.entities import HomeForecastProvider
 from edge_mining.domain.home_load.ports import HomeForecastProviderPort, HomeForecastProviderRepository
-from edge_mining.domain.miner.common import MinerControllerAdapter
-from edge_mining.domain.miner.entities import Miner, MinerController
-from edge_mining.domain.miner.ports import MinerControllerRepository, MinerControlPort
+from edge_mining.domain.miner.aggregate_roots import Miner
+from edge_mining.domain.miner.common import MinerControllerAdapter, MinerFeatureType
+from edge_mining.domain.miner.entities import MinerController
+from edge_mining.domain.miner.ports import MinerControllerRepository, MinerFeaturePort, MinerRepository
+from edge_mining.domain.miner.value_objects import MinerFeature
 from edge_mining.domain.notification.common import NotificationAdapter
 from edge_mining.domain.notification.entities import Notifier
 from edge_mining.domain.notification.ports import NotificationPort, NotifierRepository
@@ -64,6 +66,7 @@ class AdapterService(AdapterServiceInterface):
         self,
         energy_monitor_repo: EnergyMonitorRepository,
         miner_controller_repo: MinerControllerRepository,
+        miner_repo: MinerRepository,
         notifier_repo: NotifierRepository,
         forecast_provider_repo: ForecastProviderRepository,
         mining_performance_tracker_repo: MiningPerformanceTrackerRepository,
@@ -74,6 +77,7 @@ class AdapterService(AdapterServiceInterface):
     ):
         self.energy_monitor_repo = energy_monitor_repo
         self.miner_controller_repo = miner_controller_repo
+        self.miner_repo = miner_repo
         self.notifier_repo = notifier_repo
         self.forecast_provider_repo = forecast_provider_repo
         self.mining_performance_tracker_repo = mining_performance_tracker_repo
@@ -85,7 +89,7 @@ class AdapterService(AdapterServiceInterface):
             Optional[
                 Union[
                     EnergyMonitorPort,
-                    MinerControlPort,
+                    MinerFeaturePort,
                     NotificationPort,
                     ForecastProviderPort,
                     HomeForecastProviderPort,
@@ -233,7 +237,7 @@ class AdapterService(AdapterServiceInterface):
 
     async def _initialize_miner_controller_adapter(
         self, miner: Miner, miner_controller: MinerController
-    ) -> Optional[MinerControlPort]:
+    ) -> Optional[MinerFeaturePort]:
         """Initialize a miner controller adapter."""
         # If the adapter has already been created, we use it.
         if miner_controller.id in self._instance_cache:
@@ -246,8 +250,6 @@ class AdapterService(AdapterServiceInterface):
 
             cached_instance = self._instance_cache[miner_controller.id]
             if not cached_instance:
-                # If the cached instance is None, we return it
-                # to indicate that the adapter was not initialized.
                 if self.logger:
                     self.logger.warning(
                         f"Cached instance for miner controller ID {miner_controller.id} "
@@ -255,16 +257,14 @@ class AdapterService(AdapterServiceInterface):
                     )
                 return None
 
-            # Check if the cached instance is of the correct type
-            if not isinstance(cached_instance, MinerControlPort):
+            if not isinstance(cached_instance, MinerFeaturePort):
                 if self.logger:
                     self.logger.warning(
                         f"Cached instance for miner controller ID {miner_controller.id} "
-                        f"is not of type MinerControlPort. Reinitializing adapter."
+                        f"is not of type MinerFeaturePort. Reinitializing adapter."
                     )
                 return None
 
-            # If the cached instance is valid, we return it
             return cached_instance
 
         # Retrieve the external service associated to the miner controller
@@ -279,7 +279,7 @@ class AdapterService(AdapterServiceInterface):
 
         try:
             miner_controller_factory: Optional[MinerControllerAdapterFactory] = None
-            instance: Optional[MinerControlPort] = None
+            instance: Optional[MinerFeaturePort] = None
 
             if miner_controller.adapter_type == MinerControllerAdapter.DUMMY:
                 if miner.power_consumption_max is None or miner.hash_rate_max is None:
@@ -619,18 +619,95 @@ class AdapterService(AdapterServiceInterface):
             return None
         return await self._initialize_energy_monitor_adapter(energy_source, energy_monitor)
 
-    async def get_miner_controller(self, miner: Miner) -> Optional[MinerControlPort]:
-        """Get a miner controller adapter instance"""
-        if not miner.controller_id:
-            if self.logger:
-                self.logger.error(f"Miner {miner.name} does not have an associated MinerController ID.")
-            return None
-        miner_controller = self.miner_controller_repo.get_by_id(miner.controller_id)
+    async def get_miner_controller_adapter(self, miner: Miner, controller_id: EntityId) -> Optional[MinerFeaturePort]:
+        """Get a miner controller adapter instance for a specific controller."""
+        miner_controller = self.miner_controller_repo.get_by_id(controller_id)
         if not miner_controller:
             if self.logger:
-                self.logger.error(f"Miner Controller ID {miner.controller_id} not found or not a MinerController.")
+                self.logger.error(f"Miner Controller ID {controller_id} not found.")
             return None
         return await self._initialize_miner_controller_adapter(miner, miner_controller)
+
+    async def sync_miner_features(self, miner: Miner) -> bool:
+        """Reconcile stored features with what controllers actually support.
+
+        For each controller associated with the miner, discovers which features
+        the adapter supports and adds missing ones / removes stale ones.
+        Returns True if any changes were made (and persisted).
+        """
+        changed = False
+        controller_ids = miner.get_controller_ids()
+
+        for controller_id in controller_ids:
+            adapter = await self.get_miner_controller_adapter(miner, controller_id)
+            if not adapter:
+                continue
+
+            supported = set(adapter.__class__.get_supported_features())
+            stored = {f.feature_type for f in miner.get_features_by_controller(controller_id)}
+
+            # Add missing features
+            for feature_type in supported - stored:
+                feature = MinerFeature(
+                    feature_type=feature_type,
+                    controller_id=controller_id,
+                    priority=50,
+                    enabled=True,
+                )
+                try:
+                    miner.add_feature(feature)
+                    changed = True
+                except ValueError:
+                    pass
+
+            # Remove stale features (stored but no longer supported)
+            for feature_type in stored - supported:
+                miner.remove_feature(feature_type, controller_id)
+                changed = True
+
+        if changed:
+            self.miner_repo.update(miner)
+            if self.logger:
+                self.logger.info(f"Reconciled features for miner {miner.name}.")
+
+        return changed
+
+    async def get_miner_feature_port(self, miner: Miner, feature_type: MinerFeatureType) -> Optional[MinerFeaturePort]:
+        """Get the adapter implementing the highest-priority active feature for a miner.
+
+        Resolves the active MinerFeature for the given feature_type, retrieves
+        the associated controller adapter, and verifies it supports the feature.
+        If the feature is not found, triggers a one-time reconciliation to catch
+        features added or removed by code changes.
+        """
+        active_feature = miner.get_active_feature(feature_type)
+
+        # Lazy reconciliation: if feature not found, sync and retry once
+        if not active_feature:
+            reconciled = await self.sync_miner_features(miner)
+            if reconciled:
+                active_feature = miner.get_active_feature(feature_type)
+
+        if not active_feature:
+            if self.logger:
+                self.logger.debug(f"No active feature of type {feature_type.value} for miner {miner.name}.")
+            return None
+
+        adapter = await self.get_miner_controller_adapter(miner, active_feature.controller_id)
+        if not adapter:
+            return None
+
+        # Verify the adapter actually supports the requested feature type
+        supported = adapter.__class__.get_supported_features()
+        if feature_type not in supported:
+            if self.logger:
+                self.logger.error(
+                    f"Adapter for controller {active_feature.controller_id} "
+                    f"does not support feature {feature_type.value}."
+                )
+            return None
+
+        return adapter
 
     async def get_all_notifiers(self) -> List[NotificationPort]:
         """Get all notifier adapter instances"""

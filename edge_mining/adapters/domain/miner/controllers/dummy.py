@@ -1,17 +1,58 @@
-"""Dummy adapter (Implementation of Port) that simulates a miner control for Edge Mining Application"""
+"""Dummy adapter (Implementation of Feature Ports) that simulates a miner for Edge Mining Application"""
 
 import random
-from typing import Optional
+from typing import List, Optional
 
 from edge_mining.domain.common import Watts
 from edge_mining.domain.miner.common import MinerStatus
-from edge_mining.domain.miner.ports import MinerControlPort
-from edge_mining.domain.miner.value_objects import HashRate
+from edge_mining.domain.miner.ports import (
+    DeviceInfoPort,
+    ExternalFanControlPort,
+    ExternalFanSpeedMonitorPort,
+    HashboardMonitorPort,
+    HashrateMonitorPort,
+    InletTemperatureMonitorPort,
+    InternalFanControlPort,
+    InternalFanSpeedMonitorPort,
+    MiningControlPort,
+    OperationalMonitorPort,
+    OutletTemperatureMonitorPort,
+    PowerControlPort,
+    PowerMonitorPort,
+    StatusMonitorPort,
+)
+from edge_mining.domain.miner.value_objects import (
+    FanSpeed,
+    Frequency,
+    HashboardSnapshot,
+    HashRate,
+    MinerInfo,
+    Temperature,
+    Voltage,
+)
 from edge_mining.shared.logging.port import LoggerPort
 
 
-class DummyMinerController(MinerControlPort):
-    """Simulates miner control without real hardware."""
+class DummyMinerController(
+    HashrateMonitorPort,
+    PowerMonitorPort,
+    StatusMonitorPort,
+    HashboardMonitorPort,
+    InletTemperatureMonitorPort,
+    OutletTemperatureMonitorPort,
+    InternalFanSpeedMonitorPort,
+    ExternalFanSpeedMonitorPort,
+    MiningControlPort,
+    PowerControlPort,
+    InternalFanControlPort,
+    ExternalFanControlPort,
+    DeviceInfoPort,
+    OperationalMonitorPort,
+):
+    """Simulates miner control without real hardware.
+
+    Implements all 16 feature ports for testing and development.
+    """
 
     def __init__(
         self,
@@ -26,28 +67,49 @@ class DummyMinerController(MinerControlPort):
         self.logger = logger
 
         self._power: Watts = Watts(0.0)
+        self._internal_fan_speed: float = 0.0
+        self._external_fan_speed: float = 0.0
 
-    async def get_model(self) -> Optional[str]:
-        """Gets the model of the miner."""
+    # --- DeviceInfoPort ---
+
+    async def get_device_info(self) -> Optional[MinerInfo]:
+        """Gets the device information of the miner."""
+        if self.logger:
+            self.logger.debug("DummyController: Fetching device info...")
+
+        # Simulate some dummy device info
+        model = "DummyMiner X1"
+        serial_number = "DMX1-01}"
+        firmware_type = "Stock"
+        firmware_version = "1.0.0"
+        mac_address = "00:11:22:33:10:99"
+        hostname = "edgemining-dummyminer"
+
+        info = MinerInfo(
+            model=model,
+            serial_number=serial_number,
+            firmware_type=firmware_type,
+            firmware_version=firmware_version,
+            mac_address=mac_address,
+            hostname=hostname,
+        )
 
         if self.logger:
-            self.logger.debug("Retrieving miner model for Dummy Miner Controller is not supported...")
+            self.logger.debug(f"DummyController: Device info fetched: {info}")
 
-        return None
+        return info
+
+    # --- MiningControlPort ---
 
     async def start_miner(self) -> bool:
         """Start the miner."""
-        print(f"DummyController: Received START (current: {self._status.name})")
+        if self.logger:
+            self.logger.debug(f"DummyController: Received START (current: {self._status.name})")
         if self._status != MinerStatus.ON:
             self._status = MinerStatus.STARTING
-            # Simulate startup time
-            # In a real scenario, this would just send the command
-            # The status check next cycle would confirm if it's ON
             if self.logger:
                 self.logger.debug("DummyController: Setting status to STARTING")
-            # Simulate transition after a delay for testing purposes if needed
-            # threading.Timer(5, self._set_status, args=(MinerStatus.ON)).start()
-        return True  # Assume command sent successfully
+        return True
 
     async def stop_miner(self) -> bool:
         """Stop the miner."""
@@ -57,15 +119,14 @@ class DummyMinerController(MinerControlPort):
             self._status = MinerStatus.STOPPING
             if self.logger:
                 self.logger.debug("DummyController: Setting status to STOPPING")
-            # Simulate transition
-            # threading.Timer(3, self._set_status, args=(MinerStatus.OFF).start()
-        return True  # Assume command sent successfully
+        return True
+
+    # --- StatusMonitorPort ---
 
     async def get_miner_status(self) -> MinerStatus:
         """Get the status of the miner."""
-        # Simulate state transitions finishing for dummy purposes
         if self._status == MinerStatus.STARTING:
-            if random.random() < 0.8:  # 80% chance it finished starting
+            if random.random() < 0.8:
                 if self.logger:
                     self.logger.debug("DummyController: Simulating finished starting -> ON")
                 self._status = MinerStatus.ON
@@ -74,7 +135,7 @@ class DummyMinerController(MinerControlPort):
                     self.logger.debug("DummyController: Simulating still STARTING")
 
         elif self._status == MinerStatus.STOPPING:
-            if random.random() < 0.9:  # 90% chance it finished stopping
+            if random.random() < 0.9:
                 if self.logger:
                     self.logger.debug("DummyController: Simulating finished stopping -> OFF")
                 self._status = MinerStatus.OFF
@@ -87,6 +148,16 @@ class DummyMinerController(MinerControlPort):
             self.logger.debug(f"DummyController: Reporting status {status.name}")
         return status
 
+    async def get_blocks_found(self) -> Optional[int]:
+        """Gets the total number of blocks found."""
+        return 0
+
+    async def get_system_uptime(self) -> Optional[int]:
+        """Gets the system uptime in seconds."""
+        return 3600
+
+    # --- PowerMonitorPort ---
+
     async def get_miner_power(self) -> Optional[Watts]:
         """Get the power of the miner."""
         status = self._status
@@ -95,7 +166,7 @@ class DummyMinerController(MinerControlPort):
             if self.logger:
                 self.logger.debug(f"DummyController: Reporting power {power:.0f}W")
         elif status == MinerStatus.STARTING:
-            power = Watts(random.uniform(10, 200))  # Lower power during startup
+            power = Watts(random.uniform(10, 200))
             if self.logger:
                 self.logger.debug(f"DummyController: Reporting power {power:.0f}W")
         else:
@@ -106,11 +177,12 @@ class DummyMinerController(MinerControlPort):
         self._power = power
         return power
 
+    # --- HashrateMonitorPort ---
+
     async def get_miner_hashrate(self) -> Optional[HashRate]:
         """Get the hash rate of the miner."""
         status = self._status
         if status == MinerStatus.ON:
-            # Simulate hash rate
             hash_rate = HashRate(
                 value=random.uniform(0, self._hashrate_max.value),
                 unit=self._hashrate_max.unit,
@@ -123,7 +195,138 @@ class DummyMinerController(MinerControlPort):
                 self.logger.debug(f"DummyController: Reporting hash rate 0 (status: {status.name})")
             return HashRate(value=0.0, unit="TH/s")
 
-    # Helper for simulated transitions (if using timers)
-    # def _set_status(self, status: MinerStatus):
-    #      print(f"DummyController: Timer finished, setting to {status.name}")
-    #      self._status = status
+    # --- HashboardMonitorPort ---
+
+    async def get_hashboards(self) -> List[HashboardSnapshot]:
+        """Get simulated hashboard data."""
+        num_boards = 3
+        snapshots: List[HashboardSnapshot] = []
+        for i in range(num_boards):
+            if self._status == MinerStatus.ON:
+                chip_temp = Temperature(value=round(random.uniform(55.0, 85.0), 1))
+                board_temp = Temperature(value=round(random.uniform(45.0, 70.0), 1))
+                voltage = Voltage(value=round(random.uniform(11.8, 12.6), 2))
+                frequency = Frequency(value=round(random.uniform(400.0, 650.0), 1))
+                hr_value = round(random.uniform(0, self._hashrate_max.value / num_boards), 2)
+                nominal_hr = round(self._hashrate_max.value / num_boards, 2)
+                hash_rate = HashRate(value=hr_value, unit=self._hashrate_max.unit)
+                nominal_hash_rate = HashRate(value=nominal_hr, unit=self._hashrate_max.unit)
+                error_val = round(nominal_hr - hr_value, 4)
+                hash_rate_error = HashRate(value=error_val, unit=self._hashrate_max.unit)
+            elif self._status in (MinerStatus.STARTING, MinerStatus.STOPPING):
+                chip_temp = Temperature(value=round(random.uniform(30.0, 55.0), 1))
+                board_temp = Temperature(value=round(random.uniform(25.0, 45.0), 1))
+                voltage = Voltage(value=round(random.uniform(11.0, 12.0), 2))
+                frequency = Frequency(value=0.0)
+                hash_rate = HashRate(value=0.0, unit=self._hashrate_max.unit)
+                nominal_hash_rate = None
+                hash_rate_error = None
+            else:
+                chip_temp = Temperature(value=round(random.uniform(20.0, 30.0), 1))
+                board_temp = Temperature(value=round(random.uniform(18.0, 28.0), 1))
+                voltage = Voltage(value=0.0)
+                frequency = Frequency(value=0.0)
+                hash_rate = HashRate(value=0.0, unit=self._hashrate_max.unit)
+                nominal_hash_rate = None
+                hash_rate_error = None
+
+            snapshots.append(
+                HashboardSnapshot(
+                    index=i,
+                    chip_temperature=chip_temp,
+                    board_temperature=board_temp,
+                    voltage=voltage,
+                    frequency=frequency,
+                    hash_rate=hash_rate,
+                    nominal_hash_rate=nominal_hash_rate,
+                    hash_rate_error=hash_rate_error,
+                )
+            )
+
+        if self.logger:
+            self.logger.debug(f"DummyController: Reporting {len(snapshots)} hashboards")
+        return snapshots
+
+    # --- InletTemperatureMonitorPort ---
+
+    async def get_inlet_temperature(self) -> Optional[Temperature]:
+        """Get simulated inlet air temperature."""
+        temp = Temperature(value=round(random.uniform(18.0, 35.0), 1))
+        if self.logger:
+            self.logger.debug(f"DummyController: Reporting inlet temperature {temp.value}{temp.unit}")
+        return temp
+
+    # --- OutletTemperatureMonitorPort ---
+
+    async def get_outlet_temperature(self) -> Optional[Temperature]:
+        """Get simulated outlet air temperature."""
+        if self._status == MinerStatus.ON:
+            temp = Temperature(value=round(random.uniform(40.0, 65.0), 1))
+        else:
+            temp = Temperature(value=round(random.uniform(18.0, 30.0), 1))
+        if self.logger:
+            self.logger.debug(f"DummyController: Reporting outlet temperature {temp.value}{temp.unit}")
+        return temp
+
+    # --- InternalFanSpeedMonitorPort ---
+
+    async def get_internal_fan_speed(self) -> List[FanSpeed]:
+        """Get simulated internal fan speed."""
+        if self._status == MinerStatus.ON:
+            rpm = random.uniform(3000.0, 6000.0)
+        elif self._status in (MinerStatus.STARTING, MinerStatus.STOPPING):
+            rpm = random.uniform(1000.0, 3000.0)
+        else:
+            rpm = 0.0
+        fan = FanSpeed(value=round(rpm, 0))
+        if self.logger:
+            self.logger.debug(f"DummyController: Reporting internal fan speed {fan.value} {fan.unit}")
+        return [fan]
+
+    # --- ExternalFanSpeedMonitorPort ---
+
+    async def get_external_fan_speed(self) -> Optional[FanSpeed]:
+        """Get simulated external fan speed."""
+        if self._external_fan_speed > 0:
+            rpm = self._external_fan_speed * 60.0  # percent to RPM approximation
+        else:
+            rpm = 0.0
+        fan = FanSpeed(value=round(rpm, 0))
+        if self.logger:
+            self.logger.debug(f"DummyController: Reporting external fan speed {fan.value} {fan.unit}")
+        return fan
+
+    # --- PowerControlPort ---
+
+    async def power_on(self) -> bool:
+        """Simulate hard power on."""
+        if self.logger:
+            self.logger.debug(f"DummyController: Received POWER ON (current: {self._status.name})")
+        if self._status in (MinerStatus.OFF, MinerStatus.UNKNOWN):
+            self._status = MinerStatus.STARTING
+        return True
+
+    async def power_off(self) -> bool:
+        """Simulate hard power off."""
+        if self.logger:
+            self.logger.debug(f"DummyController: Received POWER OFF (current: {self._status.name})")
+        self._status = MinerStatus.OFF
+        return True
+
+    # --- InternalFanControlPort ---
+
+    async def set_internal_fan_speed(self, speed_percent: float) -> bool:
+        """Simulate setting internal fan speed."""
+        if self.logger:
+            self.logger.debug(f"DummyController: Setting internal fan speed to {speed_percent:.0f}%")
+        self._internal_fan_speed = max(0.0, min(100.0, speed_percent))
+        return True
+
+    # --- ExternalFanControlPort ---
+
+    async def set_external_fan_speed(self, speed_percent: float) -> bool:
+        """Simulate setting external fan speed."""
+        if self.logger:
+            self.logger.debug(f"DummyController: Setting external fan speed to {speed_percent:.0f}%")
+        self._external_fan_speed = max(0.0, min(100.0, speed_percent))
+        return True
