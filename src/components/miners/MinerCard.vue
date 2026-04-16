@@ -40,12 +40,14 @@ const minerControllerStore = useMinerControllerStore();
 const showDeleteConfirm = ref(false);
 const isProcessing = ref(false);
 
-const minerController = computed(() => {
-  if (!props.miner.controller_id) return null;
-  return minerControllerStore.minerControllers.find(
-    (mc) => mc.id === props.miner.controller_id
+const minerControllers = computed(() => {
+  if (!props.miner.controller_ids?.length) return [];
+  return minerControllerStore.minerControllers.filter(
+    (mc) => props.miner.controller_ids!.includes(mc.id!)
   );
 });
+
+const hasController = computed(() => minerControllers.value.length > 0);
 
 // Runtime state
 const currentStatus = computed<MinerStatus>(() => props.state?.status ?? 'unknown');
@@ -321,16 +323,16 @@ function handleDeactivate() {
     <template #footer>
       <div class="flex items-center gap-2">
         <!-- Controller -->
-        <div v-if="minerController" class="flex items-center gap-2 min-w-0 flex-shrink">
+        <div v-if="minerControllers.length" class="flex items-center gap-2 min-w-0 flex-shrink">
           <div class="h-6 w-6 rounded-full bg-info/20 flex items-center justify-center">
             <PhGear :size="14" class="text-info" />
           </div>
           <div>
             <div class="text-[10px] uppercase tracking-wider text-base-content/40">
-              Controller
+              {{ minerControllers.length === 1 ? 'Controller' : 'Controllers' }}
             </div>
             <div class="text-sm text-base-content/80 leading-tight truncate max-w-[120px] sm:max-w-none">
-              {{ minerController.name }}
+              {{ minerControllers.map(mc => mc.name).join(', ') }}
             </div>
           </div>
         </div>
@@ -353,15 +355,15 @@ function handleDeactivate() {
             <!-- Start/Stop/Refresh -->
             <div class="join">
               <button class="btn btn-xs join-item" :class="canStart ? 'btn-success' : 'btn-ghost opacity-40'"
-                :disabled="!canStart || !minerController" @click="handleStart" title="Start">
+                :disabled="!canStart || !hasController" @click="handleStart" title="Start">
                 <PhPlay :size="14" />
               </button>
               <button class="btn btn-xs join-item" :class="canStop ? 'btn-warning' : 'btn-ghost opacity-40'"
-                :disabled="!canStop || !minerController" @click="handleStop" title="Stop">
+                :disabled="!canStop || !hasController" @click="handleStop" title="Stop">
                 <PhStop :size="14" />
               </button>
               <button class="btn btn-xs btn-info join-item" 
-                :disabled="!minerController" @click="handleRefresh" title="Refresh">
+                :disabled="!hasController" @click="handleRefresh" title="Refresh">
                 <PhArrowClockwise :size="14" />
               </button>
             </div>

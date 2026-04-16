@@ -31,6 +31,10 @@ export function useDashboardPolling(intervalMs = 5000) {
   const batteryPowerSeries = computed(() => dashboardStore.batteryPowerSeries);
   const gridPowerSeries = computed(() => dashboardStore.gridPowerSeries);
   const consumptionSeries = computed(() => dashboardStore.consumptionSeries);
+  const maxChipTempSeries = computed(() => dashboardStore.maxChipTempSeries);
+  const maxBoardTempSeries = computed(() => dashboardStore.maxBoardTempSeries);
+  const internalFanSpeedSeries = computed(() => dashboardStore.internalFanSpeedSeries);
+  const externalFanSpeedSeries = computed(() => dashboardStore.externalFanSpeedSeries);
   const events = computed(() => dashboardStore.events);
   const minerOnOffEvents = computed(() => dashboardStore.minerOnOffEvents);
   const latestDecisionalContexts = computed(() => dashboardStore.latestDecisionalContexts);
@@ -83,7 +87,7 @@ export function useDashboardPolling(intervalMs = 5000) {
 
   async function refreshMinerStatuses() {
     const pollableMiners = minerStore.miners.filter(
-      (m) => m.id != null && m.active && m.controller_id
+      (m) => m.id != null && m.active && m.controller_ids?.length
     );
     if (pollableMiners.length > 0) {
       await Promise.all(
@@ -97,6 +101,11 @@ export function useDashboardPolling(intervalMs = 5000) {
 
     let totalHash = 0;
     let totalPower = 0;
+    let maxChipTemp: number | null = null;
+    let maxBoardTemp: number | null = null;
+    let maxInternalFanSpeed: number | null = null;
+    let latestExternalFanSpeed: number | null = null;
+
     for (const m of minerStore.miners) {
       const state = m.id ? minerStore.minerStates.get(m.id) : undefined;
       if (state?.status === "on") {
@@ -104,11 +113,45 @@ export function useDashboardPolling(intervalMs = 5000) {
           totalHash += normalizeHashRate(state.hash_rate.value, state.hash_rate.unit || "TH/s");
         }
         totalPower += state.power_consumption || 0;
+
+        // Aggregate max chip temperature across all miners
+        if (state.max_chip_temperature?.value != null) {
+          maxChipTemp = Math.max(maxChipTemp ?? -Infinity, state.max_chip_temperature.value);
+        }
+        // Aggregate max board temperature across all miners
+        if (state.max_board_temperature?.value != null) {
+          maxBoardTemp = Math.max(maxBoardTemp ?? -Infinity, state.max_board_temperature.value);
+        }
+        // Aggregate max internal fan speed across all miners
+        if (state.internal_fan_speed?.length) {
+          for (const fs of state.internal_fan_speed) {
+            if (fs.value != null) {
+              maxInternalFanSpeed = Math.max(maxInternalFanSpeed ?? -Infinity, fs.value);
+            }
+          }
+        }
+        // Latest external fan speed (max across miners)
+        if (state.external_fan_speed?.value != null) {
+          latestExternalFanSpeed = Math.max(latestExternalFanSpeed ?? -Infinity, state.external_fan_speed.value);
+        }
       }
     }
 
     dashboardStore.addSeriesPoint("hashRate", { time: now, value: totalHash });
     dashboardStore.addSeriesPoint("power", { time: now, value: totalPower });
+
+    if (maxChipTemp !== null) {
+      dashboardStore.addSeriesPoint("maxChipTemp", { time: now, value: maxChipTemp });
+    }
+    if (maxBoardTemp !== null) {
+      dashboardStore.addSeriesPoint("maxBoardTemp", { time: now, value: maxBoardTemp });
+    }
+    if (maxInternalFanSpeed !== null) {
+      dashboardStore.addSeriesPoint("internalFanSpeed", { time: now, value: maxInternalFanSpeed });
+    }
+    if (latestExternalFanSpeed !== null) {
+      dashboardStore.addSeriesPoint("externalFanSpeed", { time: now, value: latestExternalFanSpeed });
+    }
   }
 
   async function fetchDecisionalContexts() {
@@ -264,6 +307,10 @@ export function useDashboardPolling(intervalMs = 5000) {
     batteryPowerSeries,
     gridPowerSeries,
     consumptionSeries,
+    maxChipTempSeries,
+    maxBoardTempSeries,
+    internalFanSpeedSeries,
+    externalFanSpeedSeries,
     minerOnOffEvents,
     latestDecisionalContexts,
     forecastPowerPoints,

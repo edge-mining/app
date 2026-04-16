@@ -46,7 +46,7 @@ const externalService = computed(() => {
 const assignedMiners = computed(() => {
   if (!props.allMiners || !props.minerController.id) return [];
   return props.allMiners.filter(
-    (miner) => miner.controller_id === props.minerController.id
+    (miner) => miner.controller_ids?.includes(props.minerController.id!)
   );
 });
 

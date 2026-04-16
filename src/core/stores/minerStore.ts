@@ -59,6 +59,26 @@ export const useMinerStore = defineStore("miner", () => {
     return minerStates.value.get(minerId);
   }
 
+  function setMinerController(minerId: string, controllerId: string) {
+    return service.setMinerController(minerId, controllerId);
+  }
+
+  function unlinkMinerController(minerId: string, controllerId: string) {
+    return service.unlinkMinerController(minerId, controllerId);
+  }
+
+  function enableFeature(minerId: string, controllerId: string, featureType: string) {
+    return service.enableFeature(minerId, controllerId, featureType);
+  }
+
+  function disableFeature(minerId: string, controllerId: string, featureType: string) {
+    return service.disableFeature(minerId, controllerId, featureType);
+  }
+
+  function setFeaturePriority(minerId: string, controllerId: string, featureType: string, priority: number) {
+    return service.setFeaturePriority(minerId, controllerId, featureType, priority);
+  }
+
   return {
     //STATE
     miners,
@@ -74,5 +94,10 @@ export const useMinerStore = defineStore("miner", () => {
     deactivateMiner,
     getMinerStatus,
     getMinerState,
+    setMinerController,
+    unlinkMinerController,
+    enableFeature,
+    disableFeature,
+    setFeaturePriority,
   };
 });

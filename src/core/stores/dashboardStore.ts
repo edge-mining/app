@@ -34,6 +34,10 @@ export const useDashboardStore = defineStore("dashboard", () => {
   const batteryPowerSeries = ref<TimeSeriesPoint[]>([]);
   const gridPowerSeries = ref<TimeSeriesPoint[]>([]);
   const consumptionSeries = ref<TimeSeriesPoint[]>([]);
+  const maxChipTempSeries = ref<TimeSeriesPoint[]>([]);
+  const maxBoardTempSeries = ref<TimeSeriesPoint[]>([]);
+  const internalFanSpeedSeries = ref<TimeSeriesPoint[]>([]);
+  const externalFanSpeedSeries = ref<TimeSeriesPoint[]>([]);
   const events = ref<DashboardEvent[]>([]);
   const minerOnOffEvents = ref<MinerOnOffEvent[]>([]);
   const previousMinerStatuses = ref<Map<string, string>>(new Map());
@@ -41,7 +45,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
   const forecastPowerPoints = ref<ForecastPowerPoint[]>([]);
   let eventCounter = 0;
 
-  type SeriesName = "hashRate" | "power" | "energyProduction" | "batterySOC" | "batteryPower" | "gridPower" | "consumption";
+  type SeriesName = "hashRate" | "power" | "energyProduction" | "batterySOC" | "batteryPower" | "gridPower" | "consumption" | "maxChipTemp" | "maxBoardTemp" | "internalFanSpeed" | "externalFanSpeed";
 
   const seriesMap: Record<SeriesName, typeof hashRateSeries> = {
     hashRate: hashRateSeries,
@@ -51,6 +55,10 @@ export const useDashboardStore = defineStore("dashboard", () => {
     batteryPower: batteryPowerSeries,
     gridPower: gridPowerSeries,
     consumption: consumptionSeries,
+    maxChipTemp: maxChipTempSeries,
+    maxBoardTemp: maxBoardTempSeries,
+    internalFanSpeed: internalFanSpeedSeries,
+    externalFanSpeed: externalFanSpeedSeries,
   };
 
   function addSeriesPoint(
@@ -87,6 +95,10 @@ export const useDashboardStore = defineStore("dashboard", () => {
     batteryPowerSeries,
     gridPowerSeries,
     consumptionSeries,
+    maxChipTempSeries,
+    maxBoardTempSeries,
+    internalFanSpeedSeries,
+    externalFanSpeedSeries,
     events,
     minerOnOffEvents,
     previousMinerStatuses,
