@@ -12,6 +12,7 @@ from edge_mining.adapters.domain.forecast.fast_api.router import router as forec
 from edge_mining.adapters.domain.miner.fast_api.router import router as miner_router
 from edge_mining.adapters.domain.notification.fast_api.router import router as notification_router
 from edge_mining.adapters.domain.optimization_unit.fast_api.router import router as optimization_unit_router
+from edge_mining.adapters.domain.performance.fast_api.router import router as performance_router
 from edge_mining.adapters.domain.policy.fast_api.router import router as policy_router
 
 # Import dependency injection setup functions
@@ -80,6 +81,7 @@ app.include_router(external_services_router, prefix="/api/v1", tags=["external_s
 app.include_router(rule_engine_router, prefix="/api/v1", tags=["rule_engine"])
 app.include_router(notification_router, prefix="/api/v1", tags=["notification"])
 app.include_router(forecast_router, prefix="/api/v1", tags=["forecast"])
+app.include_router(performance_router, prefix="/api/v1", tags=["performance"])
 app.include_router(ws_router, tags=["websocket"])
 # Add more routers here (e.g., for configuration)
 
