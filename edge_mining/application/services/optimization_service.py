@@ -362,7 +362,9 @@ class OptimizationService(OptimizationServiceInterface):
                 try:
                     # TODO: Provide parameters if needed
                     miner_ids = optimization_unit.target_miner_ids
-                    tracker_current_hashrate = mining_performance_tracker.get_current_hashrate(miner_ids=miner_ids)
+                    tracker_current_hashrate = await mining_performance_tracker.get_current_hashrate(
+                        miner_ids=miner_ids
+                    )
                 except Exception as e:
                     if self.logger:
                         self.logger.warning(
@@ -649,7 +651,7 @@ class OptimizationService(OptimizationServiceInterface):
             try:
                 # TODO: Provide parameters if needed
                 miner_ids = optimization_unit.target_miner_ids
-                tracker_current_hashrate = mining_performance_tracker.get_current_hashrate(miner_ids=miner_ids)
+                tracker_current_hashrate = await mining_performance_tracker.get_current_hashrate(miner_ids=miner_ids)
             except Exception as e:
                 if self.logger:
                     self.logger.warning(
