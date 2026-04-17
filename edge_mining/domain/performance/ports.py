@@ -1,4 +1,4 @@
-"""Collection of Ports for the Mining Performace Analysis domain of the Edge Mining application."""
+"""Collection of Ports for the Mining Performance Analysis domain of the Edge Mining application."""
 
 from abc import ABC, abstractmethod
 from typing import List, Optional
