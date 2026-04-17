@@ -22,6 +22,8 @@ from edge_mining.domain.notification.common import NotificationAdapter
 from edge_mining.domain.notification.entities import Notifier
 from edge_mining.domain.notification.ports import NotificationPort
 from edge_mining.domain.optimization_unit.aggregate_roots import EnergyOptimizationUnit
+from edge_mining.domain.performance.common import MiningPerformanceTrackerAdapter
+from edge_mining.domain.performance.entities import MiningPerformanceTracker
 from edge_mining.domain.performance.ports import MiningPerformanceTrackerPort
 from edge_mining.domain.policy.aggregate_roots import OptimizationPolicy
 from edge_mining.domain.policy.common import RuleType
@@ -37,6 +39,7 @@ from edge_mining.shared.interfaces.config import (
     ExternalServiceConfig,
     ForecastProviderConfig,
     MinerControllerConfig,
+    MiningPerformanceTrackerConfig,
     NotificationConfig,
 )
 
@@ -349,6 +352,59 @@ class ConfigurationServiceInterface(ABC):
         self, adapter_type: NotificationAdapter
     ) -> Optional[ExternalServiceAdapter]:
         """Get the external service adapter type for a specific notification adapter type."""
+
+    # --- Mining Performance Tracker Management ---
+    @abstractmethod
+    async def add_mining_performance_tracker(
+        self,
+        name: str,
+        adapter_type: MiningPerformanceTrackerAdapter,
+        config: Optional[MiningPerformanceTrackerConfig],
+        external_service_id: Optional[EntityId] = None,
+    ) -> MiningPerformanceTracker:
+        """Add a new mining performance tracker."""
+
+    @abstractmethod
+    def get_mining_performance_tracker(self, tracker_id: EntityId) -> Optional[MiningPerformanceTracker]:
+        """Get a mining performance tracker by its ID."""
+
+    @abstractmethod
+    def list_mining_performance_trackers(self) -> List[MiningPerformanceTracker]:
+        """List all mining performance trackers in the system."""
+
+    @abstractmethod
+    async def update_mining_performance_tracker(
+        self,
+        tracker_id: EntityId,
+        name: str,
+        config: MiningPerformanceTrackerConfig,
+        external_service_id: Optional[EntityId] = None,
+    ) -> MiningPerformanceTracker:
+        """Update a mining performance tracker in the system."""
+
+    @abstractmethod
+    async def unlink_mining_performance_tracker(self, tracker_id: EntityId) -> None:
+        """Detach a mining performance tracker from any optimization unit that references it."""
+
+    @abstractmethod
+    async def remove_mining_performance_tracker(self, tracker_id: EntityId) -> MiningPerformanceTracker:
+        """Remove a mining performance tracker from the system."""
+
+    @abstractmethod
+    def check_mining_performance_tracker(self, tracker: MiningPerformanceTracker) -> bool:
+        """Check if a mining performance tracker is valid and can be used."""
+
+    @abstractmethod
+    def get_mining_performance_tracker_config_by_type(
+        self, adapter_type: MiningPerformanceTrackerAdapter
+    ) -> Optional[type[MiningPerformanceTrackerConfig]]:
+        """Get the configuration class for a specific tracker adapter type."""
+
+    @abstractmethod
+    def get_mining_performance_tracker_external_service_adapter(
+        self, adapter_type: MiningPerformanceTrackerAdapter
+    ) -> Optional[ExternalServiceAdapter]:
+        """Get the external service adapter type for a specific tracker adapter type."""
 
     # --- Policy Management ---
     @abstractmethod
