@@ -1,16 +1,11 @@
 """Collection of Value Objects for the Mining Performance Analysis domain of the Edge Mining application."""
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from typing import List, Optional
 
-from edge_mining.domain.common import Timestamp, ValueObject
+from edge_mining.domain.common import Timestamp, ValueObject, utc_now_timestamp
 from edge_mining.domain.miner.value_objects import HashRate
 from edge_mining.domain.performance.common import PayoutFrequency, Satoshi
-
-
-def _utc_now_timestamp() -> Timestamp:
-    return Timestamp(datetime.now(timezone.utc))
 
 
 @dataclass(frozen=True)
@@ -18,7 +13,7 @@ class MiningReward(ValueObject):
     """Value Object for a mining reward."""
 
     amount: Satoshi
-    timestamp: Timestamp = field(default_factory=_utc_now_timestamp)
+    timestamp: Timestamp = field(default_factory=utc_now_timestamp)
 
 
 @dataclass(frozen=True)
@@ -43,7 +38,7 @@ class PoolStats(ValueObject):
     unpaid_balance: Optional[Satoshi] = None
     estimated_next_payout: Optional[Satoshi] = None
     workers: List[PoolWorkerStats] = field(default_factory=list)
-    timestamp: Timestamp = field(default_factory=_utc_now_timestamp)
+    timestamp: Timestamp = field(default_factory=utc_now_timestamp)
 
 
 @dataclass(frozen=True)
