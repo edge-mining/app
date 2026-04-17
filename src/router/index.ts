@@ -4,6 +4,7 @@ import MinersSettingsView from "../views/settings/MinersSettingsView.vue";
 import EnergySourcesSettingsView from "../views/settings/EnergySourcesSettingsView.vue";
 import EnergyMonitorSettingsView from "../views/settings/EnergyMonitorSettingsView.vue";
 import MinerControllersSettingsView from "../views/settings/MinerControllersSettingsView.vue";
+import PerformanceTrackersSettingsView from "../views/settings/PerformanceTrackersSettingsView.vue";
 import ForecastProvidersSettingsView from "../views/settings/ForecastProvidersSettingsView.vue";
 import PoliciesSettingsView from "../views/settings/PoliciesSettingsView.vue";
 import NotifiersSettingsView from "../views/settings/NotifiersSettingsView.vue";
@@ -43,6 +44,11 @@ const router = createRouter({
           path: "miner-controllers",
           name: "settings.minerControllers",
           component: MinerControllersSettingsView,
+        },
+        {
+          path: "performance-trackers",
+          name: "settings.performanceTrackers",
+          component: PerformanceTrackersSettingsView,
         },
         {
           path: "forecast-providers",
