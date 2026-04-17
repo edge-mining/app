@@ -11,6 +11,7 @@ class ConfigurationUpdatedEventType(Enum):
     NOTIFIER = "notifier"
     EXTERNAL_SERVICE = "external_service"
     FORECAST_PROVIDER = "forecast_provider"
+    MINING_PERFORMANCE_TRACKER = "mining_performance_tracker"
     UNKNOWN = ""
 
 
