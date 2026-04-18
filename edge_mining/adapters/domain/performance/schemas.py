@@ -6,13 +6,16 @@ from typing import Dict, List, Optional, Union, cast
 
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
-from edge_mining.domain.common import EntityId
+from edge_mining.domain.common import EntityId, Timestamp
+from edge_mining.domain.miner.value_objects import HashRate
 from edge_mining.domain.performance.common import (
     MiningPerformanceTrackerAdapter,
     PayoutFrequency,
+    Satoshi,
 )
 from edge_mining.domain.performance.entities import MiningPerformanceTracker
 from edge_mining.domain.performance.value_objects import (
+    MiningPerformanceSnapshot,
     MiningReward,
     PayoutSchedule,
     PoolStats,
@@ -329,6 +332,10 @@ class HashRateSchema(BaseModel):
     value: float = Field(..., description="Hash rate value")
     unit: str = Field(default="TH/s", description="Hash rate unit")
 
+    def to_model(self) -> HashRate:
+        """Convert schema to HashRate value object."""
+        return HashRate(value=self.value, unit=self.unit)
+
 
 class PoolWorkerStatsSchema(BaseModel):
     """Schema for a single worker's pool statistics."""
@@ -352,6 +359,17 @@ class PoolWorkerStatsSchema(BaseModel):
             valid_shares=worker.valid_shares,
             stale_shares=worker.stale_shares,
             rejected_shares=worker.rejected_shares,
+        )
+
+    def to_model(self) -> PoolWorkerStats:
+        """Convert schema to PoolWorkerStats value object."""
+        return PoolWorkerStats(
+            worker_name=self.worker_name,
+            hashrate=self.hashrate.to_model() if self.hashrate else None,
+            last_share_at=Timestamp(self.last_share_at) if self.last_share_at else None,
+            valid_shares=self.valid_shares,
+            stale_shares=self.stale_shares,
+            rejected_shares=self.rejected_shares,
         )
 
 
@@ -389,6 +407,20 @@ class PoolStatsSchema(BaseModel):
             timestamp=stats.timestamp,
         )
 
+    def to_model(self) -> PoolStats:
+        """Convert schema to PoolStats value object."""
+        return PoolStats(
+            current_hashrate=self.current_hashrate.to_model() if self.current_hashrate else None,
+            average_hashrate_24h=self.average_hashrate_24h.to_model() if self.average_hashrate_24h else None,
+            average_hashrate_7d=self.average_hashrate_7d.to_model() if self.average_hashrate_7d else None,
+            unpaid_balance=Satoshi(self.unpaid_balance) if self.unpaid_balance is not None else None,
+            estimated_next_payout=(
+                Satoshi(self.estimated_next_payout) if self.estimated_next_payout is not None else None
+            ),
+            workers=[w.to_model() for w in self.workers],
+            timestamp=Timestamp(self.timestamp),
+        )
+
 
 class MiningRewardSchema(BaseModel):
     """Schema for a single mining reward."""
@@ -400,6 +432,10 @@ class MiningRewardSchema(BaseModel):
     def from_model(cls, reward: MiningReward) -> "MiningRewardSchema":
         """Build the schema from a MiningReward value object."""
         return cls(amount=int(reward.amount), timestamp=reward.timestamp)
+
+    def to_model(self) -> MiningReward:
+        """Convert schema to MiningReward value object."""
+        return MiningReward(amount=Satoshi(self.amount), timestamp=Timestamp(self.timestamp))
 
 
 class PayoutScheduleSchema(BaseModel):
@@ -416,6 +452,46 @@ class PayoutScheduleSchema(BaseModel):
             frequency=schedule.frequency,
             threshold=int(schedule.threshold) if schedule.threshold is not None else None,
             next_payout_at=schedule.next_payout_at,
+        )
+
+    def to_model(self) -> PayoutSchedule:
+        """Convert schema to PayoutSchedule value object."""
+        return PayoutSchedule(
+            frequency=self.frequency,
+            threshold=Satoshi(self.threshold) if self.threshold is not None else None,
+            next_payout_at=Timestamp(self.next_payout_at) if self.next_payout_at else None,
+        )
+
+
+class MiningPerformanceSnapshotSchema(BaseModel):
+    """Schema for the consolidated mining performance snapshot."""
+
+    current_hashrate: Optional[HashRateSchema] = None
+    pool_stats: Optional[PoolStatsSchema] = None
+    payout_schedule: Optional[PayoutScheduleSchema] = None
+    timestamp: datetime
+
+    @classmethod
+    def from_model(cls, snapshot: MiningPerformanceSnapshot) -> "MiningPerformanceSnapshotSchema":
+        """Build the schema from a MiningPerformanceSnapshot value object."""
+        return cls(
+            current_hashrate=HashRateSchema(value=snapshot.current_hashrate.value, unit=snapshot.current_hashrate.unit)
+            if snapshot.current_hashrate
+            else None,
+            pool_stats=PoolStatsSchema.from_model(snapshot.pool_stats) if snapshot.pool_stats else None,
+            payout_schedule=PayoutScheduleSchema.from_model(snapshot.payout_schedule)
+            if snapshot.payout_schedule
+            else None,
+            timestamp=snapshot.timestamp,
+        )
+
+    def to_model(self) -> MiningPerformanceSnapshot:
+        """Convert schema to MiningPerformanceSnapshot value object."""
+        return MiningPerformanceSnapshot(
+            current_hashrate=self.current_hashrate.to_model() if self.current_hashrate else None,
+            pool_stats=self.pool_stats.to_model() if self.pool_stats else None,
+            payout_schedule=self.payout_schedule.to_model() if self.payout_schedule else None,
+            timestamp=Timestamp(self.timestamp),
         )
 
     class Config:
