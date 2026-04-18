@@ -48,3 +48,18 @@ class PayoutSchedule(ValueObject):
     frequency: PayoutFrequency = PayoutFrequency.UNKNOWN
     threshold: Optional[Satoshi] = None
     next_payout_at: Optional[Timestamp] = None
+
+
+@dataclass(frozen=True)
+class MiningPerformanceSnapshot(ValueObject):
+    """Consolidated snapshot of live data returned by a Mining Performance Tracker.
+
+    Grouped into a single Value Object so that decision-making components can
+    consume pool-side state as a cohesive unit, with one timestamp certifying
+    the freshness of all contained fields.
+    """
+
+    current_hashrate: Optional[HashRate] = None
+    pool_stats: Optional[PoolStats] = None
+    payout_schedule: Optional[PayoutSchedule] = None
+    timestamp: Timestamp = field(default_factory=utc_now_timestamp)
