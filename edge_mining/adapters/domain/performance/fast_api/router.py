@@ -31,6 +31,7 @@ from edge_mining.domain.performance.exceptions import (
     MiningPerformanceTrackerConfigurationError,
     MiningPerformanceTrackerNotFoundError,
     MiningPoolAuthError,
+    MiningPoolRateLimitedError,
     MiningPoolResponseError,
     MiningPoolUnreachableError,
 )
@@ -242,6 +243,9 @@ async def test_mining_performance_tracker(
         return {"status": "success", "message": "Mining performance tracker reachable"}
     except MiningPerformanceTrackerNotFoundError as e:
         raise HTTPException(status_code=404, detail="Mining performance tracker not found") from e
+    except MiningPoolRateLimitedError as e:
+        headers = {"Retry-After": str(int(e.retry_after))} if e.retry_after else None
+        raise HTTPException(status_code=429, detail=f"Pool rate-limited: {str(e)}", headers=headers) from e
     except MiningPoolAuthError as e:
         raise HTTPException(status_code=401, detail=f"Pool authentication failed: {str(e)}") from e
     except MiningPoolUnreachableError as e:
@@ -275,6 +279,9 @@ async def get_mining_performance_tracker_stats(
         raise
     except MiningPerformanceTrackerNotFoundError as e:
         raise HTTPException(status_code=404, detail="Mining performance tracker not found") from e
+    except MiningPoolRateLimitedError as e:
+        headers = {"Retry-After": str(int(e.retry_after))} if e.retry_after else None
+        raise HTTPException(status_code=429, detail=f"Pool rate-limited: {str(e)}", headers=headers) from e
     except MiningPoolAuthError as e:
         raise HTTPException(status_code=401, detail=f"Pool authentication failed: {str(e)}") from e
     except MiningPoolUnreachableError as e:
@@ -303,6 +310,9 @@ async def get_mining_performance_tracker_workers(
         return [PoolWorkerStatsSchema.from_model(w) for w in workers]
     except MiningPerformanceTrackerNotFoundError as e:
         raise HTTPException(status_code=404, detail="Mining performance tracker not found") from e
+    except MiningPoolRateLimitedError as e:
+        headers = {"Retry-After": str(int(e.retry_after))} if e.retry_after else None
+        raise HTTPException(status_code=429, detail=f"Pool rate-limited: {str(e)}", headers=headers) from e
     except MiningPoolAuthError as e:
         raise HTTPException(status_code=401, detail=f"Pool authentication failed: {str(e)}") from e
     except MiningPoolUnreachableError as e:
@@ -332,6 +342,9 @@ async def get_mining_performance_tracker_rewards(
         return [MiningRewardSchema.from_model(r) for r in rewards]
     except MiningPerformanceTrackerNotFoundError as e:
         raise HTTPException(status_code=404, detail="Mining performance tracker not found") from e
+    except MiningPoolRateLimitedError as e:
+        headers = {"Retry-After": str(int(e.retry_after))} if e.retry_after else None
+        raise HTTPException(status_code=429, detail=f"Pool rate-limited: {str(e)}", headers=headers) from e
     except MiningPoolAuthError as e:
         raise HTTPException(status_code=401, detail=f"Pool authentication failed: {str(e)}") from e
     except MiningPoolUnreachableError as e:
@@ -365,6 +378,9 @@ async def get_mining_performance_tracker_payout_schedule(
         raise
     except MiningPerformanceTrackerNotFoundError as e:
         raise HTTPException(status_code=404, detail="Mining performance tracker not found") from e
+    except MiningPoolRateLimitedError as e:
+        headers = {"Retry-After": str(int(e.retry_after))} if e.retry_after else None
+        raise HTTPException(status_code=429, detail=f"Pool rate-limited: {str(e)}", headers=headers) from e
     except MiningPoolAuthError as e:
         raise HTTPException(status_code=401, detail=f"Pool authentication failed: {str(e)}") from e
     except MiningPoolUnreachableError as e:

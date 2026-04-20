@@ -15,6 +15,7 @@ from edge_mining.domain.performance.common import MiningPerformanceTrackerAdapte
 from edge_mining.domain.performance.entities import MiningPerformanceTracker
 from edge_mining.domain.performance.exceptions import (
     MiningPoolAuthError,
+    MiningPoolRateLimitedError,
     MiningPoolResponseError,
     MiningPoolUnreachableError,
 )
@@ -339,6 +340,9 @@ def check_single_mining_performance_tracker(
                 )
             )
         return True
+    except MiningPoolRateLimitedError as e:
+        hint = f" (retry after {int(e.retry_after)}s)" if e.retry_after else ""
+        click.echo(click.style(f"Pool rate-limited{hint}: {e}", fg="red"), err=True)
     except MiningPoolAuthError as e:
         click.echo(click.style(f"Authentication failed: {e}", fg="red"), err=True)
     except MiningPoolUnreachableError as e:
