@@ -13,9 +13,14 @@ import VectorIcon from "./VectorIcon.vue";
 
 const route = useRoute();
 
+const isDashboardOpen = ref(true);
 const isEnergyOpen = ref(true);
 const isMiningOpen = ref(true);
 const isAutomationOpen = ref(true);
+
+const isDashboardActive = computed(() =>
+  route.path === "/" || route.path.startsWith("/dashboard")
+);
 
 const isEnergyActive = computed(() =>
   ["/settings/energy-sources", "/settings/energy-monitors", "/settings/forecast-providers"].some(
@@ -58,15 +63,37 @@ const isAutomationActive = computed(() =>
         <ul class="menu px-0 w-full gap-0.5">
           <!-- Dashboard -->
           <li class="w-full">
-            <RouterLink
-              to="/"
-              class="w-full text-sm font-medium"
-              active-class="active text-primary"
-              exact
-            >
-              <PhPulse :size="18" />
-              Dashboard
-            </RouterLink>
+            <details :open="isDashboardOpen">
+              <summary
+                class="text-sm font-medium"
+                :class="{ 'text-primary': isDashboardActive }"
+                @click.prevent="isDashboardOpen = !isDashboardOpen"
+              >
+                <PhPulse :size="18" />
+                Dashboard
+              </summary>
+              <ul class="rounded-t-none p-2 w-full">
+                <li class="w-full">
+                  <RouterLink
+                    to="/"
+                    class="w-full text-sm"
+                    active-class="active text-primary"
+                    exact
+                  >
+                    Overview
+                  </RouterLink>
+                </li>
+                <li class="w-full">
+                  <RouterLink
+                    to="/dashboard/mining"
+                    class="w-full text-sm"
+                    active-class="active text-primary"
+                  >
+                    Mining
+                  </RouterLink>
+                </li>
+              </ul>
+            </details>
           </li>
 
           <!-- Optimization -->
