@@ -14,8 +14,12 @@ from typing import Any, Dict, List, Optional
 from edge_mining.domain.common import EntityId, Timestamp
 from edge_mining.domain.miner.value_objects import HashRate
 from edge_mining.domain.performance.common import PayoutFrequency, Satoshi
+from edge_mining.adapters.domain.performance.trackers._base import (
+    CachedRateLimitedTrackerBase,
+)
 from edge_mining.domain.performance.exceptions import (
     MiningPerformanceTrackerConfigurationError,
+    MiningPoolRateLimitedError,
     MiningPoolResponseError,
     MiningPoolUnreachableError,
 )
@@ -51,6 +55,16 @@ def _hashrate_from_hs(value: Any) -> Optional[HashRate]:
     return HashRate(value=hs * _HS_TO_THS, unit="TH/s")
 
 
+def _parse_retry_after(header_value: Optional[str]) -> Optional[float]:
+    """Parse a Retry-After header. Supports integer seconds; HTTP-date is ignored."""
+    if header_value is None:
+        return None
+    try:
+        return float(header_value.strip())
+    except (TypeError, ValueError):
+        return None
+
+
 def _parse_timestamp(value: Any) -> Optional[Timestamp]:
     """Parse a UNIX seconds or ISO 8601 timestamp into a Timestamp."""
     if value is None:
@@ -71,14 +85,23 @@ def _parse_timestamp(value: Any) -> Optional[Timestamp]:
     return None
 
 
-class OceanMiningPerformanceTracker(MiningPerformanceTrackerPort):
+class OceanMiningPerformanceTracker(CachedRateLimitedTrackerBase, MiningPerformanceTrackerPort):
     """Adapter that talks to the Ocean.xyz public REST API."""
+
+    TTL_MAP = {
+        "current_hashrate": 60,
+        "pool_stats": 300,
+        "worker_stats": 300,
+        "payout_schedule": 3600,
+        "recent_rewards": 600,
+    }
 
     def __init__(
         self,
         config: MiningPerformanceTrackerOceanConfig,
         logger: Optional[LoggerPort] = None,
     ):
+        super().__init__(logger=logger)
         self._config = config
         self._logger = logger
 
@@ -95,6 +118,12 @@ class OceanMiningPerformanceTracker(MiningPerformanceTrackerPort):
         try:
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.get(url) as response:
+                    if response.status == 429:
+                        retry_after = _parse_retry_after(response.headers.get("Retry-After"))
+                        raise MiningPoolRateLimitedError(
+                            f"Ocean API rate-limited ({path})",
+                            retry_after=retry_after,
+                        )
                     if response.status >= 500:
                         raise MiningPoolUnreachableError(f"Ocean API returned status {response.status} for {path}")
                     try:
@@ -120,6 +149,9 @@ class OceanMiningPerformanceTracker(MiningPerformanceTrackerPort):
 
     async def get_current_hashrate(self, miner_ids: List[EntityId]) -> Optional[HashRate]:
         """Return the current account-level hashrate from `/v1/user_hashrate/{btc}`."""
+        return await self._cached_call("current_hashrate", self._fetch_current_hashrate)
+
+    async def _fetch_current_hashrate(self) -> Optional[HashRate]:
         try:
             data = await self._get(f"/v1/user_hashrate/{self._config.bitcoin_address}")
         except MiningPoolUnreachableError as exc:
@@ -132,6 +164,13 @@ class OceanMiningPerformanceTracker(MiningPerformanceTrackerPort):
 
     async def get_recent_rewards(self, miner_id: Optional[EntityId] = None, limit: int = 10) -> List[MiningReward]:
         """Return recent earnings derived from `/v1/earnpay/{btc}/{from_ts}`."""
+        return await self._cached_call(
+            "recent_rewards",
+            lambda: self._fetch_recent_rewards(limit),
+            args=(limit,),
+        )
+
+    async def _fetch_recent_rewards(self, limit: int) -> List[MiningReward]:
         # Use a reasonable look-back window proportional to the requested limit
         # (Ocean pays out roughly per block for active miners — ~30 days is wide enough).
         from_ts = int((datetime.now(timezone.utc) - timedelta(days=30)).timestamp())
@@ -165,6 +204,9 @@ class OceanMiningPerformanceTracker(MiningPerformanceTrackerPort):
 
     async def get_pool_stats(self) -> Optional[PoolStats]:
         """Combine `/v1/user_hashrate` and `/v1/user_hashrate_full` into a PoolStats VO."""
+        return await self._cached_call("pool_stats", self._fetch_pool_stats)
+
+    async def _fetch_pool_stats(self) -> Optional[PoolStats]:
         try:
             summary = await self._get(f"/v1/user_hashrate/{self._config.bitcoin_address}")
         except MiningPoolUnreachableError as exc:
@@ -201,6 +243,9 @@ class OceanMiningPerformanceTracker(MiningPerformanceTrackerPort):
 
     async def get_worker_stats(self, miner_ids: List[EntityId]) -> List[PoolWorkerStats]:
         """Fetch per-worker statistics from `/v1/user_hashrate_full/{btc}`."""
+        return await self._cached_call("worker_stats", self._fetch_worker_stats)
+
+    async def _fetch_worker_stats(self) -> List[PoolWorkerStats]:
         try:
             data = await self._get(f"/v1/user_hashrate_full/{self._config.bitcoin_address}")
         except MiningPoolUnreachableError as exc:
