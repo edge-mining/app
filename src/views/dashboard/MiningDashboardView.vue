@@ -5,7 +5,6 @@ import { useOptimizationUnitStore } from "../../core/stores/optimizationUnitStor
 import { useDashboardPolling } from "../../core/composables/useDashboardPolling";
 import { normalizeHashRate, formatPower, formatTimeAgo } from "../../core/utils/index";
 import KpiCard from "../../components/dashboard/KpiCard.vue";
-import MinerTile from "../../components/dashboard/MinerTile.vue";
 import PoolStatsCard from "../../components/mining/PoolStatsCard.vue";
 import PayoutCard from "../../components/mining/PayoutCard.vue";
 import MinerStateCard from "../../components/mining/MinerStateCard.vue";
@@ -305,46 +304,25 @@ const formattedPoolHashRate24h = computed(() => formatHashRateTH(totalPoolHashRa
       </div>
     </div>
 
-    <!-- Miner Fleet -->
+    <!-- Per-miner runtime state (from miner_state in decisional context) -->
     <div>
-      <div class="flex items-center gap-2 mb-3">
-        <PhCpu :size="16" class="text-base-content/40" />
-        <h2 class="text-sm font-semibold text-base-content/60 uppercase tracking-wider">
-          Miner Fleet
-        </h2>
-        <span class="text-xs text-base-content/30 ml-auto">
-          {{ runningMiners }} running
-        </span>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <MinerTile
-          v-for="miner in minerStore.miners"
-          :key="miner.id"
-          :miner="miner"
-          :state="miner.id ? minerStore.minerStates.get(miner.id) : undefined"
-        />
-        <div
-          v-if="minerStore.miners.length === 0"
-          class="col-span-full flex flex-col items-center py-12 text-center"
-        >
-          <PhCpu :size="36" class="text-base-content/15 mb-2" />
-          <span class="text-sm text-base-content/30">No miners configured</span>
-          <RouterLink to="/settings/miners" class="text-xs text-primary/60 hover:text-primary mt-1">
-            Add miners in Settings
-          </RouterLink>
-        </div>
-      </div>
-    </div>
-
-    <!-- Per-miner detailed runtime state (from miner_state in decisional context) -->
-    <div v-if="minerStore.miners.length > 0">
       <div class="flex items-center gap-2 mb-3">
         <PhCpu :size="16" class="text-base-content/40" />
         <h2 class="text-sm font-semibold text-base-content/60 uppercase tracking-wider">
           Miner Runtime State
         </h2>
+        <span class="text-xs text-base-content/30 ml-auto">
+          {{ runningMiners }} running
+        </span>
       </div>
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div v-if="minerStore.miners.length === 0" class="flex flex-col items-center py-12 text-center">
+        <PhCpu :size="36" class="text-base-content/15 mb-2" />
+        <span class="text-sm text-base-content/30">No miners configured</span>
+        <RouterLink to="/settings/miners" class="text-xs text-primary/60 hover:text-primary mt-1">
+          Add miners in Settings
+        </RouterLink>
+      </div>
+      <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <MinerStateCard
           v-for="miner in minerStore.miners"
           :key="miner.id"
