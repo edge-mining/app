@@ -120,8 +120,7 @@ async def test_get_pool_stats_merges_profile_and_workers(tracker: BraiinsPoolMin
         "hash_rate_unit": "Gh/s",
         "hash_rate_5m": 100_000.0,
         "hash_rate_24h": 90_000.0,
-        "hash_rate_7d": 80_000.0,
-        "unconfirmed_reward": "0.00012345",
+        "current_balance": "0.00012345",
         "estimated_reward": "0.00023456",
     }
     workers_payload = {
@@ -142,6 +141,8 @@ async def test_get_pool_stats_merges_profile_and_workers(tracker: BraiinsPoolMin
     assert stats.current_hashrate.value == pytest.approx(100.0, rel=1e-6)
     assert stats.average_hashrate_24h is not None
     assert stats.average_hashrate_24h.value == pytest.approx(90.0, rel=1e-6)
+    # Braiins post-FPPS does not expose a 7-day aggregate.
+    assert stats.average_hashrate_7d is None
     assert stats.unpaid_balance == 12345
     assert stats.estimated_next_payout == 23456
     assert len(stats.workers) == 1
@@ -184,22 +185,13 @@ async def test_get_recent_rewards_returns_empty_on_auth_error(tracker):
 
 
 @pytest.mark.asyncio
-async def test_get_payout_schedule_includes_threshold(tracker: BraiinsPoolMiningPerformanceTracker):
-    profile = {"payout_threshold": "0.01"}
-    with _patched_get(tracker, {"/accounts/profile/json/btc": profile}):
-        schedule = await tracker.get_payout_schedule()
+async def test_get_payout_schedule_is_daily(tracker: BraiinsPoolMiningPerformanceTracker):
+    # Post-FPPS Braiins pays daily and no longer exposes a configurable threshold.
+    schedule = await tracker.get_payout_schedule()
     assert schedule is not None
-    assert schedule.frequency.value == "threshold"
-    assert schedule.threshold == 1_000_000
-
-
-@pytest.mark.asyncio
-async def test_get_payout_schedule_fallback_on_error(tracker):
-    with _patched_get(tracker, {"/accounts/profile/json/btc": MiningPoolUnreachableError("nope")}):
-        schedule = await tracker.get_payout_schedule()
-    assert schedule is not None
-    assert schedule.frequency.value == "threshold"
+    assert schedule.frequency.value == "daily"
     assert schedule.threshold is None
+    assert schedule.next_payout_at is None
 
 
 # --- HTTP-level error mapping --------------------------------------------------
