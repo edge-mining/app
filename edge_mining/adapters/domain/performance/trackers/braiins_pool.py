@@ -15,9 +15,13 @@ from typing import Any, Dict, List, Optional
 from edge_mining.domain.common import EntityId, Timestamp
 from edge_mining.domain.miner.value_objects import HashRate
 from edge_mining.domain.performance.common import PayoutFrequency, Satoshi
+from edge_mining.adapters.domain.performance.trackers._base import (
+    CachedRateLimitedTrackerBase,
+)
 from edge_mining.domain.performance.exceptions import (
     MiningPerformanceTrackerConfigurationError,
     MiningPoolAuthError,
+    MiningPoolRateLimitedError,
     MiningPoolResponseError,
     MiningPoolUnreachableError,
 )
@@ -76,6 +80,16 @@ def _btc_string_to_sats(value: Any) -> Optional[Satoshi]:
     return Satoshi(int(round(btc * _SATS_PER_BTC)))
 
 
+def _parse_retry_after(header_value: Optional[str]) -> Optional[float]:
+    """Parse a Retry-After header. Supports integer seconds; HTTP-date is ignored."""
+    if header_value is None:
+        return None
+    try:
+        return float(header_value.strip())
+    except (TypeError, ValueError):
+        return None
+
+
 def _parse_timestamp(value: Any) -> Optional[Timestamp]:
     """Parse a UNIX seconds or ISO 8601 timestamp into a Timestamp."""
     if value is None:
@@ -96,14 +110,23 @@ def _parse_timestamp(value: Any) -> Optional[Timestamp]:
     return None
 
 
-class BraiinsPoolMiningPerformanceTracker(MiningPerformanceTrackerPort):
+class BraiinsPoolMiningPerformanceTracker(CachedRateLimitedTrackerBase, MiningPerformanceTrackerPort):
     """Adapter that talks to the Braiins Pool REST API."""
+
+    TTL_MAP = {
+        "current_hashrate": 60,
+        "pool_stats": 300,
+        "worker_stats": 300,
+        "payout_schedule": 3600,
+        "recent_rewards": 600,
+    }
 
     def __init__(
         self,
         config: MiningPerformanceTrackerBraiinsPoolConfig,
         logger: Optional[LoggerPort] = None,
     ):
+        super().__init__(logger=logger)
         self._config = config
         self._logger = logger
 
@@ -121,6 +144,12 @@ class BraiinsPoolMiningPerformanceTracker(MiningPerformanceTrackerPort):
         try:
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.get(url, headers=headers) as response:
+                    if response.status == 429:
+                        retry_after = _parse_retry_after(response.headers.get("Retry-After"))
+                        raise MiningPoolRateLimitedError(
+                            f"Braiins Pool rate-limited ({path})",
+                            retry_after=retry_after,
+                        )
                     if response.status in (401, 403):
                         raise MiningPoolAuthError(f"Braiins Pool rejected credentials ({response.status}) for {path}")
                     if response.status >= 500:
@@ -145,6 +174,9 @@ class BraiinsPoolMiningPerformanceTracker(MiningPerformanceTrackerPort):
 
     async def get_current_hashrate(self, miner_ids: List[EntityId]) -> Optional[HashRate]:
         """Return the current account hashrate from `/accounts/profile/json/btc`."""
+        return await self._cached_call("current_hashrate", self._fetch_current_hashrate)
+
+    async def _fetch_current_hashrate(self) -> Optional[HashRate]:
         try:
             data = await self._get("/accounts/profile/json/btc")
         except (MiningPoolUnreachableError, MiningPoolAuthError) as exc:
@@ -158,6 +190,13 @@ class BraiinsPoolMiningPerformanceTracker(MiningPerformanceTrackerPort):
 
     async def get_recent_rewards(self, miner_id: Optional[EntityId] = None, limit: int = 10) -> List[MiningReward]:
         """Return recent daily rewards from `/accounts/rewards/json/btc`."""
+        return await self._cached_call(
+            "recent_rewards",
+            lambda: self._fetch_recent_rewards(limit),
+            args=(limit,),
+        )
+
+    async def _fetch_recent_rewards(self, limit: int) -> List[MiningReward]:
         try:
             data = await self._get("/accounts/rewards/json/btc")
         except (MiningPoolUnreachableError, MiningPoolAuthError) as exc:
@@ -184,6 +223,9 @@ class BraiinsPoolMiningPerformanceTracker(MiningPerformanceTrackerPort):
 
     async def get_pool_stats(self) -> Optional[PoolStats]:
         """Combine `/accounts/profile/json/btc` and `/accounts/workers/json/btc` into PoolStats."""
+        return await self._cached_call("pool_stats", self._fetch_pool_stats)
+
+    async def _fetch_pool_stats(self) -> Optional[PoolStats]:
         try:
             profile = await self._get("/accounts/profile/json/btc")
         except (MiningPoolUnreachableError, MiningPoolAuthError) as exc:
@@ -212,6 +254,9 @@ class BraiinsPoolMiningPerformanceTracker(MiningPerformanceTrackerPort):
 
     async def get_worker_stats(self, miner_ids: List[EntityId]) -> List[PoolWorkerStats]:
         """Fetch per-worker statistics from `/accounts/workers/json/btc`."""
+        return await self._cached_call("worker_stats", self._fetch_worker_stats)
+
+    async def _fetch_worker_stats(self) -> List[PoolWorkerStats]:
         try:
             data = await self._get("/accounts/workers/json/btc")
         except (MiningPoolUnreachableError, MiningPoolAuthError) as exc:
@@ -224,6 +269,9 @@ class BraiinsPoolMiningPerformanceTracker(MiningPerformanceTrackerPort):
 
     async def get_payout_schedule(self) -> Optional[PayoutSchedule]:
         """Return the payout policy derived from the profile (threshold-based)."""
+        return await self._cached_call("payout_schedule", self._fetch_payout_schedule)
+
+    async def _fetch_payout_schedule(self) -> Optional[PayoutSchedule]:
         try:
             profile = await self._get("/accounts/profile/json/btc")
         except (MiningPoolUnreachableError, MiningPoolAuthError) as exc:
