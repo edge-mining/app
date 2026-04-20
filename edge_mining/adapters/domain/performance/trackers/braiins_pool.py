@@ -185,7 +185,7 @@ class BraiinsPoolMiningPerformanceTracker(CachedRateLimitedTrackerBase, MiningPe
             return None
 
         unit = data.get("hash_rate_unit")
-        raw = data.get("hash_rate_5m") or data.get("hash_rate_1h") or data.get("hash_rate_24h")
+        raw = data.get("hash_rate_5m") or data.get("hash_rate_60m") or data.get("hash_rate_24h")
         return _hashrate_from_value(raw, unit)
 
     async def get_recent_rewards(self, miner_id: Optional[EntityId] = None, limit: int = 10) -> List[MiningReward]:
@@ -243,11 +243,14 @@ class BraiinsPoolMiningPerformanceTracker(CachedRateLimitedTrackerBase, MiningPe
         unit = profile.get("hash_rate_unit")
         workers = self._parse_workers(workers_payload.get("workers"), unit)
 
+        # Post-FPPS (Nov 2023) Braiins removed `unconfirmed_reward` and `hash_rate_7d`
+        # from the profile. `current_balance` now carries the unpaid balance, and no
+        # 7-day aggregate is exposed — callers must fall back to 24h if they need it.
         return PoolStats(
             current_hashrate=_hashrate_from_value(profile.get("hash_rate_5m"), unit),
             average_hashrate_24h=_hashrate_from_value(profile.get("hash_rate_24h"), unit),
-            average_hashrate_7d=_hashrate_from_value(profile.get("hash_rate_7d"), unit),
-            unpaid_balance=_btc_string_to_sats(profile.get("unconfirmed_reward")),
+            average_hashrate_7d=None,
+            unpaid_balance=_btc_string_to_sats(profile.get("current_balance")),
             estimated_next_payout=_btc_string_to_sats(profile.get("estimated_reward")),
             workers=workers,
         )
@@ -268,21 +271,13 @@ class BraiinsPoolMiningPerformanceTracker(CachedRateLimitedTrackerBase, MiningPe
         return self._parse_workers(data.get("workers"), unit)
 
     async def get_payout_schedule(self) -> Optional[PayoutSchedule]:
-        """Return the payout policy derived from the profile (threshold-based)."""
+        """Return the payout policy for Braiins Pool (daily under FPPS)."""
         return await self._cached_call("payout_schedule", self._fetch_payout_schedule)
 
     async def _fetch_payout_schedule(self) -> Optional[PayoutSchedule]:
-        try:
-            profile = await self._get("/accounts/profile/json/btc")
-        except (MiningPoolUnreachableError, MiningPoolAuthError) as exc:
-            if self._logger:
-                self._logger.warning(f"Braiins: cannot fetch payout schedule: {exc}")
-            return PayoutSchedule(frequency=PayoutFrequency.THRESHOLD)
-
-        return PayoutSchedule(
-            frequency=PayoutFrequency.THRESHOLD,
-            threshold=_btc_string_to_sats(profile.get("payout_threshold")),
-        )
+        # Post-FPPS Braiins pays out daily and no longer exposes a configurable
+        # threshold; `threshold` and `next_payout_at` stay None by design.
+        return PayoutSchedule(frequency=PayoutFrequency.DAILY)
 
     @staticmethod
     def _parse_workers(raw_workers: Any, unit: Optional[str]) -> List[PoolWorkerStats]:
@@ -302,6 +297,10 @@ class BraiinsPoolMiningPerformanceTracker(CachedRateLimitedTrackerBase, MiningPe
             name = worker.get("worker_name") or worker.get("name") or key
             if not name:
                 continue
+            # Braiins only exposes aggregated share counts over fixed windows
+            # (`shares_5m`/`shares_60m`/`shares_24h`); we surface the 24h total as
+            # `valid_shares` — the most cumulative metric useful for stale-worker
+            # detection. Stale/rejected counts are not exposed by the API.
             workers.append(
                 PoolWorkerStats(
                     worker_name=str(name),
@@ -310,7 +309,7 @@ class BraiinsPoolMiningPerformanceTracker(CachedRateLimitedTrackerBase, MiningPe
                         worker.get("hash_rate_unit") or unit,
                     ),
                     last_share_at=_parse_timestamp(worker.get("last_share") or worker.get("last_share_at")),
-                    valid_shares=_safe_int(worker.get("valid_shares")),
+                    valid_shares=_safe_int(worker.get("shares_24h") or worker.get("valid_shares")),
                     stale_shares=_safe_int(worker.get("stale_shares")),
                     rejected_shares=_safe_int(worker.get("rejected_shares")),
                 )
