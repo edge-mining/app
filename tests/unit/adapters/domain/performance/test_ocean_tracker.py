@@ -13,6 +13,7 @@ from edge_mining.adapters.domain.performance.trackers.ocean import (
 from edge_mining.domain.common import EntityId
 from edge_mining.domain.performance.exceptions import (
     MiningPerformanceTrackerConfigurationError,
+    MiningPoolRateLimitedError,
     MiningPoolResponseError,
     MiningPoolUnreachableError,
 )
@@ -197,10 +198,17 @@ async def test_get_payout_schedule_is_threshold(tracker: OceanMiningPerformanceT
 
 
 class _FakeResponse:
-    def __init__(self, status: int, payload: Any = None, raise_json: Exception = None):
+    def __init__(
+        self,
+        status: int,
+        payload: Any = None,
+        raise_json: Exception = None,
+        headers: Dict[str, str] = None,
+    ):
         self.status = status
         self._payload = payload
         self._raise_json = raise_json
+        self.headers = headers or {}
 
     async def __aenter__(self) -> "_FakeResponse":
         return self
@@ -265,6 +273,34 @@ async def test_http_timeout_raises_unreachable(tracker: OceanMiningPerformanceTr
     with patch("aiohttp.ClientSession", _session_factory):
         with pytest.raises(MiningPoolUnreachableError):
             await tracker._get("/v1/user_hashrate/whatever")
+
+
+@pytest.mark.asyncio
+async def test_http_429_raises_rate_limited_with_retry_after(tracker: OceanMiningPerformanceTracker):
+    fake_response = _FakeResponse(status=429, payload={}, headers={"Retry-After": "42"})
+
+    def _session_factory(*_args, **_kwargs):
+        return _FakeSession(response=fake_response)
+
+    with patch("aiohttp.ClientSession", _session_factory):
+        with pytest.raises(MiningPoolRateLimitedError) as exc_info:
+            await tracker._get("/v1/user_hashrate/whatever")
+
+    assert exc_info.value.retry_after == pytest.approx(42.0)
+
+
+@pytest.mark.asyncio
+async def test_http_429_without_retry_after_header(tracker: OceanMiningPerformanceTracker):
+    fake_response = _FakeResponse(status=429, payload={}, headers={})
+
+    def _session_factory(*_args, **_kwargs):
+        return _FakeSession(response=fake_response)
+
+    with patch("aiohttp.ClientSession", _session_factory):
+        with pytest.raises(MiningPoolRateLimitedError) as exc_info:
+            await tracker._get("/v1/user_hashrate/whatever")
+
+    assert exc_info.value.retry_after is None
 
 
 # --- Factory ------------------------------------------------------------------

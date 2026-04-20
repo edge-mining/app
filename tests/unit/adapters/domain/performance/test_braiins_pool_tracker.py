@@ -15,6 +15,7 @@ from edge_mining.domain.performance.common import MiningPerformanceTrackerAdapte
 from edge_mining.domain.performance.exceptions import (
     MiningPerformanceTrackerConfigurationError,
     MiningPoolAuthError,
+    MiningPoolRateLimitedError,
     MiningPoolResponseError,
     MiningPoolUnreachableError,
 )
@@ -205,10 +206,17 @@ async def test_get_payout_schedule_fallback_on_error(tracker):
 
 
 class _FakeResponse:
-    def __init__(self, status: int, payload: Any = None, raise_json: Exception = None):
+    def __init__(
+        self,
+        status: int,
+        payload: Any = None,
+        raise_json: Exception = None,
+        headers: dict = None,
+    ):
         self.status = status
         self._payload = payload
         self._raise_json = raise_json
+        self.headers = headers or {}
 
     async def __aenter__(self) -> "_FakeResponse":
         return self
@@ -275,6 +283,37 @@ async def test_http_timeout_raises_unreachable(tracker: BraiinsPoolMiningPerform
 
     with patch("aiohttp.ClientSession", _session_factory):
         with pytest.raises(MiningPoolUnreachableError):
+            await tracker._get("/accounts/profile/json/btc")
+
+
+@pytest.mark.asyncio
+async def test_http_429_raises_rate_limited_with_retry_after(
+    tracker: BraiinsPoolMiningPerformanceTracker,
+):
+    fake_response = _FakeResponse(status=429, payload={}, headers={"Retry-After": "15"})
+
+    def _session_factory(*_args, **_kwargs):
+        return _FakeSession(response=fake_response)
+
+    with patch("aiohttp.ClientSession", _session_factory):
+        with pytest.raises(MiningPoolRateLimitedError) as exc_info:
+            await tracker._get("/accounts/profile/json/btc")
+
+    assert exc_info.value.retry_after == pytest.approx(15.0)
+
+
+@pytest.mark.asyncio
+async def test_http_429_takes_priority_over_auth_even_when_authenticated(
+    tracker: BraiinsPoolMiningPerformanceTracker,
+):
+    # An authenticated endpoint can still be throttled; 429 must win over 401/403 mapping.
+    fake_response = _FakeResponse(status=429, payload={}, headers={})
+
+    def _session_factory(*_args, **_kwargs):
+        return _FakeSession(response=fake_response)
+
+    with patch("aiohttp.ClientSession", _session_factory):
+        with pytest.raises(MiningPoolRateLimitedError):
             await tracker._get("/accounts/profile/json/btc")
 
 
