@@ -39,37 +39,37 @@ class HomeLoadsProfileRemoveDeviceError(HomeLoadError):
     pass
 
 
-class HomeForecastError(HomeLoadError):
-    """Base class for home forecast-specific errors."""
+class EnergyLoadForecastError(HomeLoadError):
+    """Base class for energy load forecast-specific errors."""
 
     pass
 
 
-class HomeForecastProviderError(HomeForecastError):
-    """Errors related to home forecast provider."""
+class EnergyLoadForecastProviderError(EnergyLoadForecastError):
+    """Errors related to energy load forecast provider."""
 
     pass
 
 
-class HomeForecastProviderNotFoundError(HomeForecastProviderError):
-    """Home Forecast Provider not found."""
+class EnergyLoadForecastProviderNotFoundError(EnergyLoadForecastProviderError):
+    """Energy Load Forecast Provider not found."""
 
     pass
 
 
-class HomeForecastProviderAlreadyExistsError(HomeForecastProviderError):
-    """Home Forecast Provider already exists."""
+class EnergyLoadForecastProviderAlreadyExistsError(EnergyLoadForecastProviderError):
+    """Energy Load Forecast Provider already exists."""
 
     pass
 
 
-class HomeForecastProviderConfigurationError(HomeForecastProviderError):
+class EnergyLoadForecastProviderConfigurationError(EnergyLoadForecastProviderError):
     """Error with the configuration."""
 
     pass
 
 
-class EnergyLoadHistoryProviderError(HomeForecastError):
+class EnergyLoadHistoryProviderError(EnergyLoadForecastError):
     """Errors related to energy load history provider."""
 
     pass
