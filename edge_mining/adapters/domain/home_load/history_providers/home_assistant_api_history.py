@@ -17,7 +17,7 @@ from edge_mining.domain.home_load.exceptions import (
     EnergyLoadHistoryProviderConfigurationError,
     EnergyLoadHistoryProviderError,
 )
-from edge_mining.domain.home_load.ports import EnergyLoadHistoryProviderPort
+from edge_mining.domain.home_load.ports import EnergyLoadHistoryProviderPort, EnergyLoadHistoryRepository
 from edge_mining.domain.home_load.value_objects import HomeLoadEnergyInterval, HomeLoadPowerPoint
 from edge_mining.shared.adapter_configs.home_load import (
     EnergyLoadHistoryProviderHomeAssistantAPIConfig,
@@ -76,12 +76,13 @@ class HomeAssistantAPIEnergyLoadHistoryProvider(EnergyLoadHistoryProviderPort):
 
     def __init__(
         self,
-        home_assistant: ServiceHomeAssistantAPI,
         entity_power: str,
+        home_assistant: ServiceHomeAssistantAPI,
+        history_repo: EnergyLoadHistoryRepository,
         logger: Optional[LoggerPort] = None,
     ):
         # Initialize the HomeAssistant API Service
-        super().__init__(provider_type=EnergyLoadHistoryProviderAdapter.HOME_ASSISTANT_API)
+        super().__init__(provider_type=EnergyLoadHistoryProviderAdapter.HOME_ASSISTANT_API, history_repo=history_repo)
         self.home_assistant = home_assistant
         self.logger = logger
 
@@ -94,12 +95,76 @@ class HomeAssistantAPIEnergyLoadHistoryProvider(EnergyLoadHistoryProviderPort):
             self.logger.debug(f"Entities Configured:Power History='{entity_power}'")
 
     def get_history(self, start: Timestamp, end: Timestamp) -> List[HomeLoadEnergyInterval]:
-        """Retrieves a list of consumption intervals from a data source."""
+        """Retrieves a list of consumption intervals from the repository."""
         if self.logger:
             self.logger.debug("Fetching history energy data from Home Assistant...")
 
         home_load_energy_intervals: List[HomeLoadEnergyInterval] = []
 
+        # First, get the home load power data points from the repository.
+        # If not available or history data are too old, fetch from Home Assistant API.
+        load_power_points: List[HomeLoadPowerPoint] = self.history_repo.get_power_points_by_time_range(start, end)
+        if not load_power_points:
+            if self.logger:
+                self.logger.debug(
+                    f"No power data points found in repository for range {start} - {end}. "
+                    f"Fetching from Home Assistant API..."
+                )
+            load_power_points = self._fetch_power_data_points_from_home_assistant(start, end)
+
+            # Store fetched power points into the repository for future use
+            if load_power_points:
+                self.history_repo.add_power_points(load_power_points)
+                if self.logger:
+                    self.logger.debug(f"Stored {len(load_power_points)} power data points into the repository.")
+            else:
+                if self.logger:
+                    self.logger.debug("No power data points fetched from Home Assistant API.")
+        else:
+            # Get le latest timestamp of the retrieved power points
+            latest = max(point.timestamp for point in load_power_points)
+            now = Timestamp.now()
+
+            if self.logger:
+                self.logger.debug(
+                    f"Retrieved {len(load_power_points)} power data points from repository for range {start} - {latest}."
+                )
+
+            if latest - now > timedelta(minutes=5):
+                if self.logger:
+                    self.logger.debug(
+                        f"Power data points are outdated (latest: {latest}, now: {now}). "
+                        f"Fetching latest data from Home Assistant API..."
+                    )
+                # Fetch only the missing data points from Home Assistant API
+                fetched_power_points = self._fetch_power_data_points_from_home_assistant(latest, end)
+
+                if fetched_power_points:
+                    # Append the newly fetched points to the existing list
+                    load_power_points.extend(fetched_power_points)
+                    # Store fetched power points into the repository for future use
+                    self.history_repo.add_power_points(fetched_power_points)
+                    if self.logger:
+                        self.logger.debug(
+                            f"Fetched and stored {len(fetched_power_points)} new power data points into the repository."
+                        )
+                else:
+                    if self.logger:
+                        self.logger.debug("No new power data points fetched from Home Assistant API.")
+
+        # Group power points into 1-hour intervals
+        home_load_energy_intervals = self._group_power_points_into_intervals(
+            power_points=load_power_points, start=start, end=end
+        )
+
+        return home_load_energy_intervals
+
+    def _fetch_power_data_points_from_home_assistant(
+        self, start: Timestamp, end: Timestamp
+    ) -> List[HomeLoadPowerPoint]:
+        """
+        Fetches power data points from Home Assistant API for the specified time range.
+        """
         entity_history: Optional[EntityHistory] = self.home_assistant.get_entity_history(self.entity_power, start, end)
 
         if not entity_history:
@@ -138,12 +203,7 @@ class HomeAssistantAPIEnergyLoadHistoryProvider(EnergyLoadHistoryProviderPort):
                 HomeLoadPowerPoint(timestamp=Timestamp(power_data_point.timestamp), power=Watts(parsed_power))
             )
 
-        # Group power points into 1-hour intervals
-        home_load_energy_intervals = self._group_power_points_into_intervals(
-            power_points=load_power_points, start=start, end=end
-        )
-
-        return home_load_energy_intervals
+        return load_power_points
 
     def _group_power_points_into_intervals(
         self, power_points: List[HomeLoadPowerPoint], start: Optional[Timestamp] = None, end: Optional[Timestamp] = None

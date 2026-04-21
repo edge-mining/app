@@ -2,13 +2,13 @@
 
 import uuid
 from datetime import datetime
-from typing import Dict, Optional, Union, cast
+from typing import Dict, List, Optional, Union, cast
 
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
 from edge_mining.domain.common import EntityId, Timestamp, Watts
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
-from edge_mining.domain.home_load.common import HomeForecastProviderAdapter
+from edge_mining.domain.home_load.common import HomeForecastProviderAdapter, LoadDeviceCategory
 from edge_mining.domain.home_load.entities import HomeForecastProvider, LoadDevice
 from edge_mining.domain.home_load.value_objects import ConsumptionForecast
 from edge_mining.shared.adapter_configs.home_load import HomeForecastProviderDummyConfig
@@ -62,7 +62,13 @@ class LoadDeviceSchema(BaseModel):
 
     id: str = Field(..., description="Unique identifier for the load device")
     name: str = Field(default="", description="Load device name")
-    type: str = Field(default="", description="Type of load device (e.g., Appliance, Heating)")
+    category: LoadDeviceCategory = Field(
+        default=LoadDeviceCategory.OCCASIONAL, description="Category of load device (e.g., controllable, continuous)"
+    )
+    enabled: bool = Field(default=True, description="Whether the load device is active in the system")
+    home_forecast_provider_id: Optional[str] = Field(
+        default=None, description="ID of the home forecast provider associated with this load device"
+    )
 
     @field_validator("id")
     @classmethod
@@ -82,13 +88,24 @@ class LoadDeviceSchema(BaseModel):
             raise ValueError("Device name cannot be empty")
         return v.strip()
 
-    @field_validator("type")
+    @field_validator("category")
     @classmethod
-    def validate_type(cls, v: str) -> str:
-        """Validate device type."""
+    def validate_category(cls, v: str) -> str:
+        """Validate device category."""
         if not v.strip():
-            raise ValueError("Device type cannot be empty")
+            raise ValueError("Device category cannot be empty")
         return v.strip()
+
+    @field_validator("home_forecast_provider_id")
+    @classmethod
+    def validate_home_forecast_provider_id(cls, v: Optional[str]) -> Optional[str]:
+        """Validate that home_forecast_provider_id is a valid UUID string if provided."""
+        if v is not None:
+            try:
+                uuid.UUID(v)
+            except ValueError as exc:
+                raise ValueError("home_forecast_provider_id must be a valid UUID string") from exc
+        return v
 
     @classmethod
     def from_model(cls, load_device: LoadDevice) -> "LoadDeviceSchema":
@@ -102,6 +119,11 @@ class LoadDeviceSchema(BaseModel):
     @field_serializer("id")
     def serialize_id(self, value: str) -> str:
         """Serialize id field."""
+        return value
+
+    @field_serializer("home_forecast_provider_id")
+    def serialize_home_forecast_provider_id(self, value: Optional[str]) -> Optional[str]:
+        """Serialize home_forecast_provider_id field."""
         return value
 
     def to_model(self) -> LoadDevice:
@@ -123,6 +145,9 @@ class LoadDeviceCreateSchema(BaseModel):
 
     name: str = Field(default="", description="Load device name")
     type: str = Field(default="", description="Type of load device")
+    home_forecast_provider_id: Optional[str] = Field(
+        default=None, description="ID of the home forecast provider associated with this load device"
+    )
 
     @field_validator("name")
     @classmethod
@@ -140,12 +165,30 @@ class LoadDeviceCreateSchema(BaseModel):
             raise ValueError("Device type cannot be empty")
         return v.strip()
 
+    @field_validator("home_forecast_provider_id")
+    @classmethod
+    def validate_home_forecast_provider_id(cls, v: Optional[str]) -> Optional[str]:
+        """Validate that home_forecast_provider_id is a valid UUID string if provided."""
+        if v is not None:
+            try:
+                uuid.UUID(v)
+            except ValueError as exc:
+                raise ValueError("home_forecast_provider_id must be a valid UUID string") from exc
+        return v
+
+    @field_serializer("home_forecast_provider_id")
+    def serialize_home_forecast_provider_id(self, value: Optional[str]) -> Optional[str]:
+        """Serialize home_forecast_provider_id field."""
+        return value
+
     def to_model(self) -> LoadDevice:
         """Convert schema to domain model."""
+        provider_id = EntityId(uuid.UUID(self.home_forecast_provider_id)) if self.home_forecast_provider_id else None
         return LoadDevice(
             id=EntityId(uuid.uuid4()),
             name=self.name,
             type=self.type,
+            home_forecast_provider_id=provider_id,
         )
 
     class Config:
@@ -159,6 +202,9 @@ class LoadDeviceUpdateSchema(BaseModel):
 
     name: str = Field(default="", description="Load device name")
     type: str = Field(default="", description="Type of load device")
+    home_forecast_provider_id: Optional[str] = Field(
+        default=None, description="ID of the home forecast provider associated with this load device"
+    )
 
     @field_validator("name")
     @classmethod
@@ -176,6 +222,22 @@ class LoadDeviceUpdateSchema(BaseModel):
             raise ValueError("Device type cannot be empty")
         return v.strip()
 
+    @field_validator("home_forecast_provider_id")
+    @classmethod
+    def validate_home_forecast_provider_id(cls, v: Optional[str]) -> Optional[str]:
+        """Validate that home_forecast_provider_id is a valid UUID string if provided."""
+        if v is not None:
+            try:
+                uuid.UUID(v)
+            except ValueError as exc:
+                raise ValueError("home_forecast_provider_id must be a valid UUID string") from exc
+        return v
+
+    @field_serializer("home_forecast_provider_id")
+    def serialize_home_forecast_provider_id(self, value: Optional[str]) -> Optional[str]:
+        """Serialize home_forecast_provider_id field."""
+        return value
+
     class Config:
         """Pydantic configuration."""
 
@@ -187,7 +249,7 @@ class HomeLoadsProfileSchema(BaseModel):
 
     id: str = Field(..., description="Unique identifier for the home loads profile")
     name: str = Field(default="Default Home Profile", description="Profile name")
-    devices: Dict[str, LoadDeviceSchema] = Field(default_factory=dict, description="Load devices in this profile")
+    devices: List[LoadDeviceSchema] = Field(default_factory=list, description="Load devices in this profile")
 
     @field_validator("id")
     @classmethod
@@ -210,14 +272,14 @@ class HomeLoadsProfileSchema(BaseModel):
     @classmethod
     def from_model(cls, profile: HomeLoadsProfile) -> "HomeLoadsProfileSchema":
         """Create schema from domain model."""
-        devices_schema = {}
-        for device_id, device in profile.devices.items():
-            devices_schema[str(device_id)] = LoadDeviceSchema.from_model(device)
+        devices = []
+        for device in profile.devices:
+            devices.append(LoadDeviceSchema.from_model(device))
 
         return cls(
             id=str(profile.id),
             name=profile.name,
-            devices=devices_schema,
+            devices=devices,
         )
 
     @field_serializer("id")
@@ -227,15 +289,14 @@ class HomeLoadsProfileSchema(BaseModel):
 
     def to_model(self) -> HomeLoadsProfile:
         """Convert schema to domain model."""
-        devices_domain = {}
-        for device_id_str, device_schema in self.devices.items():
-            device_id = EntityId(uuid.UUID(device_id_str))
-            devices_domain[device_id] = device_schema.to_model()
+        devices = []
+        for device_schema in self.devices:
+            devices.append(device_schema.to_model())
 
         return HomeLoadsProfile(
             id=EntityId(uuid.UUID(self.id)),
             name=self.name,
-            devices=devices_domain,
+            devices=devices,
         )
 
     class Config:
@@ -262,7 +323,7 @@ class HomeLoadsProfileCreateSchema(BaseModel):
         return HomeLoadsProfile(
             id=EntityId(uuid.uuid4()),
             name=self.name,
-            devices={},
+            devices=[],
         )
 
     class Config:
