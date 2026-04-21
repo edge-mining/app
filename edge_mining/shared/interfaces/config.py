@@ -51,8 +51,8 @@ class ForecastProviderConfig(Configuration):
         pass
 
 
-class HomeForecastProviderConfig(Configuration):
-    """Base interface for Home Loads Forecast Provider configurations."""
+class EnergyLoadForecastProviderConfig(Configuration):
+    """Base interface for Energy Load Forecast Provider configurations."""
 
     @abstractmethod
     def is_valid(self, adapter_type: EnergyLoadForecastProviderAdapter) -> bool:
