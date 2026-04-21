@@ -6,17 +6,20 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+from edge_mining.__version__ import __version__
 from edge_mining.adapters.domain.energy.fast_api.router import router as energy_router
 from edge_mining.adapters.domain.forecast.fast_api.router import router as forecast_router
 from edge_mining.adapters.domain.home_load.fast_api.router import router as home_load_router
 from edge_mining.adapters.domain.miner.fast_api.router import router as miner_router
 from edge_mining.adapters.domain.notification.fast_api.router import router as notification_router
+from edge_mining.adapters.domain.optimization_unit.fast_api.router import router as optimization_unit_router
 from edge_mining.adapters.domain.policy.fast_api.router import router as policy_router
 
 # Import dependency injection setup functions
 from edge_mining.adapters.infrastructure.api.setup import get_logger, get_optimization_service, get_service_container
 from edge_mining.adapters.infrastructure.external_services.fast_api.router import router as external_services_router
 from edge_mining.adapters.infrastructure.rule_engine.fast_api.router import router as rule_engine_router
+from edge_mining.adapters.infrastructure.websocket.router import router as ws_router
 from edge_mining.application.services.optimization_service import OptimizationService
 from edge_mining.shared.logging.port import LoggerPort
 
@@ -51,9 +54,9 @@ async def app_lifespan(api_app: FastAPI):
 
 
 app = FastAPI(
-    title="Edge Mining API",
-    description="API for managing and monitoring the bitcoin mining energy optimization system.",
-    version="0.1.0",
+    title="Edge Mining Core API",
+    description="Core API for managing and monitoring the bitcoin mining energy optimization system.",
+    version=__version__,
     lifespan=app_lifespan,
 )
 
@@ -73,11 +76,13 @@ app.add_middleware(
 app.include_router(energy_router, prefix="/api/v1", tags=["energy"])
 app.include_router(miner_router, prefix="/api/v1", tags=["mining"])
 app.include_router(policy_router, prefix="/api/v1", tags=["policy"])
+app.include_router(optimization_unit_router, prefix="/api/v1", tags=["optimization_unit"])
 app.include_router(external_services_router, prefix="/api/v1", tags=["external_services"])
 app.include_router(rule_engine_router, prefix="/api/v1", tags=["rule_engine"])
 app.include_router(notification_router, prefix="/api/v1", tags=["notification"])
 app.include_router(forecast_router, prefix="/api/v1", tags=["forecast"])
 app.include_router(home_load_router, prefix="/api/v1", tags=["home_load"])
+app.include_router(ws_router, tags=["websocket"])
 # Add more routers here (e.g., for configuration)
 
 
@@ -85,6 +90,15 @@ app.include_router(home_load_router, prefix="/api/v1", tags=["home_load"])
 async def health_check():
     """Basic health check endpoint."""
     return {"status": "ok"}
+
+
+@app.get("/version/core", tags=["system"])
+async def get_version():
+    """Get the current version of the Edge Mining Core software."""
+    return {
+        "version": __version__,
+        "name": "Edge Mining Core",
+    }
 
 
 # Example endpoint using dependency injection

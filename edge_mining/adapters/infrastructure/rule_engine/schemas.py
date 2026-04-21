@@ -5,7 +5,8 @@ from typing import Dict, List, Union
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from edge_mining.adapters.domain.policy.schemas import AutomationRuleSchema, LogicalGroupSchema, RuleConditionSchema
-from edge_mining.adapters.infrastructure.rule_engine.common import OperatorType, RuleEngineType
+from edge_mining.domain.policy.common import OperatorType, RuleEngineType
+from edge_mining.domain.policy.services import RuleEngine
 
 
 class RuleEngineConfigSchema(BaseModel):
@@ -26,6 +27,11 @@ class RuleEngineConfigSchema(BaseModel):
             return v
         else:
             raise ValueError("Engine type must be a string or RuleEngineType enum value")
+
+    @classmethod
+    def from_model(cls, rule_engine: RuleEngine) -> "RuleEngineConfigSchema":
+        """Create schema from rule engine model."""
+        return cls(engine_type=rule_engine.get_type())
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -117,12 +123,12 @@ OPERATOR_DESCRIPTIONS: Dict[OperatorType, str] = {
 
 OPERATOR_EXAMPLES: Dict[OperatorType, str] = {
     OperatorType.EQ: '{"field": "energy_state.battery.percentage", "operator": "eq", "value": 50}',
-    OperatorType.NE: '{"field": "miner.status", "operator": "ne", "value": "running"}',
+    OperatorType.NE: '{"field": "miner_state.status", "operator": "ne", "value": "running"}',
     OperatorType.GT: '{"field": "energy_state.grid.power", "operator": "gt", "value": 1000}',
     OperatorType.GTE: '{"field": "forecast.total_energy", "operator": "gte", "value": 5000}',
     OperatorType.LT: '{"field": "energy_state.battery.percentage", "operator": "lt", "value": 20}',
     OperatorType.LTE: '{"field": "tracker_current_hashrate", "operator": "lte", "value": 50}',
-    OperatorType.IN: '{"field": "miner.status", "operator": "in", "value": ["running", "mining"]}',
+    OperatorType.IN: '{"field": "miner_state.status", "operator": "in", "value": ["running", "mining"]}',
     OperatorType.NOT_IN: '{"field": "energy_source.type", "operator": "not_in", "value": ["GRID"]}',
     OperatorType.CONTAINS: '{"field": "miner.name", "operator": "contains", "value": "antminer"}',
     OperatorType.STARTS_WITH: '{"field": "energy_source.name", "operator": "starts_with", "value": "solar"}',

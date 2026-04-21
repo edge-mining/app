@@ -6,11 +6,17 @@ from typing import List, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator, model_validator
 
-from edge_mining.adapters.infrastructure.rule_engine.common import OperatorType
+from edge_mining.adapters.domain.energy.schemas import EnergySourceSchema, EnergyStateSnapshotSchema
+from edge_mining.adapters.domain.forecast.schemas import ForecastSchema, SunSchema
+from edge_mining.adapters.domain.home_load.schemas import ConsumptionForecastSchema
+from edge_mining.adapters.domain.miner.schemas import HashRateSchema, MinerSchema, MinerStateSnapshotSchema
+from edge_mining.adapters.domain.policy.utils import FieldStructureSchema, _extract_schema_structure
 from edge_mining.domain.common import EntityId
 from edge_mining.domain.policy.aggregate_roots import OptimizationPolicy
+from edge_mining.domain.policy.common import OperatorType
 from edge_mining.domain.policy.entities import AutomationRule
 from edge_mining.domain.policy.exceptions import UnsupportedConditionError
+from edge_mining.domain.policy.value_objects import DecisionalContext
 
 
 class RuleConditionSchema(BaseModel):
@@ -393,6 +399,27 @@ class AutomationRuleUpdateSchema(BaseModel):
         return v
 
 
+class PolicyCheckSchema(BaseModel):
+    """Schema for policy validation check."""
+
+    valid: bool = Field(..., description="Whether the policy is valid and can be used")
+    policy_id: str = Field(..., description="ID of the checked policy")
+    policy_name: Optional[str] = Field(None, description="Name of the checked policy")
+    errors: List[str] = Field(default_factory=list, description="List of validation errors found")
+    warnings: List[str] = Field(default_factory=list, description="List of validation warnings")
+    start_rules_count: int = Field(default=0, description="Number of start rules in the policy")
+    stop_rules_count: int = Field(default=0, description="Number of stop rules in the policy")
+    enabled_start_rules_count: int = Field(default=0, description="Number of enabled start rules")
+    enabled_stop_rules_count: int = Field(default=0, description="Number of enabled stop rules")
+
+    @field_serializer("policy_id")
+    def serialize_policy_id(self, policy_id: str) -> str:
+        """Serialize policy ID as string."""
+        return str(policy_id)
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # Helper methods for converting from domain models to schemas
 def convert_conditions_to_schema(conditions: dict) -> Union[LogicalGroupSchema, RuleConditionSchema]:
     """Recursively convert conditions dict to appropriate schema."""
@@ -421,3 +448,85 @@ def convert_conditions_to_schema(conditions: dict) -> Union[LogicalGroupSchema, 
 
 # Update forward references
 LogicalGroupSchema.model_rebuild()
+
+
+class DecisionalContextStructureSchema(BaseModel):
+    """Schema representing the complete structure of DecisionalContext."""
+
+    fields: List[FieldStructureSchema] = Field(..., description="List of all fields in the decisional context")
+    total_fields: int = Field(..., description="Total number of fields (including nested)")
+
+
+class DecisionalContextSchema(BaseModel):
+    """Schema for DecisionalContext value object."""
+
+    energy_source: Optional[EnergySourceSchema] = Field(None, description="Energy source information")
+    energy_state: Optional[EnergyStateSnapshotSchema] = Field(None, description="Current energy state snapshot")
+    forecast: Optional[ForecastSchema] = Field(None, description="Energy production forecast")
+    home_load_forecast: Optional[ConsumptionForecastSchema] = Field(None, description="Home consumption forecast")
+    tracker_current_hashrate: Optional[HashRateSchema] = Field(None, description="Current mining hashrate")
+    sun: Optional[SunSchema] = Field(None, description="Sun position and timing information")
+    miner: Optional[MinerSchema] = Field(None, description="Miner static configuration")
+    miner_state: Optional[MinerStateSnapshotSchema] = Field(None, description="Miner runtime state snapshot")
+    timestamp: datetime = Field(default_factory=datetime.now, description="Timestamp of this decisional context")
+
+    @staticmethod
+    def get_structure() -> DecisionalContextStructureSchema:
+        """
+        Generate the complete structure of DecisionalContext with all nested fields.
+
+        Returns:
+            DecisionalContextStructureSchema with all fields and their types
+        """
+        fields = _extract_schema_structure(DecisionalContextSchema)
+
+        # Count total fields including nested
+        def count_fields(field_list: List[FieldStructureSchema]) -> int:
+            count = len(field_list)
+            for field in field_list:
+                if field.children:
+                    count += count_fields(field.children)
+            return count
+
+        total = count_fields(fields)
+
+        return DecisionalContextStructureSchema(fields=fields, total_fields=total)
+
+    @classmethod
+    def from_model(cls, context: DecisionalContext) -> "DecisionalContextSchema":
+        """Create schema from DecisionalContext value object."""
+        return cls(
+            energy_source=EnergySourceSchema.from_model(context.energy_source) if context.energy_source else None,
+            energy_state=EnergyStateSnapshotSchema.from_model(context.energy_state) if context.energy_state else None,
+            forecast=ForecastSchema.from_model(context.forecast) if context.forecast else None,
+            home_load_forecast=(
+                ConsumptionForecastSchema.from_model(context.home_load_forecast) if context.home_load_forecast else None
+            ),
+            tracker_current_hashrate=(
+                HashRateSchema(value=context.tracker_current_hashrate.value, unit=context.tracker_current_hashrate.unit)
+                if context.tracker_current_hashrate
+                else None
+            ),
+            sun=SunSchema.from_model(context.sun) if context.sun else None,
+            miner=MinerSchema.from_model(context.miner) if context.miner else None,
+            miner_state=(MinerStateSnapshotSchema.from_model(context.miner_state) if context.miner_state else None),
+            timestamp=context.timestamp,
+        )
+
+    def to_model(self) -> DecisionalContext:
+        """Convert schema to DecisionalContext value object."""
+        return DecisionalContext(
+            energy_source=self.energy_source.to_model() if self.energy_source else None,
+            energy_state=self.energy_state.to_model() if self.energy_state else None,
+            forecast=self.forecast.to_model() if self.forecast else None,
+            home_load_forecast=self.home_load_forecast.to_model() if self.home_load_forecast else None,
+            tracker_current_hashrate=(
+                self.tracker_current_hashrate.to_model() if self.tracker_current_hashrate else None
+            ),
+            sun=self.sun.to_model() if self.sun else None,
+            miner=self.miner.to_model() if self.miner else None,
+            miner_state=self.miner_state.to_model() if self.miner_state else None,
+            timestamp=self.timestamp,
+        )
+
+    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)

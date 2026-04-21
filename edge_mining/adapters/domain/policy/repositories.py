@@ -13,9 +13,12 @@ from typing import Any, Dict, List, Optional, Tuple, cast
 
 import yaml
 from pydantic import ValidationError
+from sqlalchemy import select
 
 from edge_mining.adapters.domain.policy.schemas import AutomationRuleSchema, MetadataSchema, OptimizationPolicySchema
+from edge_mining.adapters.domain.policy.tables import policies_table
 from edge_mining.adapters.domain.policy.yaml.utils import CustomDumper
+from edge_mining.adapters.infrastructure.persistence.sqlalchemy.base import BaseSQLAlchemyRepository
 from edge_mining.adapters.infrastructure.persistence.sqlite import BaseSqliteRepository
 from edge_mining.domain.common import EntityId
 from edge_mining.domain.policy.aggregate_roots import AutomationRule, OptimizationPolicy
@@ -556,3 +559,178 @@ class YamlOptimizationPolicyRepository(OptimizationPolicyRepository):
             if self.logger:
                 self.logger.error(f"Failed to remove policy file {file_path}: {e}")
             raise PolicyError(f"Failed to remove policy file: {e}") from e
+
+
+class SqlAlchemyOptimizationPolicyRepository(OptimizationPolicyRepository):
+    """SQLAlchemy implementation of the OptimizationPolicyRepository.
+
+    This repository works directly with the imperatively mapped OptimizationPolicy domain entity.
+    The start_rules and stop_rules fields are automatically converted between List[AutomationRule]
+    and JSON strings by the custom TypeDecorator and event listener defined in tables.py.
+
+    Args:
+        db: BaseSQLAlchemyRepository instance for database operations
+    """
+
+    def __init__(self, db: BaseSQLAlchemyRepository):
+        """Initialize repository with database instance.
+
+        Args:
+            db: BaseSQLAlchemyRepository instance
+        """
+        self._db = db
+        self.logger = db.logger
+
+        self._policies_table = policies_table
+
+    def add(self, policy: OptimizationPolicy) -> None:
+        """Add a new optimization policy to the repository.
+
+        Args:
+            policy: Domain entity to persist
+
+        Raises:
+            PolicyAlreadyExistsError: If a policy with the same ID or name already exists
+            PolicyError: For other database errors
+        """
+        if self.logger:
+            self.logger.debug(f"Adding policy '{policy.name}' ({policy.id}) to SQLAlchemy.")
+
+        session = self._db.get_session()
+        try:
+            session.add(policy)
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            if "UNIQUE constraint failed" in str(e) or "already exists" in str(e):
+                if self.logger:
+                    self.logger.error(f"Integrity error adding policy '{policy.name}': {e}")
+                raise PolicyAlreadyExistsError(
+                    f"Policy with ID {policy.id} or name '{policy.name}' already exists"
+                ) from e
+            if self.logger:
+                self.logger.error(f"SQLAlchemy error adding policy '{policy.name}': {e}")
+            raise PolicyError(f"DB error adding policy: {e}") from e
+        finally:
+            session.close()
+
+    def get_by_id(self, policy_id: EntityId) -> Optional[OptimizationPolicy]:
+        """Retrieve an optimization policy by its ID.
+
+        Args:
+            policy_id: Unique identifier of the policy
+
+        Returns:
+            Domain entity if found, None otherwise
+        """
+        if self.logger:
+            self.logger.debug(f"Getting policy {policy_id} from SQLAlchemy.")
+
+        session = self._db.get_session()
+        try:
+            stmt = select(OptimizationPolicy).where(self._policies_table.c.id == str(policy_id))
+            entity = session.execute(stmt).scalar_one_or_none()
+            return entity
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"SQLAlchemy error getting policy {policy_id}: {e}")
+            return None
+        finally:
+            session.close()
+
+    def get_all(self) -> List[OptimizationPolicy]:
+        """Retrieve all optimization policies from the repository.
+
+        Returns:
+            List of all optimization policy domain entities
+        """
+        if self.logger:
+            self.logger.debug("Getting all policies from SQLAlchemy.")
+
+        session = self._db.get_session()
+        try:
+            stmt = select(OptimizationPolicy).order_by(self._policies_table.c.name)
+            entities = session.execute(stmt).scalars().all()
+            return list(entities)
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"SQLAlchemy error getting all policies: {e}")
+            return []
+        finally:
+            session.close()
+
+    def update(self, policy: OptimizationPolicy) -> None:
+        """Update an existing optimization policy in the repository.
+
+        Args:
+            policy: Domain entity with updated state
+
+        Raises:
+            PolicyNotFoundError: If no policy with the given ID exists
+            PolicyError: For constraint violations or other database errors
+        """
+        if self.logger:
+            self.logger.debug(f"Updating policy '{policy.name}' ({policy.id}) in SQLAlchemy.")
+
+        session = self._db.get_session()
+        try:
+            stmt = select(OptimizationPolicy).where(self._policies_table.c.id == str(policy.id))
+            existing_policy = session.execute(stmt).scalar_one_or_none()
+
+            if existing_policy:
+                # Update all fields from the new entity
+                existing_policy.name = policy.name
+                existing_policy.description = policy.description
+                existing_policy.start_rules = policy.start_rules
+                existing_policy.stop_rules = policy.stop_rules
+
+                # SQLAlchemy's dirty tracking + TypeDecorator will handle serialization automatically
+                session.commit()
+            else:
+                raise PolicyNotFoundError(f"No policy found with ID {policy.id} for update.")
+        except PolicyNotFoundError:
+            raise
+        except Exception as e:
+            session.rollback()
+            if "UNIQUE constraint failed" in str(e) or "duplicate" in str(e).lower():
+                if self.logger:
+                    self.logger.error(f"Integrity error updating policy '{policy.name}': {e}")
+                raise PolicyError(f"Constraint error updating policy (duplicate name?): {e}") from e
+            if self.logger:
+                self.logger.error(f"SQLAlchemy error updating policy '{policy.name}': {e}")
+            raise PolicyError(f"DB error updating policy: {e}") from e
+        finally:
+            session.close()
+
+    def remove(self, policy_id: EntityId) -> None:
+        """Remove an optimization policy from the repository.
+
+        Args:
+            policy_id: Unique identifier of the policy to remove
+
+        Raises:
+            PolicyNotFoundError: If no policy with the given ID exists
+            PolicyError: For other database errors
+        """
+        if self.logger:
+            self.logger.debug(f"Removing policy {policy_id} from SQLAlchemy.")
+
+        session = self._db.get_session()
+        try:
+            stmt = select(OptimizationPolicy).where(self._policies_table.c.id == str(policy_id))
+            entity = session.execute(stmt).scalar_one_or_none()
+
+            if entity:
+                session.delete(entity)
+                session.commit()
+            else:
+                raise PolicyNotFoundError(f"No policy found with ID {policy_id}.")
+        except PolicyNotFoundError:
+            raise
+        except Exception as e:
+            session.rollback()
+            if self.logger:
+                self.logger.error(f"SQLAlchemy error removing policy {policy_id}: {e}")
+            raise PolicyError(f"DB error removing policy: {e}") from e
+        finally:
+            session.close()

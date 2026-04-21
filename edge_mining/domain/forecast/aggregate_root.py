@@ -6,6 +6,7 @@ from typing import List, Optional
 
 from edge_mining.domain.common import AggregateRoot, Timestamp, WattHours, Watts
 from edge_mining.domain.forecast.value_objects import ForecastInterval
+from edge_mining.shared.timezone import now as timezone_now
 
 
 @dataclass
@@ -25,7 +26,7 @@ class Forecast(AggregateRoot):
         self.sort_intervals()
 
         # Find the first interval that starts in the next hour
-        next_hour_start = datetime.now() + timedelta(hours=1)
+        next_hour_start = timezone_now() + timedelta(hours=1)
 
         for interval in self.intervals:
             if interval.start <= next_hour_start < interval.end:
@@ -48,7 +49,7 @@ class Forecast(AggregateRoot):
         count = 0
 
         # Calculate average power over the next 4 hours
-        now = datetime.now()
+        now = timezone_now()
         four_hours_later = now + timedelta(hours=4)
 
         for interval in self.intervals:
@@ -74,7 +75,7 @@ class Forecast(AggregateRoot):
         total_energy = WattHours(0.0)
 
         # Calculate energy for the next hour
-        now = datetime.now()
+        now = timezone_now()
         next_hour_start = now + timedelta(hours=1)
         next_hour_end = next_hour_start + timedelta(hours=1)
 

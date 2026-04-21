@@ -11,11 +11,19 @@ and
 https://github.com/home-assistant/developers.home-assistant/pull/2150
 """
 
+import asyncio
 import math  # For isnan
-import time
 from typing import List, Optional, Tuple
 
-from homeassistant_api import Client, Domain, Entity, History, Service
+import aiohttp
+from homeassistant_api import Client, Domain, Entity, History
+from homeassistant_api.errors import (
+    EndpointNotFoundError,
+    HomeassistantAPIError,
+    RequestError,
+    RequestTimeoutError,
+    UnauthorizedError,
+)
 
 from edge_mining.adapters.infrastructure.homeassistant.models import EntityHistory, HistoryDataPoint
 from edge_mining.adapters.infrastructure.homeassistant.utils import (
@@ -61,35 +69,71 @@ class ServiceHomeAssistantAPI(ExternalServicePort):
 
         self.client: Optional[Client] = None
 
-        self.connect()  # Connect to the API during initialization
-
-    def connect(self) -> None:
+    async def connect(self) -> None:
         """Connect to the Home Assistant API."""
         if self.logger:
             self.logger.info(f"Initializing HomeAssistantAPI for {self.api_url}")
 
         # Initialize Home Assistant client
         try:
-            self.client = Client(self.api_url, self.token)
+            self.client = Client(self.api_url, self.token, use_async=True)
 
             # Test connection during initialization (optional but recommended)
-            self.client.get_config()
+            await self.client.async_get_config()
             if self.logger:
                 self.logger.info("Successfully connected to Home Assistant API.")
+        except UnauthorizedError:
+            self.client = None
+            if self.logger:
+                self.logger.error(
+                    "Home Assistant API authentication failed during connection. "
+                    "Please verify your access token is valid."
+                )
+        except (RequestError, HomeassistantAPIError) as e:
+            self.client = None
+            if self.logger:
+                self.logger.error(f"Home Assistant API error during connection: {e}")
+        except aiohttp.ClientError:
+            self.client = None
+            if self.logger:
+                self.logger.warning(
+                    f"Home Assistant is unreachable at {self.api_url}. The service will be marked as disconnected."
+                )
         except Exception as e:
+            self.client = None
             if self.logger:
                 self.logger.error(f"An unexpected error occurred connecting to Home Assistant: {e}")
-            raise ConnectionError(f"Unexpected error connecting to Home Assistant: {e}") from e
 
-    def disconnect(self) -> None:
+    async def disconnect(self) -> None:
         """Disconnect from the Home Assistant API."""
         if self.logger:
             self.logger.info("Disconnecting from Home Assistant API.")
 
-        # The Client does not have a disconnect method, but we can clear the client
+        if self.client:
+            try:
+                await self.client.async_cache_session.close()
+            except Exception:
+                pass
         self.client = None
 
-    def get_entity_state(self, entity_id: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
+    async def is_connected(self) -> bool:
+        """Check if the external service is connected."""
+        if not self.client:
+            if self.logger:
+                self.logger.error("Home Assistant client is not connected.")
+            return False
+
+        try:
+            await self.client.async_get_config()
+            if self.logger:
+                self.logger.info("Successfully connected to Home Assistant API.")
+            return True
+        except (Exception, HomeassistantAPIError) as e:
+            if self.logger:
+                self.logger.error(f"Home Assistant API connection check failed: {e}")
+            return False
+
+    async def get_entity_state(self, entity_id: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
         """Safely retrieves the state and unit of an entity."""
         if not entity_id:
             return None, None
@@ -98,7 +142,7 @@ class ServiceHomeAssistantAPI(ExternalServicePort):
                 self.logger.error("Home Assistant client is not initialized.")
             return None, None
         try:
-            entity: Optional[Entity] = self.client.get_entity(entity_id=entity_id)
+            entity: Optional[Entity] = await self.client.async_get_entity(entity_id=entity_id)
             if not entity:
                 if self.logger:
                     self.logger.warning(f"Home Assistant entity '{entity_id}' not found.")
@@ -114,12 +158,34 @@ class ServiceHomeAssistantAPI(ExternalServicePort):
             if self.logger:
                 self.logger.debug(f"Fetched HA entity '{entity_id}': State='{state}', Unit='{unit}'")
             return state, unit
+        except EndpointNotFoundError:
+            if self.logger:
+                self.logger.error(
+                    f"Home Assistant entity '{entity_id}' does not exist. "
+                    "Please verify the entity ID is correct in your configuration."
+                )
+            return None, None
+        except UnauthorizedError:
+            if self.logger:
+                self.logger.error("Home Assistant API authentication failed. Please verify your access token is valid.")
+            return None, None
+        except RequestTimeoutError:
+            if self.logger:
+                self.logger.error(
+                    f"Home Assistant API request timed out while fetching entity '{entity_id}'. "
+                    "The server may be overloaded or unreachable."
+                )
+            return None, None
+        except (RequestError, HomeassistantAPIError) as e:
+            if self.logger:
+                self.logger.error(f"Home Assistant API error while fetching entity '{entity_id}': {e}")
+            return None, None
         except Exception as e:
             if self.logger:
                 self.logger.error(f"Unexpected error getting Home Assistant entity '{entity_id}': {e}")
             return None, None
 
-    def set_entity_state(self, entity_id: Optional[str], state: str) -> bool:
+    async def set_entity_state(self, entity_id: Optional[str], state: str) -> bool:
         """Sets the state of an entity."""
         if not entity_id:
             return False
@@ -151,7 +217,7 @@ class ServiceHomeAssistantAPI(ExternalServicePort):
                 return False
 
             # Get the domain object
-            domain: Optional[Domain] = self.client.get_domain(domain_str)
+            domain: Optional[Domain] = await self.client.async_get_domain(domain_str)
             if not domain:
                 if self.logger:
                     self.logger.error(f"Home Assistant domain '{domain_str}' not found.")
@@ -165,8 +231,7 @@ class ServiceHomeAssistantAPI(ExternalServicePort):
                 return False
 
             # Call the service to change the state
-            service: Service = getattr(domain, turn_service.value)
-            service.trigger(entity_id=entity_id)
+            await self.client.async_trigger_service(domain=domain_str, service=turn_service.value, entity_id=entity_id)
 
             if self.logger:
                 self.logger.debug(
@@ -175,8 +240,8 @@ class ServiceHomeAssistantAPI(ExternalServicePort):
 
             # Due to async nature of HA, we may not get the updated state immediately and this check may fail
             # even if the command was successful, so we need to wait a bit to get the updated state
-            time.sleep(1)  # Wait a moment for the state to update
-            current_state_str, _ = self.get_entity_state(entity_id)
+            await asyncio.sleep(1)  # Wait a moment for the state to update
+            current_state_str, _ = await self.get_entity_state(entity_id)
             current_state_str = current_state_str.lower() if current_state_str else ""
             current_state_value: Optional[bool] = SWITCH_STATE_MAP.get(current_state_str, None)
             desired_state_value: Optional[bool] = SWITCH_STATE_MAP.get(state, None)
@@ -194,6 +259,28 @@ class ServiceHomeAssistantAPI(ExternalServicePort):
                 self.logger.debug(f"Successfully set HA entity '{entity_id}' to state '{state}'.")
 
             return True
+        except EndpointNotFoundError:
+            if self.logger:
+                self.logger.error(
+                    f"Home Assistant entity '{entity_id}' does not exist. "
+                    "Please verify the entity ID is correct in your configuration."
+                )
+            return False
+        except UnauthorizedError:
+            if self.logger:
+                self.logger.error("Home Assistant API authentication failed. Please verify your access token is valid.")
+            return False
+        except RequestTimeoutError:
+            if self.logger:
+                self.logger.error(
+                    f"Home Assistant API request timed out while setting entity '{entity_id}'. "
+                    "The server may be overloaded or unreachable."
+                )
+            return False
+        except (RequestError, HomeassistantAPIError) as e:
+            if self.logger:
+                self.logger.error(f"Home Assistant API error while setting entity '{entity_id}': {e}")
+            return False
         except Exception as e:
             if self.logger:
                 self.logger.error(f"Unexpected error setting Home Assistant entity '{entity_id}': {e}")

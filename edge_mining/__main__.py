@@ -10,6 +10,7 @@ from edge_mining.adapters.infrastructure.api.setup import init_api_dependencies
 from edge_mining.adapters.infrastructure.cli.main_cli import run_cli
 from edge_mining.adapters.infrastructure.logging.terminal_logging import TerminalLogger
 from edge_mining.adapters.infrastructure.sheduler.jobs import AutomationScheduler
+from edge_mining.adapters.infrastructure.websocket.setup import init_websocket_dependencies
 from edge_mining.bootstrap import configure_dependencies
 from edge_mining.shared.infrastructure import ApplicationMode, Services
 from edge_mining.shared.settings.settings import AppSettings
@@ -31,7 +32,16 @@ async def main_async():
 
     # Inject services into CLI and API
     init_api_dependencies(services, logger)
+    init_websocket_dependencies(services, logger)
     logger.debug("API dependencies initialized successfully")
+
+    # --- Synchronize Miners Status ---
+    try:
+        logger.info("Synchronizing miners status at startup...")
+        await services.miner_action_service.sync_all_miners()
+    except Exception as e:
+        logger.error(f"Failed to synchronize miners status: {e}")
+        # Continue execution even if synchronization fails
 
     # --- Determine Run Mode ---
     # Example: Use command-line argument to choose mode
@@ -92,7 +102,7 @@ def main():
     finally:
         # Sure to flush logs before exiting
         logger.shutdown()
-        sys.exit(1)
+        sys.exit(0)
 
 
 if __name__ == "__main__":

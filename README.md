@@ -31,21 +31,50 @@ The project uses **Hexagonal Architecture (Ports and Adapters)** to clearly sepa
     cd core
     ```
 2.  **Create a virtual environment (recommended):**
+
+    #### On Linux/macOS:
     ```bash
     python -m venv .venv
-    source .venv/bin/activate  # On Linux/macOS
-    # .venv\Scripts\activate    # On Windows
+    source .venv/bin/activate
+    ```
+
+    #### On Windows:
+    ```cmd
+    python -m venv .venv
+    .venv\Scripts\activate
     ```
 3.  **Install dependencies:**
     ```bash
     pip install -r requirements.txt
     ```
 4.  **Configure environment variables:**
-    Copy `.env.example` to `.env` and change the values ​​according to your configuration (log level, timezone and geographical position).
+    Copy `.env.example` to `.env` and change the values according to your configuration:
     ```bash
     cp .env.example .env
-    nano .env # Change the file .env
+    nano .env # Edit the .env file
     ```
+
+    Key settings:
+    - `PERSISTENCE_ADAPTER`: Choose between `in_memory`, `sqlite`, or `sqlalchemy` (recommended)
+    - `DB_PATH`: Database URL (e.g., `sqlite:///data/db/edgemining.db` or PostgreSQL URL)
+    - `RUN_MIGRATIONS_ON_STARTUP`: Set to `true` to automatically apply database migrations
+
+5.  **Create data directory structure:**
+
+    The application stores all user data in the `data/` directory:
+    ```bash
+    mkdir -p data/db/backups data/policies data/examples
+    ```
+
+    **Directory structure:**
+    - `data/db/` - Database file and automatic backups
+    - `data/policies/` - Your optimization policy YAML files
+    - `data/examples/` - Example rules for reference (templates only)
+
+6.  **Initialize the database (SQLAlchemy only):**
+    If using SQLAlchemy persistence, migrations **will run automatically on startup**.
+
+    See [docs/ALEMBIC_MIGRATIONS.md](docs/ALEMBIC_MIGRATIONS.md) for detailed migration management.
 
 ## Execution
 
@@ -69,22 +98,87 @@ python -m edge_mining cli --help
 
 The API will be available at `http://localhost:8001` (or the configured port). You can access the interactive documentation (Swagger UI) at `http://localhost:8001/docs`.
 
+## Run with Docker Compose
+
+You can run Edge Mining Core using `docker compose` in daemon mode using the provided `compose.yaml`.
+
+**Important:** The `data/` directory is mounted as a volume, ensuring your database, policies, and backups persist even when the container is removed.
+
+Before first run, create the data directory structure:
+```bash
+mkdir -p data/db/backups data/policies data/examples
+```
+
+You can:
+- Place your optimization policy YAML files in `data/policies/`
+- Find rule examples in `data/examples/start/` and `data/examples/stop/`
+- Access the database at `data/db/edgemining.db`
+- Find automatic backups in `data/db/backups/`
+
+### 1. Build the image (first run or when `requirements.txt` changes)
+
+From the project root:
+
+```bash
+docker compose build
+```
+
+This step is required the first time and any time you modify `requirements.txt` (or other dependencies).
+
+### 2. Start Edge Mining Core in background (daemon)
+
+```bash
+docker compose up -d
+```
+
+The API will be exposed on `http://localhost:8001`.
+
+To see logs:
+
+```bash
+docker compose logs -f
+```
+
+To stop the service:
+
+```bash
+docker compose down
+```
+
+### 3. Run Edge Mining Core in interactive CLI mode via Docker
+
+You can start the interactive CLI in two ways:
+
+#### a) Standalone CLI (without standard mode running)
+
+This runs only the CLI and then stops the container when you exit:
+
+```bash
+docker compose run --rm edge-mining-core python -m edge_mining cli interactive
+```
+
+#### b) CLI while standard mode is running
+
+If the core is already running in standard mode via `docker compose up -d`, you can open an interactive CLI session inside the running container:
+
+```bash
+docker compose exec edge-mining-core python -m edge_mining cli interactive
+```
+
 ### Available adapters
 
-- **Energy Monitor:** `dummy`, `home_assistant` (*new*)
+- **Energy Monitor:** `dummy`, `home_assistant`
 - **Miner Controller:** `dummy`
-- **Forecast Provider:** `dummy`, `home_assistant` (*new*)
-- **Persistence:** `in_memory`, `sqlite`, `YAML` (*new*)
-- **Notification:** `dummy`, `telegram` (*new*)
-- **Interaction:** `cli`, `api`(*new*)
+- **Forecast Provider:** `dummy`, `home_assistant`
+- **Persistence:** `in_memory`, `sqlite`, `sqlalchemy` (with Alembic migrations), `yaml` (for policies)
+- **Notification:** `dummy`, `telegram`
+- **Interaction:** `cli`, `api`
+
 
 ## TODO
 
 - [ ] Implement real adapters for specific scenarios (HomeAssistant MQTT, specific ASIC APIs).
 - [ ] Implement real adapters for external APIs (Solcast, OpenWeatherMap, Mining Pools).
 - [ ] Add unit, integration and acceptance tests.
-- [ ] Improve error handling and logging.
-- [ ] Develop a web UI (could be a separate driving adapter using the API, maybe in a different repository).
 - [ ] Implement more sophisticated home load forecasting logic.
 - [ ] Handle authentication and authorization (especially for the API).
-- [x] Improve the rules engine.

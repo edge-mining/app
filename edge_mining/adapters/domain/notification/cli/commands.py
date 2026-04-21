@@ -1,9 +1,13 @@
 """CLI commands for the notification domain."""
 
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import click
 
+from edge_mining.adapters.infrastructure.cli.utils import (
+    print_configuration,
+    process_filters,
+)
 from edge_mining.adapters.infrastructure.external_services.cli.commands import (
     handle_add_external_service,
     print_external_service_details,
@@ -24,10 +28,7 @@ from edge_mining.shared.external_services.entities import ExternalService
 from edge_mining.shared.interfaces.config import NotificationConfig
 from edge_mining.shared.logging.port import LoggerPort
 
-from edge_mining.adapters.infrastructure.cli.utils import (
-    process_filters,
-    print_configuration,
-)
+from edge_mining.adapters.utils import run_async_func
 
 
 def select_notifier_adapter() -> Optional[NotificationAdapter]:
@@ -150,11 +151,13 @@ def handle_add_notifier(configuration_service: ConfigurationServiceInterface, lo
 
     added: Optional[Notifier] = None
     try:
-        added = configuration_service.add_notifier(
-            name=new_notifier.name,
-            adapter_type=new_notifier.adapter_type,
-            config=new_notifier.config,
-            external_service_id=new_notifier.external_service_id,
+        added = run_async_func(
+            configuration_service.add_notifier(
+                name=new_notifier.name,
+                adapter_type=new_notifier.adapter_type,
+                config=new_notifier.config,
+                external_service_id=new_notifier.external_service_id,
+            )
         )
         click.echo(
             click.style(
@@ -197,11 +200,28 @@ def select_notifier(
     logger: LoggerPort,
     default_id: Optional[EntityId] = None,
     filter_type: Optional[List[NotificationAdapter]] = None,
-) -> Optional[Notifier]:
-    """Select a notifier from the list."""
-    click.echo(click.style("\n--- Select Notifier ---", fg="yellow"))
+    allow_multiple: bool = False,
+    only_ids: Optional[List[EntityId]] = None,
+    exclude_ids: Optional[List[EntityId]] = None,
+) -> Union[Optional[Notifier], List[Notifier]]:
+    """Select one or more notifiers from the list."""
 
     notifiers: List[Notifier] = configuration_service.list_notifiers()
+    if not notifiers:
+        allow_multiple = False
+    else:
+        if only_ids:
+            notifiers = [n for n in notifiers if n.id in only_ids]
+        if exclude_ids:
+            notifiers = [n for n in notifiers if n.id not in exclude_ids]
+        if len(notifiers) == 1:
+            allow_multiple = False
+
+    if allow_multiple:
+        click.echo(click.style("\n--- Select Notifiers ---", fg="yellow"))
+    else:
+        click.echo(click.style("\n--- Select Notifier ---", fg="yellow"))
+
     if not notifiers:
         click.echo(click.style("No notifiers configured.", fg="yellow"))
         return None
@@ -231,17 +251,48 @@ def select_notifier(
 
     click.echo("\nb. Back to menu\n")
 
-    n_idx: str = click.prompt("Choose a Notifier index", type=str, default=default_idx)
-    n_idx = n_idx.strip().lower()
-    if n_idx == "b":
-        return None
+    if allow_multiple:
+        notifier_indices: str = click.prompt("Choose Notifier indices (comma separated)", type=str, default=default_idx)
+        notifier_indices = notifier_indices.strip().lower()
+        if notifier_indices == "b":
+            return None
 
-    if not n_idx.isdigit() or int(n_idx) < 0 or int(n_idx) >= len(notifiers):
-        click.echo(click.style("Invalid index. Aborting selection.", fg="red"))
-        return None
+        # Parse comma-separated indices
+        selected_notifiers: List[Notifier] = []
+        try:
+            indices = [idx.strip() for idx in notifier_indices.split(",")]
+            for idx_str in indices:
+                if not idx_str.isdigit():
+                    click.echo(click.style(f"Invalid index '{idx_str}'. Skipping.", fg="yellow"))
+                    continue
 
-    selected_n = notifiers[int(n_idx)]
-    return selected_n
+                idx = int(idx_str)
+                if idx < 0 or idx >= len(notifiers):
+                    click.echo(click.style(f"Index {idx} out of range. Skipping.", fg="yellow"))
+                    continue
+
+                selected_notifiers.append(notifiers[idx])
+
+            if not selected_notifiers:
+                click.echo(click.style("No valid notifiers selected. Aborting selection.", fg="red"))
+                return None
+
+            return selected_notifiers
+        except Exception as e:
+            click.echo(click.style(f"Error parsing indices: {e}. Aborting selection.", fg="red"))
+            return None
+    else:
+        n_idx: str = click.prompt("Choose a Notifier index", type=str, default=default_idx)
+        n_idx = n_idx.strip().lower()
+        if n_idx == "b":
+            return None
+
+        if not n_idx.isdigit() or int(n_idx) < 0 or int(n_idx) >= len(notifiers):
+            click.echo(click.style("Invalid index. Aborting selection.", fg="red"))
+            return None
+
+        selected_n = notifiers[int(n_idx)]
+        return selected_n
 
 
 def print_notifier_config(notifier: Notifier) -> None:
@@ -498,12 +549,13 @@ def update_single_notifier(
                 return None
 
     try:
-        updated_notifier = configuration_service.update_notifier(
-            notifier_id=new_notifier.id,
-            name=new_notifier.name,
-            adapter_type=new_notifier.adapter_type,
-            config=new_notifier.config,
-            external_service_id=new_notifier.external_service_id,
+        updated_notifier = run_async_func(
+            configuration_service.update_notifier(
+                notifier_id=new_notifier.id,
+                name=new_notifier.name,
+                config=new_notifier.config,
+                external_service_id=new_notifier.external_service_id,
+            )
         )
         click.echo(
             click.style(
@@ -539,7 +591,7 @@ def delete_single_notifier(
         return False
 
     try:
-        removed = configuration_service.remove_notifier(notifier_id=notifier.id)
+        removed = run_async_func(configuration_service.remove_notifier(notifier_id=notifier.id))
         logger.info(f"Notifier '{removed.name}' (ID: {removed.id}) successfully removed.")
         click.echo(
             click.style(
@@ -613,6 +665,9 @@ def handle_manage_notifier(configuration_service: ConfigurationServiceInterface,
     if selected_notifier is None:
         click.echo(click.style("No notifier selected. Aborting.", fg="red"))
         return "b"
+
+    if isinstance(selected_notifier, list):
+        selected_notifier = selected_notifier[0]
 
     choice = manage_single_notifier_menu(
         notifier=selected_notifier,

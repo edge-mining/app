@@ -1,6 +1,6 @@
 """
-Generic socket Home Assistant API adapter (Implementation of Port)
-that controls a miner via Home Assistant's entities  of a smart socket.
+Generic socket Home Assistant API adapter (Implementation of Feature Ports)
+that controls a miner via Home Assistant's entities of a smart socket.
 """
 
 from typing import Dict, Optional, cast
@@ -9,11 +9,14 @@ from edge_mining.adapters.infrastructure.homeassistant.homeassistant_api import 
     ServiceHomeAssistantAPI,
 )
 from edge_mining.domain.common import Watts
+from edge_mining.domain.miner.aggregate_roots import Miner
 from edge_mining.domain.miner.common import MinerStatus
-from edge_mining.domain.miner.entities import Miner
 from edge_mining.domain.miner.exceptions import MinerControllerConfigurationError, MinerControllerError
-from edge_mining.domain.miner.ports import MinerControlPort
-from edge_mining.domain.miner.value_objects import HashRate
+from edge_mining.domain.miner.ports import (
+    PowerControlPort,
+    PowerMonitorPort,
+    StatusMonitorPort,
+)
 from edge_mining.shared.adapter_configs.miner import MinerControllerGenericSocketHomeAssistantAPIConfig
 from edge_mining.shared.external_services.common import ExternalServiceAdapter
 from edge_mining.shared.external_services.ports import ExternalServicePort
@@ -40,7 +43,7 @@ class GenericSocketHomeAssistantAPIMinerControllerAdapterFactory(MinerController
         config: Optional[Configuration],
         logger: Optional[LoggerPort],
         external_service: Optional[ExternalServicePort],
-    ) -> MinerControlPort:
+    ) -> "GenericSocketHomeAssistantAPIMinerController":
         """Create an miner controller adapter instance."""
 
         # Needs to have the Home Assistant API service as external_service
@@ -71,8 +74,15 @@ class GenericSocketHomeAssistantAPIMinerControllerAdapterFactory(MinerController
         )
 
 
-class GenericSocketHomeAssistantAPIMinerController(MinerControlPort):
-    """Controls a miner via Home Assistant's entities of a smart socket."""
+class GenericSocketHomeAssistantAPIMinerController(
+    PowerMonitorPort,
+    StatusMonitorPort,
+    PowerControlPort,
+):
+    """Controls a miner via Home Assistant's entities of a smart socket.
+
+    Implements: PowerMonitorPort, StatusMonitorPort, PowerControlPort.
+    """
 
     def __init__(
         self,
@@ -98,19 +108,14 @@ class GenericSocketHomeAssistantAPIMinerController(MinerControlPort):
                 f"Entities Configured: Switch={self.entity_switch}, Power={self.entity_power}, Unit={self.unit_power}"
             )
 
-    def get_miner_hashrate(self) -> Optional[HashRate]:
-        """
-        Gets the current hash rate, if available.
-        This implementation does not provides hash rate information.
-        """
-        return None
+    # --- PowerMonitorPort ---
 
-    def get_miner_power(self) -> Optional[Watts]:
+    async def get_power(self) -> Optional[Watts]:
         """Gets the current power consumption, if available."""
         if self.logger:
             self.logger.debug("Fetching power consumption from Home Assistant...")
 
-        state_power, _ = self.home_assistant.get_entity_state(self.entity_power)
+        state_power, _ = await self.home_assistant.get_entity_state(self.entity_power)
         power_watts = self.home_assistant.parse_power(
             state_power,
             self.unit_power,
@@ -122,12 +127,14 @@ class GenericSocketHomeAssistantAPIMinerController(MinerControlPort):
 
         return power_watts
 
-    def get_miner_status(self) -> MinerStatus:
+    # --- StatusMonitorPort ---
+
+    async def get_status(self) -> MinerStatus:
         """Gets the current operational status of the miner."""
         if self.logger:
             self.logger.debug("Fetching miner status from Home Assistant...")
 
-        state_switch, _ = self.home_assistant.get_entity_state(self.entity_switch)
+        state_switch, _ = await self.home_assistant.get_entity_state(self.entity_switch)
         state_status = self.home_assistant.parse_bool(state_switch, self.entity_switch or "N/A")
 
         state_map: Dict[Optional[bool], MinerStatus] = {
@@ -143,32 +150,34 @@ class GenericSocketHomeAssistantAPIMinerController(MinerControlPort):
 
         return miner_status
 
-    def stop_miner(self) -> bool:
-        """Attempts to stop the specified miner. Returns True on success request."""
-        if self.logger:
-            self.logger.debug("Sending stop command to miner via Home Assistant...")
+    # --- PowerControlPort ---
 
-        success = self.home_assistant.set_entity_state(
+    async def power_off(self) -> bool:
+        """Attempts to power off the miner via smart plug. Returns True on success."""
+        if self.logger:
+            self.logger.debug("Sending power off command to miner via Home Assistant...")
+
+        success = await self.home_assistant.set_entity_state(
             self.entity_switch,
             str(False),
         )
 
         if self.logger:
-            self.logger.debug(f"Stop command sent. Success: {success}")
+            self.logger.debug(f"Power off command sent. Success: {success}")
 
         return success
 
-    def start_miner(self) -> bool:
-        """Attempts to start the miner. Returns True on success request."""
+    async def power_on(self) -> bool:
+        """Attempts to power on the miner via smart plug. Returns True on success."""
         if self.logger:
-            self.logger.debug("Sending start command to miner via Home Assistant...")
+            self.logger.debug("Sending power on command to miner via Home Assistant...")
 
-        success = self.home_assistant.set_entity_state(
+        success = await self.home_assistant.set_entity_state(
             self.entity_switch,
             str(True),
         )
 
         if self.logger:
-            self.logger.debug(f"Start command sent. Success: {success}")
+            self.logger.debug(f"Power on command sent. Success: {success}")
 
         return success

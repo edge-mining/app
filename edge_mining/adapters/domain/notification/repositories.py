@@ -4,6 +4,10 @@ import json
 import sqlite3
 from typing import List, Optional
 
+from sqlalchemy import select
+
+from edge_mining.adapters.domain.notification.tables import notifiers_table
+from edge_mining.adapters.infrastructure.persistence.sqlalchemy.base import BaseSQLAlchemyRepository
 from edge_mining.adapters.infrastructure.persistence.sqlite import BaseSqliteRepository
 from edge_mining.domain.common import EntityId
 from edge_mining.domain.exceptions import ConfigurationError
@@ -286,3 +290,96 @@ class SqliteNotifierRepository(NotifierRepository):
         finally:
             if conn:
                 conn.close()
+
+
+# SQLAlchemy implementation
+
+
+class SqlAlchemyNotifierRepository(NotifierRepository):
+    """SQLAlchemy implementation of NotifierRepository.
+
+    This repository works directly with the imperatively mapped Notifier domain entity.
+    The config field is automatically converted between NotificationConfig objects and JSON
+    strings by the custom TypeDecorator and event listener defined in tables.py.
+
+    Args:
+        db: BaseSQLAlchemyRepository instance for database operations
+    """
+
+    def __init__(self, db: BaseSQLAlchemyRepository):
+        """Initialize repository with database instance.
+
+        Args:
+            db: BaseSQLAlchemyRepository instance
+        """
+        self._db = db
+        self.logger = db.logger
+
+    def add(self, notifier: Notifier) -> None:
+        """Add a notifier to the repository."""
+        session = self._db.get_session()
+        try:
+            session.add(notifier)
+            session.commit()
+        finally:
+            session.close()
+
+    def get_by_id(self, notifier_id: EntityId) -> Optional[Notifier]:
+        """Get a notifier by ID."""
+        session = self._db.get_session()
+        try:
+            stmt = select(Notifier).where(notifiers_table.c.id == str(notifier_id))
+            entity = session.execute(stmt).scalar_one_or_none()
+            return entity
+        finally:
+            session.close()
+
+    def get_all(self) -> List[Notifier]:
+        """Get all notifiers."""
+        session = self._db.get_session()
+        try:
+            stmt = select(Notifier)
+            entities = session.execute(stmt).scalars().all()
+            return list(entities)
+        finally:
+            session.close()
+
+    def update(self, notifier: Notifier) -> None:
+        """Update a notifier."""
+        session = self._db.get_session()
+        try:
+            stmt = select(Notifier).where(notifiers_table.c.id == str(notifier.id))
+            existing_entity = session.execute(stmt).scalar_one_or_none()
+
+            if existing_entity:
+                existing_entity.name = notifier.name
+                existing_entity.adapter_type = notifier.adapter_type
+                existing_entity.config = notifier.config
+                existing_entity.external_service_id = notifier.external_service_id
+
+                session.commit()
+        finally:
+            session.close()
+
+    def remove(self, notifier_id: EntityId) -> None:
+        """Remove a notifier by ID."""
+        session = self._db.get_session()
+        try:
+            stmt = select(Notifier).where(notifiers_table.c.id == str(notifier_id))
+            entity = session.execute(stmt).scalar_one_or_none()
+
+            if entity:
+                session.delete(entity)
+                session.commit()
+        finally:
+            session.close()
+
+    def get_by_external_service_id(self, external_service_id: EntityId) -> List[Notifier]:
+        """Get notifiers by external service ID."""
+        session = self._db.get_session()
+        try:
+            stmt = select(Notifier).where(notifiers_table.c.external_service_id == str(external_service_id))
+            entities = session.execute(stmt).scalars().all()
+            return list(entities)
+        finally:
+            session.close()

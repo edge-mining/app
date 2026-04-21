@@ -1,14 +1,22 @@
 """Validation schemas for energy domain."""
 
 import uuid
+from datetime import datetime
 from typing import Dict, Optional, Union, cast
 
-from pydantic import BaseModel, Field, field_serializer, field_validator
+from pydantic import BaseModel, Field, computed_field, field_serializer, field_validator
 
-from edge_mining.domain.common import EntityId, WattHours, Watts
+from edge_mining.domain.common import EntityId, Percentage, Timestamp, WattHours, Watts
 from edge_mining.domain.energy.common import EnergyMonitorAdapter, EnergySourceType
 from edge_mining.domain.energy.entities import EnergyMonitor, EnergySource
-from edge_mining.domain.energy.value_objects import Battery, Grid
+from edge_mining.domain.energy.value_objects import (
+    Battery,
+    BatteryState,
+    EnergyStateSnapshot,
+    Grid,
+    GridState,
+    LoadState,
+)
 from edge_mining.shared.adapter_configs.energy import EnergyMonitorDummySolarConfig, EnergyMonitorHomeAssistantConfig
 from edge_mining.shared.adapter_maps.energy import ENERGY_MONITOR_CONFIG_TYPE_MAP
 from edge_mining.shared.interfaces.config import EnergyMonitorConfig
@@ -50,6 +58,160 @@ class GridSchema(BaseModel):
         return Grid(contracted_power=Watts(self.contracted_power))
 
 
+class LoadStateSchema(BaseModel):
+    """Schema for LoadState value object."""
+
+    current_power: float = Field(..., description="Current power in Watts")
+    timestamp: datetime = Field(default_factory=datetime.now, description="Timestamp of the load state")
+
+    @field_validator("current_power")
+    @classmethod
+    def validate_current_power(cls, v: float) -> float:
+        """Validate current power."""
+        if v < 0:
+            raise ValueError("Current power must be non-negative")
+        return v
+
+    @classmethod
+    def from_model(cls, load_state: LoadState) -> "LoadStateSchema":
+        """Create schema from LoadState value object."""
+        return cls(
+            current_power=float(load_state.current_power),
+            timestamp=load_state.timestamp,
+        )
+
+    def to_model(self) -> LoadState:
+        """Convert schema to LoadState value object."""
+        return LoadState(
+            current_power=Watts(self.current_power),
+            timestamp=Timestamp(self.timestamp),
+        )
+
+
+class BatteryStateSchema(BaseModel):
+    """Schema for BatteryState value object."""
+
+    state_of_charge: float = Field(..., ge=0, le=100, description="State of charge as percentage (0-100)")
+    remaining_capacity: Optional[float] = Field(None, ge=0, description="Remaining capacity in WattHours")
+    current_power: float = Field(..., description="Current power in Watts (positive=charging, negative=discharging)")
+    timestamp: datetime = Field(default_factory=datetime.now, description="Timestamp of the battery state")
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def charging_power(self) -> float:
+        """Returns the power being used to charge the battery (read-only)."""
+        return max(self.current_power, 0.0)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def discharging_power(self) -> float:
+        """Returns the power being used to discharge the battery (read-only)."""
+        return max(-self.current_power, 0.0)
+
+    @field_validator("state_of_charge")
+    @classmethod
+    def validate_soc(cls, v: float) -> float:
+        """Validate state of charge is between 0 and 100."""
+        if not 0 <= v <= 100:
+            raise ValueError("State of charge must be between 0 and 100")
+        return v
+
+    @classmethod
+    def from_model(cls, battery_state: BatteryState) -> "BatteryStateSchema":
+        """Create schema from BatteryState value object."""
+        return cls(
+            state_of_charge=float(battery_state.state_of_charge),
+            remaining_capacity=float(battery_state.remaining_capacity) if battery_state.remaining_capacity else None,
+            current_power=float(battery_state.current_power),
+            timestamp=battery_state.timestamp,
+        )
+
+    def to_model(self) -> BatteryState:
+        """Convert schema to BatteryState value object."""
+        return BatteryState(
+            state_of_charge=Percentage(self.state_of_charge),
+            remaining_capacity=WattHours(self.remaining_capacity) if self.remaining_capacity else None,
+            current_power=Watts(self.current_power),
+            timestamp=Timestamp(self.timestamp),
+        )
+
+
+class GridStateSchema(BaseModel):
+    """Schema for GridState value object."""
+
+    current_power: float = Field(..., description="Current power in Watts (positive=importing, negative=exporting)")
+    timestamp: datetime = Field(default_factory=datetime.now, description="Timestamp of the grid state")
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def importing_power(self) -> float:
+        """Returns the power being imported from the grid."""
+        return max(self.current_power, 0.0)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def exporting_power(self) -> float:
+        """Returns the power being exported to the grid."""
+        return max(-self.current_power, 0.0)
+
+    @classmethod
+    def from_model(cls, grid_state: GridState) -> "GridStateSchema":
+        """Create schema from GridState value object."""
+        return cls(
+            current_power=float(grid_state.current_power),
+            timestamp=grid_state.timestamp,
+        )
+
+    def to_model(self) -> GridState:
+        """Convert schema to GridState value object."""
+        return GridState(
+            current_power=Watts(self.current_power),
+            timestamp=Timestamp(self.timestamp),
+        )
+
+
+class EnergyStateSnapshotSchema(BaseModel):
+    """Schema for EnergyStateSnapshot value object."""
+
+    production: float = Field(..., ge=0, description="Current production in Watts")
+    consumption: LoadStateSchema = Field(..., description="Current consumption state (excluding miner)")
+    battery: Optional[BatteryStateSchema] = Field(None, description="Battery state if present")
+    grid: Optional[GridStateSchema] = Field(None, description="Grid state if present")
+    external_source: Optional[float] = Field(None, ge=0, description="External source power in Watts")
+    timestamp: datetime = Field(default_factory=datetime.now, description="Timestamp of the energy snapshot")
+
+    @field_validator("production", "external_source")
+    @classmethod
+    def validate_power(cls, v: Optional[float]) -> Optional[float]:
+        """Validate power values are non-negative if provided."""
+        if v is not None and v < 0:
+            raise ValueError("Power must be non-negative")
+        return v
+
+    @classmethod
+    def from_model(cls, snapshot: EnergyStateSnapshot) -> "EnergyStateSnapshotSchema":
+        """Create schema from EnergyStateSnapshot value object."""
+        return cls(
+            production=float(snapshot.production),
+            consumption=LoadStateSchema.from_model(snapshot.consumption),
+            battery=BatteryStateSchema.from_model(snapshot.battery) if snapshot.battery else None,
+            grid=GridStateSchema.from_model(snapshot.grid) if snapshot.grid else None,
+            external_source=float(snapshot.external_source) if snapshot.external_source else None,
+            timestamp=snapshot.timestamp,
+        )
+
+    def to_model(self) -> EnergyStateSnapshot:
+        """Convert schema to EnergyStateSnapshot value object."""
+        return EnergyStateSnapshot(
+            production=Watts(self.production),
+            consumption=self.consumption.to_model(),
+            battery=self.battery.to_model() if self.battery else None,
+            grid=self.grid.to_model() if self.grid else None,
+            external_source=Watts(self.external_source) if self.external_source else None,
+            timestamp=Timestamp(self.timestamp),
+        )
+
+
 class EnergySourceSchema(BaseModel):
     """Schema for EnergySource entity with complete validation."""
 
@@ -81,6 +243,15 @@ class EnergySourceSchema(BaseModel):
         if not v:
             v = ""
         return v
+
+    @field_validator("type")
+    @classmethod
+    def validate_type(cls, v: str) -> EnergySourceType:
+        """Validate that type is a recognized EnergySourceType."""
+        adapter_values = [adapter.value for adapter in EnergySourceType]
+        if v not in adapter_values:
+            raise ValueError(f"adapter_type must be one of {adapter_values}")
+        return EnergySourceType(v)
 
     @field_validator("energy_monitor_id")
     @classmethod
@@ -123,19 +294,19 @@ class EnergySourceSchema(BaseModel):
     @classmethod
     def from_model(cls, energy_source: EnergySource) -> "EnergySourceSchema":
         """Create EnergySourceSchema from an EnergySource domain entity."""
+        storage = None
+        if energy_source.storage:
+            storage = BatterySchema(nominal_capacity=float(energy_source.storage.nominal_capacity))
+        grid = None
+        if energy_source.grid:
+            grid = GridSchema(contracted_power=float(energy_source.grid.contracted_power))
         return cls(
             id=str(energy_source.id),
             name=energy_source.name,
             type=energy_source.type,
             nominal_power_max=float(energy_source.nominal_power_max) if energy_source.nominal_power_max else None,
-            storage=(
-                BatterySchema(nominal_capacity=float(energy_source.storage.nominal_capacity))
-                if energy_source.storage
-                else None
-            ),
-            grid=(
-                GridSchema(contracted_power=float(energy_source.grid.contracted_power)) if energy_source.grid else None
-            ),
+            storage=storage,
+            grid=grid,
             external_source=float(energy_source.external_source) if energy_source.external_source else None,
             energy_monitor_id=str(energy_source.energy_monitor_id) if energy_source.energy_monitor_id else None,
             forecast_provider_id=(
@@ -204,6 +375,15 @@ class EnergySourceCreateSchema(BaseModel):
         if not v:
             v = ""
         return v
+
+    @field_validator("type")
+    @classmethod
+    def validate_type(cls, v: str) -> EnergySourceType:
+        """Validate that type is a recognized EnergySourceType."""
+        adapter_values = [adapter.value for adapter in EnergySourceType]
+        if v not in adapter_values:
+            raise ValueError(f"adapter_type must be one of {adapter_values}")
+        return EnergySourceType(v)
 
     @field_validator("energy_monitor_id")
     @classmethod
@@ -483,6 +663,12 @@ class EnergyMonitorCreateSchema(BaseModel):
             config_class = ENERGY_MONITOR_CONFIG_TYPE_MAP.get(self.adapter_type, None)
             if config_class:
                 configuration = cast(EnergyMonitorConfig, config_class.from_dict(self.config))
+        else:
+            if self.adapter_type:
+                # If adapter type is provided but config is not, initialize with default config
+                config_class = ENERGY_MONITOR_CONFIG_TYPE_MAP.get(self.adapter_type, None)
+                if config_class:
+                    configuration = cast(EnergyMonitorConfig, config_class())
 
         return EnergyMonitor(
             id=EntityId(uuid.uuid4()),

@@ -8,9 +8,12 @@ from edge_mining.adapters.domain.policy.schemas import (
     AutomationRuleCreateSchema,
     AutomationRuleSchema,
     AutomationRuleUpdateSchema,
+    DecisionalContextSchema,
+    DecisionalContextStructureSchema,
     OptimizationPolicyCreateSchema,
     OptimizationPolicySchema,
     OptimizationPolicyUpdateSchema,
+    PolicyCheckSchema,
 )
 
 # Import dependency injection setup functions
@@ -60,14 +63,14 @@ async def add_policy(
         policy_to_add: OptimizationPolicy = policy_schema.to_model()
 
         # Create policy using configuration service
-        new_policy = config_service.create_policy(
+        new_policy = await config_service.create_policy(
             name=policy_to_add.name,
             description=policy_to_add.description or "",
         )
 
         if policy_to_add.start_rules:
             for rule in policy_to_add.start_rules:
-                config_service.add_rule_to_policy(
+                await config_service.add_rule_to_policy(
                     policy_id=new_policy.id,
                     rule_type=RuleType.START,
                     name=rule.name,
@@ -77,7 +80,7 @@ async def add_policy(
                 )
         if policy_to_add.stop_rules:
             for rule in policy_to_add.stop_rules:
-                config_service.add_rule_to_policy(
+                await config_service.add_rule_to_policy(
                     policy_id=new_policy.id,
                     rule_type=RuleType.STOP,
                     name=rule.name,
@@ -127,7 +130,7 @@ async def update_policy(
             raise HTTPException(status_code=404, detail="Policy not found")
 
         # Update policy fields
-        updated_policy = config_service.update_policy(
+        updated_policy = await config_service.update_policy(
             policy_id=policy_id,
             name=policy_update.name or existing_policy.name,
             description=policy_update.description or existing_policy.description or "",
@@ -156,7 +159,7 @@ async def delete_policy(
             raise HTTPException(status_code=404, detail="Policy not found")
 
         # Delete policy
-        config_service.delete_policy(policy_id)
+        await config_service.delete_policy(policy_id)
 
         return OptimizationPolicySchema.from_model(policy)
 
@@ -168,20 +171,64 @@ async def delete_policy(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}") from e
 
 
-@router.get("/policies/{policy_id}/check", response_model=bool)
+@router.get("/policies/{policy_id}/check", response_model=PolicyCheckSchema)
 async def check_policy(
     policy_id: EntityId,
     config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
-) -> bool:
+) -> PolicyCheckSchema:
     """Check if a policy is valid and can be used."""
+    errors = []
+    warnings = []
+    valid = False
+    policy_name = None
+    start_rules_count = 0
+    stop_rules_count = 0
+    enabled_start_rules_count = 0
+    enabled_stop_rules_count = 0
+
     try:
-        return config_service.check_policy(policy_id)
-    except PolicyNotFoundError as e:
-        raise HTTPException(status_code=404, detail="Policy not found") from e
+        # Get policy to extract metadata
+        policy = config_service.get_policy(policy_id)
+        if not policy:
+            raise PolicyNotFoundError()
+
+        policy_name = policy.name
+        start_rules_count = len(policy.start_rules)
+        stop_rules_count = len(policy.stop_rules)
+        enabled_start_rules_count = sum(1 for rule in policy.start_rules if rule.enabled)
+        enabled_stop_rules_count = sum(1 for rule in policy.stop_rules if rule.enabled)
+
+        # Add warnings for disabled rules
+        disabled_start_rules = start_rules_count - enabled_start_rules_count
+        disabled_stop_rules = stop_rules_count - enabled_stop_rules_count
+
+        if disabled_start_rules > 0:
+            warnings.append(f"{disabled_start_rules} start rule(s) are disabled")
+        if disabled_stop_rules > 0:
+            warnings.append(f"{disabled_stop_rules} stop rule(s) are disabled")
+
+        # Perform the actual validation
+        valid = config_service.check_policy(policy_id)
+
+    except PolicyNotFoundError:
+        errors.append("Policy not found")
     except PolicyError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        errors.append(str(e))
+        valid = False
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}") from e
+        errors.append(f"Unexpected error: {str(e)}")
+
+    return PolicyCheckSchema(
+        valid=valid,
+        policy_id=str(policy_id),
+        policy_name=policy_name,
+        errors=errors,
+        warnings=warnings,
+        start_rules_count=start_rules_count,
+        stop_rules_count=stop_rules_count,
+        enabled_start_rules_count=enabled_start_rules_count,
+        enabled_stop_rules_count=enabled_stop_rules_count,
+    )
 
 
 # Policy rule management endpoints
@@ -196,7 +243,7 @@ async def add_rule_to_policy(
     try:
         rule_to_add: AutomationRule = rule_schema.to_model()
 
-        new_rule = config_service.add_rule_to_policy(
+        new_rule = await config_service.add_rule_to_policy(
             policy_id=policy_id,
             rule_type=rule_type,
             name=rule_to_add.name,
@@ -262,7 +309,7 @@ async def enable_policy_rule(
 ) -> AutomationRuleSchema:
     """Enable a specific rule for a policy"""
     try:
-        rule: AutomationRule = config_service.enable_policy_rule(policy_id, rule_id)
+        rule: AutomationRule = await config_service.enable_policy_rule(policy_id, rule_id)
 
         return AutomationRuleSchema.from_model(rule)
     except PolicyNotFoundError as e:
@@ -281,7 +328,7 @@ async def disable_policy_rule(
 ) -> AutomationRuleSchema:
     """Disable a specific rule for a policy"""
     try:
-        rule: AutomationRule = config_service.disable_policy_rule(policy_id, rule_id)
+        rule: AutomationRule = await config_service.disable_policy_rule(policy_id, rule_id)
 
         return AutomationRuleSchema.from_model(rule)
     except PolicyNotFoundError as e:
@@ -310,7 +357,7 @@ async def update_policy_rule(
         if rule_schema.conditions is not None:
             conditions = rule_schema.conditions.to_model()
 
-        updated_rule = config_service.update_policy_rule(
+        updated_rule = await config_service.update_policy_rule(
             policy_id=policy_id,
             rule_id=rule_id,
             name=rule_schema.name or existing_rule.name,
@@ -345,7 +392,7 @@ async def delete_policy_rule(
         if not rule:
             raise HTTPException(status_code=404, detail="Rule not found")
 
-        deleted_rule = config_service.delete_policy_rule(policy_id, rule_id)
+        deleted_rule = await config_service.delete_policy_rule(policy_id, rule_id)
         return AutomationRuleSchema.from_model(deleted_rule)
 
     except PolicyNotFoundError as e:
@@ -354,3 +401,18 @@ async def delete_policy_rule(
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}") from e
+
+
+@router.get("/decisional-context/structure", response_model=DecisionalContextStructureSchema)
+async def get_decisional_context_structure_endpoint() -> DecisionalContextStructureSchema:
+    """
+    Get the complete structure of the DecisionalContext.
+
+    Returns a hierarchical representation of all fields available in the decisional context,
+    including their types and descriptions. This is useful for:
+    - Understanding what data is available for rule conditions
+    - Building UIs for rule creation
+    - Documentation purposes
+    - Validating field paths in rule conditions
+    """
+    return DecisionalContextSchema.get_structure()

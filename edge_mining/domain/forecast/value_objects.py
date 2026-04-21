@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 
 from edge_mining.domain.common import Timestamp, ValueObject, WattHours, Watts
+from edge_mining.shared.timezone import now as timezone_now
 
 
 @dataclass(frozen=True)
@@ -42,26 +43,28 @@ class Sun(ValueObject):
     @property
     def time_before_sunrise(self) -> Optional[timedelta]:
         """Returns the time remaining until sunrise."""
-        if self.sunrise < datetime.now():
+        now = timezone_now()
+        if self.sunrise < now:
             return None
-        return self.sunrise - datetime.now()
+        return self.sunrise - now
 
     @property
     def time_after_sunrise(self) -> Optional[timedelta]:
         """Returns the time elapsed since sunrise."""
-        return datetime.now() - self.sunrise
+        return timezone_now() - self.sunrise
 
     @property
     def time_before_sunset(self) -> Optional[timedelta]:
         """Returns the time remaining until sunset."""
-        if self.sunset < datetime.now():
+        now = timezone_now()
+        if self.sunset < now:
             return None
-        return self.sunset - datetime.now()
+        return self.sunset - now
 
     @property
     def time_after_sunset(self) -> Optional[timedelta]:
         """Returns the time elapsed since sunset."""
-        return datetime.now() - self.sunset
+        return timezone_now() - self.sunset
 
 
 @dataclass(frozen=True)

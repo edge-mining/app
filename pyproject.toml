@@ -2,9 +2,12 @@
 requires = ["setuptools>=64", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools.dynamic]
+version = {attr = "edge_mining.__version__.__version__"}
+
 [project]
 name = "edge-mining"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Software to optimize the use of excess energy, especially from renewable sources, through Bitcoin mining"
 readme = "README.md"
 license = {text = "MIT"}
@@ -35,14 +38,16 @@ keywords = [
     "hexagonal-architecture",
     "domain-driven-design",
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.11,<4.0"
 dependencies = [
-    "pydantic>=2.8.2",
+    "pydantic>=2.12.5",
     "pyyaml>=6.0.2",
     "pydantic-settings>=2.8.1",
     "apscheduler>=3.11.0",
     "click>=8.1.8",
     "loguru>=0.7.3",
+    "sqlalchemy>=2.0.0",
+    "alembic>=1.13.0",
 ]
 
 [project.optional-dependencies]
@@ -51,7 +56,7 @@ api = [
     "uvicorn[standard]>=0.34.1",
 ]
 homeassistant = [
-    "homeassistant_api>=5.0.0",
+    "homeassistant_api==4.2.2.post1",
 ]
 mqtt = [
     "paho-mqtt>=2.1.0",
@@ -62,8 +67,11 @@ telegram = [
 solar = [
     "astral>=3.2",
 ]
+pyasic = [
+    "pyasic==0.78.10"
+]
 all = [
-    "edge-mining[api,homeassistant,mqtt,telegram,solar]",
+    "edge-mining[api,homeassistant,mqtt,telegram,solar,pyasic]",
 ]
 dev = [
     "pytest>=6.0",

@@ -2,8 +2,8 @@
 
 from typing import Optional
 
-from edge_mining.adapters.infrastructure.rule_engine.common import RuleEngineType
 from edge_mining.adapters.infrastructure.rule_engine.engine import CustomRuleEngine
+from edge_mining.domain.policy.common import RuleEngineType
 from edge_mining.domain.policy.services import RuleEngine
 from edge_mining.shared.logging.port import LoggerPort
 

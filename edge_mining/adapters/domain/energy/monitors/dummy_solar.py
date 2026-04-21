@@ -59,7 +59,7 @@ class DummySolarEnergyMonitor(EnergyMonitorPort):
                 self.storage.nominal_capacity * (self.current_soc / 100.0)
             )  # Calculate remaining capacity
 
-    def get_current_energy_state(self) -> Optional[EnergyStateSnapshot]:
+    async def get_current_energy_state(self) -> Optional[EnergyStateSnapshot]:
         now = datetime.now()
         hour = now.hour
 

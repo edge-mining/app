@@ -327,7 +327,7 @@ class MqttEnergyMonitor(EnergyMonitorPort):
         except (ValueError, TypeError):
             return None
 
-    def get_current_energy_state(self) -> Optional[EnergyStateSnapshot]:
+    async def get_current_energy_state(self) -> Optional[EnergyStateSnapshot]:
         """
         Give the latest energy state snapshot based on received MQTT messages.
         Checks if the data is too old and logs warnings if values are stale or missing."""
@@ -344,7 +344,6 @@ class MqttEnergyMonitor(EnergyMonitorPort):
 
         now = datetime.now(timezone.utc)
         snapshot_time = Timestamp(now.astimezone())  # Convert to local timezone for snapshot
-        has_critical_error = False
         is_stale = False
 
         # Get the latest values and check if they are stale
@@ -359,39 +358,35 @@ class MqttEnergyMonitor(EnergyMonitorPort):
         # Check if critical data is missing (never received)
         if self.topics_map.get("solar_production") and production is None:
             if self.logger:
-                self.logger.error(
-                    f"Missing critical value: Solar Production (Topic: {self.topics_map['solar_production']})"
+                self.logger.warning(
+                    f"Could not retrieve Solar Production (Topic: {self.topics_map['solar_production']}). "
+                    "Defaulting to 0W."
                 )
-            has_critical_error = True
         if self.topics_map.get("house_consumption") and consumption is None:
             if self.logger:
                 self.logger.error(
                     f"Missing critical value: House Consumption (Topic: {self.topics_map['house_consumption']})"
                 )
-            has_critical_error = True
         if self.topics_map.get("grid_power") and grid_power is None:
             if self.logger:
-                self.logger.error(f"Missing critical value: Grid Power (Topic: {self.topics_map['grid_power']})")
-            has_critical_error = True
-        # Battery is critical only if both SOC and Power are required and missing
+                self.logger.warning(
+                    f"Could not retrieve Grid Power (Topic: {self.topics_map['grid_power']}). "
+                    "Continuing without grid data."
+                )
+        # Battery: log warning if configured but missing
         if self.topics_map.get("battery_soc") and self.topics_map.get("battery_power"):
             if battery_soc is None:
                 if self.logger:
-                    self.logger.error(f"Missing critical value: Battery SOC (Topic: {self.topics_map['battery_soc']})")
-                has_critical_error = True
+                    self.logger.warning(
+                        f"Could not retrieve Battery SOC (Topic: {self.topics_map['battery_soc']}). "
+                        "Continuing without battery data."
+                    )
             if battery_power is None:
                 if self.logger:
-                    self.logger.error(
-                        f"Missing critical value: Battery Power (Topic: {self.topics_map['battery_power']})"
+                    self.logger.warning(
+                        f"Could not retrieve Battery Power (Topic: {self.topics_map['battery_power']}). "
+                        "Continuing without battery data."
                     )
-                has_critical_error = True
-
-        if has_critical_error:
-            if self.logger:
-                self.logger.error(
-                    "One or more critical energy values were never received via MQTT. Cannot create snapshot."
-                )
-            return None
 
         if is_stale:
             if self.logger:

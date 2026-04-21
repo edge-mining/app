@@ -29,6 +29,7 @@ from edge_mining.domain.notification.exceptions import (
     NotifierConfigurationError,
     NotifierNotFoundError,
 )
+from edge_mining.shared.external_services.common import ExternalServiceAdapter
 from edge_mining.shared.interfaces.config import Configuration, NotificationConfig
 
 router = APIRouter()
@@ -98,6 +99,23 @@ async def get_notifier_config_schema(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+@router.get(
+    "/notifiers/types/{adapter_type}/external-services",
+    response_model=Optional[ExternalServiceAdapter],
+)
+async def get_notifier_type_external_service_types(
+    adapter_type: NotificationAdapter,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+) -> Optional[ExternalServiceAdapter]:
+    """Get a list of compatible external service types for a specific notifier type."""
+    try:
+        needed_external_service = config_service.get_notifier_external_service_adapter(adapter_type)
+
+        return needed_external_service
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 @router.get("/notifiers/{notifier_id}", response_model=NotifierSchema)
 async def get_notifier_details(
     notifier_id: EntityId,
@@ -131,7 +149,7 @@ async def add_notifier(
         if notifier_to_add.config is None:
             raise NotifierConfigurationError("Notifier configuration should be set")
 
-        new_notifier = config_service.add_notifier(
+        new_notifier = await config_service.add_notifier(
             name=notifier_to_add.name,
             adapter_type=notifier_to_add.adapter_type,
             config=notifier_to_add.config,
@@ -175,7 +193,7 @@ async def update_notifier(
         if notifier_update.external_service_id:
             external_service_id = EntityId(uuid.UUID(notifier_update.external_service_id))
 
-        updated_notifier = config_service.update_notifier(
+        updated_notifier = await config_service.update_notifier(
             notifier_id=notifier.id,
             name=notifier_update.name or "",
             config=cast(NotificationConfig, configuration),
@@ -198,7 +216,7 @@ async def remove_notifier(
 ) -> NotifierSchema:
     """Remove a notifier."""
     try:
-        deleted_notifier = config_service.remove_notifier(notifier_id)
+        deleted_notifier = await config_service.remove_notifier(notifier_id)
 
         response = NotifierSchema.from_model(deleted_notifier)
 
@@ -216,7 +234,7 @@ async def test_notifier(
 ) -> Dict[str, str]:
     """Test a notifier by sending a test notification."""
     try:
-        notifier_port = adapter_service.get_notifier(notifier_id)
+        notifier_port = await adapter_service.get_notifier(notifier_id)
 
         if notifier_port is None:
             raise NotifierNotFoundError(f"Notifier with ID {notifier_id} not found")
@@ -224,9 +242,12 @@ async def test_notifier(
         # Send a test notification
         test_title = "Test Notification"
         test_message = "This is a test notification from Edge Mining System"
-        await notifier_port.send_notification(test_title, test_message)
+        send_status = await notifier_port.send_notification(test_title, test_message)
 
-        return {"status": "success", "message": "Test notification sent successfully"}
+        status_string = "success" if send_status else "failed"
+        message_string = "Test notification sent successfully" if send_status else "Failed to send test notification"
+
+        return {"status": status_string, "message": message_string}
     except NotifierNotFoundError as e:
         raise HTTPException(status_code=404, detail="Notifier not found") from e
     except Exception as e:

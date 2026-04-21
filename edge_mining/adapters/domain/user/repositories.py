@@ -7,7 +7,11 @@ import json
 import sqlite3
 from typing import Dict, Optional
 
+from sqlalchemy import select
+
+from edge_mining.adapters.domain.user.tables import settings_table
 from edge_mining.adapters.infrastructure.persistence.sqlite import BaseSqliteRepository
+from edge_mining.adapters.infrastructure.persistence.sqlalchemy.base import BaseSQLAlchemyRepository
 from edge_mining.domain.exceptions import ConfigurationError
 from edge_mining.domain.user.common import UserId
 from edge_mining.domain.user.entities import SystemSettings
@@ -113,3 +117,61 @@ class SqliteSettingsRepository(SettingsRepository):
         finally:
             if conn:
                 conn.close()
+
+
+# SQLAlchemy implementation
+
+
+class SqlAlchemySettingsRepository(SettingsRepository):
+    """SQLAlchemy implementation of the SettingsRepository.
+
+    This repository works directly with the imperatively mapped SystemSettings entity.
+    The settings field is stored as JSON in the database.
+
+    Args:
+        db: BaseSQLAlchemyRepository instance for database operations
+    """
+
+    # We dont have different users, so we use a single ID.
+    _SETTINGS_ID: str = "global_settings"
+
+    def __init__(self, db: BaseSQLAlchemyRepository):
+        """Initialize repository with database instance.
+
+        Args:
+            db: BaseSQLAlchemyRepository instance
+        """
+        self._db = db
+        self.logger = db.logger
+
+    def get_settings(self, user_id: Optional[UserId]) -> Optional[SystemSettings]:
+        """Get settings for a user (or global settings if user_id is None)."""
+        user_id = user_id or UserId(self._SETTINGS_ID)
+        session = self._db.get_session()
+        try:
+            stmt = select(SystemSettings).where(settings_table.c.id == str(user_id))
+            entity = session.execute(stmt).scalar_one_or_none()
+            return entity
+        finally:
+            session.close()
+
+    def save_settings(self, user_id: Optional[UserId], settings: SystemSettings) -> None:
+        """Save settings for a user (or global settings if user_id is None)."""
+        user_id = user_id or UserId(self._SETTINGS_ID)
+        session = self._db.get_session()
+        try:
+            # Check if settings already exist
+            stmt = select(SystemSettings).where(settings_table.c.id == str(user_id))
+            existing_entity = session.execute(stmt).scalar_one_or_none()
+
+            if existing_entity:
+                # Update existing settings
+                existing_entity.settings = settings.settings
+                session.commit()
+            else:
+                # Create new settings with the provided user_id
+                new_settings = SystemSettings(id=user_id, settings=settings.settings)
+                session.add(new_settings)
+                session.commit()
+        finally:
+            session.close()

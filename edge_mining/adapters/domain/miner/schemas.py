@@ -1,17 +1,36 @@
 """Validation schemas for miner domain."""
 
+import ipaddress
 import uuid
 from typing import Dict, Optional, Union, cast
 
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
 from edge_mining.domain.common import EntityId, Watts
-from edge_mining.domain.miner.common import MinerControllerAdapter, MinerStatus
-from edge_mining.domain.miner.entities import Miner, MinerController
-from edge_mining.domain.miner.value_objects import HashRate
+from edge_mining.domain.miner.aggregate_roots import Miner
+from edge_mining.domain.miner.common import (
+    MinerControllerAdapter,
+    MinerControllerProtocol,
+    MinerFeatureType,
+    MinerStatus,
+)
+from edge_mining.domain.miner.entities import MinerController
+from edge_mining.domain.miner.value_objects import (
+    FanSpeed,
+    Frequency,
+    HashboardSnapshot,
+    HashRate,
+    MinerFeature,
+    MinerInfo,
+    MinerLimit,
+    MinerStateSnapshot,
+    Temperature,
+    Voltage,
+)
 from edge_mining.shared.adapter_configs.miner import (
     MinerControllerDummyConfig,
     MinerControllerGenericSocketHomeAssistantAPIConfig,
+    MinerControllerPyASICConfig,
 )
 from edge_mining.shared.adapter_maps.miner import MINER_CONTROLLER_CONFIG_TYPE_MAP
 from edge_mining.shared.interfaces.config import MinerControllerConfig
@@ -27,7 +46,7 @@ class HashRateSchema(BaseModel):
     @classmethod
     def validate_unit(cls, v: str) -> str:
         """Validate hash rate unit."""
-        allowed_units = ["GH/s", "TH/s", "PH/s", "EH/s"]
+        allowed_units = ["H/s", "MH/s", "GH/s", "TH/s", "PH/s", "EH/s"]
         if v not in allowed_units:
             raise ValueError(f"Unit must be one of {allowed_units}")
         return v
@@ -45,18 +64,114 @@ class HashRateSchema(BaseModel):
         return HashRate(value=self.value, unit=self.unit)
 
 
+class TemperatureSchema(BaseModel):
+    """Schema for Temperature value object."""
+
+    value: float = Field(..., description="Temperature value")
+    unit: str = Field(default="°C", description="Temperature unit")
+
+    def to_model(self) -> Temperature:
+        """Convert TemperatureSchema to Temperature domain value object."""
+        return Temperature(value=self.value, unit=self.unit)
+
+
+class FanSpeedSchema(BaseModel):
+    """Schema for FanSpeed value object."""
+
+    value: float = Field(..., ge=0, description="Fan speed value, must be zero or positive")
+    unit: str = Field(default="RPM", description="Fan speed unit")
+
+    def to_model(self) -> FanSpeed:
+        """Convert FanSpeedSchema to FanSpeed domain value object."""
+        return FanSpeed(value=self.value, unit=self.unit)
+
+
+class VoltageSchema(BaseModel):
+    """Schema for Voltage value object."""
+
+    value: float = Field(..., description="Voltage value")
+    unit: str = Field(default="V", description="Voltage unit")
+
+    def to_model(self) -> Voltage:
+        """Convert VoltageSchema to Voltage domain value object."""
+        return Voltage(value=self.value, unit=self.unit)
+
+
+class FrequencySchema(BaseModel):
+    """Schema for Frequency value object."""
+
+    value: float = Field(..., ge=0, description="Frequency value, must be zero or positive")
+    unit: str = Field(default="MHz", description="Frequency unit")
+
+    def to_model(self) -> Frequency:
+        """Convert FrequencySchema to Frequency domain value object."""
+        return Frequency(value=self.value, unit=self.unit)
+
+
+class FeaturePrioritySchema(BaseModel):
+    """Schema for setting feature priority."""
+
+    priority: int = Field(..., ge=1, le=100, description="Priority value (1-100, higher wins)")
+
+
+class MinerFeatureSchema(BaseModel):
+    """Schema for MinerFeature value object."""
+
+    feature_type: str = Field(..., description="Feature type")
+    controller_id: str = Field(..., description="ID of the controller providing this feature")
+    priority: int = Field(default=50, ge=1, le=100, description="Priority (1-100, higher wins)")
+    enabled: bool = Field(default=True, description="Whether this feature is enabled")
+
+    @field_validator("controller_id")
+    @classmethod
+    def validate_controller_id(cls, v: str) -> str:
+        """Validate that controller_id is a valid UUID string."""
+        try:
+            uuid.UUID(v)
+        except ValueError as exc:
+            raise ValueError("controller_id must be a valid UUID string") from exc
+        return v
+
+    @field_validator("feature_type")
+    @classmethod
+    def validate_feature_type(cls, v: str) -> str:
+        """Validate that feature_type is a recognized MinerFeatureType."""
+        valid_types = [ft.value for ft in MinerFeatureType]
+        if v not in valid_types:
+            raise ValueError(f"feature_type must be one of {valid_types}")
+        return v
+
+    @classmethod
+    def from_model(cls, feature: MinerFeature) -> "MinerFeatureSchema":
+        """Create MinerFeatureSchema from a MinerFeature value object."""
+        return cls(
+            feature_type=feature.feature_type.value,
+            controller_id=str(feature.controller_id),
+            priority=feature.priority,
+            enabled=feature.enabled,
+        )
+
+    def to_model(self) -> MinerFeature:
+        """Convert MinerFeatureSchema to MinerFeature value object."""
+        return MinerFeature(
+            feature_type=MinerFeatureType(self.feature_type),
+            controller_id=EntityId(uuid.UUID(self.controller_id)),
+            priority=self.priority,
+            enabled=self.enabled,
+        )
+
+
 class MinerSchema(BaseModel):
     """Schema for Miner entity with complete validation."""
 
     id: str = Field(..., description="Unique identifier for the miner")
     name: str = Field(default="", description="Miner name")
-    status: MinerStatus = Field(default=MinerStatus.UNKNOWN, description="Current miner status")
-    hash_rate: Optional[HashRateSchema] = Field(default=None, description="Current hash rate")
+    model: Optional[str] = Field(default=None, description="Miner model/hardware identifier")
     hash_rate_max: Optional[HashRateSchema] = Field(default=None, description="Maximum hash rate")
-    power_consumption: Optional[float] = Field(default=None, description="Current power consumption in Watts")
     power_consumption_max: Optional[float] = Field(default=None, ge=0, description="Maximum power consumption in Watts")
     active: bool = Field(default=True, description="Whether the miner is active in the system")
-    controller_id: Optional[str] = Field(default=None, description="ID of the associated Miner controller")
+    features: list[MinerFeatureSchema] = Field(default_factory=list, description="Features provided by controllers")
+    controller_ids: list[str] = Field(default_factory=list, description="IDs of associated controllers (computed)")
 
     @field_validator("id")
     @classmethod
@@ -77,17 +192,6 @@ class MinerSchema(BaseModel):
             v = ""
         return v
 
-    @field_validator("controller_id")
-    @classmethod
-    def validate_controller_id(cls, v: Optional[str]) -> Optional[str]:
-        """Validate that controller_id is a valid UUID string if provided."""
-        if v is not None:
-            try:
-                uuid.UUID(v)
-            except ValueError as exc:
-                raise ValueError("controller_id must be a valid UUID string") from exc
-        return v
-
     @field_validator("power_consumption_max")
     @classmethod
     def validate_power_max(cls, v: Optional[float]) -> Optional[float]:
@@ -99,20 +203,19 @@ class MinerSchema(BaseModel):
     @classmethod
     def from_model(cls, miner: Miner) -> "MinerSchema":
         """Create MinerSchema from a Miner domain model instance."""
+        hash_rate_max: Optional[HashRateSchema] = None
+        if miner.hash_rate_max:
+            hash_rate_max = HashRateSchema(value=miner.hash_rate_max.value, unit=miner.hash_rate_max.unit)
+
         return cls(
             id=str(miner.id),
             name=miner.name,
-            status=miner.status,
-            hash_rate=HashRateSchema(value=miner.hash_rate.value, unit=miner.hash_rate.unit)
-            if miner.hash_rate
-            else None,
-            hash_rate_max=HashRateSchema(value=miner.hash_rate_max.value, unit=miner.hash_rate_max.unit)
-            if miner.hash_rate_max
-            else None,
-            power_consumption=miner.power_consumption,
+            model=miner.model,
+            hash_rate_max=hash_rate_max,
             power_consumption_max=miner.power_consumption_max,
             active=miner.active,
-            controller_id=str(miner.controller_id) if miner.controller_id else None,
+            features=[MinerFeatureSchema.from_model(f) for f in miner.features],
+            controller_ids=[str(cid) for cid in miner.get_controller_ids()],
         )
 
     @field_serializer("id")
@@ -120,25 +223,18 @@ class MinerSchema(BaseModel):
         """Serialize id field."""
         return str(value)
 
-    @field_serializer("controller_id")
-    def serialize_controller_id(self, value: Optional[str]) -> Optional[str]:
-        """Serialize controller_id field."""
-        return str(value) if value is not None else None
-
     def to_model(self) -> Miner:
         """Convert MinerSchema back to Miner domain model instance."""
         return Miner(
             id=EntityId(uuid.UUID(self.id)),
             name=self.name,
-            status=self.status,
-            hash_rate=(HashRate(value=self.hash_rate.value, unit=self.hash_rate.unit) if self.hash_rate else None),
+            model=self.model,
             hash_rate_max=(
                 HashRate(value=self.hash_rate_max.value, unit=self.hash_rate_max.unit) if self.hash_rate_max else None
             ),
-            power_consumption=Watts(self.power_consumption) if self.power_consumption is not None else None,
             power_consumption_max=Watts(self.power_consumption_max) if self.power_consumption_max is not None else None,
             active=self.active,
-            controller_id=EntityId(uuid.UUID(self.controller_id)) if self.controller_id else None,
+            features=[f.to_model() for f in self.features],
         )
 
     class Config:
@@ -149,29 +245,241 @@ class MinerSchema(BaseModel):
         arbitrary_types_allowed = True
         json_encoders = {
             uuid.UUID: str,
-            MinerStatus: lambda v: v.value,
             MinerControllerAdapter: lambda v: v.value,
         }
+
+
+class HashboardSnapshotSchema(BaseModel):
+    """Schema for HashboardSnapshot value object."""
+
+    index: int = Field(..., description="Hashboard slot/position index")
+    chip_temperature: Optional[TemperatureSchema] = Field(default=None, description="Chip temperature")
+    board_temperature: Optional[TemperatureSchema] = Field(default=None, description="Board temperature")
+    voltage: Optional[VoltageSchema] = Field(default=None, description="Voltage")
+    frequency: Optional[FrequencySchema] = Field(default=None, description="Frequency")
+    hash_rate: Optional[HashRateSchema] = Field(default=None, description="Current hash rate")
+    nominal_hash_rate: Optional[HashRateSchema] = Field(default=None, description="Nominal hash rate")
+    hash_rate_error: Optional[HashRateSchema] = Field(default=None, description="Hash rate error")
+
+    @classmethod
+    def from_model(cls, hb: HashboardSnapshot) -> "HashboardSnapshotSchema":
+        """Create HashboardSnapshotSchema from a HashboardSnapshot value object."""
+        return cls(
+            index=hb.index,
+            chip_temperature=(
+                TemperatureSchema(value=hb.chip_temperature.value, unit=hb.chip_temperature.unit)
+                if hb.chip_temperature
+                else None
+            ),
+            board_temperature=(
+                TemperatureSchema(value=hb.board_temperature.value, unit=hb.board_temperature.unit)
+                if hb.board_temperature
+                else None
+            ),
+            voltage=VoltageSchema(value=hb.voltage.value, unit=hb.voltage.unit) if hb.voltage else None,
+            frequency=FrequencySchema(value=hb.frequency.value, unit=hb.frequency.unit) if hb.frequency else None,
+            hash_rate=(HashRateSchema(value=hb.hash_rate.value, unit=hb.hash_rate.unit) if hb.hash_rate else None),
+            nominal_hash_rate=(
+                HashRateSchema(value=hb.nominal_hash_rate.value, unit=hb.nominal_hash_rate.unit)
+                if hb.nominal_hash_rate
+                else None
+            ),
+            hash_rate_error=(
+                HashRateSchema(value=hb.hash_rate_error.value, unit=hb.hash_rate_error.unit)
+                if hb.hash_rate_error
+                else None
+            ),
+        )
+
+    def to_model(self) -> HashboardSnapshot:
+        """Convert HashboardSnapshotSchema to HashboardSnapshot value object."""
+        return HashboardSnapshot(
+            index=self.index,
+            chip_temperature=self.chip_temperature.to_model() if self.chip_temperature else None,
+            board_temperature=self.board_temperature.to_model() if self.board_temperature else None,
+            voltage=self.voltage.to_model() if self.voltage else None,
+            frequency=self.frequency.to_model() if self.frequency else None,
+            hash_rate=self.hash_rate.to_model() if self.hash_rate else None,
+            nominal_hash_rate=self.nominal_hash_rate.to_model() if self.nominal_hash_rate else None,
+            hash_rate_error=self.hash_rate_error.to_model() if self.hash_rate_error else None,
+        )
+
+
+class MinerStateSnapshotSchema(BaseModel):
+    """Schema for MinerStateSnapshot value object (runtime operational state)."""
+
+    status: MinerStatus = Field(default=MinerStatus.UNKNOWN, description="Current miner status")
+    hash_rate: Optional[HashRateSchema] = Field(default=None, description="Current hash rate")
+    power_consumption: Optional[float] = Field(default=None, description="Current power consumption in Watts")
+    inlet_temperature: Optional[TemperatureSchema] = Field(default=None, description="Inlet temperature")
+    outlet_temperature: Optional[TemperatureSchema] = Field(default=None, description="Outlet temperature")
+    internal_fan_speed: list[FanSpeedSchema] = Field(default_factory=list, description="Internal fan speeds")
+    external_fan_speed: Optional[FanSpeedSchema] = Field(default=None, description="External fan speed")
+    hashboards: list[HashboardSnapshotSchema] = Field(default_factory=list, description="Per-hashboard data")
+    blocks_found: Optional[int] = Field(default=None, description="Blocks found count")
+    system_uptime: Optional[int] = Field(default=None, description="System uptime in seconds")
+    max_chip_temperature: Optional[TemperatureSchema] = Field(
+        default=None, description="Maximum chip temperature across all hashboards"
+    )
+    max_board_temperature: Optional[TemperatureSchema] = Field(
+        default=None, description="Maximum board temperature across all hashboards"
+    )
+    avg_chip_temperature: Optional[TemperatureSchema] = Field(
+        default=None, description="Average chip temperature across all hashboards"
+    )
+    avg_board_temperature: Optional[TemperatureSchema] = Field(
+        default=None, description="Average board temperature across all hashboards"
+    )
+
+    @classmethod
+    def from_model(cls, snapshot: MinerStateSnapshot) -> "MinerStateSnapshotSchema":
+        """Create MinerStateSnapshotSchema from a MinerStateSnapshot value object."""
+        hash_rate: Optional[HashRateSchema] = None
+        if snapshot.hash_rate:
+            hash_rate = HashRateSchema(value=snapshot.hash_rate.value, unit=snapshot.hash_rate.unit)
+
+        max_chip_temp = snapshot.max_chip_temperature
+        max_board_temp = snapshot.max_board_temperature
+        avg_chip_temp = snapshot.avg_chip_temperature
+        avg_board_temp = snapshot.avg_board_temperature
+
+        return cls(
+            status=snapshot.status,
+            hash_rate=hash_rate,
+            power_consumption=snapshot.power_consumption,
+            inlet_temperature=(
+                TemperatureSchema(value=snapshot.inlet_temperature.value, unit=snapshot.inlet_temperature.unit)
+                if snapshot.inlet_temperature
+                else None
+            ),
+            outlet_temperature=(
+                TemperatureSchema(value=snapshot.outlet_temperature.value, unit=snapshot.outlet_temperature.unit)
+                if snapshot.outlet_temperature
+                else None
+            ),
+            internal_fan_speed=[FanSpeedSchema(value=fs.value, unit=fs.unit) for fs in snapshot.internal_fan_speed],
+            external_fan_speed=(
+                FanSpeedSchema(value=snapshot.external_fan_speed.value, unit=snapshot.external_fan_speed.unit)
+                if snapshot.external_fan_speed
+                else None
+            ),
+            hashboards=[HashboardSnapshotSchema.from_model(hb) for hb in snapshot.hashboards],
+            blocks_found=snapshot.blocks_found,
+            system_uptime=snapshot.system_uptime,
+            max_chip_temperature=(
+                TemperatureSchema(value=max_chip_temp.value, unit=max_chip_temp.unit) if max_chip_temp else None
+            ),
+            max_board_temperature=(
+                TemperatureSchema(value=max_board_temp.value, unit=max_board_temp.unit) if max_board_temp else None
+            ),
+            avg_chip_temperature=(
+                TemperatureSchema(value=avg_chip_temp.value, unit=avg_chip_temp.unit) if avg_chip_temp else None
+            ),
+            avg_board_temperature=(
+                TemperatureSchema(value=avg_board_temp.value, unit=avg_board_temp.unit) if avg_board_temp else None
+            ),
+        )
+
+    def to_model(self) -> MinerStateSnapshot:
+        """Convert MinerStateSnapshotSchema to MinerStateSnapshot value object."""
+        return MinerStateSnapshot(
+            status=MinerStatus(self.status) if isinstance(self.status, str) else self.status,
+            hash_rate=(HashRate(value=self.hash_rate.value, unit=self.hash_rate.unit) if self.hash_rate else None),
+            power_consumption=Watts(self.power_consumption) if self.power_consumption is not None else None,
+            inlet_temperature=self.inlet_temperature.to_model() if self.inlet_temperature else None,
+            outlet_temperature=self.outlet_temperature.to_model() if self.outlet_temperature else None,
+            internal_fan_speed=[fs.to_model() for fs in self.internal_fan_speed],
+            external_fan_speed=self.external_fan_speed.to_model() if self.external_fan_speed else None,
+            hashboards=[hb.to_model() for hb in self.hashboards],
+            blocks_found=self.blocks_found,
+            system_uptime=self.system_uptime,
+        )
+
+    class Config:
+        """Pydantic configuration."""
+
+        use_enum_values = True
+        validate_assignment = True
+        json_encoders = {
+            MinerStatus: lambda v: v.value,
+        }
+
+
+class MinerInfoSchema(BaseModel):
+    """Schema for MinerInfo value object."""
+
+    model: Optional[str] = Field(default=None, description="Miner model")
+    serial_number: Optional[str] = Field(default=None, description="Serial number")
+    firmware_type: Optional[str] = Field(
+        default=None, description="Firmware type (e.g. Stock, BOS+, VNish, ePIC, LuxOS)"
+    )
+    firmware_version: Optional[str] = Field(default=None, description="Firmware version")
+    mac_address: Optional[str] = Field(default=None, description="MAC address")
+    hostname: Optional[str] = Field(default=None, description="Hostname")
+    hashboard_count: Optional[int] = Field(default=None, description="Number of hashboards")
+    chip_count: Optional[int] = Field(default=None, description="Number of chips")
+    fan_count: Optional[int] = Field(default=None, description="Number of fans")
+
+    @classmethod
+    def from_model(cls, info: MinerInfo) -> "MinerInfoSchema":
+        """Create MinerInfoSchema from a MinerInfo value object."""
+        return cls(
+            model=info.model,
+            serial_number=info.serial_number,
+            firmware_type=info.firmware_type,
+            firmware_version=info.firmware_version,
+            mac_address=info.mac_address,
+            hostname=info.hostname,
+            hashboard_count=info.hashboard_count,
+            chip_count=info.chip_count,
+            fan_count=info.fan_count,
+        )
+
+
+class MinerLimitSchema(BaseModel):
+    """Schema for MinerLimit value object."""
+
+    max_power: Optional[float] = Field(default=None, ge=0, description="Maximum power consumption in Watts")
+    max_hash_rate: Optional[HashRateSchema] = Field(default=None, description="Maximum hash rate")
+
+    @field_validator("max_power")
+    @classmethod
+    def validate_max_power(cls, v: Optional[float]) -> Optional[float]:
+        """Validate that max_power is non-negative if provided."""
+        if v is not None and v < 0:
+            raise ValueError("max_power cannot be negative")
+        return v
+
+    def to_model(self) -> MinerLimit:
+        """Convert MinerLimitSchema to MinerLimit value object."""
+        return MinerLimit(
+            max_power=Watts(self.max_power) if self.max_power is not None else None,
+            max_hash_rate=self.max_hash_rate.to_model() if self.max_hash_rate else None,
+        )
+
+    @classmethod
+    def from_model(cls, limit: Optional[MinerLimit]) -> "MinerLimitSchema":
+        """Create MinerLimitSchema from a MinerLimit value object."""
+        if not limit:
+            return cls()
+
+        max_hash_rate_schema: Optional[HashRateSchema] = None
+        if limit.max_hash_rate:
+            max_hash_rate_schema = HashRateSchema(value=limit.max_hash_rate.value, unit=limit.max_hash_rate.unit)
+
+        return cls(
+            max_power=limit.max_power if limit.max_power else None,
+            max_hash_rate=max_hash_rate_schema,
+        )
 
 
 class MinerCreateSchema(BaseModel):
     """Schema for creating a new miner."""
 
     name: str = Field(default="", description="Miner name")
+    model: Optional[str] = Field(default=None, description="Miner model/hardware identifier")
     hash_rate_max: Optional[HashRateSchema] = Field(default=None, description="Maximum hash rate")
     power_consumption_max: Optional[float] = Field(default=None, ge=0, description="Maximum power consumption in Watts")
-    controller_id: Optional[str] = Field(default=None, description="ID of the associated controller")
-
-    @field_validator("controller_id")
-    @classmethod
-    def validate_controller_id(cls, v: Optional[str]) -> Optional[str]:
-        """Validate that controller_id is a valid UUID string if provided."""
-        if v is not None:
-            try:
-                uuid.UUID(v)
-            except ValueError as exc:
-                raise ValueError("controller_id must be a valid UUID string") from exc
-        return v
 
     @field_validator("name")
     @classmethod
@@ -187,15 +495,12 @@ class MinerCreateSchema(BaseModel):
         return Miner(
             id=EntityId(uuid.uuid4()),
             name=self.name,
-            status=MinerStatus.UNKNOWN,
-            hash_rate=None,
+            model=self.model,
             hash_rate_max=(
                 HashRate(value=self.hash_rate_max.value, unit=self.hash_rate_max.unit) if self.hash_rate_max else None
             ),
-            power_consumption=None,
             power_consumption_max=Watts(self.power_consumption_max) if self.power_consumption_max is not None else None,
             active=True,
-            controller_id=EntityId(uuid.UUID(self.controller_id)) if self.controller_id else None,
         )
 
     class Config:
@@ -212,21 +517,10 @@ class MinerUpdateSchema(BaseModel):
     """Schema for updating an existing miner."""
 
     name: str = Field(default="", description="Miner name")
+    model: Optional[str] = Field(default=None, description="Miner model/hardware identifier")
     hash_rate_max: Optional[HashRateSchema] = Field(default=None, description="Maximum hash rate")
     power_consumption_max: Optional[float] = Field(default=None, ge=0, description="Maximum power consumption in Watts")
     active: Optional[bool] = Field(default=None, description="Whether the miner is active")
-    controller_id: Optional[str] = Field(default=None, description="ID of the associated Miner controller")
-
-    @field_validator("controller_id")
-    @classmethod
-    def validate_controller_id(cls, v: Optional[str]) -> Optional[str]:
-        """Validate that controller_id is a valid UUID string if provided."""
-        if v is not None:
-            try:
-                uuid.UUID(v)
-            except ValueError as exc:
-                raise ValueError("controller_id must be a valid UUID string") from exc
-        return v
 
     @field_validator("name")
     @classmethod
@@ -392,6 +686,12 @@ class MinerControllerCreateSchema(BaseModel):
             config_class = MINER_CONTROLLER_CONFIG_TYPE_MAP.get(self.adapter_type, None)
             if config_class:
                 configuration = cast(MinerControllerConfig, config_class.from_dict(self.config))
+        else:
+            if self.adapter_type:
+                # If adapter type is provided but config is not, initialize with default config
+                config_class = MINER_CONTROLLER_CONFIG_TYPE_MAP.get(self.adapter_type, None)
+                if config_class:
+                    configuration = cast(MinerControllerConfig, config_class())
 
         return MinerController(
             id=EntityId(uuid.uuid4()),
@@ -523,10 +823,103 @@ class MinerControllerGenericSocketHomeAssistantAPIConfigSchema(BaseModel):
         validate_assignment = True
 
 
+class MinerControllerPyASICConfigSchema(BaseModel):
+    """Schema for MinerControllerPyASICConfig."""
+
+    ip: str = Field(..., description="IP address of the PyASIC miner")
+    port: Optional[int] = Field(
+        None, description="Port of the PyASIC miner (empty represents 'use the default miner port')"
+    )
+    username: Optional[str] = Field(
+        None, description="Username of the PyASIC miner (empty represents 'use the default miner username')"
+    )
+    password: Optional[str] = Field(
+        None, description="Password of the PyASIC miner (empty represents 'use the default miner password')"
+    )
+    protocol: Optional[MinerControllerProtocol] = Field(
+        default=MinerControllerProtocol.WEB, description="Protocol to use for connecting to the miner"
+    )
+
+    @field_validator("ip")
+    @classmethod
+    def validate_ip(cls, v: str) -> str:
+        """Validate that the value is a plausible IP address."""
+        v = v.strip()
+        if not v:
+            raise ValueError("IP address must be a non-empty string")
+        try:
+            ipaddress.ip_address(str(v))
+        except ValueError as e:
+            raise ValueError(f"Invalid IP address: {v}") from e
+        return v
+
+    @field_validator("port")
+    @classmethod
+    def validate_port(cls, v: Optional[int]) -> Optional[int]:
+        """Validate that the value is a plausible port number."""
+        if v is not None:
+            if not (0 < v < 65536):
+                raise ValueError("Port must be between 1 and 65535")
+        return v
+
+    @field_validator("username")
+    @classmethod
+    def validate_username(cls, v: Optional[str]) -> Optional[str]:
+        """Validate that the value is a plausible username."""
+        if v is not None:
+            v = v.strip()
+            if not v:
+                v = None
+        return v
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: Optional[str]) -> Optional[str]:
+        """Validate that the value is a plausible password."""
+        if v is not None:
+            v = v.strip()
+            if not v:
+                v = None
+        return v
+
+    @field_validator("protocol")
+    @classmethod
+    def validate_protocol(cls, v: str) -> MinerControllerProtocol:
+        """Validate that protocol is a recognized MinerControllerProtocol."""
+        protocol_values = [protocol.value for protocol in MinerControllerProtocol]
+        if v not in protocol_values:
+            raise ValueError(f"protocol must be one of {protocol_values}")
+        return MinerControllerProtocol(v)
+
+    def to_model(self) -> MinerControllerPyASICConfig:
+        """
+        Convert schema to MinerControllerPyASICConfig adapter configuration model instance.
+        """
+
+        return MinerControllerPyASICConfig(
+            ip=self.ip,
+            port=self.port,
+            username=self.username,
+            password=self.password,
+            protocol=self.protocol,
+        )
+
+    class Config:
+        """Pydantic configuration."""
+
+        use_enum_values = True
+        validate_assignment = True
+
+
 MINER_CONTROLLER_CONFIG_SCHEMA_MAP: Dict[
     type[MinerControllerConfig],
-    Union[type[MinerControllerDummyConfigSchema], type[MinerControllerGenericSocketHomeAssistantAPIConfigSchema]],
+    Union[
+        type[MinerControllerDummyConfigSchema],
+        type[MinerControllerGenericSocketHomeAssistantAPIConfigSchema],
+        type[MinerControllerPyASICConfigSchema],
+    ],
 ] = {
     MinerControllerDummyConfig: MinerControllerDummyConfigSchema,
     MinerControllerGenericSocketHomeAssistantAPIConfig: MinerControllerGenericSocketHomeAssistantAPIConfigSchema,
+    MinerControllerPyASICConfig: MinerControllerPyASICConfigSchema,
 }

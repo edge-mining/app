@@ -23,6 +23,8 @@ from edge_mining.shared.external_services.entities import ExternalService
 from edge_mining.shared.interfaces.config import ExternalServiceConfig
 from edge_mining.shared.logging.port import LoggerPort
 
+from edge_mining.adapters.utils import run_async_func
+
 
 def select_external_service_type() -> Optional[ExternalServiceAdapter]:
     """Prompt user to select an external service adapter type."""
@@ -89,8 +91,8 @@ def handle_add_external_service(
         return None
 
     try:
-        created_service = configuration_service.create_external_service(
-            name=name, adapter_type=adapter_type, config=config
+        created_service = run_async_func(
+            configuration_service.create_external_service(name=name, adapter_type=adapter_type, config=config)
         )
         click.echo(
             click.style(
@@ -261,8 +263,8 @@ def update_single_external_service(
         return None
 
     try:
-        updated_external_service = configuration_service.update_external_service(
-            service_id=service.id, name=name, config=config
+        updated_external_service = run_async_func(
+            configuration_service.update_external_service(service_id=service.id, name=name, config=config)
         )
     except Exception as e:
         logger.error(f"Error updating external service: {e}")
@@ -295,7 +297,7 @@ def delete_single_external_service(
         return False
 
     try:
-        removed_external_service = configuration_service.remove_external_service(service.id)
+        removed_external_service = run_async_func(configuration_service.remove_external_service(service.id))
         click.echo(
             click.style(
                 f"External Service '{removed_external_service.name}' successfully deleted.",

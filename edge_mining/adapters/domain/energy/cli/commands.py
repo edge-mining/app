@@ -32,6 +32,8 @@ from edge_mining.shared.external_services.entities import ExternalService
 from edge_mining.shared.interfaces.config import EnergyMonitorConfig
 from edge_mining.shared.logging.port import LoggerPort
 
+from edge_mining.adapters.utils import run_async_func
+
 
 def select_energy_source_type() -> Optional[EnergySourceType]:
     """Select an energy source type from the list."""
@@ -263,15 +265,17 @@ def handle_add_energy_source(configuration_service: ConfigurationServiceInterfac
             )
 
     try:
-        added: EnergySource = configuration_service.create_energy_source(
-            name=new_energy_source.name,
-            source_type=new_energy_source.type,
-            nominal_power_max=new_energy_source.nominal_power_max,
-            storage=new_energy_source.storage,
-            grid=new_energy_source.grid,
-            external_source=new_energy_source.external_source,
-            energy_monitor_id=new_energy_source.energy_monitor_id,
-            forecast_provider_id=new_energy_source.forecast_provider_id,
+        added: EnergySource = run_async_func(
+            configuration_service.create_energy_source(
+                name=new_energy_source.name,
+                source_type=new_energy_source.type,
+                nominal_power_max=new_energy_source.nominal_power_max,
+                storage=new_energy_source.storage,
+                grid=new_energy_source.grid,
+                external_source=new_energy_source.external_source,
+                energy_monitor_id=new_energy_source.energy_monitor_id,
+                forecast_provider_id=new_energy_source.forecast_provider_id,
+            )
         )
         click.echo(
             click.style(
@@ -429,9 +433,8 @@ def print_energy_monitor_details(
 def print_energy_source_details(
     energy_source: EnergySource,
     configuration_service: ConfigurationServiceInterface,
-    show_energy_monitor_list: bool = False,
-    show_forecast_provider_list: bool = False,
-    show_energy_source_list: bool = False,
+    show_energy_monitor_details: bool = False,
+    show_forecast_provider_details: bool = False,
 ) -> None:
     """Print the details of an energy source."""
     click.echo("")
@@ -448,7 +451,7 @@ def print_energy_source_details(
         + ((str(energy_source.external_source) + " W") if energy_source.external_source else "None")
     )
 
-    if show_energy_monitor_list:
+    if show_energy_monitor_details:
         if energy_source.energy_monitor_id:
             try:
                 energy_monitor = configuration_service.get_energy_monitor(energy_source.energy_monitor_id)
@@ -461,7 +464,7 @@ def print_energy_source_details(
                     energy_monitor,
                     configuration_service,
                     show_external_service=True,
-                    show_energy_source_list=show_energy_source_list,
+                    show_energy_source_list=False,
                 )
             else:
                 click.echo(
@@ -469,7 +472,7 @@ def print_energy_source_details(
                 )
             click.echo("")
 
-    if show_forecast_provider_list:
+    if show_forecast_provider_details:
         if energy_source.forecast_provider_id:
             try:
                 forecast_provider = configuration_service.get_forecast_provider(energy_source.forecast_provider_id)
@@ -481,7 +484,7 @@ def print_energy_source_details(
                 print_forecast_provider_details(
                     forecast_provider,
                     configuration_service,
-                    show_energy_source_list=show_energy_source_list,
+                    show_energy_source_list=False,
                 )
             else:
                 click.echo(
@@ -592,16 +595,18 @@ def update_single_energy_source(
             new_energy_source.forecast_provider_id = forecast_provider.id
 
     try:
-        updated: EnergySource = configuration_service.update_energy_source(
-            source_id=new_energy_source.id,
-            name=new_energy_source.name,
-            source_type=new_energy_source.type,
-            nominal_power_max=new_energy_source.nominal_power_max,
-            storage=new_energy_source.storage,
-            grid=new_energy_source.grid,
-            external_source=new_energy_source.external_source,
-            energy_monitor_id=new_energy_source.energy_monitor_id,
-            forecast_provider_id=new_energy_source.forecast_provider_id,
+        updated: EnergySource = run_async_func(
+            configuration_service.update_energy_source(
+                source_id=new_energy_source.id,
+                name=new_energy_source.name,
+                source_type=new_energy_source.type,
+                nominal_power_max=new_energy_source.nominal_power_max,
+                storage=new_energy_source.storage,
+                grid=new_energy_source.grid,
+                external_source=new_energy_source.external_source,
+                energy_monitor_id=new_energy_source.energy_monitor_id,
+                forecast_provider_id=new_energy_source.forecast_provider_id,
+            )
         )
         click.echo(
             click.style(
@@ -635,9 +640,11 @@ def assign_energy_monitor_to_energy_source(
         return None
 
     try:
-        updated_energy_source = configuration_service.set_energy_monitor_to_energy_source(
-            energy_source_id=energy_source.id,
-            energy_monitor_id=energy_monitor.id,
+        updated_energy_source = run_async_func(
+            configuration_service.set_energy_monitor_to_energy_source(
+                energy_source_id=energy_source.id,
+                energy_monitor_id=energy_monitor.id,
+            )
         )
         click.echo(
             click.style(
@@ -673,7 +680,7 @@ def delete_single_energy_source(
         return False
 
     try:
-        removed_energy_source = configuration_service.remove_energy_source(energy_source.id)
+        removed_energy_source = run_async_func(configuration_service.remove_energy_source(energy_source.id))
         logger.debug(f"Energy Source {removed_energy_source.name} deleted successfully.")
         click.echo(
             click.style(
@@ -703,9 +710,11 @@ def assign_forecast_provider_to_energy_source(
         click.echo(click.style("No forecast provider selected. Aborting assignment.", fg="red"))
         return None
     try:
-        updated_energy_source = configuration_service.set_forecast_provider_to_energy_source(
-            energy_source_id=energy_source.id,
-            forecast_provider_id=forecast_provider.id,
+        updated_energy_source = run_async_func(
+            configuration_service.set_forecast_provider_to_energy_source(
+                energy_source_id=energy_source.id,
+                forecast_provider_id=forecast_provider.id,
+            )
         )
         click.echo(
             click.style(
@@ -736,9 +745,8 @@ def manage_single_energy_source_menu(
         print_energy_source_details(
             energy_source=energy_source,
             configuration_service=configuration_service,
-            show_energy_monitor_list=True,
-            show_forecast_provider_list=True,
-            show_energy_source_list=False,
+            show_energy_monitor_details=True,
+            show_forecast_provider_details=True,
         )
 
         click.echo("1. Update Energy Source")
@@ -1095,11 +1103,13 @@ def handle_add_energy_monitor(
 
     added: Optional[EnergyMonitor] = None
     try:
-        added = configuration_service.create_energy_monitor(
-            name=new_energy_monitor.name,
-            adapter_type=new_energy_monitor.adapter_type,
-            config=new_energy_monitor.config,
-            external_service_id=new_energy_monitor.external_service_id,
+        added = run_async_func(
+            configuration_service.create_energy_monitor(
+                name=new_energy_monitor.name,
+                adapter_type=new_energy_monitor.adapter_type,
+                config=new_energy_monitor.config,
+                external_service_id=new_energy_monitor.external_service_id,
+            )
         )
         click.echo(
             click.style(
@@ -1383,11 +1393,13 @@ def update_single_energy_monitor(
                 return None
 
     try:
-        updated_monitor: EnergyMonitor = configuration_service.update_energy_monitor(
-            monitor_id=new_energy_monitor.id,
-            name=new_energy_monitor.name,
-            config=new_energy_monitor.config,
-            external_service_id=new_energy_monitor.external_service_id,
+        updated_monitor: EnergyMonitor = run_async_func(
+            configuration_service.update_energy_monitor(
+                monitor_id=new_energy_monitor.id,
+                name=new_energy_monitor.name,
+                config=new_energy_monitor.config,
+                external_service_id=new_energy_monitor.external_service_id,
+            )
         )
         logger.debug(f"Energy Monitor {updated_monitor.name} updated successfully.")
         click.echo(
@@ -1424,7 +1436,7 @@ def delete_single_energy_monitor(
         return False
 
     try:
-        removed_energy_monitor = configuration_service.remove_energy_monitor(monitor.id)
+        removed_energy_monitor = run_async_func(configuration_service.remove_energy_monitor(monitor.id))
         logger.debug(f"Energy Monitor {removed_energy_monitor.name} deleted successfully.")
         click.echo(
             click.style(
