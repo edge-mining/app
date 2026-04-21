@@ -8,28 +8,31 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy import select
 
-from edge_mining.adapters.domain.home_load.tables import home_forecast_providers_table, home_profiles_table
+from edge_mining.adapters.domain.home_load.tables import (
+    energy_load_forecast_providers_table,
+    home_profiles_table,
+)
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.base import BaseSQLAlchemyRepository
 from edge_mining.adapters.infrastructure.persistence.sqlite import BaseSqliteRepository
 from edge_mining.domain.common import EntityId
 from edge_mining.domain.exceptions import ConfigurationError
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
-from edge_mining.domain.home_load.common import HomeForecastProviderAdapter
-from edge_mining.domain.home_load.entities import HomeForecastProvider, LoadDevice
+from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter
+from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, LoadDevice
 from edge_mining.domain.home_load.exceptions import (
-    HomeForecastProviderAlreadyExistsError,
-    HomeForecastProviderError,
-    HomeForecastProviderNotFoundError,
-    HomeForecastProviderConfigurationError,
+    EnergyLoadForecastProviderAlreadyExistsError,
+    EnergyLoadForecastProviderConfigurationError,
+    EnergyLoadForecastProviderError,
+    EnergyLoadForecastProviderNotFoundError,
 )
 from edge_mining.domain.home_load.ports import (
-    HomeForecastProviderRepository,
+    EnergyLoadForecastProviderRepository,
     HomeLoadsProfileRepository,
 )
 from edge_mining.shared.adapter_maps.home_load import (
-    HOME_FORECAST_PROVIDER_CONFIG_TYPE_MAP,
+    ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP,
 )
-from edge_mining.shared.interfaces.config import HomeForecastProviderConfig
+from edge_mining.shared.interfaces.config import EnergyLoadForecastProviderConfig
 
 # Simple In-Memory implementation for testing and basic use
 
@@ -89,11 +92,17 @@ class SqliteHomeLoadsProfileRepository(HomeLoadsProfileRepository):
                 conn.close()
 
     def _device_to_dict(self, device: LoadDevice) -> Dict[str, Any]:
-        return {"id": str(device.id), "name": device.name, "type": device.type}
+        return {"id": str(device.id), "name": device.name, "category": device.category.value}
 
     def _dict_to_device(self, data: Dict[str, Any]) -> LoadDevice:
         """Convert a dictionary to a LoadDevice."""
-        return LoadDevice(id=EntityId(uuid.UUID(data["id"])), name=data["name"], type=data["type"])
+        from edge_mining.domain.home_load.common import LoadDeviceCategory
+
+        return LoadDevice(
+            id=EntityId(uuid.UUID(data["id"])),
+            name=data["name"],
+            category=LoadDeviceCategory(data["category"]),
+        )
 
     def _row_to_profile(self, row: sqlite3.Row) -> Optional[HomeLoadsProfile]:
         """Convert a row to a HomeLoadsProfile."""
@@ -153,39 +162,41 @@ class SqliteHomeLoadsProfileRepository(HomeLoadsProfileRepository):
                 conn.close()
 
 
-class InMemoryHomeForecastProviderRepository(HomeForecastProviderRepository):
-    """In-memory implementation of HomeForecastProviderRepository for testing purposes."""
+class InMemoryEnergyLoadForecastProviderRepository(EnergyLoadForecastProviderRepository):
+    """In-memory implementation of EnergyLoadForecastProviderRepository for testing purposes."""
 
     def __init__(self):
-        self._home_forecast_providers: List[HomeForecastProvider] = []
+        self._energy_load_forecast_providers: List[EnergyLoadForecastProvider] = []
 
-    def add(self, home_forecast_provider: HomeForecastProvider) -> None:
-        self._home_forecast_providers.append(home_forecast_provider)
+    def add(self, energy_load_forecast_provider: EnergyLoadForecastProvider) -> None:
+        self._energy_load_forecast_providers.append(energy_load_forecast_provider)
 
-    def get_by_id(self, home_forecast_provider_id: EntityId) -> Optional[HomeForecastProvider]:
-        for home_forecast_provider in self._home_forecast_providers:
-            if home_forecast_provider.id == home_forecast_provider_id:
-                return home_forecast_provider
+    def get_by_id(self, energy_load_forecast_provider_id: EntityId) -> Optional[EnergyLoadForecastProvider]:
+        for energy_load_forecast_provider in self._energy_load_forecast_providers:
+            if energy_load_forecast_provider.id == energy_load_forecast_provider_id:
+                return energy_load_forecast_provider
         return None
 
-    def get_all(self) -> List[HomeForecastProvider]:
-        return self._home_forecast_providers
+    def get_all(self) -> List[EnergyLoadForecastProvider]:
+        return self._energy_load_forecast_providers
 
-    def update(self, home_forecast_provider: HomeForecastProvider) -> None:
-        for i, existing_home_forecast_provider in enumerate(self._home_forecast_providers):
-            if existing_home_forecast_provider.id == home_forecast_provider.id:
-                self._home_forecast_providers[i] = home_forecast_provider
+    def update(self, energy_load_forecast_provider: EnergyLoadForecastProvider) -> None:
+        for i, existing_provider in enumerate(self._energy_load_forecast_providers):
+            if existing_provider.id == energy_load_forecast_provider.id:
+                self._energy_load_forecast_providers[i] = energy_load_forecast_provider
                 return
 
-    def remove(self, home_forecast_provider_id: EntityId) -> None:
-        self._home_forecast_providers = [n for n in self._home_forecast_providers if n.id != home_forecast_provider_id]
+    def remove(self, energy_load_forecast_provider_id: EntityId) -> None:
+        self._energy_load_forecast_providers = [
+            n for n in self._energy_load_forecast_providers if n.id != energy_load_forecast_provider_id
+        ]
 
-    def get_by_external_service_id(self, external_service_id: EntityId) -> List[HomeForecastProvider]:
-        """Retrieve all home forecast providers linked to a specific external service."""
+    def get_by_external_service_id(self, external_service_id: EntityId) -> List[EnergyLoadForecastProvider]:
+        """Retrieve all energy load forecast providers linked to a specific external service."""
         return (
             [
                 provider
-                for provider in self._home_forecast_providers
+                for provider in self._energy_load_forecast_providers
                 if provider.external_service_id == external_service_id
             ]
             if external_service_id
@@ -193,8 +204,8 @@ class InMemoryHomeForecastProviderRepository(HomeForecastProviderRepository):
         )
 
 
-class SqliteHomeForecastProviderRepository(HomeForecastProviderRepository):
-    """SQLite implementation of HomeForecastProviderRepository."""
+class SqliteEnergyLoadForecastProviderRepository(EnergyLoadForecastProviderRepository):
+    """SQLite implementation of EnergyLoadForecastProviderRepository."""
 
     def __init__(self, db: BaseSqliteRepository):
         self._db = db
@@ -203,13 +214,13 @@ class SqliteHomeForecastProviderRepository(HomeForecastProviderRepository):
         self._create_tables()
 
     def _create_tables(self):
-        """Create the necessary table for the Home Forecast Provider if it does not exist."""
+        """Create the necessary table for the Energy Load Forecast Provider if it does not exist."""
         self.logger.debug(
-            f"Ensuring SQLite tables exist for Home Forecast Provider Repository in {self._db.db_path}..."
+            f"Ensuring SQLite tables exist for Energy Load Forecast Provider Repository in {self._db.db_path}..."
         )
         sql_statements = [
             """
-            CREATE TABLE IF NOT EXISTS home_forecast_providers (
+            CREATE TABLE IF NOT EXISTS energy_load_forecast_providers (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
                 adapter_type TEXT NOT NULL,
@@ -226,7 +237,7 @@ class SqliteHomeForecastProviderRepository(HomeForecastProviderRepository):
                 for statement in sql_statements:
                     cursor.execute(statement)
 
-                self.logger.debug("Home Forecast providers tables checked/created successfully.")
+                self.logger.debug("Energy Load Forecast providers tables checked/created successfully.")
         except sqlite3.Error as e:
             self.logger.error(f"Error creating SQLite tables: {e}")
             raise ConfigurationError(f"DB error creating tables: {e}") from e
@@ -235,210 +246,229 @@ class SqliteHomeForecastProviderRepository(HomeForecastProviderRepository):
                 conn.close()
 
     def _deserialize_config(
-        self, adapter_type: HomeForecastProviderAdapter, config_json: str
-    ) -> HomeForecastProviderConfig:
-        """Deserialize a JSON string into HomeForecastProviderConfig object."""
+        self, adapter_type: EnergyLoadForecastProviderAdapter, config_json: str
+    ) -> EnergyLoadForecastProviderConfig:
+        """Deserialize a JSON string into EnergyLoadForecastProviderConfig object."""
         data: dict = json.loads(config_json)
 
-        if adapter_type not in HOME_FORECAST_PROVIDER_CONFIG_TYPE_MAP:
-            raise HomeForecastProviderNotFoundError(
-                f"Error reading HomeForecastProvider configuration. Invalid type '{adapter_type}'"
+        if adapter_type not in ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP:
+            raise EnergyLoadForecastProviderNotFoundError(
+                f"Error reading EnergyLoadForecastProvider configuration. Invalid type '{adapter_type}'"
             )
 
-        config_class: Optional[type[HomeForecastProviderConfig]] = HOME_FORECAST_PROVIDER_CONFIG_TYPE_MAP.get(
-            adapter_type
+        config_class: Optional[type[EnergyLoadForecastProviderConfig]] = (
+            ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP.get(adapter_type)
         )
         if not config_class:
-            raise HomeForecastProviderNotFoundError(
-                f"Error creating HomeForecastProviderConfig configuration. Type '{adapter_type}'"
+            raise EnergyLoadForecastProviderNotFoundError(
+                f"Error creating EnergyLoadForecastProviderConfig configuration. Type '{adapter_type}'"
             )
 
         config_instance = config_class.from_dict(data)
-        if not isinstance(config_instance, HomeForecastProviderConfig):
-            raise HomeForecastProviderConfigurationError(
-                f"Deserialized config is not of type HomeForecastProviderConfig for adapter type {adapter_type}."
+        if not isinstance(config_instance, EnergyLoadForecastProviderConfig):
+            raise EnergyLoadForecastProviderConfigurationError(
+                f"Deserialized config is not of type EnergyLoadForecastProviderConfig "
+                f"for adapter type {adapter_type}."
             )
         return config_instance
 
-    def _row_to_home_forecast_provider(self, row: sqlite3.Row) -> Optional[HomeForecastProvider]:
-        """Deserialize a row from the database into a HomeForecastProvider object."""
+    def _row_to_energy_load_forecast_provider(self, row: sqlite3.Row) -> Optional[EnergyLoadForecastProvider]:
+        """Deserialize a row from the database into an EnergyLoadForecastProvider object."""
         if not row:
             return None
         try:
-            home_forecast_provider_type = HomeForecastProviderAdapter(row["adapter_type"])
+            provider_type = EnergyLoadForecastProviderAdapter(row["adapter_type"])
 
             # Deserialize the config from the database row
-            config = self._deserialize_config(home_forecast_provider_type, row["config"])
+            config = self._deserialize_config(provider_type, row["config"])
 
-            return HomeForecastProvider(
+            return EnergyLoadForecastProvider(
                 id=EntityId(row["id"]),
                 name=row["name"],
-                adapter_type=home_forecast_provider_type,
+                adapter_type=provider_type,
                 config=config,
                 external_service_id=(EntityId(row["external_service_id"]) if row["external_service_id"] else None),
             )
         except (ValueError, KeyError) as e:
-            self.logger.error(f"Error deserializing HomeForecastProvider from DB row: {row}. Error: {e}")
+            self.logger.error(f"Error deserializing EnergyLoadForecastProvider from DB row: {row}. Error: {e}")
             return None
 
-    def add(self, home_forecast_provider: HomeForecastProvider) -> None:
-        """Add a new home forecast provider to the repository."""
-        self.logger.debug(f"Adding forecast provider {home_forecast_provider.id} to SQLite repository.")
+    def add(self, energy_load_forecast_provider: EnergyLoadForecastProvider) -> None:
+        """Add a new energy load forecast provider to the repository."""
+        self.logger.debug(f"Adding forecast provider {energy_load_forecast_provider.id} to SQLite repository.")
         sql = """
-            INSERT INTO home_forecast_providers (id, name, adapter_type, config, external_service_id)
+            INSERT INTO energy_load_forecast_providers (id, name, adapter_type, config, external_service_id)
             VALUES (?, ?, ?, ?, ?);
         """
         conn = self._db.get_connection()
         try:
             # Serialize config to JSON for storage
             config_json: str = ""
-            if home_forecast_provider.config:
-                config_json = json.dumps(home_forecast_provider.config.to_dict())
+            if energy_load_forecast_provider.config:
+                config_json = json.dumps(energy_load_forecast_provider.config.to_dict())
 
             with conn:
                 cursor = conn.cursor()
                 cursor.execute(
                     sql,
                     (
-                        home_forecast_provider.id,
-                        home_forecast_provider.name,
-                        home_forecast_provider.adapter_type.value,
+                        energy_load_forecast_provider.id,
+                        energy_load_forecast_provider.name,
+                        energy_load_forecast_provider.adapter_type.value,
                         config_json,
-                        home_forecast_provider.external_service_id,
+                        energy_load_forecast_provider.external_service_id,
                     ),
                 )
         except sqlite3.IntegrityError as e:
-            self.logger.error(f"Integrity error adding home forecast provider {home_forecast_provider.id}: {e}")
+            self.logger.error(
+                f"Integrity error adding energy load forecast provider {energy_load_forecast_provider.id}: {e}"
+            )
             # Could mean that the ID already exists
-            raise HomeForecastProviderAlreadyExistsError(
-                f"Home forecast provider with ID {home_forecast_provider.id} "
+            raise EnergyLoadForecastProviderAlreadyExistsError(
+                f"Energy load forecast provider with ID {energy_load_forecast_provider.id} "
                 f"already exists or constraint violation: {e}"
             ) from e
         except sqlite3.Error as e:
-            self.logger.error(f"SQLite error adding home forecast provider {home_forecast_provider.id}: {e}")
-            raise HomeForecastProviderError(f"DB error adding home forecast provider: {e}") from e
+            self.logger.error(
+                f"SQLite error adding energy load forecast provider {energy_load_forecast_provider.id}: {e}"
+            )
+            raise EnergyLoadForecastProviderError(f"DB error adding energy load forecast provider: {e}") from e
         finally:
             if conn:
                 conn.close()
 
-    def get_by_id(self, home_forecast_provider_id: EntityId) -> Optional[HomeForecastProvider]:
-        """Retrieve an home forecast provider by its ID."""
-        self.logger.debug(f"Retrieving home forecast provider {home_forecast_provider_id} from SQLite repository.")
-        sql = "SELECT * FROM home_forecast_providers WHERE id = ?;"
+    def get_by_id(self, energy_load_forecast_provider_id: EntityId) -> Optional[EnergyLoadForecastProvider]:
+        """Retrieve an energy load forecast provider by its ID."""
+        self.logger.debug(
+            f"Retrieving energy load forecast provider {energy_load_forecast_provider_id} from SQLite repository."
+        )
+        sql = "SELECT * FROM energy_load_forecast_providers WHERE id = ?;"
         conn = self._db.get_connection()
         try:
             cursor = conn.cursor()
-            cursor.execute(sql, (home_forecast_provider_id,))
+            cursor.execute(sql, (energy_load_forecast_provider_id,))
             row = cursor.fetchone()
-            return self._row_to_home_forecast_provider(row)
+            return self._row_to_energy_load_forecast_provider(row)
         except sqlite3.Error as e:
-            self.logger.error(f"SQLite error retrieving home forecast provider {home_forecast_provider_id}: {e}")
-            raise HomeForecastProviderNotFoundError(f"DB error retrieving home forecast provider: {e}") from e
+            self.logger.error(
+                f"SQLite error retrieving energy load forecast provider {energy_load_forecast_provider_id}: {e}"
+            )
+            raise EnergyLoadForecastProviderNotFoundError(
+                f"DB error retrieving energy load forecast provider: {e}"
+            ) from e
         finally:
             if conn:
                 conn.close()
 
-    def get_all(self) -> List[HomeForecastProvider]:
-        """Retrieve all home forecast providers from the repository."""
-        self.logger.debug("Retrieving all home forecast providers from SQLite repository.")
-        sql = "SELECT * FROM home_forecast_providers;"
+    def get_all(self) -> List[EnergyLoadForecastProvider]:
+        """Retrieve all energy load forecast providers from the repository."""
+        self.logger.debug("Retrieving all energy load forecast providers from SQLite repository.")
+        sql = "SELECT * FROM energy_load_forecast_providers;"
         conn = self._db.get_connection()
         try:
             cursor = conn.cursor()
             cursor.execute(sql)
             rows = cursor.fetchall()
-            home_forecast_providers = []
+            energy_load_forecast_providers = []
             for row in rows:
-                home_forecast_provider = self._row_to_home_forecast_provider(row)
-                if home_forecast_provider:
-                    home_forecast_providers.append(home_forecast_provider)
+                provider = self._row_to_energy_load_forecast_provider(row)
+                if provider:
+                    energy_load_forecast_providers.append(provider)
         except sqlite3.Error as e:
-            self.logger.error(f"SQLite error retrieving all home forecast providers: {e}")
+            self.logger.error(f"SQLite error retrieving all energy load forecast providers: {e}")
             return []
         finally:
             if conn:
                 conn.close()
-        return home_forecast_providers
+        return energy_load_forecast_providers
 
-    def update(self, home_forecast_provider: HomeForecastProvider) -> None:
-        """Update an existing home forecast provider in the repository."""
-        self.logger.debug(f"Updating home forecast provider {home_forecast_provider.id} in SQLite repository.")
+    def update(self, energy_load_forecast_provider: EnergyLoadForecastProvider) -> None:
+        """Update an existing energy load forecast provider in the repository."""
+        self.logger.debug(
+            f"Updating energy load forecast provider {energy_load_forecast_provider.id} in SQLite repository."
+        )
         sql = """
-            UPDATE home_forecast_providers
+            UPDATE energy_load_forecast_providers
             SET name = ?, adapter_type = ?, config = ?, external_service_id = ?
             WHERE id = ?;
         """
         conn = self._db.get_connection()
         try:
             # Serialize config to JSON for storage
-            config_json = json.dumps(home_forecast_provider.config)
+            config_json = json.dumps(energy_load_forecast_provider.config)
 
             with conn:
                 cursor = conn.cursor()
                 cursor.execute(
                     sql,
                     (
-                        home_forecast_provider.name,
-                        home_forecast_provider.adapter_type.value,
+                        energy_load_forecast_provider.name,
+                        energy_load_forecast_provider.adapter_type.value,
                         config_json,
-                        home_forecast_provider.external_service_id,
-                        home_forecast_provider.id,
+                        energy_load_forecast_provider.external_service_id,
+                        energy_load_forecast_provider.id,
                     ),
                 )
                 if cursor.rowcount == 0:
-                    raise HomeForecastProviderNotFoundError(
-                        f"Home Forecast Provider with ID {home_forecast_provider.id} not found."
+                    raise EnergyLoadForecastProviderNotFoundError(
+                        f"Energy Load Forecast Provider with ID {energy_load_forecast_provider.id} not found."
                     )
         except sqlite3.Error as e:
-            self.logger.error(f"SQLite error updating home forecast provider {home_forecast_provider.id}: {e}")
-            raise HomeForecastProviderError(f"DB error updating home forecast provider: {e}") from e
+            self.logger.error(
+                f"SQLite error updating energy load forecast provider {energy_load_forecast_provider.id}: {e}"
+            )
+            raise EnergyLoadForecastProviderError(f"DB error updating energy load forecast provider: {e}") from e
         finally:
             if conn:
                 conn.close()
 
-    def remove(self, home_forecast_provider_id: EntityId) -> None:
-        """Remove an home forecast provider from the repository."""
-        self.logger.debug(f"Removing forecast provider {home_forecast_provider_id} from SQLite repository.")
-        sql = "DELETE FROM home_forecast_providers WHERE id = ?;"
+    def remove(self, energy_load_forecast_provider_id: EntityId) -> None:
+        """Remove an energy load forecast provider from the repository."""
+        self.logger.debug(f"Removing forecast provider {energy_load_forecast_provider_id} from SQLite repository.")
+        sql = "DELETE FROM energy_load_forecast_providers WHERE id = ?;"
         conn = self._db.get_connection()
         try:
             with conn:
                 cursor = conn.cursor()
-                cursor.execute(sql, (home_forecast_provider_id,))
+                cursor.execute(sql, (energy_load_forecast_provider_id,))
                 if cursor.rowcount == 0:
                     self.logger.warning(
-                        f"Attempted to remove non-existent home forecast provider {home_forecast_provider_id}."
+                        f"Attempted to remove non-existent energy load forecast provider "
+                        f"{energy_load_forecast_provider_id}."
                     )
                     # There is no need to raise an exception here, removing a
                     # non-existent is idempotent.
         except sqlite3.Error as e:
-            self.logger.error(f"SQLite error removing home forecast provider {home_forecast_provider_id}: {e}")
-            raise HomeForecastProviderError(f"DB error removing home forecast provider: {e}") from e
+            self.logger.error(
+                f"SQLite error removing energy load forecast provider {energy_load_forecast_provider_id}: {e}"
+            )
+            raise EnergyLoadForecastProviderError(f"DB error removing energy load forecast provider: {e}") from e
         finally:
             if conn:
                 conn.close()
 
-    def get_by_external_service_id(self, external_service_id: EntityId) -> List[HomeForecastProvider]:
-        """Retrieve all home forecast providers linked to a specific external service."""
+    def get_by_external_service_id(self, external_service_id: EntityId) -> List[EnergyLoadForecastProvider]:
+        """Retrieve all energy load forecast providers linked to a specific external service."""
         self.logger.debug(
-            "Retrieving home forecast providers linked to external service "
+            "Retrieving energy load forecast providers linked to external service "
             f"{external_service_id} from SQLite repository."
         )
-        sql = "SELECT * FROM home_forecast_providers WHERE external_service_id = ?;"
+        sql = "SELECT * FROM energy_load_forecast_providers WHERE external_service_id = ?;"
         conn = self._db.get_connection()
         try:
             cursor = conn.cursor()
             cursor.execute(sql, (external_service_id,))
             rows = cursor.fetchall()
-            home_forecast_providers = []
+            energy_load_forecast_providers = []
             for row in rows:
-                home_forecast_provider = self._row_to_home_forecast_provider(row)
-                if home_forecast_provider:
-                    home_forecast_providers.append(home_forecast_provider)
-            return home_forecast_providers
+                provider = self._row_to_energy_load_forecast_provider(row)
+                if provider:
+                    energy_load_forecast_providers.append(provider)
+            return energy_load_forecast_providers
         except sqlite3.Error as e:
             self.logger.error(
-                f"SQLite error retrieving home forecast providers by external service ID {external_service_id}: {e}"
+                f"SQLite error retrieving energy load forecast providers by external service ID "
+                f"{external_service_id}: {e}"
             )
             return []
         finally:
@@ -449,11 +479,11 @@ class SqliteHomeForecastProviderRepository(HomeForecastProviderRepository):
 # SQLAlchemy implementation
 
 
-class SqlAlchemyHomeForecastProviderRepository(HomeForecastProviderRepository):
-    """SQLAlchemy implementation of HomeForecastProviderRepository.
+class SqlAlchemyEnergyLoadForecastProviderRepository(EnergyLoadForecastProviderRepository):
+    """SQLAlchemy implementation of EnergyLoadForecastProviderRepository.
 
-    This repository works directly with the imperatively mapped HomeForecastProvider domain entity.
-    The config field is automatically converted between HomeForecastProviderConfig objects and JSON
+    This repository works directly with the imperatively mapped EnergyLoadForecastProvider domain entity.
+    The config field is automatically converted between EnergyLoadForecastProviderConfig objects and JSON
     strings by the custom TypeDecorator and event listener defined in tables.py.
 
     Args:
@@ -469,62 +499,62 @@ class SqlAlchemyHomeForecastProviderRepository(HomeForecastProviderRepository):
         self._db = db
         self.logger = db.logger
 
-    def add(self, home_forecast_provider: HomeForecastProvider) -> None:
-        """Add a home forecast provider to the repository."""
+    def add(self, energy_load_forecast_provider: EnergyLoadForecastProvider) -> None:
+        """Add an energy load forecast provider to the repository."""
         session = self._db.get_session()
         try:
-            session.add(home_forecast_provider)
+            session.add(energy_load_forecast_provider)
             session.commit()
         finally:
             session.close()
 
-    def get_by_id(self, home_forecast_provider_id: EntityId) -> Optional[HomeForecastProvider]:
-        """Get a home forecast provider by ID."""
+    def get_by_id(self, energy_load_forecast_provider_id: EntityId) -> Optional[EnergyLoadForecastProvider]:
+        """Get an energy load forecast provider by ID."""
         session = self._db.get_session()
         try:
-            stmt = select(HomeForecastProvider).where(
-                home_forecast_providers_table.c.id == str(home_forecast_provider_id)
+            stmt = select(EnergyLoadForecastProvider).where(
+                energy_load_forecast_providers_table.c.id == str(energy_load_forecast_provider_id)
             )
             entity = session.execute(stmt).scalar_one_or_none()
             return entity
         finally:
             session.close()
 
-    def get_all(self) -> List[HomeForecastProvider]:
-        """Get all home forecast providers."""
+    def get_all(self) -> List[EnergyLoadForecastProvider]:
+        """Get all energy load forecast providers."""
         session = self._db.get_session()
         try:
-            stmt = select(HomeForecastProvider)
+            stmt = select(EnergyLoadForecastProvider)
             entities = session.execute(stmt).scalars().all()
             return list(entities)
         finally:
             session.close()
 
-    def update(self, home_forecast_provider: HomeForecastProvider) -> None:
-        """Update a home forecast provider."""
+    def update(self, energy_load_forecast_provider: EnergyLoadForecastProvider) -> None:
+        """Update an energy load forecast provider."""
         session = self._db.get_session()
         try:
-            stmt = select(HomeForecastProvider).where(
-                home_forecast_providers_table.c.id == str(home_forecast_provider.id)
+            stmt = select(EnergyLoadForecastProvider).where(
+                energy_load_forecast_providers_table.c.id == str(energy_load_forecast_provider.id)
             )
             existing_entity = session.execute(stmt).scalar_one_or_none()
 
             if existing_entity:
-                existing_entity.name = home_forecast_provider.name
-                existing_entity.adapter_type = home_forecast_provider.adapter_type
-                existing_entity.config = home_forecast_provider.config
-                existing_entity.external_service_id = home_forecast_provider.external_service_id
+                existing_entity.name = energy_load_forecast_provider.name
+                existing_entity.adapter_type = energy_load_forecast_provider.adapter_type
+                existing_entity.config = energy_load_forecast_provider.config
+                existing_entity.external_service_id = energy_load_forecast_provider.external_service_id
 
                 session.commit()
         finally:
             session.close()
 
-    def remove(self, home_forecast_provider_id: EntityId) -> None:
-        """Remove a home forecast provider by ID."""
+    def remove(self, energy_load_forecast_provider_id: EntityId) -> None:
+        """Remove an energy load forecast provider by ID."""
         session = self._db.get_session()
         try:
-            stmt = select(HomeForecastProvider).where(
-                home_forecast_providers_table.c.id == str(home_forecast_provider_id)
+            stmt = select(EnergyLoadForecastProvider).where(
+                energy_load_forecast_providers_table.c.id == str(energy_load_forecast_provider_id)
             )
             entity = session.execute(stmt).scalar_one_or_none()
 
@@ -534,12 +564,12 @@ class SqlAlchemyHomeForecastProviderRepository(HomeForecastProviderRepository):
         finally:
             session.close()
 
-    def get_by_external_service_id(self, external_service_id: EntityId) -> List[HomeForecastProvider]:
-        """Get home forecast providers by external service ID."""
+    def get_by_external_service_id(self, external_service_id: EntityId) -> List[EnergyLoadForecastProvider]:
+        """Get energy load forecast providers by external service ID."""
         session = self._db.get_session()
         try:
-            stmt = select(HomeForecastProvider).where(
-                home_forecast_providers_table.c.external_service_id == str(external_service_id)
+            stmt = select(EnergyLoadForecastProvider).where(
+                energy_load_forecast_providers_table.c.external_service_id == str(external_service_id)
             )
             entities = session.execute(stmt).scalars().all()
             return list(entities)

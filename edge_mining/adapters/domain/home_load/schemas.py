@@ -8,52 +8,64 @@ from pydantic import BaseModel, Field, field_serializer, field_validator
 
 from edge_mining.domain.common import EntityId, Timestamp, Watts
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
-from edge_mining.domain.home_load.common import HomeForecastProviderAdapter, LoadDeviceCategory
-from edge_mining.domain.home_load.entities import HomeForecastProvider, LoadDevice
-from edge_mining.domain.home_load.value_objects import ConsumptionForecast
-from edge_mining.shared.adapter_configs.home_load import HomeForecastProviderDummyConfig
-from edge_mining.shared.adapter_maps.home_load import HOME_FORECAST_PROVIDER_CONFIG_TYPE_MAP
-from edge_mining.shared.interfaces.config import HomeForecastProviderConfig
+from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter, LoadDeviceCategory
+from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, LoadDevice
+from edge_mining.domain.home_load.value_objects import HomeLoadEnergyInterval, LoadEnergyConsumption
+from edge_mining.shared.adapter_configs.home_load import EnergyLoadForecastProviderDummyConfig
+from edge_mining.shared.adapter_maps.home_load import ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP
+from edge_mining.shared.interfaces.config import EnergyLoadForecastProviderConfig
 
 
-class ConsumptionForecastSchema(BaseModel):
-    """Schema for ConsumptionForecast value object."""
+class HomeLoadEnergyIntervalSchema(BaseModel):
+    """Schema for HomeLoadEnergyInterval value object."""
 
-    predicted_watts: Dict[datetime, float] = Field(default_factory=dict, description="Predicted power consumption")
-    generated_at: datetime = Field(..., description="When this forecast was generated")
+    start: datetime = Field(..., description="Interval start timestamp")
+    end: datetime = Field(..., description="Interval end timestamp")
+    energy: Optional[float] = Field(default=None, description="Energy in watt-hours")
+    avg_power: Optional[float] = Field(default=None, description="Average power in watts")
 
-    @field_validator("predicted_watts")
+
+class LoadEnergyConsumptionSchema(BaseModel):
+    """Schema for LoadEnergyConsumption value object."""
+
+    timestamp: datetime = Field(..., description="When this consumption data was generated")
+    intervals: List[HomeLoadEnergyIntervalSchema] = Field(
+        default_factory=list, description="List of consumption intervals"
+    )
+
     @classmethod
-    def validate_predicted_watts(cls, v: Dict[datetime, float]) -> Dict[datetime, float]:
-        """Validate predicted watts values are non-negative."""
-        for _, watts in v.items():
-            if watts < 0:
-                raise ValueError(f"Power consumption cannot be negative: {watts}")
-        return v
-
-    @classmethod
-    def from_model(cls, consumption_forecast: ConsumptionForecast) -> "ConsumptionForecastSchema":
+    def from_model(cls, consumption: LoadEnergyConsumption) -> "LoadEnergyConsumptionSchema":
         """Create schema from domain model."""
-        # Convert domain model to schema format
-        predicted_watts_dict = {}
-        for timestamp, watts in consumption_forecast.predicted_watts.items():
-            predicted_watts_dict[cast(datetime, timestamp)] = float(watts)
+        intervals = [
+            HomeLoadEnergyIntervalSchema(
+                start=cast(datetime, interval.start),
+                end=cast(datetime, interval.end),
+                energy=float(interval.energy) if interval.energy is not None else None,
+                avg_power=float(interval.avg_power),
+            )
+            for interval in consumption.intervals
+        ]
 
         return cls(
-            predicted_watts=predicted_watts_dict,
-            generated_at=consumption_forecast.generated_at,
+            timestamp=cast(datetime, consumption.timestamp),
+            intervals=intervals,
         )
 
-    def to_model(self) -> ConsumptionForecast:
+    def to_model(self) -> LoadEnergyConsumption:
         """Convert schema to domain model."""
-        # Convert schema format to domain model
-        predicted_watts_domain = {}
-        for timestamp, watts in self.predicted_watts.items():
-            predicted_watts_domain[Timestamp(timestamp)] = Watts(watts)
+        intervals: List[HomeLoadEnergyInterval] = []
+        for interval_schema in self.intervals:
+            intervals.append(
+                HomeLoadEnergyInterval(
+                    start=Timestamp(interval_schema.start),
+                    end=Timestamp(interval_schema.end),
+                    energy=None if interval_schema.energy is None else Watts(interval_schema.energy),
+                )
+            )
 
-        return ConsumptionForecast(
-            predicted_watts=predicted_watts_domain,
-            generated_at=Timestamp(self.generated_at),
+        return LoadEnergyConsumption(
+            timestamp=Timestamp(self.timestamp),
+            intervals=intervals,
         )
 
 
@@ -66,8 +78,8 @@ class LoadDeviceSchema(BaseModel):
         default=LoadDeviceCategory.OCCASIONAL, description="Category of load device (e.g., controllable, continuous)"
     )
     enabled: bool = Field(default=True, description="Whether the load device is active in the system")
-    home_forecast_provider_id: Optional[str] = Field(
-        default=None, description="ID of the home forecast provider associated with this load device"
+    energy_load_forecast_provider_id: Optional[str] = Field(
+        default=None, description="ID of the energy load forecast provider associated with this load device"
     )
 
     @field_validator("id")
@@ -88,23 +100,15 @@ class LoadDeviceSchema(BaseModel):
             raise ValueError("Device name cannot be empty")
         return v.strip()
 
-    @field_validator("category")
+    @field_validator("energy_load_forecast_provider_id")
     @classmethod
-    def validate_category(cls, v: str) -> str:
-        """Validate device category."""
-        if not v.strip():
-            raise ValueError("Device category cannot be empty")
-        return v.strip()
-
-    @field_validator("home_forecast_provider_id")
-    @classmethod
-    def validate_home_forecast_provider_id(cls, v: Optional[str]) -> Optional[str]:
-        """Validate that home_forecast_provider_id is a valid UUID string if provided."""
+    def validate_energy_load_forecast_provider_id(cls, v: Optional[str]) -> Optional[str]:
+        """Validate that energy_load_forecast_provider_id is a valid UUID string if provided."""
         if v is not None:
             try:
                 uuid.UUID(v)
             except ValueError as exc:
-                raise ValueError("home_forecast_provider_id must be a valid UUID string") from exc
+                raise ValueError("energy_load_forecast_provider_id must be a valid UUID string") from exc
         return v
 
     @classmethod
@@ -113,7 +117,13 @@ class LoadDeviceSchema(BaseModel):
         return cls(
             id=str(load_device.id),
             name=load_device.name,
-            type=load_device.type,
+            category=load_device.category,
+            enabled=load_device.enabled,
+            energy_load_forecast_provider_id=(
+                str(load_device.energy_load_forecast_provider_id)
+                if load_device.energy_load_forecast_provider_id
+                else None
+            ),
         )
 
     @field_serializer("id")
@@ -121,17 +131,24 @@ class LoadDeviceSchema(BaseModel):
         """Serialize id field."""
         return value
 
-    @field_serializer("home_forecast_provider_id")
-    def serialize_home_forecast_provider_id(self, value: Optional[str]) -> Optional[str]:
-        """Serialize home_forecast_provider_id field."""
+    @field_serializer("energy_load_forecast_provider_id")
+    def serialize_energy_load_forecast_provider_id(self, value: Optional[str]) -> Optional[str]:
+        """Serialize energy_load_forecast_provider_id field."""
         return value
 
     def to_model(self) -> LoadDevice:
         """Convert schema to domain model."""
+        provider_id = (
+            EntityId(uuid.UUID(self.energy_load_forecast_provider_id))
+            if self.energy_load_forecast_provider_id
+            else None
+        )
         return LoadDevice(
             id=EntityId(uuid.UUID(self.id)),
             name=self.name,
-            type=self.type,
+            category=self.category,
+            enabled=self.enabled,
+            energy_load_forecast_provider_id=provider_id,
         )
 
     class Config:
@@ -144,9 +161,10 @@ class LoadDeviceCreateSchema(BaseModel):
     """Schema for creating a new load device."""
 
     name: str = Field(default="", description="Load device name")
-    type: str = Field(default="", description="Type of load device")
-    home_forecast_provider_id: Optional[str] = Field(
-        default=None, description="ID of the home forecast provider associated with this load device"
+    category: LoadDeviceCategory = Field(default=LoadDeviceCategory.OCCASIONAL, description="Category of load device")
+    enabled: bool = Field(default=True, description="Whether the load device is active in the system")
+    energy_load_forecast_provider_id: Optional[str] = Field(
+        default=None, description="ID of the energy load forecast provider associated with this load device"
     )
 
     @field_validator("name")
@@ -157,38 +175,35 @@ class LoadDeviceCreateSchema(BaseModel):
             raise ValueError("Device name cannot be empty")
         return v.strip()
 
-    @field_validator("type")
+    @field_validator("energy_load_forecast_provider_id")
     @classmethod
-    def validate_type(cls, v: str) -> str:
-        """Validate device type."""
-        if not v.strip():
-            raise ValueError("Device type cannot be empty")
-        return v.strip()
-
-    @field_validator("home_forecast_provider_id")
-    @classmethod
-    def validate_home_forecast_provider_id(cls, v: Optional[str]) -> Optional[str]:
-        """Validate that home_forecast_provider_id is a valid UUID string if provided."""
+    def validate_energy_load_forecast_provider_id(cls, v: Optional[str]) -> Optional[str]:
+        """Validate that energy_load_forecast_provider_id is a valid UUID string if provided."""
         if v is not None:
             try:
                 uuid.UUID(v)
             except ValueError as exc:
-                raise ValueError("home_forecast_provider_id must be a valid UUID string") from exc
+                raise ValueError("energy_load_forecast_provider_id must be a valid UUID string") from exc
         return v
 
-    @field_serializer("home_forecast_provider_id")
-    def serialize_home_forecast_provider_id(self, value: Optional[str]) -> Optional[str]:
-        """Serialize home_forecast_provider_id field."""
+    @field_serializer("energy_load_forecast_provider_id")
+    def serialize_energy_load_forecast_provider_id(self, value: Optional[str]) -> Optional[str]:
+        """Serialize energy_load_forecast_provider_id field."""
         return value
 
     def to_model(self) -> LoadDevice:
         """Convert schema to domain model."""
-        provider_id = EntityId(uuid.UUID(self.home_forecast_provider_id)) if self.home_forecast_provider_id else None
+        provider_id = (
+            EntityId(uuid.UUID(self.energy_load_forecast_provider_id))
+            if self.energy_load_forecast_provider_id
+            else None
+        )
         return LoadDevice(
             id=EntityId(uuid.uuid4()),
             name=self.name,
-            type=self.type,
-            home_forecast_provider_id=provider_id,
+            category=self.category,
+            enabled=self.enabled,
+            energy_load_forecast_provider_id=provider_id,
         )
 
     class Config:
@@ -201,9 +216,10 @@ class LoadDeviceUpdateSchema(BaseModel):
     """Schema for updating an existing load device."""
 
     name: str = Field(default="", description="Load device name")
-    type: str = Field(default="", description="Type of load device")
-    home_forecast_provider_id: Optional[str] = Field(
-        default=None, description="ID of the home forecast provider associated with this load device"
+    category: LoadDeviceCategory = Field(default=LoadDeviceCategory.OCCASIONAL, description="Category of load device")
+    enabled: bool = Field(default=True, description="Whether the load device is active in the system")
+    energy_load_forecast_provider_id: Optional[str] = Field(
+        default=None, description="ID of the energy load forecast provider associated with this load device"
     )
 
     @field_validator("name")
@@ -214,28 +230,20 @@ class LoadDeviceUpdateSchema(BaseModel):
             raise ValueError("Device name cannot be empty")
         return v.strip()
 
-    @field_validator("type")
+    @field_validator("energy_load_forecast_provider_id")
     @classmethod
-    def validate_type(cls, v: str) -> str:
-        """Validate device type."""
-        if not v.strip():
-            raise ValueError("Device type cannot be empty")
-        return v.strip()
-
-    @field_validator("home_forecast_provider_id")
-    @classmethod
-    def validate_home_forecast_provider_id(cls, v: Optional[str]) -> Optional[str]:
-        """Validate that home_forecast_provider_id is a valid UUID string if provided."""
+    def validate_energy_load_forecast_provider_id(cls, v: Optional[str]) -> Optional[str]:
+        """Validate that energy_load_forecast_provider_id is a valid UUID string if provided."""
         if v is not None:
             try:
                 uuid.UUID(v)
             except ValueError as exc:
-                raise ValueError("home_forecast_provider_id must be a valid UUID string") from exc
+                raise ValueError("energy_load_forecast_provider_id must be a valid UUID string") from exc
         return v
 
-    @field_serializer("home_forecast_provider_id")
-    def serialize_home_forecast_provider_id(self, value: Optional[str]) -> Optional[str]:
-        """Serialize home_forecast_provider_id field."""
+    @field_serializer("energy_load_forecast_provider_id")
+    def serialize_energy_load_forecast_provider_id(self, value: Optional[str]) -> Optional[str]:
+        """Serialize energy_load_forecast_provider_id field."""
         return value
 
     class Config:
@@ -351,15 +359,16 @@ class HomeLoadsProfileUpdateSchema(BaseModel):
         use_enum_values = True
 
 
-class HomeForecastProviderSchema(BaseModel):
-    """Schema for HomeForecastProvider entity with complete validation."""
+class EnergyLoadForecastProviderSchema(BaseModel):
+    """Schema for EnergyLoadForecastProvider entity with complete validation."""
 
-    id: str = Field(..., description="Unique identifier for the home forecast provider")
-    name: str = Field(default="", description="Home forecast provider name")
-    adapter_type: HomeForecastProviderAdapter = Field(
-        default=HomeForecastProviderAdapter.DUMMY, description="Type of home forecast provider adapter"
+    id: str = Field(..., description="Unique identifier for the energy load forecast provider")
+    name: str = Field(default="", description="Energy load forecast provider name")
+    adapter_type: EnergyLoadForecastProviderAdapter = Field(
+        default=EnergyLoadForecastProviderAdapter.DUMMY,
+        description="Type of energy load forecast provider adapter",
     )
-    config: dict = Field(default={}, description="Home forecast provider configuration")
+    config: dict = Field(default={}, description="Energy load forecast provider configuration")
     external_service_id: Optional[str] = Field(default=None, description="ID of external service")
 
     @field_validator("id")
@@ -382,12 +391,12 @@ class HomeForecastProviderSchema(BaseModel):
 
     @field_validator("adapter_type")
     @classmethod
-    def validate_adapter_type(cls, v: str) -> HomeForecastProviderAdapter:
-        """Validate that adapter_type is a recognized HomeForecastProviderAdapter."""
-        adapter_values = [adapter.value for adapter in HomeForecastProviderAdapter]
+    def validate_adapter_type(cls, v: str) -> EnergyLoadForecastProviderAdapter:
+        """Validate that adapter_type is a recognized EnergyLoadForecastProviderAdapter."""
+        adapter_values = [adapter.value for adapter in EnergyLoadForecastProviderAdapter]
         if v not in adapter_values:
             raise ValueError(f"adapter_type must be one of {adapter_values}")
-        return HomeForecastProviderAdapter(v)
+        return EnergyLoadForecastProviderAdapter(v)
 
     @field_validator("external_service_id")
     @classmethod
@@ -401,7 +410,7 @@ class HomeForecastProviderSchema(BaseModel):
         return v
 
     @classmethod
-    def from_model(cls, provider: HomeForecastProvider) -> "HomeForecastProviderSchema":
+    def from_model(cls, provider: EnergyLoadForecastProvider) -> "EnergyLoadForecastProviderSchema":
         """Create schema from domain model."""
         config_dict = {}
         if provider.config:
@@ -425,15 +434,15 @@ class HomeForecastProviderSchema(BaseModel):
         """Serialize external service id field."""
         return value
 
-    def to_model(self) -> HomeForecastProvider:
+    def to_model(self) -> EnergyLoadForecastProvider:
         """Convert schema to domain model."""
-        configuration: Optional[HomeForecastProviderConfig] = None
+        configuration: Optional[EnergyLoadForecastProviderConfig] = None
         if self.config:
-            config_type = HOME_FORECAST_PROVIDER_CONFIG_TYPE_MAP.get(self.adapter_type)
+            config_type = ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP.get(self.adapter_type)
             if config_type:
-                configuration = cast(HomeForecastProviderConfig, config_type.from_dict(self.config))
+                configuration = cast(EnergyLoadForecastProviderConfig, config_type.from_dict(self.config))
 
-        return HomeForecastProvider(
+        return EnergyLoadForecastProvider(
             id=EntityId(uuid.UUID(self.id)),
             name=self.name,
             adapter_type=self.adapter_type,
@@ -449,18 +458,19 @@ class HomeForecastProviderSchema(BaseModel):
         arbitrary_types_allowed = True
         json_encoders = {
             uuid.UUID: str,
-            HomeForecastProviderAdapter: lambda v: v.value,
+            EnergyLoadForecastProviderAdapter: lambda v: v.value,
         }
 
 
-class HomeForecastProviderCreateSchema(BaseModel):
-    """Schema for creating a new home forecast provider."""
+class EnergyLoadForecastProviderCreateSchema(BaseModel):
+    """Schema for creating a new energy load forecast provider."""
 
-    name: str = Field(default="", description="Home forecast provider name")
-    adapter_type: HomeForecastProviderAdapter = Field(
-        default=HomeForecastProviderAdapter.DUMMY, description="Type of home forecast provider adapter"
+    name: str = Field(default="", description="Energy load forecast provider name")
+    adapter_type: EnergyLoadForecastProviderAdapter = Field(
+        default=EnergyLoadForecastProviderAdapter.DUMMY,
+        description="Type of energy load forecast provider adapter",
     )
-    config: Optional[dict] = Field(default=None, description="Home forecast provider configuration")
+    config: Optional[dict] = Field(default=None, description="Energy load forecast provider configuration")
     external_service_id: Optional[str] = Field(default=None, description="ID of external service")
 
     @field_validator("name")
@@ -473,12 +483,12 @@ class HomeForecastProviderCreateSchema(BaseModel):
 
     @field_validator("adapter_type")
     @classmethod
-    def validate_adapter_type(cls, v: str) -> HomeForecastProviderAdapter:
-        """Validate that adapter_type is a recognized HomeForecastProviderAdapter."""
-        adapter_values = [adapter.value for adapter in HomeForecastProviderAdapter]
+    def validate_adapter_type(cls, v: str) -> EnergyLoadForecastProviderAdapter:
+        """Validate that adapter_type is a recognized EnergyLoadForecastProviderAdapter."""
+        adapter_values = [adapter.value for adapter in EnergyLoadForecastProviderAdapter]
         if v not in adapter_values:
             raise ValueError(f"adapter_type must be one of {adapter_values}")
-        return HomeForecastProviderAdapter(v)
+        return EnergyLoadForecastProviderAdapter(v)
 
     @field_validator("external_service_id")
     @classmethod
@@ -491,15 +501,15 @@ class HomeForecastProviderCreateSchema(BaseModel):
                 raise ValueError("external_service_id must be a valid UUID string") from exc
         return v
 
-    def to_model(self) -> HomeForecastProvider:
+    def to_model(self) -> EnergyLoadForecastProvider:
         """Convert schema to domain model."""
-        configuration: Optional[HomeForecastProviderConfig] = None
+        configuration: Optional[EnergyLoadForecastProviderConfig] = None
         if self.config:
-            config_type = HOME_FORECAST_PROVIDER_CONFIG_TYPE_MAP.get(self.adapter_type)
+            config_type = ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP.get(self.adapter_type)
             if config_type:
-                configuration = cast(HomeForecastProviderConfig, config_type.from_dict(self.config))
+                configuration = cast(EnergyLoadForecastProviderConfig, config_type.from_dict(self.config))
 
-        return HomeForecastProvider(
+        return EnergyLoadForecastProvider(
             id=EntityId(uuid.uuid4()),
             name=self.name,
             adapter_type=self.adapter_type,
@@ -514,15 +524,15 @@ class HomeForecastProviderCreateSchema(BaseModel):
         validate_assignment = True
         json_encoders = {
             uuid.UUID: str,
-            HomeForecastProviderAdapter: lambda v: v.value,
+            EnergyLoadForecastProviderAdapter: lambda v: v.value,
         }
 
 
-class HomeForecastProviderUpdateSchema(BaseModel):
-    """Schema for updating an existing home forecast provider."""
+class EnergyLoadForecastProviderUpdateSchema(BaseModel):
+    """Schema for updating an existing energy load forecast provider."""
 
-    name: str = Field(default="", description="Home forecast provider name")
-    config: Optional[dict] = Field(default=None, description="Home forecast provider configuration")
+    name: str = Field(default="", description="Energy load forecast provider name")
+    config: Optional[dict] = Field(default=None, description="Energy load forecast provider configuration")
     external_service_id: Optional[str] = Field(default=None, description="ID of external service")
 
     @field_validator("name")
@@ -551,8 +561,8 @@ class HomeForecastProviderUpdateSchema(BaseModel):
         validate_assignment = True
 
 
-class HomeForecastProviderDummyConfigSchema(BaseModel):
-    """Schema for Dummy HomeForecastProviderConfig."""
+class EnergyLoadForecastProviderDummyConfigSchema(BaseModel):
+    """Schema for Dummy EnergyLoadForecastProviderConfig."""
 
     load_power_max: float = Field(default=500.0, ge=0, description="Maximum load power in Watts")
 
@@ -564,9 +574,9 @@ class HomeForecastProviderDummyConfigSchema(BaseModel):
             raise ValueError("Maximum load power cannot be negative")
         return v
 
-    def to_model(self) -> HomeForecastProviderDummyConfig:
+    def to_model(self) -> EnergyLoadForecastProviderDummyConfig:
         """Convert schema to domain model."""
-        return HomeForecastProviderDummyConfig(load_power_max=self.load_power_max)
+        return EnergyLoadForecastProviderDummyConfig(load_power_max=self.load_power_max)
 
     class Config:
         """Pydantic configuration."""
@@ -575,9 +585,9 @@ class HomeForecastProviderDummyConfigSchema(BaseModel):
         validate_assignment = True
 
 
-HOME_FORECAST_PROVIDER_CONFIG_SCHEMA_MAP: Dict[
-    type[HomeForecastProviderConfig],
-    Union[type[HomeForecastProviderDummyConfigSchema]],
+ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_SCHEMA_MAP: Dict[
+    type[EnergyLoadForecastProviderConfig],
+    Union[type[EnergyLoadForecastProviderDummyConfigSchema]],
 ] = {
-    HomeForecastProviderDummyConfig: HomeForecastProviderDummyConfigSchema,
+    EnergyLoadForecastProviderDummyConfig: EnergyLoadForecastProviderDummyConfigSchema,
 }

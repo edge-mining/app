@@ -5,25 +5,31 @@ of the Edge Mining application.
 
 from dataclasses import asdict, dataclass, field
 
-from edge_mining.domain.home_load.common import EnergyLoadHistoryProviderAdapter, HomeForecastProviderAdapter
-from edge_mining.shared.interfaces.config import EnergyLoadHistoryProviderConfig, HomeForecastProviderConfig
+from edge_mining.domain.home_load.common import (
+    EnergyLoadForecastProviderAdapter,
+    EnergyLoadHistoryProviderAdapter,
+)
+from edge_mining.shared.interfaces.config import (
+    EnergyLoadForecastProviderConfig,
+    EnergyLoadHistoryProviderConfig,
+)
 
 
 @dataclass(frozen=True)
-class HomeForecastProviderDummyConfig(HomeForecastProviderConfig):
+class EnergyLoadForecastProviderDummyConfig(EnergyLoadForecastProviderConfig):
     """
-    Home Forecast provider configuration. It encapsulate the configuration parameters
+    Energy Load Forecast provider configuration. It encapsulate the configuration parameters
     to retrieve home forecast data from a dummy provider.
     """
 
     load_power_max: float = field(default=500.0)
 
-    def is_valid(self, adapter_type: HomeForecastProviderAdapter) -> bool:
+    def is_valid(self, adapter_type: EnergyLoadForecastProviderAdapter) -> bool:
         """
         Check if the configuration is valid for the given adapter type.
-        For Dummy Home Forecast, it is always valid.
+        For Dummy Energy Load Forecast, it is always valid.
         """
-        return adapter_type == HomeForecastProviderAdapter.DUMMY
+        return adapter_type == EnergyLoadForecastProviderAdapter.DUMMY
 
     def to_dict(self) -> dict:
         """Converts the configuration object into a serializable dictionary"""

@@ -5,15 +5,17 @@ of the Edge Mining application.
 
 from typing import Dict, Optional
 
-from edge_mining.domain.home_load.common import HomeForecastProviderAdapter
-from edge_mining.shared.adapter_configs.home_load import HomeForecastProviderDummyConfig
+from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter
+from edge_mining.shared.adapter_configs.home_load import EnergyLoadForecastProviderDummyConfig
 from edge_mining.shared.external_services.common import ExternalServiceAdapter
-from edge_mining.shared.interfaces.config import HomeForecastProviderConfig
+from edge_mining.shared.interfaces.config import EnergyLoadForecastProviderConfig
 
-HOME_FORECAST_PROVIDER_CONFIG_TYPE_MAP: Dict[
-    HomeForecastProviderAdapter, Optional[type[HomeForecastProviderConfig]]
-] = {HomeForecastProviderAdapter.DUMMY: HomeForecastProviderDummyConfig}
+ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP: Dict[
+    EnergyLoadForecastProviderAdapter, Optional[type[EnergyLoadForecastProviderConfig]]
+] = {EnergyLoadForecastProviderAdapter.DUMMY: EnergyLoadForecastProviderDummyConfig}
 
-HOME_FORECAST_PROVIDER_EXTERNAL_SERVICE_MAP: Dict[HomeForecastProviderAdapter, Optional[ExternalServiceAdapter]] = {
-    HomeForecastProviderAdapter.DUMMY: None  # Dummy does not use an external service
+ENERGY_LOAD_FORECAST_PROVIDER_EXTERNAL_SERVICE_MAP: Dict[
+    EnergyLoadForecastProviderAdapter, Optional[ExternalServiceAdapter]
+] = {
+    EnergyLoadForecastProviderAdapter.DUMMY: None  # Dummy does not use an external service
 }

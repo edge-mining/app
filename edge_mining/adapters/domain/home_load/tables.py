@@ -6,14 +6,13 @@ creating separate ORM model classes, maintaining domain purity.
 
 The mappings handle complex objects using SQLAlchemy event listeners and custom types:
 - LoadDevice dictionaries are serialized to JSON and reconstructed after loading
-- HomeForecastProviderConfig is serialized using custom ConfigurationType
+- EnergyLoadForecastProviderConfig is serialized using custom ConfigurationType
 - EntityId value objects are implicitly converted to/from strings
 
 All tables and mappings use the shared metadata and mapper registry from
 the sqlalchemy.registry module, which are available as module-level singletons.
 
-⚠️  DEVELOPER WARNING ⚠️
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WARNING - DEVELOPER WARNING
 ANY SCHEMA CHANGE (adding/removing/modifying tables or columns) REQUIRES an
 Alembic migration. Do NOT modify this file without creating a migration:
 
@@ -21,7 +20,6 @@ Alembic migration. Do NOT modify this file without creating a migration:
 
 For detailed instructions, see: docs/ALEMBIC_MIGRATIONS.md
 For a step-by-step example, see: docs/MIGRATION_EXAMPLE.md
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
 import json
@@ -34,50 +32,52 @@ from edge_mining.adapters.infrastructure.persistence.sqlalchemy.common import Co
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.registry import mapper_registry, metadata
 from edge_mining.domain.common import EntityId
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
-from edge_mining.domain.home_load.common import HomeForecastProviderAdapter
-from edge_mining.domain.home_load.entities import HomeForecastProvider, LoadDevice
-from edge_mining.domain.home_load.exceptions import HomeForecastProviderConfigurationError
-from edge_mining.shared.adapter_maps.home_load import HOME_FORECAST_PROVIDER_CONFIG_TYPE_MAP
-from edge_mining.shared.interfaces.config import HomeForecastProviderConfig
+from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter, LoadDeviceCategory
+from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, LoadDevice
+from edge_mining.domain.home_load.exceptions import EnergyLoadForecastProviderConfigurationError
+from edge_mining.shared.adapter_maps.home_load import ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP
+from edge_mining.shared.interfaces.config import EnergyLoadForecastProviderConfig
 
 
-class HomeForecastProviderConfigType(ConfigurationType):
-    """SQLAlchemy type for HomeForecastProviderConfig serialization.
+class EnergyLoadForecastProviderConfigType(ConfigurationType):
+    """SQLAlchemy type for EnergyLoadForecastProviderConfig serialization.
 
     Inherits from ConfigurationType to handle JSON serialization/deserialization.
     """
 
 
-def _deserialize_home_forecast_provider_config(
-    adapter_type: HomeForecastProviderAdapter, config_json: str
-) -> Optional[HomeForecastProviderConfig]:
-    """Deserialize JSON string to HomeForecastProviderConfig based on adapter type."""
+def _deserialize_energy_load_forecast_provider_config(
+    adapter_type: EnergyLoadForecastProviderAdapter, config_json: str
+) -> Optional[EnergyLoadForecastProviderConfig]:
+    """Deserialize JSON string to EnergyLoadForecastProviderConfig based on adapter type."""
     if not config_json:
         return None
 
     data: dict = json.loads(config_json)
 
-    if adapter_type not in HOME_FORECAST_PROVIDER_CONFIG_TYPE_MAP:
-        raise HomeForecastProviderConfigurationError(
-            f"Error reading HomeForecastProvider configuration. Invalid type '{adapter_type}'"
+    if adapter_type not in ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP:
+        raise EnergyLoadForecastProviderConfigurationError(
+            f"Error reading EnergyLoadForecastProvider configuration. Invalid type '{adapter_type}'"
         )
 
-    config_class: Optional[type[HomeForecastProviderConfig]] = HOME_FORECAST_PROVIDER_CONFIG_TYPE_MAP.get(adapter_type)
+    config_class: Optional[type[EnergyLoadForecastProviderConfig]] = ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP.get(
+        adapter_type
+    )
     if not config_class:
-        raise HomeForecastProviderConfigurationError(
-            f"Error creating HomeForecastProvider configuration. Type '{adapter_type}'"
+        raise EnergyLoadForecastProviderConfigurationError(
+            f"Error creating EnergyLoadForecastProvider configuration. Type '{adapter_type}'"
         )
 
     config_instance = config_class.from_dict(data)
-    if not isinstance(config_instance, HomeForecastProviderConfig):
-        raise HomeForecastProviderConfigurationError(
-            f"Deserialized config is not of type HomeForecastProviderConfig for adapter type {adapter_type}."
+    if not isinstance(config_instance, EnergyLoadForecastProviderConfig):
+        raise EnergyLoadForecastProviderConfigurationError(
+            f"Deserialized config is not of type EnergyLoadForecastProviderConfig for adapter type {adapter_type}."
         )
     return config_instance
 
 
-@event.listens_for(HomeForecastProvider, "load")
-def _receive_home_forecast_provider_load(target: HomeForecastProvider, context) -> None:
+@event.listens_for(EnergyLoadForecastProvider, "load")
+def _receive_energy_load_forecast_provider_load(target: EnergyLoadForecastProvider, context) -> None:
     """Event listener that deserializes config after loading from database."""
     # Convert id string to EntityId if needed
     if hasattr(target, "id") and target.id is not None:
@@ -92,50 +92,50 @@ def _receive_home_forecast_provider_load(target: HomeForecastProvider, context) 
     # Convert adapter_type string to enum if needed
     if isinstance(target.adapter_type, str):
         try:
-            target.adapter_type = HomeForecastProviderAdapter(target.adapter_type)
+            target.adapter_type = EnergyLoadForecastProviderAdapter(target.adapter_type)
         except ValueError:
             pass
 
     if target.config and isinstance(target.config, str):
-        target.config = _deserialize_home_forecast_provider_config(target.adapter_type, target.config)
+        target.config = _deserialize_energy_load_forecast_provider_config(target.adapter_type, target.config)
 
 
-@event.listens_for(HomeForecastProvider, "before_insert")
-@event.listens_for(HomeForecastProvider, "before_update")
-def _flatten_home_forecast_provider_composites(mapper, connection, target: Any) -> None:
+@event.listens_for(EnergyLoadForecastProvider, "before_insert")
+@event.listens_for(EnergyLoadForecastProvider, "before_update")
+def _flatten_energy_load_forecast_provider_composites(mapper, connection, target: Any) -> None:
     """Convert enum attributes to primitive values before persisting."""
     if hasattr(target, "adapter_type") and target.adapter_type is not None:
-        if isinstance(target.adapter_type, HomeForecastProviderAdapter):
+        if isinstance(target.adapter_type, EnergyLoadForecastProviderAdapter):
             target.adapter_type = target.adapter_type.value
 
 
-@event.listens_for(HomeForecastProvider, "after_insert")
-@event.listens_for(HomeForecastProvider, "after_update")
-def _restore_home_forecast_provider_composites(mapper, connection, target: Any) -> None:
+@event.listens_for(EnergyLoadForecastProvider, "after_insert")
+@event.listens_for(EnergyLoadForecastProvider, "after_update")
+def _restore_energy_load_forecast_provider_composites(mapper, connection, target: Any) -> None:
     """Restore enum attributes after persist operations."""
     if hasattr(target, "adapter_type") and target.adapter_type is not None:
         if isinstance(target.adapter_type, str):
             try:
-                target.adapter_type = HomeForecastProviderAdapter(target.adapter_type)
+                target.adapter_type = EnergyLoadForecastProviderAdapter(target.adapter_type)
             except ValueError:
                 pass
 
 
-# Define the home_forecast_providers table using imperative style
-home_forecast_providers_table = Table(
-    "home_forecast_providers",
+# Define the energy_load_forecast_providers table using imperative style
+energy_load_forecast_providers_table = Table(
+    "energy_load_forecast_providers",
     metadata,
     Column("id", String, primary_key=True, index=True),
     Column("name", String, nullable=False),
     Column("adapter_type", String, nullable=False),
-    Column("config", HomeForecastProviderConfigType, nullable=True),
+    Column("config", EnergyLoadForecastProviderConfigType, nullable=True),
     Column("external_service_id", String, ForeignKey("external_services.id"), nullable=True),
 )
 
-# Map HomeForecastProvider
+# Map EnergyLoadForecastProvider
 mapper_registry.map_imperatively(
-    HomeForecastProvider,
-    home_forecast_providers_table,
+    EnergyLoadForecastProvider,
+    energy_load_forecast_providers_table,
 )
 
 
@@ -155,7 +155,7 @@ class LoadDevicesDictType(TypeDecorator):
             str(device_id): {
                 "id": str(device.id),
                 "name": device.name,
-                "type": device.type,
+                "category": device.category.value,
             }
             for device_id, device in value.items()
         }
@@ -186,7 +186,7 @@ def _receive_home_profile_load(target, context):
                 device = LoadDevice(
                     id=EntityId(device_data["id"]),
                     name=device_data["name"],
-                    type=device_data["type"],
+                    category=LoadDeviceCategory(device_data["category"]),
                 )
                 reconstructed_devices[EntityId(device_id_str)] = device
         target.devices = reconstructed_devices

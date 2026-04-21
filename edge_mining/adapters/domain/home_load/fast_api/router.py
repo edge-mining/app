@@ -5,10 +5,10 @@ from typing import Annotated, Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 
 from edge_mining.adapters.domain.home_load.schemas import (
-    HOME_FORECAST_PROVIDER_CONFIG_SCHEMA_MAP,
-    HomeForecastProviderCreateSchema,
-    HomeForecastProviderSchema,
-    HomeForecastProviderUpdateSchema,
+    ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_SCHEMA_MAP,
+    EnergyLoadForecastProviderCreateSchema,
+    EnergyLoadForecastProviderSchema,
+    EnergyLoadForecastProviderUpdateSchema,
     HomeLoadsProfileSchema,
     LoadDeviceCreateSchema,
     LoadDeviceSchema,
@@ -20,20 +20,20 @@ from edge_mining.adapters.infrastructure.api.setup import get_config_service
 from edge_mining.application.interfaces import ConfigurationServiceInterface
 from edge_mining.domain.common import EntityId
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
-from edge_mining.domain.home_load.common import HomeForecastProviderAdapter
-from edge_mining.domain.home_load.entities import HomeForecastProvider, LoadDevice
+from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter
+from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, LoadDevice
 from edge_mining.domain.home_load.exceptions import (
-    HomeForecastProviderAlreadyExistsError,
-    HomeForecastProviderConfigurationError,
-    HomeForecastProviderNotFoundError,
+    EnergyLoadForecastProviderAlreadyExistsError,
+    EnergyLoadForecastProviderConfigurationError,
+    EnergyLoadForecastProviderNotFoundError,
     HomeLoadsProfileAddDeviceError,
     HomeLoadsProfileAlreadyExistsError,
     HomeLoadsProfileDeviceNotFoundError,
     HomeLoadsProfileNotFoundError,
     HomeLoadsProfileRemoveDeviceError,
 )
-from edge_mining.shared.adapter_maps.home_load import HOME_FORECAST_PROVIDER_CONFIG_TYPE_MAP
-from edge_mining.shared.interfaces.config import HomeForecastProviderConfig
+from edge_mining.shared.adapter_maps.home_load import ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP
+from edge_mining.shared.interfaces.config import EnergyLoadForecastProviderConfig
 
 router = APIRouter()
 
@@ -238,8 +238,16 @@ async def update_load_device(
             )
 
         # Add the updated device
-        provider_id = EntityId(device.home_forecast_provider_id) if device.home_forecast_provider_id else None
-        new_device = LoadDevice(id=device.id, name=device.name, type=device.type, home_forecast_provider_id=provider_id)
+        provider_id = (
+            EntityId(device.energy_load_forecast_provider_id) if device.energy_load_forecast_provider_id else None
+        )
+        new_device = LoadDevice(
+            id=device.id,
+            name=device_update.name or device.name,
+            category=device_update.category,
+            enabled=device_update.enabled,
+            energy_load_forecast_provider_id=provider_id,
+        )
 
         device_added = config_service.add_load_device_to_profile(
             profile_id=profile_id,
@@ -286,12 +294,12 @@ async def delete_load_device(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-# Home Forecast Provider endpoints
-@router.get("/home-forecast-providers", response_model=List[HomeForecastProviderSchema])
-async def get_home_forecast_providers_list(
+# Energy Load Forecast Provider endpoints
+@router.get("/energy-load-forecast-providers", response_model=List[EnergyLoadForecastProviderSchema])
+async def get_energy_load_forecast_providers_list(
     config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
-) -> List[HomeForecastProviderSchema]:
-    """Get a list of all home forecast providers."""
+) -> List[EnergyLoadForecastProviderSchema]:
+    """Get a list of all energy load forecast providers."""
     try:
         # This would need to be implemented in the configuration service
         return []
@@ -299,70 +307,72 @@ async def get_home_forecast_providers_list(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.post("/home-forecast-providers", response_model=HomeForecastProviderSchema)
-async def add_home_forecast_provider(
-    provider_data: HomeForecastProviderCreateSchema,
+@router.post("/energy-load-forecast-providers", response_model=EnergyLoadForecastProviderSchema)
+async def add_energy_load_forecast_provider(
+    provider_data: EnergyLoadForecastProviderCreateSchema,
     config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
-) -> HomeForecastProviderSchema:
-    """Add a new home forecast provider."""
+) -> EnergyLoadForecastProviderSchema:
+    """Add a new energy load forecast provider."""
     try:
         # Convert to domain model
-        provider_to_add: HomeForecastProvider = provider_data.to_model()
+        provider_to_add: EnergyLoadForecastProvider = provider_data.to_model()
 
         if provider_to_add.config is None:
-            raise HomeForecastProviderConfigurationError("Home Forecast provider configuration should be set")
+            raise EnergyLoadForecastProviderConfigurationError(
+                "Energy Load Forecast provider configuration should be set"
+            )
 
         # TODO: Add the provider (this would need to be implemented in the configuration service)
 
-        return HomeForecastProviderSchema.from_model(provider_to_add)
+        return EnergyLoadForecastProviderSchema.from_model(provider_to_add)
 
-    except HomeForecastProviderAlreadyExistsError as e:
+    except EnergyLoadForecastProviderAlreadyExistsError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
-    except HomeForecastProviderConfigurationError as e:
+    except EnergyLoadForecastProviderConfigurationError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.get("/home-forecast-providers/types", response_model=List[HomeForecastProviderAdapter])
-async def get_home_forecast_provider_types() -> List[HomeForecastProviderAdapter]:
-    """Get a list of available home forecast provider types."""
+@router.get("/energy-load-forecast-providers/types", response_model=List[EnergyLoadForecastProviderAdapter])
+async def get_energy_load_forecast_provider_types() -> List[EnergyLoadForecastProviderAdapter]:
+    """Get a list of available energy load forecast provider types."""
     try:
-        return [HomeForecastProviderAdapter(adapter.value) for adapter in HomeForecastProviderAdapter]
+        return [EnergyLoadForecastProviderAdapter(adapter.value) for adapter in EnergyLoadForecastProviderAdapter]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get(
-    "/home-forecast-providers/types/{adapter_type}/config-schema",
+    "/energy-load-forecast-providers/types/{adapter_type}/config-schema",
     response_model=Dict[str, Any],
 )
-async def get_home_forecast_provider_config_schema(
-    adapter_type: HomeForecastProviderAdapter,
+async def get_energy_load_forecast_provider_config_schema(
+    adapter_type: EnergyLoadForecastProviderAdapter,
     config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
 ) -> Dict[str, Any]:
-    """Get the configuration schema for a specific home forecast provider type."""
+    """Get the configuration schema for a specific energy load forecast provider type."""
     try:
         try:
-            home_forecast_adapter = HomeForecastProviderAdapter(adapter_type.value)
+            provider_adapter = EnergyLoadForecastProviderAdapter(adapter_type.value)
         except ValueError as e:
-            raise ValueError(f"Invalid home forecast provider adapter type: {adapter_type}") from e
+            raise ValueError(f"Invalid energy load forecast provider adapter type: {adapter_type}") from e
 
         # Get the corresponding configuration class for the adapter type
-        home_forecast_config_type: Optional[type[HomeForecastProviderConfig]] = (
-            HOME_FORECAST_PROVIDER_CONFIG_TYPE_MAP.get(home_forecast_adapter)
+        provider_config_type: Optional[type[EnergyLoadForecastProviderConfig]] = (
+            ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP.get(provider_adapter)
         )
 
-        if home_forecast_config_type is None:
-            raise HomeForecastProviderConfigurationError(
+        if provider_config_type is None:
+            raise EnergyLoadForecastProviderConfigurationError(
                 f"No configuration class found for adapter type {adapter_type}"
             )
 
         # Get the corresponding schema class
-        schema_class = HOME_FORECAST_PROVIDER_CONFIG_SCHEMA_MAP.get(home_forecast_config_type)
+        schema_class = ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_SCHEMA_MAP.get(provider_config_type)
         if schema_class is None:
-            raise HomeForecastProviderConfigurationError(
-                f"No schema found for configuration class {home_forecast_config_type}"
+            raise EnergyLoadForecastProviderConfigurationError(
+                f"No schema found for configuration class {provider_config_type}"
             )
 
         # Return the JSON schema
@@ -373,16 +383,16 @@ async def get_home_forecast_provider_config_schema(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.get("/home-forecast-providers/{provider_id}", response_model=HomeForecastProviderSchema)
-async def get_home_forecast_provider(
+@router.get("/energy-load-forecast-providers/{provider_id}", response_model=EnergyLoadForecastProviderSchema)
+async def get_energy_load_forecast_provider(
     provider_id: EntityId,
     config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
-) -> HomeForecastProviderSchema:
-    """Get details of a specific home forecast provider."""
+) -> EnergyLoadForecastProviderSchema:
+    """Get details of a specific energy load forecast provider."""
     try:
         # This would need to be implemented in the configuration service
         raise HTTPException(status_code=501, detail="Not implemented yet")
-    except HomeForecastProviderNotFoundError as e:
+    except EnergyLoadForecastProviderNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -390,32 +400,32 @@ async def get_home_forecast_provider(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.put("/home-forecast-providers/{provider_id}", response_model=HomeForecastProviderSchema)
-async def update_home_forecast_provider(
+@router.put("/energy-load-forecast-providers/{provider_id}", response_model=EnergyLoadForecastProviderSchema)
+async def update_energy_load_forecast_provider(
     provider_id: EntityId,
-    provider_update: HomeForecastProviderUpdateSchema,
+    provider_update: EnergyLoadForecastProviderUpdateSchema,
     config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
-) -> HomeForecastProviderSchema:
-    """Update an existing home forecast provider."""
+) -> EnergyLoadForecastProviderSchema:
+    """Update an existing energy load forecast provider."""
     try:
         # This would need to be implemented in the configuration service
         raise HTTPException(status_code=501, detail="Not implemented yet")
-    except HomeForecastProviderNotFoundError as e:
+    except EnergyLoadForecastProviderNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.delete("/home-forecast-providers/{provider_id}", response_model=HomeForecastProviderSchema)
-async def delete_home_forecast_provider(
+@router.delete("/energy-load-forecast-providers/{provider_id}", response_model=EnergyLoadForecastProviderSchema)
+async def delete_energy_load_forecast_provider(
     provider_id: EntityId,
     config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
-) -> HomeForecastProviderSchema:
-    """Remove a home forecast provider."""
+) -> EnergyLoadForecastProviderSchema:
+    """Remove an energy load forecast provider."""
     try:
         # This would need to be implemented in the configuration service
         raise HTTPException(status_code=501, detail="Not implemented yet")
-    except HomeForecastProviderNotFoundError as e:
+    except EnergyLoadForecastProviderNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
