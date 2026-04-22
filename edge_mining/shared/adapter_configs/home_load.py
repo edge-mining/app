@@ -77,6 +77,47 @@ class EnergyLoadForecastProviderSeasonalBaselineConfig(EnergyLoadForecastProvide
 
 
 @dataclass(frozen=True)
+class EnergyLoadForecastProviderStatsmodelsConfig(EnergyLoadForecastProviderConfig):
+    """Configuration for Statsmodels (Holt-Winters / SARIMA) forecast provider."""
+
+    hours_ahead: int = field(default=3)
+    weeks_lookback: int = field(default=8)
+    method: str = field(default="hw")  # "hw" (Holt-Winters) or "sarima"
+    seasonal_periods: int = field(default=24)  # hours in a seasonal cycle
+
+    def is_valid(self, adapter_type: EnergyLoadForecastProviderAdapter) -> bool:
+        return adapter_type == EnergyLoadForecastProviderAdapter.STATSMODELS
+
+    def to_dict(self) -> dict:
+        return {**asdict(self)}
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        return cls(**data)
+
+
+@dataclass(frozen=True)
+class EnergyLoadForecastProviderXGBoostConfig(EnergyLoadForecastProviderConfig):
+    """Configuration for XGBoost forecast provider."""
+
+    hours_ahead: int = field(default=3)
+    weeks_lookback: int = field(default=8)
+    n_estimators: int = field(default=100)
+    max_depth: int = field(default=6)
+    learning_rate: float = field(default=0.1)
+
+    def is_valid(self, adapter_type: EnergyLoadForecastProviderAdapter) -> bool:
+        return adapter_type == EnergyLoadForecastProviderAdapter.XGBOOST
+
+    def to_dict(self) -> dict:
+        return {**asdict(self)}
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        return cls(**data)
+
+
+@dataclass(frozen=True)
 class EnergyLoadHistoryProviderHomeAssistantAPIConfig(EnergyLoadHistoryProviderConfig):
     """
     Energy Load History provider configuration. It encapsulate the configuration parameters

@@ -10,6 +10,8 @@ from edge_mining.shared.adapter_configs.home_load import (
     EnergyLoadForecastProviderDummyConfig,
     EnergyLoadForecastProviderNaiveLastHourConfig,
     EnergyLoadForecastProviderSeasonalBaselineConfig,
+    EnergyLoadForecastProviderStatsmodelsConfig,
+    EnergyLoadForecastProviderXGBoostConfig,
     EnergyLoadHistoryProviderHomeAssistantAPIConfig,
 )
 from edge_mining.shared.external_services.common import ExternalServiceAdapter
@@ -21,6 +23,8 @@ ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP: Dict[
     EnergyLoadForecastProviderAdapter.DUMMY: EnergyLoadForecastProviderDummyConfig,
     EnergyLoadForecastProviderAdapter.NAIVE_LAST_HOUR: EnergyLoadForecastProviderNaiveLastHourConfig,
     EnergyLoadForecastProviderAdapter.SEASONAL_BASELINE: EnergyLoadForecastProviderSeasonalBaselineConfig,
+    EnergyLoadForecastProviderAdapter.STATSMODELS: EnergyLoadForecastProviderStatsmodelsConfig,
+    EnergyLoadForecastProviderAdapter.XGBOOST: EnergyLoadForecastProviderXGBoostConfig,
 }
 
 ENERGY_LOAD_FORECAST_PROVIDER_EXTERNAL_SERVICE_MAP: Dict[
@@ -29,6 +33,8 @@ ENERGY_LOAD_FORECAST_PROVIDER_EXTERNAL_SERVICE_MAP: Dict[
     EnergyLoadForecastProviderAdapter.DUMMY: None,
     EnergyLoadForecastProviderAdapter.NAIVE_LAST_HOUR: None,
     EnergyLoadForecastProviderAdapter.SEASONAL_BASELINE: None,
+    EnergyLoadForecastProviderAdapter.STATSMODELS: None,
+    EnergyLoadForecastProviderAdapter.XGBOOST: None,
 }
 
 ENERGY_LOAD_HISTORY_PROVIDER_CONFIG_TYPE_MAP: Dict[
