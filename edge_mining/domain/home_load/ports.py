@@ -64,7 +64,7 @@ class EnergyLoadForecastProviderPort(ABC):
     def get_consumption_forecast(
         self, consumption_history: LoadEnergyConsumption, hours_ahead: int = 3
     ) -> Optional[LoadEnergyConsumption]:
-        """Provides an aggregated forecast of load energy consumption for the specified period based on historical data."""
+        """Provide an aggregated forecast of load energy consumption based on the given history."""
         raise NotImplementedError
 
 
@@ -92,13 +92,13 @@ class HomeLoadsProfileRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def remove(self, profile: HomeLoadsProfile) -> None:
+    def remove(self, profile_id: EntityId) -> None:
         """Removes an home loads profile from the repository."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_by_provider_id(self, provider_id: EntityId) -> List[HomeLoadsProfile]:
-        """Retrieves a list of home loads profiles by their associated provider ID."""
+    def get_by_energy_load_forecast_provider_id(self, provider_id: EntityId) -> List[HomeLoadsProfile]:
+        """Retrieves profiles whose LoadDevices reference the given energy load forecast provider."""
         raise NotImplementedError
 
 
