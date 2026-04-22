@@ -9,7 +9,10 @@ from pydantic import BaseModel, Field, field_serializer, field_validator
 
 from edge_mining.adapters.domain.energy.schemas import EnergyMonitorSchema
 from edge_mining.adapters.domain.forecast.schemas import ForecastProviderSchema
-from edge_mining.adapters.domain.home_load.schemas import EnergyLoadForecastProviderSchema
+from edge_mining.adapters.domain.home_load.schemas import (
+    EnergyLoadForecastProviderSchema,
+    EnergyLoadHistoryProviderSchema,
+)
 from edge_mining.adapters.domain.miner.schemas import MinerControllerSchema
 from edge_mining.adapters.domain.notification.schemas import NotifierSchema
 from edge_mining.domain.common import EntityId
@@ -185,6 +188,7 @@ class ExternalServiceLinkedEntitiesSchema(BaseModel):
     energy_monitors: List[EnergyMonitorSchema]
     forecast_providers: List[ForecastProviderSchema]
     energy_load_forecast_providers: List[EnergyLoadForecastProviderSchema]
+    energy_load_history_providers: List[EnergyLoadHistoryProviderSchema]
     notifiers: List[NotifierSchema]
 
     @classmethod
@@ -202,6 +206,10 @@ class ExternalServiceLinkedEntitiesSchema(BaseModel):
                 EnergyLoadForecastProviderSchema.from_model(provider)
                 for provider in linked_entities.energy_load_forecast_providers
             ],
+            energy_load_history_providers=[
+                EnergyLoadHistoryProviderSchema.from_model(provider)
+                for provider in linked_entities.energy_load_history_providers
+            ],
             notifiers=[NotifierSchema.from_model(notifier) for notifier in linked_entities.notifiers],
         )
 
@@ -212,6 +220,7 @@ class ExternalServiceLinkedEntitiesSchema(BaseModel):
             energy_monitors=[item.to_model() for item in self.energy_monitors],
             forecast_providers=[item.to_model() for item in self.forecast_providers],
             energy_load_forecast_providers=[item.to_model() for item in self.energy_load_forecast_providers],
+            energy_load_history_providers=[item.to_model() for item in self.energy_load_history_providers],
             notifiers=[item.to_model() for item in self.notifiers],
         )
 
