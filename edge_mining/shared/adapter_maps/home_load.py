@@ -8,6 +8,8 @@ from typing import Dict, Optional
 from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter, EnergyLoadHistoryProviderAdapter
 from edge_mining.shared.adapter_configs.home_load import (
     EnergyLoadForecastProviderDummyConfig,
+    EnergyLoadForecastProviderNaiveLastHourConfig,
+    EnergyLoadForecastProviderSeasonalBaselineConfig,
     EnergyLoadHistoryProviderHomeAssistantAPIConfig,
 )
 from edge_mining.shared.external_services.common import ExternalServiceAdapter
@@ -15,12 +17,18 @@ from edge_mining.shared.interfaces.config import EnergyLoadForecastProviderConfi
 
 ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP: Dict[
     EnergyLoadForecastProviderAdapter, Optional[type[EnergyLoadForecastProviderConfig]]
-] = {EnergyLoadForecastProviderAdapter.DUMMY: EnergyLoadForecastProviderDummyConfig}
+] = {
+    EnergyLoadForecastProviderAdapter.DUMMY: EnergyLoadForecastProviderDummyConfig,
+    EnergyLoadForecastProviderAdapter.NAIVE_LAST_HOUR: EnergyLoadForecastProviderNaiveLastHourConfig,
+    EnergyLoadForecastProviderAdapter.SEASONAL_BASELINE: EnergyLoadForecastProviderSeasonalBaselineConfig,
+}
 
 ENERGY_LOAD_FORECAST_PROVIDER_EXTERNAL_SERVICE_MAP: Dict[
     EnergyLoadForecastProviderAdapter, Optional[ExternalServiceAdapter]
 ] = {
-    EnergyLoadForecastProviderAdapter.DUMMY: None  # Dummy does not use an external service
+    EnergyLoadForecastProviderAdapter.DUMMY: None,
+    EnergyLoadForecastProviderAdapter.NAIVE_LAST_HOUR: None,
+    EnergyLoadForecastProviderAdapter.SEASONAL_BASELINE: None,
 }
 
 ENERGY_LOAD_HISTORY_PROVIDER_CONFIG_TYPE_MAP: Dict[
