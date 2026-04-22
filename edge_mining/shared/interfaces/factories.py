@@ -65,6 +65,10 @@ class ForecastAdapterFactory(AdapterFactory):
         pass
 
 
+class EnergyLoadForecastAdapterFactory(AdapterFactory):
+    """Abstract factory for energy load forecast adapters."""
+
+
 class EnergyLoadHistoryAdapterFactory(AdapterFactory):
     """Abstract factory for energy load history adapters (device-scoped)."""
 
