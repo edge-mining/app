@@ -9,7 +9,7 @@ from edge_mining.domain.energy.entities import EnergySource
 from edge_mining.domain.energy.value_objects import EnergyStateSnapshot
 from edge_mining.domain.forecast.aggregate_root import Forecast
 from edge_mining.domain.forecast.value_objects import Sun
-from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
+from edge_mining.domain.home_load.value_objects import HomeLoadsConsumption
 from edge_mining.domain.miner.aggregate_roots import Miner
 from edge_mining.domain.miner.value_objects import HashRate, MinerStateSnapshot
 
@@ -23,10 +23,9 @@ class DecisionalContext(ValueObject):
 
     forecast: Optional[Forecast]
 
-    home_loads_profile: Optional[HomeLoadsProfile]
-    # home_load_snapshot: Optional[LoadEnergyConsumption]  # Could be used for more detailed decision-making
+    home_load: Optional[HomeLoadsConsumption] = None
 
-    tracker_current_hashrate: Optional[HashRate]
+    tracker_current_hashrate: Optional[HashRate] = None
 
     sun: Optional[Sun] = field(default=None)
 
