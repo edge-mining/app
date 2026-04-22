@@ -15,6 +15,12 @@ from edge_mining.adapters.domain.home_load.forecast_providers.naive_last_hour im
 from edge_mining.adapters.domain.home_load.forecast_providers.seasonal_baseline import (
     SeasonalBaselineForecastProviderFactory,
 )
+from edge_mining.adapters.domain.home_load.forecast_providers.statsmodels_hw import (
+    StatsmodelsForecastProviderFactory,
+)
+from edge_mining.adapters.domain.home_load.forecast_providers.xgboost_provider import (
+    XGBoostForecastProviderFactory,
+)
 from edge_mining.adapters.domain.home_load.history_providers.dummy import DummyEnergyLoadHistoryProvider
 from edge_mining.adapters.domain.miner.controllers.dummy import DummyMinerController
 from edge_mining.adapters.domain.miner.controllers.generic_socket_home_assistant_api import (
@@ -44,6 +50,7 @@ from edge_mining.domain.home_load.ports import (
     EnergyLoadHistoryProviderPort,
     EnergyLoadHistoryProviderRepository,
     EnergyLoadHistoryRepository,
+    LoadConsumptionModelRepository,
 )
 from edge_mining.domain.miner.aggregate_roots import Miner
 from edge_mining.domain.miner.common import MinerControllerAdapter, MinerFeatureType
@@ -90,6 +97,7 @@ class AdapterService(AdapterServiceInterface):
         external_service_repo: ExternalServiceRepository,
         event_bus: EventBusInterface,
         logger: Optional[LoggerPort] = None,
+        load_consumption_model_repo: Optional[LoadConsumptionModelRepository] = None,
     ):
         self.energy_monitor_repo = energy_monitor_repo
         self.miner_controller_repo = miner_controller_repo
@@ -101,6 +109,7 @@ class AdapterService(AdapterServiceInterface):
         self.energy_load_history_provider_repo = energy_load_history_provider_repo
         self.home_load_history_repo = home_load_history_repo
         self.external_service_repo = external_service_repo
+        self.load_consumption_model_repo = load_consumption_model_repo
         # Cache for already created instances
         self._instance_cache: Dict[
             EntityId,
@@ -541,6 +550,10 @@ class AdapterService(AdapterServiceInterface):
                 factory = NaiveLastHourForecastProviderFactory()
             elif energy_load_forecast_provider.adapter_type == EnergyLoadForecastProviderAdapter.SEASONAL_BASELINE:
                 factory = SeasonalBaselineForecastProviderFactory()
+            elif energy_load_forecast_provider.adapter_type == EnergyLoadForecastProviderAdapter.STATSMODELS:
+                factory = StatsmodelsForecastProviderFactory(model_repo=self.load_consumption_model_repo)
+            elif energy_load_forecast_provider.adapter_type == EnergyLoadForecastProviderAdapter.XGBOOST:
+                factory = XGBoostForecastProviderFactory(model_repo=self.load_consumption_model_repo)
             else:
                 raise ValueError(
                     f"Unsupported home forecast provider adapter type: {energy_load_forecast_provider.adapter_type}"
