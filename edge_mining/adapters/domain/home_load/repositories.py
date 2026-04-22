@@ -10,6 +10,7 @@ from sqlalchemy import delete, func, insert, select
 
 from edge_mining.adapters.domain.home_load.tables import (
     energy_load_forecast_providers_table,
+    energy_load_history_providers_table,
     home_load_power_points_table,
     home_profiles_table,
 )
@@ -18,24 +19,34 @@ from edge_mining.adapters.infrastructure.persistence.sqlite import BaseSqliteRep
 from edge_mining.domain.common import EntityId, Timestamp, Watts
 from edge_mining.domain.exceptions import ConfigurationError
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
-from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter, LoadDeviceCategory
-from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, LoadDevice
+from edge_mining.domain.home_load.common import (
+    EnergyLoadForecastProviderAdapter,
+    EnergyLoadHistoryProviderAdapter,
+    LoadDeviceCategory,
+)
+from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, EnergyLoadHistoryProvider, LoadDevice
 from edge_mining.domain.home_load.exceptions import (
     EnergyLoadForecastProviderAlreadyExistsError,
     EnergyLoadForecastProviderConfigurationError,
     EnergyLoadForecastProviderError,
     EnergyLoadForecastProviderNotFoundError,
+    EnergyLoadHistoryProviderAlreadyExistsError,
+    EnergyLoadHistoryProviderConfigurationError,
+    EnergyLoadHistoryProviderError,
+    EnergyLoadHistoryProviderNotFoundError,
 )
 from edge_mining.domain.home_load.ports import (
     EnergyLoadForecastProviderRepository,
+    EnergyLoadHistoryProviderRepository,
     EnergyLoadHistoryRepository,
     HomeLoadsProfileRepository,
 )
 from edge_mining.domain.home_load.value_objects import HomeLoadPowerPoint
 from edge_mining.shared.adapter_maps.home_load import (
     ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP,
+    ENERGY_LOAD_HISTORY_PROVIDER_CONFIG_TYPE_MAP,
 )
-from edge_mining.shared.interfaces.config import EnergyLoadForecastProviderConfig
+from edge_mining.shared.interfaces.config import EnergyLoadForecastProviderConfig, EnergyLoadHistoryProviderConfig
 
 
 # --- HomeLoadsProfile Repositories ---
@@ -928,5 +939,355 @@ class SqlAlchemyEnergyLoadHistoryRepository(EnergyLoadHistoryRepository):
             )
             session.execute(stmt)
             session.commit()
+        finally:
+            session.close()
+
+
+# --- EnergyLoadHistoryProvider Repositories ---
+
+
+class InMemoryEnergyLoadHistoryProviderRepository(EnergyLoadHistoryProviderRepository):
+    """In-memory implementation of EnergyLoadHistoryProviderRepository."""
+
+    def __init__(self):
+        self._providers: List[EnergyLoadHistoryProvider] = []
+
+    def add(self, energy_load_history_provider: EnergyLoadHistoryProvider) -> None:
+        self._providers.append(energy_load_history_provider)
+
+    def get_by_id(self, energy_load_history_provider_id: EntityId) -> Optional[EnergyLoadHistoryProvider]:
+        for provider in self._providers:
+            if provider.id == energy_load_history_provider_id:
+                return provider
+        return None
+
+    def get_all(self) -> List[EnergyLoadHistoryProvider]:
+        return self._providers
+
+    def update(self, energy_load_history_provider: EnergyLoadHistoryProvider) -> None:
+        for i, existing in enumerate(self._providers):
+            if existing.id == energy_load_history_provider.id:
+                self._providers[i] = energy_load_history_provider
+                return
+
+    def remove(self, energy_load_history_provider_id: EntityId) -> None:
+        self._providers = [p for p in self._providers if p.id != energy_load_history_provider_id]
+
+    def get_by_external_service_id(self, external_service_id: EntityId) -> List[EnergyLoadHistoryProvider]:
+        if not external_service_id:
+            return []
+        return [p for p in self._providers if p.external_service_id == external_service_id]
+
+
+class SqliteEnergyLoadHistoryProviderRepository(EnergyLoadHistoryProviderRepository):
+    """SQLite implementation of EnergyLoadHistoryProviderRepository."""
+
+    def __init__(self, db: BaseSqliteRepository):
+        self._db = db
+        self.logger = db.logger
+        self._create_tables()
+
+    def _create_tables(self):
+        self.logger.debug(
+            f"Ensuring SQLite tables exist for Energy Load History Provider Repository in {self._db.db_path}..."
+        )
+        sql_statements = [
+            """
+            CREATE TABLE IF NOT EXISTS energy_load_history_providers (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                adapter_type TEXT NOT NULL,
+                config TEXT,
+                external_service_id TEXT
+            );
+            """
+        ]
+        conn = self._db.get_connection()
+        try:
+            with conn:
+                cursor = conn.cursor()
+                for statement in sql_statements:
+                    cursor.execute(statement)
+        except sqlite3.Error as e:
+            self.logger.error(f"Error creating SQLite tables: {e}")
+            raise ConfigurationError(f"DB error creating tables: {e}") from e
+        finally:
+            if conn:
+                conn.close()
+
+    def _deserialize_config(
+        self, adapter_type: EnergyLoadHistoryProviderAdapter, config_json: str
+    ) -> Optional[EnergyLoadHistoryProviderConfig]:
+        if not config_json:
+            return None
+        data: dict = json.loads(config_json)
+
+        if adapter_type not in ENERGY_LOAD_HISTORY_PROVIDER_CONFIG_TYPE_MAP:
+            raise EnergyLoadHistoryProviderNotFoundError(
+                f"Error reading EnergyLoadHistoryProvider configuration. Invalid type '{adapter_type}'"
+            )
+
+        config_class: Optional[type[EnergyLoadHistoryProviderConfig]] = (
+            ENERGY_LOAD_HISTORY_PROVIDER_CONFIG_TYPE_MAP.get(adapter_type)
+        )
+        if not config_class:
+            return None
+
+        config_instance = config_class.from_dict(data)
+        if not isinstance(config_instance, EnergyLoadHistoryProviderConfig):
+            raise EnergyLoadHistoryProviderConfigurationError(
+                f"Deserialized config is not of type EnergyLoadHistoryProviderConfig "
+                f"for adapter type {adapter_type}."
+            )
+        return config_instance
+
+    def _row_to_provider(self, row: sqlite3.Row) -> Optional[EnergyLoadHistoryProvider]:
+        if not row:
+            return None
+        try:
+            provider_type = EnergyLoadHistoryProviderAdapter(row["adapter_type"])
+            config = self._deserialize_config(provider_type, row["config"])
+            return EnergyLoadHistoryProvider(
+                id=EntityId(row["id"]),
+                name=row["name"],
+                adapter_type=provider_type,
+                config=config,
+                external_service_id=(EntityId(row["external_service_id"]) if row["external_service_id"] else None),
+            )
+        except (ValueError, KeyError) as e:
+            self.logger.error(f"Error deserializing EnergyLoadHistoryProvider from DB row: {row}. Error: {e}")
+            return None
+
+    def add(self, energy_load_history_provider: EnergyLoadHistoryProvider) -> None:
+        self.logger.debug(f"Adding history provider {energy_load_history_provider.id} to SQLite repository.")
+        sql = """
+            INSERT INTO energy_load_history_providers (id, name, adapter_type, config, external_service_id)
+            VALUES (?, ?, ?, ?, ?);
+        """
+        conn = self._db.get_connection()
+        try:
+            config_json: str = ""
+            if energy_load_history_provider.config:
+                config_json = json.dumps(energy_load_history_provider.config.to_dict())
+            with conn:
+                conn.execute(
+                    sql,
+                    (
+                        energy_load_history_provider.id,
+                        energy_load_history_provider.name,
+                        energy_load_history_provider.adapter_type.value,
+                        config_json,
+                        energy_load_history_provider.external_service_id,
+                    ),
+                )
+        except sqlite3.IntegrityError as e:
+            self.logger.error(
+                f"Integrity error adding energy load history provider {energy_load_history_provider.id}: {e}"
+            )
+            raise EnergyLoadHistoryProviderAlreadyExistsError(
+                f"Energy load history provider with ID {energy_load_history_provider.id} "
+                f"already exists or constraint violation: {e}"
+            ) from e
+        except sqlite3.Error as e:
+            self.logger.error(
+                f"SQLite error adding energy load history provider {energy_load_history_provider.id}: {e}"
+            )
+            raise EnergyLoadHistoryProviderError(f"DB error adding energy load history provider: {e}") from e
+        finally:
+            if conn:
+                conn.close()
+
+    def get_by_id(self, energy_load_history_provider_id: EntityId) -> Optional[EnergyLoadHistoryProvider]:
+        sql = "SELECT * FROM energy_load_history_providers WHERE id = ?;"
+        conn = self._db.get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(sql, (energy_load_history_provider_id,))
+            row = cursor.fetchone()
+            return self._row_to_provider(row)
+        except sqlite3.Error as e:
+            self.logger.error(
+                f"SQLite error retrieving energy load history provider {energy_load_history_provider_id}: {e}"
+            )
+            raise EnergyLoadHistoryProviderNotFoundError(
+                f"DB error retrieving energy load history provider: {e}"
+            ) from e
+        finally:
+            if conn:
+                conn.close()
+
+    def get_all(self) -> List[EnergyLoadHistoryProvider]:
+        sql = "SELECT * FROM energy_load_history_providers;"
+        conn = self._db.get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(sql)
+            rows = cursor.fetchall()
+            providers = []
+            for row in rows:
+                provider = self._row_to_provider(row)
+                if provider:
+                    providers.append(provider)
+            return providers
+        except sqlite3.Error as e:
+            self.logger.error(f"SQLite error retrieving all energy load history providers: {e}")
+            return []
+        finally:
+            if conn:
+                conn.close()
+
+    def update(self, energy_load_history_provider: EnergyLoadHistoryProvider) -> None:
+        sql = """
+            UPDATE energy_load_history_providers
+            SET name = ?, adapter_type = ?, config = ?, external_service_id = ?
+            WHERE id = ?;
+        """
+        conn = self._db.get_connection()
+        try:
+            config_json = ""
+            if energy_load_history_provider.config:
+                config_json = json.dumps(energy_load_history_provider.config.to_dict())
+            with conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    sql,
+                    (
+                        energy_load_history_provider.name,
+                        energy_load_history_provider.adapter_type.value,
+                        config_json,
+                        energy_load_history_provider.external_service_id,
+                        energy_load_history_provider.id,
+                    ),
+                )
+                if cursor.rowcount == 0:
+                    raise EnergyLoadHistoryProviderNotFoundError(
+                        f"Energy Load History Provider with ID {energy_load_history_provider.id} not found."
+                    )
+        except sqlite3.Error as e:
+            self.logger.error(
+                f"SQLite error updating energy load history provider {energy_load_history_provider.id}: {e}"
+            )
+            raise EnergyLoadHistoryProviderError(f"DB error updating energy load history provider: {e}") from e
+        finally:
+            if conn:
+                conn.close()
+
+    def remove(self, energy_load_history_provider_id: EntityId) -> None:
+        sql = "DELETE FROM energy_load_history_providers WHERE id = ?;"
+        conn = self._db.get_connection()
+        try:
+            with conn:
+                cursor = conn.cursor()
+                cursor.execute(sql, (energy_load_history_provider_id,))
+                if cursor.rowcount == 0:
+                    self.logger.warning(
+                        f"Attempted to remove non-existent energy load history provider "
+                        f"{energy_load_history_provider_id}."
+                    )
+        except sqlite3.Error as e:
+            self.logger.error(
+                f"SQLite error removing energy load history provider {energy_load_history_provider_id}: {e}"
+            )
+            raise EnergyLoadHistoryProviderError(f"DB error removing energy load history provider: {e}") from e
+        finally:
+            if conn:
+                conn.close()
+
+    def get_by_external_service_id(self, external_service_id: EntityId) -> List[EnergyLoadHistoryProvider]:
+        sql = "SELECT * FROM energy_load_history_providers WHERE external_service_id = ?;"
+        conn = self._db.get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(sql, (external_service_id,))
+            rows = cursor.fetchall()
+            providers = []
+            for row in rows:
+                provider = self._row_to_provider(row)
+                if provider:
+                    providers.append(provider)
+            return providers
+        except sqlite3.Error as e:
+            self.logger.error(
+                f"SQLite error retrieving energy load history providers by external service ID "
+                f"{external_service_id}: {e}"
+            )
+            return []
+        finally:
+            if conn:
+                conn.close()
+
+
+class SqlAlchemyEnergyLoadHistoryProviderRepository(EnergyLoadHistoryProviderRepository):
+    """SQLAlchemy implementation of EnergyLoadHistoryProviderRepository."""
+
+    def __init__(self, db: BaseSQLAlchemyRepository):
+        self._db = db
+        self.logger = db.logger
+
+    def add(self, energy_load_history_provider: EnergyLoadHistoryProvider) -> None:
+        session = self._db.get_session()
+        try:
+            session.add(energy_load_history_provider)
+            session.commit()
+        finally:
+            session.close()
+
+    def get_by_id(self, energy_load_history_provider_id: EntityId) -> Optional[EnergyLoadHistoryProvider]:
+        session = self._db.get_session()
+        try:
+            stmt = select(EnergyLoadHistoryProvider).where(
+                energy_load_history_providers_table.c.id == str(energy_load_history_provider_id)
+            )
+            entity = session.execute(stmt).scalar_one_or_none()
+            return entity
+        finally:
+            session.close()
+
+    def get_all(self) -> List[EnergyLoadHistoryProvider]:
+        session = self._db.get_session()
+        try:
+            stmt = select(EnergyLoadHistoryProvider)
+            entities = session.execute(stmt).scalars().all()
+            return list(entities)
+        finally:
+            session.close()
+
+    def update(self, energy_load_history_provider: EnergyLoadHistoryProvider) -> None:
+        session = self._db.get_session()
+        try:
+            stmt = select(EnergyLoadHistoryProvider).where(
+                energy_load_history_providers_table.c.id == str(energy_load_history_provider.id)
+            )
+            existing_entity = session.execute(stmt).scalar_one_or_none()
+            if existing_entity:
+                existing_entity.name = energy_load_history_provider.name
+                existing_entity.adapter_type = energy_load_history_provider.adapter_type
+                existing_entity.config = energy_load_history_provider.config
+                existing_entity.external_service_id = energy_load_history_provider.external_service_id
+                session.commit()
+        finally:
+            session.close()
+
+    def remove(self, energy_load_history_provider_id: EntityId) -> None:
+        session = self._db.get_session()
+        try:
+            stmt = select(EnergyLoadHistoryProvider).where(
+                energy_load_history_providers_table.c.id == str(energy_load_history_provider_id)
+            )
+            entity = session.execute(stmt).scalar_one_or_none()
+            if entity:
+                session.delete(entity)
+                session.commit()
+        finally:
+            session.close()
+
+    def get_by_external_service_id(self, external_service_id: EntityId) -> List[EnergyLoadHistoryProvider]:
+        session = self._db.get_session()
+        try:
+            stmt = select(EnergyLoadHistoryProvider).where(
+                energy_load_history_providers_table.c.external_service_id == str(external_service_id)
+            )
+            entities = session.execute(stmt).scalars().all()
+            return list(entities)
         finally:
             session.close()
