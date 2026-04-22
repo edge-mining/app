@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from enum import Enum
+from typing import Optional
 
 from edge_mining.application.interfaces import (
     MinerActionServiceInterface,
@@ -11,6 +12,7 @@ from edge_mining.application.interfaces import (
     HomeLoadHistoryServiceInterface,
     OptimizationServiceInterface,
 )
+from edge_mining.application.services.load_forecast_training_service import LoadForecastModelTrainingService
 from edge_mining.domain.energy.ports import (
     EnergyMonitorRepository,
     EnergySourceRepository,
@@ -21,6 +23,7 @@ from edge_mining.domain.home_load.ports import (
     EnergyLoadHistoryProviderRepository,
     EnergyLoadHistoryRepository,
     HomeLoadsProfileRepository,
+    LoadConsumptionModelRepository,
 )
 from edge_mining.domain.miner.ports import MinerControllerRepository, MinerRepository
 from edge_mining.domain.notification.ports import NotifierRepository
@@ -51,6 +54,7 @@ class PersistenceSettings:
     energy_load_forecast_provider_repo: EnergyLoadForecastProviderRepository
     energy_load_history_provider_repo: EnergyLoadHistoryProviderRepository
     home_load_history_repo: EnergyLoadHistoryRepository
+    load_consumption_model_repo: LoadConsumptionModelRepository
     policy_repo: OptimizationPolicyRepository
     mining_performance_tracker_repo: MiningPerformanceTrackerRepository
     optimization_unit_repo: EnergyOptimizationUnitRepository
@@ -68,4 +72,5 @@ class Services:
     miner_action_service: MinerActionServiceInterface
     configuration_service: ConfigurationServiceInterface
     home_load_history_service: HomeLoadHistoryServiceInterface
+    load_forecast_training_service: Optional[LoadForecastModelTrainingService]
     event_bus: EventBusInterface
