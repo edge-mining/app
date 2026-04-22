@@ -16,7 +16,7 @@ from edge_mining.application.interfaces import (
     OptimizationServiceInterface,
     SunFactoryInterface,
 )
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from edge_mining.domain.common import EntityId, Timestamp, WattHours
 from edge_mining.domain.energy.entities import EnergySource
@@ -27,7 +27,11 @@ from edge_mining.domain.forecast.aggregate_root import Forecast
 from edge_mining.domain.forecast.ports import ForecastProviderPort
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
 from edge_mining.domain.home_load.entities import LoadDevice
-from edge_mining.domain.home_load.ports import EnergyLoadForecastProviderPort, HomeLoadsProfileRepository
+from edge_mining.domain.home_load.ports import (
+    EnergyLoadForecastProviderPort,
+    EnergyLoadHistoryProviderPort,
+    HomeLoadsProfileRepository,
+)
 from edge_mining.domain.home_load.value_objects import (
     HomeLoadEnergyInterval,
     HomeLoadsConsumption,
@@ -125,29 +129,49 @@ class OptimizationService(OptimizationServiceInterface):
 
         return LoadEnergyConsumption(timestamp=now_ts, intervals=merged)
 
-    def _build_home_loads_consumption(
+    async def _build_home_loads_consumption(
         self,
         home_loads_profile: Optional[HomeLoadsProfile],
         forecast_providers: Dict[EntityId, EnergyLoadForecastProviderPort],
+        history_providers: Dict[EntityId, EnergyLoadHistoryProviderPort],
         unit_name: str,
     ) -> Optional[HomeLoadsConsumption]:
         """Assemble per-device history+forecast and their household totals.
 
-        History providers are not wired yet, so history is an empty time series.
-        Forecast is obtained by calling each device's provider with the empty
-        history and aggregated into the household total.
+        For each device, history is fetched from its history provider (if any)
+        over a 24-hour look-back window.  Forecast is obtained by calling each
+        device's forecast provider with the device history.
         """
         if home_loads_profile is None:
             return None
 
-        empty_history = LoadEnergyConsumption(timestamp=Timestamp(datetime.now()), intervals=[])
+        now = Timestamp(datetime.now())
+        window_start = Timestamp(now - timedelta(hours=24))
+        empty_consumption = LoadEnergyConsumption(timestamp=now, intervals=[])
+
         per_device: List[LoadDeviceConsumption] = []
         for device in home_loads_profile.devices:
-            device_forecast = empty_history
-            provider = forecast_providers.get(device.id)
-            if provider is not None:
+            # --- History ---
+            device_history = empty_consumption
+            history_provider = history_providers.get(device.id)
+            if history_provider is not None:
                 try:
-                    result = provider.get_consumption_forecast(empty_history)
+                    intervals = await history_provider.get_history(window_start, now)
+                    if intervals:
+                        device_history = LoadEnergyConsumption(timestamp=now, intervals=intervals)
+                except Exception as e:
+                    if self.logger:
+                        self.logger.warning(
+                            f"Error getting load history for device '{device.name}' "
+                            f"in optimization unit '{unit_name}': {e}"
+                        )
+
+            # --- Forecast ---
+            device_forecast = empty_consumption
+            forecast_provider = forecast_providers.get(device.id)
+            if forecast_provider is not None:
+                try:
+                    result = forecast_provider.get_consumption_forecast(device_history)
                     if result is not None:
                         device_forecast = result
                 except Exception as e:
@@ -156,7 +180,7 @@ class OptimizationService(OptimizationServiceInterface):
                             f"Error getting load forecast for device '{device.name}' "
                             f"in optimization unit '{unit_name}': {e}"
                         )
-            per_device.append(self._make_device_consumption(device, empty_history, device_forecast))
+            per_device.append(self._make_device_consumption(device, device_history, device_forecast))
 
         return HomeLoadsConsumption(
             per_device=per_device,
@@ -295,6 +319,26 @@ class OptimizationService(OptimizationServiceInterface):
                     if energy_load_forecast_provider:
                         energy_load_forecast_providers[load_device.id] = energy_load_forecast_provider
 
+        # --- Home Loads History Provider ---
+        energy_load_history_providers: Dict[EntityId, EnergyLoadHistoryProviderPort] = {}
+        if home_loads_profile and home_loads_profile.devices:
+            for load_device in home_loads_profile.devices:
+                if load_device.energy_load_history_provider_id:
+                    energy_load_history_provider = self.adapter_service.get_home_load_history_provider(
+                        load_device.energy_load_history_provider_id, load_device.id
+                    )
+                    if not energy_load_history_provider:
+                        if self.logger:
+                            self.logger.warning(
+                                f"Energy load history provider for "
+                                f"load device '{load_device.name}' of "
+                                f"optimization unit '{optimization_unit.name}' "
+                                f"(Config ID: {load_device.energy_load_history_provider_id}) "
+                                "not found. Skipping history provider."
+                            )
+                    else:
+                        energy_load_history_providers[load_device.id] = energy_load_history_provider
+
         # --- Energy State ---
         if energy_source and energy_monitor:
             try:
@@ -334,9 +378,10 @@ class OptimizationService(OptimizationServiceInterface):
                     )
 
         # --- Home Load Consumption (per-device history + forecast) ---
-        home_load = self._build_home_loads_consumption(
+        home_load = await self._build_home_loads_consumption(
             home_loads_profile,
             energy_load_forecast_providers,
+            energy_load_history_providers,
             optimization_unit.name,
         )
 
@@ -638,6 +683,32 @@ class OptimizationService(OptimizationServiceInterface):
                         f"Skipping forecast provider for this device."
                     )
 
+        # --- Energy Load History Providers (per LoadDevice) ---
+        energy_load_history_providers: Dict[EntityId, EnergyLoadHistoryProviderPort] = {}
+        if home_loads_profile and home_loads_profile.devices:
+            for load_device in home_loads_profile.devices:
+                if not load_device.energy_load_history_provider_id:
+                    continue
+                try:
+                    h_provider = self.adapter_service.get_home_load_history_provider(
+                        load_device.energy_load_history_provider_id, load_device.id
+                    )
+                except Exception as e:
+                    h_provider = None
+                    if self.logger:
+                        self.logger.error(
+                            f"Error getting energy load history provider for load device "
+                            f"'{load_device.name}' in optimization unit '{optimization_unit.name}': {e}"
+                        )
+                if h_provider:
+                    energy_load_history_providers[load_device.id] = h_provider
+                elif self.logger:
+                    self.logger.warning(
+                        f"Energy load history provider for load device '{load_device.name}' "
+                        f"(Config ID: {load_device.energy_load_history_provider_id}) not found. "
+                        f"Skipping history provider for this device."
+                    )
+
         # --- Mining Performance Tracker ---
         mining_performance_tracker: Optional[MiningPerformanceTrackerPort] = None
         if optimization_unit.performance_tracker_id:
@@ -722,9 +793,10 @@ class OptimizationService(OptimizationServiceInterface):
                 )
 
         # --- Home Load Consumption (per-device history + forecast) ---
-        home_load = self._build_home_loads_consumption(
+        home_load = await self._build_home_loads_consumption(
             home_loads_profile,
             energy_load_forecast_providers,
+            energy_load_history_providers,
             optimization_unit.name,
         )
 
