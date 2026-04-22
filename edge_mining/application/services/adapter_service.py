@@ -8,10 +8,12 @@ from edge_mining.adapters.domain.energy.monitors.dummy_solar import DummySolarEn
 from edge_mining.adapters.domain.energy.monitors.home_assistant_api import HomeAssistantAPIEnergyMonitorFactory
 from edge_mining.adapters.domain.forecast.providers.dummy_solar import DummyForecastProviderFactory
 from edge_mining.adapters.domain.forecast.providers.home_assistant_api import HomeAssistantForecastProviderFactory
-from edge_mining.adapters.domain.home_load.forecast_providers.dummy import DummyEnergyLoadForecastProvider
-from edge_mining.adapters.domain.home_load.forecast_providers.naive_last_hour import NaiveLastHourForecastProvider
+from edge_mining.adapters.domain.home_load.forecast_providers.dummy import DummyEnergyLoadForecastProviderFactory
+from edge_mining.adapters.domain.home_load.forecast_providers.naive_last_hour import (
+    NaiveLastHourForecastProviderFactory,
+)
 from edge_mining.adapters.domain.home_load.forecast_providers.seasonal_baseline import (
-    SeasonalBaselineForecastProvider,
+    SeasonalBaselineForecastProviderFactory,
 )
 from edge_mining.adapters.domain.home_load.history_providers.dummy import DummyEnergyLoadHistoryProvider
 from edge_mining.adapters.domain.miner.controllers.dummy import DummyMinerController
@@ -60,6 +62,7 @@ from edge_mining.shared.external_services.common import ExternalServiceAdapter
 from edge_mining.shared.external_services.entities import ExternalService
 from edge_mining.shared.external_services.ports import ExternalServicePort, ExternalServiceRepository
 from edge_mining.shared.interfaces.factories import (
+    EnergyLoadForecastAdapterFactory,
     EnergyMonitorAdapterFactory,
     ExternalServiceFactory,
     ForecastAdapterFactory,
@@ -530,34 +533,24 @@ class AdapterService(AdapterServiceInterface):
             return cached_instance
 
         try:
+            factory: Optional[EnergyLoadForecastAdapterFactory] = None
+
             if energy_load_forecast_provider.adapter_type == EnergyLoadForecastProviderAdapter.DUMMY:
-                # --- Dummy Home Forecast Provider ---
-                # TODO - Add configuration parameters for DummyEnergyLoadForecastProvider
-                # For now, we use a default load power max of 800W.
-                instance = DummyEnergyLoadForecastProvider(load_power_max=800)
+                factory = DummyEnergyLoadForecastProviderFactory()
             elif energy_load_forecast_provider.adapter_type == EnergyLoadForecastProviderAdapter.NAIVE_LAST_HOUR:
-                hours_ahead = 3
-                config = energy_load_forecast_provider.config
-                if config and hasattr(config, "hours_ahead"):
-                    hours_ahead = config.hours_ahead
-                instance = NaiveLastHourForecastProvider(hours_ahead=hours_ahead, logger=self.logger)
+                factory = NaiveLastHourForecastProviderFactory()
             elif energy_load_forecast_provider.adapter_type == EnergyLoadForecastProviderAdapter.SEASONAL_BASELINE:
-                hours_ahead = 3
-                weeks_lookback = 4
-                config = energy_load_forecast_provider.config
-                if config and hasattr(config, "hours_ahead"):
-                    hours_ahead = config.hours_ahead
-                if config and hasattr(config, "weeks_lookback"):
-                    weeks_lookback = config.weeks_lookback
-                instance = SeasonalBaselineForecastProvider(
-                    hours_ahead=hours_ahead,
-                    weeks_lookback=weeks_lookback,
-                    logger=self.logger,
-                )
+                factory = SeasonalBaselineForecastProviderFactory()
             else:
                 raise ValueError(
                     f"Unsupported home forecast provider adapter type: {energy_load_forecast_provider.adapter_type}"
                 )
+
+            instance = factory.create(
+                config=energy_load_forecast_provider.config,
+                logger=self.logger,
+                external_service=None,
+            )
 
             self._instance_cache[energy_load_forecast_provider.id] = instance
             return instance
