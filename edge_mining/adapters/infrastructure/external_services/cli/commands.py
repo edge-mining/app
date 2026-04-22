@@ -12,7 +12,7 @@ from edge_mining.application.interfaces import ConfigurationServiceInterface
 from edge_mining.domain.common import EntityId
 from edge_mining.domain.energy.entities import EnergyMonitor
 from edge_mining.domain.forecast.entities import ForecastProvider
-from edge_mining.domain.home_load.entities import HomeForecastProvider
+from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider
 from edge_mining.domain.miner.entities import MinerController
 from edge_mining.domain.notification.entities import Notifier
 from edge_mining.shared.adapter_configs.external_services import (
@@ -215,7 +215,7 @@ def print_external_service_details(
             EnergyMonitor,
             MinerController,
             ForecastProvider,
-            HomeForecastProvider,
+            EnergyLoadForecastProvider,
             Notifier,
         ]
         if external_service_linked_entities.energy_monitors:
@@ -236,9 +236,9 @@ def print_external_service_details(
                 click.echo(f"-> Name: {e.name} (ID: {e.id})")
             click.echo("")
 
-        if external_service_linked_entities.home_forecast_providers:
-            click.echo("Home Forecast Providers assigned:")
-            for e in external_service_linked_entities.home_forecast_providers:
+        if external_service_linked_entities.energy_load_forecast_providers:
+            click.echo("Energy Load Forecast Providers assigned:")
+            for e in external_service_linked_entities.energy_load_forecast_providers:
                 click.echo(f"-> Name: {e.name} (ID: {e.id})")
             click.echo("")
 
