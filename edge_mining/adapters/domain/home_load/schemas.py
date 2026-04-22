@@ -24,6 +24,8 @@ from edge_mining.shared.adapter_configs.home_load import (
     EnergyLoadForecastProviderDummyConfig,
     EnergyLoadForecastProviderNaiveLastHourConfig,
     EnergyLoadForecastProviderSeasonalBaselineConfig,
+    EnergyLoadForecastProviderStatsmodelsConfig,
+    EnergyLoadForecastProviderXGBoostConfig,
     EnergyLoadHistoryProviderHomeAssistantAPIConfig,
 )
 from edge_mining.shared.adapter_maps.home_load import (
@@ -698,17 +700,67 @@ class EnergyLoadForecastProviderSeasonalBaselineConfigSchema(BaseModel):
         validate_assignment = True
 
 
+class EnergyLoadForecastProviderStatsmodelsConfigSchema(BaseModel):
+    """Schema for Statsmodels EnergyLoadForecastProviderConfig."""
+
+    hours_ahead: int = Field(default=3, ge=1, le=72, description="Number of hours to forecast ahead")
+    weeks_lookback: int = Field(default=8, ge=1, le=52, description="Weeks of history for training")
+    method: str = Field(default="hw", description="Statsmodels method: 'hw' (Holt-Winters) or 'sarima'")
+    seasonal_periods: int = Field(default=24, ge=1, le=168, description="Hours in a seasonal cycle")
+
+    def to_model(self) -> EnergyLoadForecastProviderStatsmodelsConfig:
+        """Convert schema to domain model."""
+        return EnergyLoadForecastProviderStatsmodelsConfig(
+            hours_ahead=self.hours_ahead,
+            weeks_lookback=self.weeks_lookback,
+            method=self.method,
+            seasonal_periods=self.seasonal_periods,
+        )
+
+    class Config:
+        use_enum_values = True
+        validate_assignment = True
+
+
+class EnergyLoadForecastProviderXGBoostConfigSchema(BaseModel):
+    """Schema for XGBoost EnergyLoadForecastProviderConfig."""
+
+    hours_ahead: int = Field(default=3, ge=1, le=72, description="Number of hours to forecast ahead")
+    weeks_lookback: int = Field(default=8, ge=1, le=52, description="Weeks of history for training")
+    n_estimators: int = Field(default=100, ge=10, le=1000, description="Number of boosting rounds")
+    max_depth: int = Field(default=6, ge=1, le=15, description="Maximum tree depth")
+    learning_rate: float = Field(default=0.1, gt=0.0, le=1.0, description="Learning rate")
+
+    def to_model(self) -> EnergyLoadForecastProviderXGBoostConfig:
+        """Convert schema to domain model."""
+        return EnergyLoadForecastProviderXGBoostConfig(
+            hours_ahead=self.hours_ahead,
+            weeks_lookback=self.weeks_lookback,
+            n_estimators=self.n_estimators,
+            max_depth=self.max_depth,
+            learning_rate=self.learning_rate,
+        )
+
+    class Config:
+        use_enum_values = True
+        validate_assignment = True
+
+
 ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_SCHEMA_MAP: Dict[
     type[EnergyLoadForecastProviderConfig],
     Union[
         type[EnergyLoadForecastProviderDummyConfigSchema],
         type[EnergyLoadForecastProviderNaiveLastHourConfigSchema],
         type[EnergyLoadForecastProviderSeasonalBaselineConfigSchema],
+        type[EnergyLoadForecastProviderStatsmodelsConfigSchema],
+        type[EnergyLoadForecastProviderXGBoostConfigSchema],
     ],
 ] = {
     EnergyLoadForecastProviderDummyConfig: EnergyLoadForecastProviderDummyConfigSchema,
     EnergyLoadForecastProviderNaiveLastHourConfig: EnergyLoadForecastProviderNaiveLastHourConfigSchema,
     EnergyLoadForecastProviderSeasonalBaselineConfig: EnergyLoadForecastProviderSeasonalBaselineConfigSchema,
+    EnergyLoadForecastProviderStatsmodelsConfig: EnergyLoadForecastProviderStatsmodelsConfigSchema,
+    EnergyLoadForecastProviderXGBoostConfig: EnergyLoadForecastProviderXGBoostConfigSchema,
 }
 
 
