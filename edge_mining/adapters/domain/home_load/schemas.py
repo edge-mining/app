@@ -22,6 +22,8 @@ from edge_mining.domain.home_load.value_objects import (
 )
 from edge_mining.shared.adapter_configs.home_load import (
     EnergyLoadForecastProviderDummyConfig,
+    EnergyLoadForecastProviderNaiveLastHourConfig,
+    EnergyLoadForecastProviderSeasonalBaselineConfig,
     EnergyLoadHistoryProviderHomeAssistantAPIConfig,
 )
 from edge_mining.shared.adapter_maps.home_load import (
@@ -664,11 +666,49 @@ class EnergyLoadForecastProviderDummyConfigSchema(BaseModel):
         validate_assignment = True
 
 
+class EnergyLoadForecastProviderNaiveLastHourConfigSchema(BaseModel):
+    """Schema for NaiveLastHour EnergyLoadForecastProviderConfig."""
+
+    hours_ahead: int = Field(default=3, ge=1, le=72, description="Number of hours to forecast ahead")
+
+    def to_model(self) -> EnergyLoadForecastProviderNaiveLastHourConfig:
+        """Convert schema to domain model."""
+        return EnergyLoadForecastProviderNaiveLastHourConfig(hours_ahead=self.hours_ahead)
+
+    class Config:
+        use_enum_values = True
+        validate_assignment = True
+
+
+class EnergyLoadForecastProviderSeasonalBaselineConfigSchema(BaseModel):
+    """Schema for SeasonalBaseline EnergyLoadForecastProviderConfig."""
+
+    hours_ahead: int = Field(default=3, ge=1, le=72, description="Number of hours to forecast ahead")
+    weeks_lookback: int = Field(default=4, ge=1, le=52, description="Number of weeks of history to use for profiling")
+
+    def to_model(self) -> EnergyLoadForecastProviderSeasonalBaselineConfig:
+        """Convert schema to domain model."""
+        return EnergyLoadForecastProviderSeasonalBaselineConfig(
+            hours_ahead=self.hours_ahead,
+            weeks_lookback=self.weeks_lookback,
+        )
+
+    class Config:
+        use_enum_values = True
+        validate_assignment = True
+
+
 ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_SCHEMA_MAP: Dict[
     type[EnergyLoadForecastProviderConfig],
-    Union[type[EnergyLoadForecastProviderDummyConfigSchema]],
+    Union[
+        type[EnergyLoadForecastProviderDummyConfigSchema],
+        type[EnergyLoadForecastProviderNaiveLastHourConfigSchema],
+        type[EnergyLoadForecastProviderSeasonalBaselineConfigSchema],
+    ],
 ] = {
     EnergyLoadForecastProviderDummyConfig: EnergyLoadForecastProviderDummyConfigSchema,
+    EnergyLoadForecastProviderNaiveLastHourConfig: EnergyLoadForecastProviderNaiveLastHourConfigSchema,
+    EnergyLoadForecastProviderSeasonalBaselineConfig: EnergyLoadForecastProviderSeasonalBaselineConfigSchema,
 }
 
 
