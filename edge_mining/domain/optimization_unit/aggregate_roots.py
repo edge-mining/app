@@ -56,10 +56,6 @@ class EnergyOptimizationUnit(AggregateRoot):
         """Assign a home loads profile to the energy optimization unit."""
         self.home_loads_profile = profile_id
 
-    def assign_home_forecast_provider(self, home_forecast_provider_id: EntityId):
-        """Assign a home load forecast provider to the energy optimization unit."""
-        self.home_forecast_provider_id = home_forecast_provider_id
-
     def assign_performance_tracker(self, performance_tracker_id: EntityId):
         """Assign a performance tracker to the energy optimization unit."""
         self.performance_tracker_id = performance_tracker_id
