@@ -133,6 +133,39 @@ class LoadEnergyConsumption(ValueObject):
         anchor = now if now is not None else Timestamp(datetime.now())
         return self.in_window(Timestamp(anchor - timedelta(hours=hours)), anchor)
 
+    # Pre-computed window properties for rule engine paths
+    # e.g. home_load.total_forecast.next_1h.total_energy
+
+    @property
+    def next_1h(self) -> "LoadEnergyConsumption":
+        """Subset covering the next 1 hour from now."""
+        return self.in_next_hours(1)
+
+    @property
+    def next_2h(self) -> "LoadEnergyConsumption":
+        """Subset covering the next 2 hours from now."""
+        return self.in_next_hours(2)
+
+    @property
+    def next_4h(self) -> "LoadEnergyConsumption":
+        """Subset covering the next 4 hours from now."""
+        return self.in_next_hours(4)
+
+    @property
+    def last_1h(self) -> "LoadEnergyConsumption":
+        """Subset covering the last 1 hour up to now."""
+        return self.in_last_hours(1)
+
+    @property
+    def last_4h(self) -> "LoadEnergyConsumption":
+        """Subset covering the last 4 hours up to now."""
+        return self.in_last_hours(4)
+
+    @property
+    def last_24h(self) -> "LoadEnergyConsumption":
+        """Subset covering the last 24 hours up to now."""
+        return self.in_last_hours(24)
+
 
 @dataclass(frozen=True)
 class LoadDeviceConsumption(ValueObject):
