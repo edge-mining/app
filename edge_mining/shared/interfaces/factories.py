@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Optional
 
 from edge_mining.domain.energy.entities import EnergySource
+from edge_mining.domain.home_load.entities import LoadDevice
 from edge_mining.domain.miner.aggregate_roots import Miner
 from edge_mining.shared.external_services.ports import ExternalServicePort
 from edge_mining.shared.interfaces.config import Configuration, ExternalServiceConfig
@@ -65,4 +66,13 @@ class ForecastAdapterFactory(AdapterFactory):
 
 
 class EnergyLoadHistoryAdapterFactory(AdapterFactory):
-    """Abstract factory for energy load history adapters"""
+    """Abstract factory for energy load history adapters (device-scoped)."""
+
+    @abstractmethod
+    def from_load_device(self, load_device: LoadDevice) -> None:
+        """Bind the factory to the LoadDevice this adapter will serve.
+
+        Must be called before ``create`` so the resulting adapter knows its
+        ``device_id`` scope.
+        """
+        pass
