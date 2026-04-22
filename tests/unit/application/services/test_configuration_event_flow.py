@@ -51,6 +51,7 @@ def mock_persistence():
         "optimization_unit_repo",
         "forecast_provider_repo",
         "energy_load_forecast_provider_repo",
+        "home_profile_repo",
         "mining_performance_tracker_repo",
         "notifier_repo",
         "settings_repo",
