@@ -1,14 +1,19 @@
 """API Router for home load domain."""
 
+import uuid
 from typing import Annotated, Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 
 from edge_mining.adapters.domain.home_load.schemas import (
     ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_SCHEMA_MAP,
+    ENERGY_LOAD_HISTORY_PROVIDER_CONFIG_SCHEMA_MAP,
     EnergyLoadForecastProviderCreateSchema,
     EnergyLoadForecastProviderSchema,
     EnergyLoadForecastProviderUpdateSchema,
+    EnergyLoadHistoryProviderCreateSchema,
+    EnergyLoadHistoryProviderSchema,
+    EnergyLoadHistoryProviderUpdateSchema,
     HomeLoadsProfileSchema,
     LoadDeviceCreateSchema,
     LoadDeviceSchema,
@@ -20,20 +25,26 @@ from edge_mining.adapters.infrastructure.api.setup import get_config_service
 from edge_mining.application.interfaces import ConfigurationServiceInterface
 from edge_mining.domain.common import EntityId
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
-from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter
-from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, LoadDevice
+from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter, EnergyLoadHistoryProviderAdapter
+from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, EnergyLoadHistoryProvider, LoadDevice
 from edge_mining.domain.home_load.exceptions import (
     EnergyLoadForecastProviderAlreadyExistsError,
     EnergyLoadForecastProviderConfigurationError,
     EnergyLoadForecastProviderNotFoundError,
+    EnergyLoadHistoryProviderAlreadyExistsError,
+    EnergyLoadHistoryProviderConfigurationError,
+    EnergyLoadHistoryProviderNotFoundError,
     HomeLoadsProfileAddDeviceError,
     HomeLoadsProfileAlreadyExistsError,
     HomeLoadsProfileDeviceNotFoundError,
     HomeLoadsProfileNotFoundError,
     HomeLoadsProfileRemoveDeviceError,
 )
-from edge_mining.shared.adapter_maps.home_load import ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP
-from edge_mining.shared.interfaces.config import EnergyLoadForecastProviderConfig
+from edge_mining.shared.adapter_maps.home_load import (
+    ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP,
+    ENERGY_LOAD_HISTORY_PROVIDER_CONFIG_TYPE_MAP,
+)
+from edge_mining.shared.interfaces.config import EnergyLoadForecastProviderConfig, EnergyLoadHistoryProviderConfig
 
 router = APIRouter()
 
@@ -426,6 +437,147 @@ async def delete_energy_load_forecast_provider(
         # This would need to be implemented in the configuration service
         raise HTTPException(status_code=501, detail="Not implemented yet")
     except EnergyLoadForecastProviderNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# --- Energy Load History Provider endpoints ---
+
+
+@router.get("/energy-load-history-providers", response_model=List[EnergyLoadHistoryProviderSchema])
+async def get_energy_load_history_providers_list(
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+) -> List[EnergyLoadHistoryProviderSchema]:
+    """Get a list of all energy load history providers."""
+    try:
+        providers = config_service.list_energy_load_history_providers()
+        return [EnergyLoadHistoryProviderSchema.from_model(p) for p in providers]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/energy-load-history-providers", response_model=EnergyLoadHistoryProviderSchema)
+async def add_energy_load_history_provider(
+    provider_data: EnergyLoadHistoryProviderCreateSchema,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+) -> EnergyLoadHistoryProviderSchema:
+    """Add a new energy load history provider."""
+    try:
+        provider_to_add: EnergyLoadHistoryProvider = provider_data.to_model()
+        added = config_service.add_energy_load_history_provider(provider_to_add)
+        return EnergyLoadHistoryProviderSchema.from_model(added)
+    except EnergyLoadHistoryProviderAlreadyExistsError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except EnergyLoadHistoryProviderConfigurationError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/energy-load-history-providers/types", response_model=List[EnergyLoadHistoryProviderAdapter])
+async def get_energy_load_history_provider_types() -> List[EnergyLoadHistoryProviderAdapter]:
+    """Get a list of available energy load history provider types."""
+    try:
+        return [EnergyLoadHistoryProviderAdapter(adapter.value) for adapter in EnergyLoadHistoryProviderAdapter]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get(
+    "/energy-load-history-providers/types/{adapter_type}/config-schema",
+    response_model=Dict[str, Any],
+)
+async def get_energy_load_history_provider_config_schema(
+    adapter_type: EnergyLoadHistoryProviderAdapter,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+) -> Dict[str, Any]:
+    """Get the configuration schema for a specific energy load history provider type."""
+    try:
+        try:
+            provider_adapter = EnergyLoadHistoryProviderAdapter(adapter_type.value)
+        except ValueError as e:
+            raise ValueError(f"Invalid energy load history provider adapter type: {adapter_type}") from e
+
+        provider_config_type: Optional[type[EnergyLoadHistoryProviderConfig]] = (
+            ENERGY_LOAD_HISTORY_PROVIDER_CONFIG_TYPE_MAP.get(provider_adapter)
+        )
+
+        if provider_config_type is None:
+            return {}  # Some adapters (e.g. DUMMY) have no configuration
+
+        schema_class = ENERGY_LOAD_HISTORY_PROVIDER_CONFIG_SCHEMA_MAP.get(provider_config_type)
+        if schema_class is None:
+            raise EnergyLoadHistoryProviderConfigurationError(
+                f"No schema found for configuration class {provider_config_type}"
+            )
+
+        return schema_class.model_json_schema()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get("/energy-load-history-providers/{provider_id}", response_model=EnergyLoadHistoryProviderSchema)
+async def get_energy_load_history_provider(
+    provider_id: EntityId,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+) -> EnergyLoadHistoryProviderSchema:
+    """Get details of a specific energy load history provider."""
+    try:
+        provider = config_service.get_energy_load_history_provider(provider_id)
+        if provider is None:
+            raise EnergyLoadHistoryProviderNotFoundError(
+                f"Energy Load History Provider with ID {provider_id} not found"
+            )
+        return EnergyLoadHistoryProviderSchema.from_model(provider)
+    except EnergyLoadHistoryProviderNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.put("/energy-load-history-providers/{provider_id}", response_model=EnergyLoadHistoryProviderSchema)
+async def update_energy_load_history_provider(
+    provider_id: EntityId,
+    provider_update: EnergyLoadHistoryProviderUpdateSchema,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+) -> EnergyLoadHistoryProviderSchema:
+    """Update an existing energy load history provider."""
+    try:
+        existing = config_service.get_energy_load_history_provider(provider_id)
+        if existing is None:
+            raise EnergyLoadHistoryProviderNotFoundError(
+                f"Energy Load History Provider with ID {provider_id} not found"
+            )
+        existing.name = provider_update.name or existing.name
+        if provider_update.config is not None and existing.adapter_type:
+            config_type = ENERGY_LOAD_HISTORY_PROVIDER_CONFIG_TYPE_MAP.get(existing.adapter_type)
+            if config_type:
+                existing.config = config_type.from_dict(provider_update.config)
+        if provider_update.external_service_id is not None:
+            existing.external_service_id = EntityId(uuid.UUID(provider_update.external_service_id))
+        updated = config_service.update_energy_load_history_provider(existing)
+        return EnergyLoadHistoryProviderSchema.from_model(updated)
+    except EnergyLoadHistoryProviderNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.delete("/energy-load-history-providers/{provider_id}", response_model=EnergyLoadHistoryProviderSchema)
+async def delete_energy_load_history_provider(
+    provider_id: EntityId,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+) -> EnergyLoadHistoryProviderSchema:
+    """Remove an energy load history provider."""
+    try:
+        removed = config_service.remove_energy_load_history_provider(provider_id)
+        return EnergyLoadHistoryProviderSchema.from_model(removed)
+    except EnergyLoadHistoryProviderNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
