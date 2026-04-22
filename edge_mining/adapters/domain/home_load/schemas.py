@@ -8,17 +8,27 @@ from pydantic import BaseModel, Field, field_serializer, field_validator
 
 from edge_mining.domain.common import EntityId, Timestamp, Watts
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
-from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter, LoadDeviceCategory
-from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, LoadDevice
+from edge_mining.domain.home_load.common import (
+    EnergyLoadForecastProviderAdapter,
+    EnergyLoadHistoryProviderAdapter,
+    LoadDeviceCategory,
+)
+from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, EnergyLoadHistoryProvider, LoadDevice
 from edge_mining.domain.home_load.value_objects import (
     HomeLoadEnergyInterval,
     HomeLoadsConsumption,
     LoadDeviceConsumption,
     LoadEnergyConsumption,
 )
-from edge_mining.shared.adapter_configs.home_load import EnergyLoadForecastProviderDummyConfig
-from edge_mining.shared.adapter_maps.home_load import ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP
-from edge_mining.shared.interfaces.config import EnergyLoadForecastProviderConfig
+from edge_mining.shared.adapter_configs.home_load import (
+    EnergyLoadForecastProviderDummyConfig,
+    EnergyLoadHistoryProviderHomeAssistantAPIConfig,
+)
+from edge_mining.shared.adapter_maps.home_load import (
+    ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP,
+    ENERGY_LOAD_HISTORY_PROVIDER_CONFIG_TYPE_MAP,
+)
+from edge_mining.shared.interfaces.config import EnergyLoadForecastProviderConfig, EnergyLoadHistoryProviderConfig
 
 
 class HomeLoadEnergyIntervalSchema(BaseModel):
@@ -659,4 +669,244 @@ ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_SCHEMA_MAP: Dict[
     Union[type[EnergyLoadForecastProviderDummyConfigSchema]],
 ] = {
     EnergyLoadForecastProviderDummyConfig: EnergyLoadForecastProviderDummyConfigSchema,
+}
+
+
+# --- Energy Load History Provider Schemas ---
+
+
+class EnergyLoadHistoryProviderSchema(BaseModel):
+    """Schema for EnergyLoadHistoryProvider entity."""
+
+    id: str = Field(..., description="Unique identifier for the energy load history provider")
+    name: str = Field(default="", description="Energy load history provider name")
+    adapter_type: EnergyLoadHistoryProviderAdapter = Field(
+        default=EnergyLoadHistoryProviderAdapter.DUMMY,
+        description="Type of energy load history provider adapter",
+    )
+    config: Optional[dict] = Field(default=None, description="Energy load history provider configuration")
+    external_service_id: Optional[str] = Field(default=None, description="ID of external service")
+
+    @field_validator("id")
+    @classmethod
+    def validate_id(cls, v: str) -> str:
+        """Validate that id is a valid UUID string."""
+        try:
+            uuid.UUID(v)
+            return v
+        except ValueError as e:
+            raise ValueError(f"Invalid UUID format: {v}") from e
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        """Validate provider name."""
+        if not v.strip():
+            raise ValueError("Provider name cannot be empty")
+        return v.strip()
+
+    @field_validator("adapter_type")
+    @classmethod
+    def validate_adapter_type(cls, v: str) -> EnergyLoadHistoryProviderAdapter:
+        """Validate that adapter_type is a recognized EnergyLoadHistoryProviderAdapter."""
+        adapter_values = [adapter.value for adapter in EnergyLoadHistoryProviderAdapter]
+        if v not in adapter_values:
+            raise ValueError(f"adapter_type must be one of {adapter_values}")
+        return EnergyLoadHistoryProviderAdapter(v)
+
+    @field_validator("external_service_id")
+    @classmethod
+    def validate_external_service_id(cls, v: Optional[str]) -> Optional[str]:
+        """Validate that external_service_id is a valid UUID string if provided."""
+        if v is not None:
+            try:
+                uuid.UUID(v)
+            except ValueError as exc:
+                raise ValueError("external_service_id must be a valid UUID string") from exc
+        return v
+
+    @classmethod
+    def from_model(cls, provider: EnergyLoadHistoryProvider) -> "EnergyLoadHistoryProviderSchema":
+        """Create schema from domain model."""
+        config_dict = None
+        if provider.config:
+            config_dict = provider.config.to_dict()
+
+        return cls(
+            id=str(provider.id),
+            name=provider.name,
+            adapter_type=provider.adapter_type,
+            config=config_dict,
+            external_service_id=str(provider.external_service_id) if provider.external_service_id else None,
+        )
+
+    @field_serializer("id")
+    def serialize_id(self, value: str) -> str:
+        """Serialize id field."""
+        return value
+
+    @field_serializer("external_service_id")
+    def serialize_external_service_id(self, value: Optional[str]) -> Optional[str]:
+        """Serialize external service id field."""
+        return value
+
+    def to_model(self) -> EnergyLoadHistoryProvider:
+        """Convert schema to domain model."""
+        configuration: Optional[EnergyLoadHistoryProviderConfig] = None
+        if self.config:
+            config_type = ENERGY_LOAD_HISTORY_PROVIDER_CONFIG_TYPE_MAP.get(self.adapter_type)
+            if config_type:
+                configuration = cast(EnergyLoadHistoryProviderConfig, config_type.from_dict(self.config))
+
+        return EnergyLoadHistoryProvider(
+            id=EntityId(uuid.UUID(self.id)),
+            name=self.name,
+            adapter_type=self.adapter_type,
+            config=configuration,
+            external_service_id=EntityId(uuid.UUID(self.external_service_id)) if self.external_service_id else None,
+        )
+
+    class Config:
+        """Pydantic configuration."""
+
+        use_enum_values = True
+        validate_assignment = True
+        arbitrary_types_allowed = True
+        json_encoders = {
+            uuid.UUID: str,
+            EnergyLoadHistoryProviderAdapter: lambda v: v.value,
+        }
+
+
+class EnergyLoadHistoryProviderCreateSchema(BaseModel):
+    """Schema for creating a new energy load history provider."""
+
+    name: str = Field(default="", description="Energy load history provider name")
+    adapter_type: EnergyLoadHistoryProviderAdapter = Field(
+        default=EnergyLoadHistoryProviderAdapter.DUMMY,
+        description="Type of energy load history provider adapter",
+    )
+    config: Optional[dict] = Field(default=None, description="Energy load history provider configuration")
+    external_service_id: Optional[str] = Field(default=None, description="ID of external service")
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        """Validate provider name."""
+        if not v.strip():
+            raise ValueError("Provider name cannot be empty")
+        return v.strip()
+
+    @field_validator("adapter_type")
+    @classmethod
+    def validate_adapter_type(cls, v: str) -> EnergyLoadHistoryProviderAdapter:
+        """Validate that adapter_type is a recognized EnergyLoadHistoryProviderAdapter."""
+        adapter_values = [adapter.value for adapter in EnergyLoadHistoryProviderAdapter]
+        if v not in adapter_values:
+            raise ValueError(f"adapter_type must be one of {adapter_values}")
+        return EnergyLoadHistoryProviderAdapter(v)
+
+    @field_validator("external_service_id")
+    @classmethod
+    def validate_external_service_id(cls, v: Optional[str]) -> Optional[str]:
+        """Validate that external_service_id is a valid UUID string if provided."""
+        if v is not None:
+            try:
+                uuid.UUID(v)
+            except ValueError as exc:
+                raise ValueError("external_service_id must be a valid UUID string") from exc
+        return v
+
+    def to_model(self) -> EnergyLoadHistoryProvider:
+        """Convert schema to domain model."""
+        configuration: Optional[EnergyLoadHistoryProviderConfig] = None
+        if self.config:
+            config_type = ENERGY_LOAD_HISTORY_PROVIDER_CONFIG_TYPE_MAP.get(self.adapter_type)
+            if config_type:
+                configuration = cast(EnergyLoadHistoryProviderConfig, config_type.from_dict(self.config))
+
+        return EnergyLoadHistoryProvider(
+            id=EntityId(uuid.uuid4()),
+            name=self.name,
+            adapter_type=self.adapter_type,
+            config=configuration,
+            external_service_id=EntityId(uuid.UUID(self.external_service_id)) if self.external_service_id else None,
+        )
+
+    class Config:
+        """Pydantic configuration."""
+
+        use_enum_values = True
+        validate_assignment = True
+        json_encoders = {
+            uuid.UUID: str,
+            EnergyLoadHistoryProviderAdapter: lambda v: v.value,
+        }
+
+
+class EnergyLoadHistoryProviderUpdateSchema(BaseModel):
+    """Schema for updating an existing energy load history provider."""
+
+    name: str = Field(default="", description="Energy load history provider name")
+    config: Optional[dict] = Field(default=None, description="Energy load history provider configuration")
+    external_service_id: Optional[str] = Field(default=None, description="ID of external service")
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        """Validate provider name."""
+        if not v.strip():
+            raise ValueError("Provider name cannot be empty")
+        return v.strip()
+
+    @field_validator("external_service_id")
+    @classmethod
+    def validate_external_service_id(cls, v: Optional[str]) -> Optional[str]:
+        """Validate that external_service_id is a valid UUID string if provided."""
+        if v is not None:
+            try:
+                uuid.UUID(v)
+            except ValueError as exc:
+                raise ValueError("external_service_id must be a valid UUID string") from exc
+        return v
+
+    class Config:
+        """Pydantic configuration."""
+
+        use_enum_values = True
+        validate_assignment = True
+
+
+class EnergyLoadHistoryProviderHomeAssistantAPIConfigSchema(BaseModel):
+    """Schema for HomeAssistantAPI EnergyLoadHistoryProviderConfig."""
+
+    entity_power: str = Field(default="", description="Home Assistant entity ID for power sensor")
+    unit_power: str = Field(default="W", description="Unit of power measurement")
+
+    @field_validator("entity_power")
+    @classmethod
+    def validate_entity_power(cls, v: str) -> str:
+        """Validate entity_power is not empty."""
+        if not v.strip():
+            raise ValueError("entity_power cannot be empty")
+        return v.strip()
+
+    def to_model(self) -> EnergyLoadHistoryProviderHomeAssistantAPIConfig:
+        """Convert schema to domain model."""
+        return EnergyLoadHistoryProviderHomeAssistantAPIConfig(
+            entity_power=self.entity_power, unit_power=self.unit_power
+        )
+
+    class Config:
+        """Pydantic configuration."""
+
+        use_enum_values = True
+        validate_assignment = True
+
+
+ENERGY_LOAD_HISTORY_PROVIDER_CONFIG_SCHEMA_MAP: Dict[
+    type[EnergyLoadHistoryProviderConfig],
+    Union[type[EnergyLoadHistoryProviderHomeAssistantAPIConfigSchema]],
+] = {
+    EnergyLoadHistoryProviderHomeAssistantAPIConfig: EnergyLoadHistoryProviderHomeAssistantAPIConfigSchema,
 }
