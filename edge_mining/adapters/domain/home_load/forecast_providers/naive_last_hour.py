@@ -5,13 +5,43 @@ from typing import List, Optional
 
 from edge_mining.domain.common import Timestamp, Watts, WattHours
 from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter
+from edge_mining.domain.home_load.exceptions import EnergyLoadForecastProviderError
 from edge_mining.domain.home_load.ports import EnergyLoadForecastProviderPort
 from edge_mining.domain.home_load.value_objects import (
     HomeLoadEnergyInterval,
     HomeLoadPowerPoint,
     LoadEnergyConsumption,
 )
+from edge_mining.shared.adapter_configs.home_load import EnergyLoadForecastProviderNaiveLastHourConfig
+from edge_mining.shared.external_services.ports import ExternalServicePort
+from edge_mining.shared.interfaces.config import Configuration
+from edge_mining.shared.interfaces.factories import EnergyLoadForecastAdapterFactory
 from edge_mining.shared.logging.port import LoggerPort
+
+
+class NaiveLastHourForecastProviderFactory(EnergyLoadForecastAdapterFactory):
+    """Factory for creating a NaiveLastHourForecastProvider instance."""
+
+    def create(
+        self,
+        config: Optional[Configuration],
+        logger: Optional[LoggerPort],
+        external_service: Optional[ExternalServicePort],
+    ) -> "NaiveLastHourForecastProvider":
+        if config is not None and not isinstance(config, EnergyLoadForecastProviderNaiveLastHourConfig):
+            raise EnergyLoadForecastProviderError(
+                "Invalid configuration type for NaiveLastHour energy load forecast provider. "
+                "Expected EnergyLoadForecastProviderNaiveLastHourConfig."
+            )
+
+        hours_ahead = 3
+        if isinstance(config, EnergyLoadForecastProviderNaiveLastHourConfig):
+            hours_ahead = config.hours_ahead
+
+        return NaiveLastHourForecastProvider(
+            hours_ahead=hours_ahead,
+            logger=logger,
+        )
 
 
 class NaiveLastHourForecastProvider(EnergyLoadForecastProviderPort):

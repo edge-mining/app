@@ -9,9 +9,39 @@ from typing import List, Optional
 
 from edge_mining.domain.common import Timestamp, WattHours, Watts
 from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter
+from edge_mining.domain.home_load.exceptions import EnergyLoadForecastProviderError
 from edge_mining.domain.home_load.ports import EnergyLoadForecastProviderPort
 from edge_mining.domain.home_load.value_objects import HomeLoadEnergyInterval, HomeLoadPowerPoint, LoadEnergyConsumption
+from edge_mining.shared.adapter_configs.home_load import EnergyLoadForecastProviderDummyConfig
+from edge_mining.shared.external_services.ports import ExternalServicePort
+from edge_mining.shared.interfaces.config import Configuration
+from edge_mining.shared.interfaces.factories import EnergyLoadForecastAdapterFactory
 from edge_mining.shared.logging.port import LoggerPort
+
+
+class DummyEnergyLoadForecastProviderFactory(EnergyLoadForecastAdapterFactory):
+    """Factory for creating a DummyEnergyLoadForecastProvider instance."""
+
+    def create(
+        self,
+        config: Optional[Configuration],
+        logger: Optional[LoggerPort],
+        external_service: Optional[ExternalServicePort],
+    ) -> "DummyEnergyLoadForecastProvider":
+        if config is not None and not isinstance(config, EnergyLoadForecastProviderDummyConfig):
+            raise EnergyLoadForecastProviderError(
+                "Invalid configuration type for Dummy energy load forecast provider. "
+                "Expected EnergyLoadForecastProviderDummyConfig."
+            )
+
+        load_power_max = 500.0
+        if isinstance(config, EnergyLoadForecastProviderDummyConfig):
+            load_power_max = config.load_power_max
+
+        return DummyEnergyLoadForecastProvider(
+            load_power_max=load_power_max,
+            logger=logger,
+        )
 
 
 class DummyEnergyLoadForecastProvider(EnergyLoadForecastProviderPort):

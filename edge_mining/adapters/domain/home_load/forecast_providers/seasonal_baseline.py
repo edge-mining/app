@@ -6,13 +6,46 @@ from typing import Dict, List, Optional, Tuple
 
 from edge_mining.domain.common import Timestamp, Watts, WattHours
 from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter
+from edge_mining.domain.home_load.exceptions import EnergyLoadForecastProviderError
 from edge_mining.domain.home_load.ports import EnergyLoadForecastProviderPort
 from edge_mining.domain.home_load.value_objects import (
     HomeLoadEnergyInterval,
     HomeLoadPowerPoint,
     LoadEnergyConsumption,
 )
+from edge_mining.shared.adapter_configs.home_load import EnergyLoadForecastProviderSeasonalBaselineConfig
+from edge_mining.shared.external_services.ports import ExternalServicePort
+from edge_mining.shared.interfaces.config import Configuration
+from edge_mining.shared.interfaces.factories import EnergyLoadForecastAdapterFactory
 from edge_mining.shared.logging.port import LoggerPort
+
+
+class SeasonalBaselineForecastProviderFactory(EnergyLoadForecastAdapterFactory):
+    """Factory for creating a SeasonalBaselineForecastProvider instance."""
+
+    def create(
+        self,
+        config: Optional[Configuration],
+        logger: Optional[LoggerPort],
+        external_service: Optional[ExternalServicePort],
+    ) -> "SeasonalBaselineForecastProvider":
+        if config is not None and not isinstance(config, EnergyLoadForecastProviderSeasonalBaselineConfig):
+            raise EnergyLoadForecastProviderError(
+                "Invalid configuration type for SeasonalBaseline energy load forecast provider. "
+                "Expected EnergyLoadForecastProviderSeasonalBaselineConfig."
+            )
+
+        hours_ahead = 3
+        weeks_lookback = 4
+        if isinstance(config, EnergyLoadForecastProviderSeasonalBaselineConfig):
+            hours_ahead = config.hours_ahead
+            weeks_lookback = config.weeks_lookback
+
+        return SeasonalBaselineForecastProvider(
+            hours_ahead=hours_ahead,
+            weeks_lookback=weeks_lookback,
+            logger=logger,
+        )
 
 
 class SeasonalBaselineForecastProvider(EnergyLoadForecastProviderPort):
