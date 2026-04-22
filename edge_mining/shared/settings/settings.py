@@ -31,6 +31,8 @@ class AppSettings(BaseSettings):
 
     # Scheduler settings
     scheduler_interval_seconds: int = 5  # Evaluate every 5 seconds
+    history_ingestion_interval_seconds: int = 120  # Collect power points every 2 minutes
+    history_retention_days: int = 90  # Purge power points older than 90 days
 
     model_config = SettingsConfigDict(
         env_file=".env",  # Load .env file if exists
