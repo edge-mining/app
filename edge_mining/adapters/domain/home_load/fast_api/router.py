@@ -120,7 +120,7 @@ async def delete_home_loads_profile(
 ) -> HomeLoadsProfileSchema:
     """Remove a home loads profile."""
     try:
-        deleted_profile = config_service.delete_home_loads_profile(profile_id)
+        deleted_profile = config_service.remove_home_loads_profile(profile_id)
         response = HomeLoadsProfileSchema.from_model(deleted_profile)
         return response
     except HomeLoadsProfileNotFoundError as e:
