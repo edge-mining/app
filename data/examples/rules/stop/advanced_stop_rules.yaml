@@ -48,9 +48,9 @@ rules:
     description: "Stop mining during high home energy demand periods"
     conditions:
       all_of:
-        - field: "home_load_forecast"
+        - field: "home_load.total_forecast.next_2h.avg_power"
           operator: "gt"
-          value: 2800  # High predicted home consumption
+          value: 2800  # High predicted home consumption (next 2h average)
         - field: "timestamp.hour"
           operator: "in"
           value: [17, 18, 19, 20, 21, 22]  # Evening hours
@@ -121,8 +121,8 @@ rules:
             - field: "forecast.next_hour_power"
               operator: "lt"
               value: 500  # Very low next hour forecast
-            - field: "home_load_forecast"
+            - field: "home_load.total_forecast.next_2h.avg_power"
               operator: "gt"
-              value: 2500  # High home consumption expected
+              value: 2500  # High home consumption expected (next 2h average)
     priority: 30
     enabled: true

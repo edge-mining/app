@@ -1,0 +1,45 @@
+rules:
+  - name: "Low Home Load Forecast"
+    description: "Start mining when total household forecast is low for the next 2 hours"
+    conditions:
+      all_of:
+        - field: "home_load.total_forecast.next_2h.total_energy"
+          operator: "lt"
+          value: 1000  # Less than 1 kWh total in the next 2 hours
+        - field: "energy_state.battery.state_of_charge"
+          operator: "gt"
+          value: 40
+    priority: 15
+    enabled: true
+
+  - name: "Low Boiler Forecast + Excess Solar"
+    description: "Start mining when boiler forecast is low and solar production is good"
+    conditions:
+      all_of:
+        - field: "home_load.devices.boiler.forecast.next_1h.peak_power"
+          operator: "lt"
+          value: 500  # Boiler expected to draw less than 500W in next hour
+        - field: "energy_state.production"
+          operator: "gt"
+          value: 2000
+        - field: "energy_state.battery.state_of_charge"
+          operator: "gt"
+          value: 50
+    priority: 12
+    enabled: true
+
+  - name: "Low Historical Load + Good Forecast"
+    description: "Start mining when recent load history is low and solar forecast is positive"
+    conditions:
+      all_of:
+        - field: "home_load.total_history.last_1h.avg_power"
+          operator: "lt"
+          value: 800  # Average power in the last hour below 800W
+        - field: "forecast.next_hour_power"
+          operator: "gt"
+          value: 1500
+        - field: "energy_state.battery.state_of_charge"
+          operator: "gt"
+          value: 45
+    priority: 10
+    enabled: true
