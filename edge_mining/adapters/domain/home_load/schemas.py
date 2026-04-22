@@ -10,7 +10,12 @@ from edge_mining.domain.common import EntityId, Timestamp, Watts
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
 from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter, LoadDeviceCategory
 from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, LoadDevice
-from edge_mining.domain.home_load.value_objects import HomeLoadEnergyInterval, LoadEnergyConsumption
+from edge_mining.domain.home_load.value_objects import (
+    HomeLoadEnergyInterval,
+    HomeLoadsConsumption,
+    LoadDeviceConsumption,
+    LoadEnergyConsumption,
+)
 from edge_mining.shared.adapter_configs.home_load import EnergyLoadForecastProviderDummyConfig
 from edge_mining.shared.adapter_maps.home_load import ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP
 from edge_mining.shared.interfaces.config import EnergyLoadForecastProviderConfig
@@ -66,6 +71,70 @@ class LoadEnergyConsumptionSchema(BaseModel):
         return LoadEnergyConsumption(
             timestamp=Timestamp(self.timestamp),
             intervals=intervals,
+        )
+
+
+class LoadDeviceConsumptionSchema(BaseModel):
+    """Schema for LoadDeviceConsumption value object (device-bound history + forecast)."""
+
+    device_id: str = Field(..., description="Device UUID")
+    device_name: str = Field(..., description="Device unique name within profile")
+    device_category: LoadDeviceCategory = Field(..., description="Device category")
+    history: LoadEnergyConsumptionSchema = Field(
+        default_factory=lambda: LoadEnergyConsumptionSchema(timestamp=datetime.now(), intervals=[]),
+        description="Measured consumption time series.",
+    )
+    forecast: LoadEnergyConsumptionSchema = Field(
+        default_factory=lambda: LoadEnergyConsumptionSchema(timestamp=datetime.now(), intervals=[]),
+        description="Predicted consumption time series.",
+    )
+
+    @classmethod
+    def from_model(cls, consumption: LoadDeviceConsumption) -> "LoadDeviceConsumptionSchema":
+        return cls(
+            device_id=str(consumption.device_id),
+            device_name=consumption.device_name,
+            device_category=consumption.device_category,
+            history=LoadEnergyConsumptionSchema.from_model(consumption.history),
+            forecast=LoadEnergyConsumptionSchema.from_model(consumption.forecast),
+        )
+
+    def to_model(self) -> LoadDeviceConsumption:
+        return LoadDeviceConsumption(
+            device_id=EntityId(uuid.UUID(self.device_id)),
+            device_name=self.device_name,
+            device_category=self.device_category,
+            history=self.history.to_model(),
+            forecast=self.forecast.to_model(),
+        )
+
+
+class HomeLoadsConsumptionSchema(BaseModel):
+    """Schema for HomeLoadsConsumption value object (unified household view)."""
+
+    per_device: List[LoadDeviceConsumptionSchema] = Field(default_factory=list)
+    total_history: LoadEnergyConsumptionSchema = Field(
+        default_factory=lambda: LoadEnergyConsumptionSchema(timestamp=datetime.now(), intervals=[]),
+        description="Aggregated household history.",
+    )
+    total_forecast: LoadEnergyConsumptionSchema = Field(
+        default_factory=lambda: LoadEnergyConsumptionSchema(timestamp=datetime.now(), intervals=[]),
+        description="Aggregated household forecast.",
+    )
+
+    @classmethod
+    def from_model(cls, consumption: HomeLoadsConsumption) -> "HomeLoadsConsumptionSchema":
+        return cls(
+            per_device=[LoadDeviceConsumptionSchema.from_model(d) for d in consumption.per_device],
+            total_history=LoadEnergyConsumptionSchema.from_model(consumption.total_history),
+            total_forecast=LoadEnergyConsumptionSchema.from_model(consumption.total_forecast),
+        )
+
+    def to_model(self) -> HomeLoadsConsumption:
+        return HomeLoadsConsumption(
+            per_device=[d.to_model() for d in self.per_device],
+            total_history=self.total_history.to_model(),
+            total_forecast=self.total_forecast.to_model(),
         )
 
 

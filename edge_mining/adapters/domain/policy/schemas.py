@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_valid
 
 from edge_mining.adapters.domain.energy.schemas import EnergySourceSchema, EnergyStateSnapshotSchema
 from edge_mining.adapters.domain.forecast.schemas import ForecastSchema, SunSchema
-from edge_mining.adapters.domain.home_load.schemas import LoadEnergyConsumptionSchema
+from edge_mining.adapters.domain.home_load.schemas import HomeLoadsConsumptionSchema
 from edge_mining.adapters.domain.miner.schemas import HashRateSchema, MinerSchema, MinerStateSnapshotSchema
 from edge_mining.adapters.domain.policy.utils import FieldStructureSchema, _extract_schema_structure
 from edge_mining.domain.common import EntityId
@@ -463,7 +463,9 @@ class DecisionalContextSchema(BaseModel):
     energy_source: Optional[EnergySourceSchema] = Field(None, description="Energy source information")
     energy_state: Optional[EnergyStateSnapshotSchema] = Field(None, description="Current energy state snapshot")
     forecast: Optional[ForecastSchema] = Field(None, description="Energy production forecast")
-    home_load_forecast: Optional[LoadEnergyConsumptionSchema] = Field(None, description="Home consumption forecast")
+    home_load: Optional[HomeLoadsConsumptionSchema] = Field(
+        None, description="Household consumption (per-device history + forecast + totals)"
+    )
     tracker_current_hashrate: Optional[HashRateSchema] = Field(None, description="Current mining hashrate")
     sun: Optional[SunSchema] = Field(None, description="Sun position and timing information")
     miner: Optional[MinerSchema] = Field(None, description="Miner static configuration")
@@ -499,11 +501,7 @@ class DecisionalContextSchema(BaseModel):
             energy_source=EnergySourceSchema.from_model(context.energy_source) if context.energy_source else None,
             energy_state=EnergyStateSnapshotSchema.from_model(context.energy_state) if context.energy_state else None,
             forecast=ForecastSchema.from_model(context.forecast) if context.forecast else None,
-            home_load_forecast=(
-                LoadEnergyConsumptionSchema.from_model(context.home_load_forecast)
-                if context.home_load_forecast
-                else None
-            ),
+            home_load=(HomeLoadsConsumptionSchema.from_model(context.home_load) if context.home_load else None),
             tracker_current_hashrate=(
                 HashRateSchema(value=context.tracker_current_hashrate.value, unit=context.tracker_current_hashrate.unit)
                 if context.tracker_current_hashrate
@@ -521,7 +519,7 @@ class DecisionalContextSchema(BaseModel):
             energy_source=self.energy_source.to_model() if self.energy_source else None,
             energy_state=self.energy_state.to_model() if self.energy_state else None,
             forecast=self.forecast.to_model() if self.forecast else None,
-            home_load_forecast=self.home_load_forecast.to_model() if self.home_load_forecast else None,
+            home_load=self.home_load.to_model() if self.home_load else None,
             tracker_current_hashrate=(
                 self.tracker_current_hashrate.to_model() if self.tracker_current_hashrate else None
             ),
