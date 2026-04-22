@@ -35,6 +35,8 @@ class EnergyLoadForecastProviderAdapter(AdapterType):
     """Types of energy load forecast provider adapter."""
 
     DUMMY = "dummy"
+    NAIVE_LAST_HOUR = "naive_last_hour"
+    SEASONAL_BASELINE = "seasonal_baseline"
 
 
 class EnergyLoadHistoryProviderAdapter(AdapterType):
