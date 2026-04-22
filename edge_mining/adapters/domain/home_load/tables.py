@@ -26,7 +26,21 @@ import json
 import uuid
 from typing import Any, Optional
 
-from sqlalchemy import JSON, Column, DateTime, Float, ForeignKey, Index, String, Table, TypeDecorator, event
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    LargeBinary,
+    String,
+    Table,
+    TypeDecorator,
+    event,
+)
 
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.common import ConfigurationType
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.registry import mapper_registry, metadata
@@ -37,7 +51,12 @@ from edge_mining.domain.home_load.common import (
     EnergyLoadHistoryProviderAdapter,
     LoadDeviceCategory,
 )
-from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, EnergyLoadHistoryProvider, LoadDevice
+from edge_mining.domain.home_load.entities import (
+    EnergyLoadForecastProvider,
+    EnergyLoadHistoryProvider,
+    LoadConsumptionModel,
+    LoadDevice,
+)
 from edge_mining.domain.home_load.exceptions import (
     EnergyLoadForecastProviderConfigurationError,
     EnergyLoadHistoryProviderConfigurationError,
@@ -343,4 +362,72 @@ home_load_power_points_table = Table(
     Column("timestamp", DateTime(timezone=True), nullable=False, primary_key=True),
     Column("power", Float, nullable=False),
     Index("ix_home_load_power_points_device_ts", "device_id", "timestamp"),
+)
+
+
+# --- LoadConsumptionModel table + mapping ---
+#
+# Stores trained ML models (Holt-Winters, XGBoost, etc.) with serialized
+# weights in `model_bytes` (LargeBinary / BLOB).  The `is_active` flag
+# designates the currently promoted model per (adapter_type, device_id)
+# combination.
+
+load_consumption_models_table = Table(
+    "load_consumption_models",
+    metadata,
+    Column("id", String, primary_key=True, index=True),
+    Column("device_id", String, nullable=True),
+    Column("adapter_type", String, nullable=False),
+    Column("trained_at", DateTime(timezone=True), nullable=True),
+    Column("mae", Float, nullable=True),
+    Column("rmse", Float, nullable=True),
+    Column("samples_used", Integer, nullable=False, default=0),
+    Column("is_active", Boolean, nullable=False, default=False),
+    Column("model_bytes", LargeBinary, nullable=True),
+    Index("ix_load_consumption_models_active", "adapter_type", "device_id", "is_active"),
+)
+
+
+@event.listens_for(LoadConsumptionModel, "load")
+def _receive_load_consumption_model_load(target: LoadConsumptionModel, context) -> None:
+    """Reconstruct domain types after loading from database."""
+    if hasattr(target, "id") and target.id is not None:
+        if isinstance(target.id, str):
+            target.id = EntityId(uuid.UUID(target.id))
+
+    if hasattr(target, "device_id") and target.device_id is not None:
+        if isinstance(target.device_id, str):
+            target.device_id = EntityId(uuid.UUID(target.device_id))
+
+    if isinstance(target.adapter_type, str):
+        try:
+            target.adapter_type = EnergyLoadForecastProviderAdapter(target.adapter_type)
+        except ValueError:
+            pass
+
+
+@event.listens_for(LoadConsumptionModel, "before_insert")
+@event.listens_for(LoadConsumptionModel, "before_update")
+def _flatten_load_consumption_model_composites(mapper, connection, target: Any) -> None:
+    """Convert enum attributes to primitive values before persisting."""
+    if hasattr(target, "adapter_type") and target.adapter_type is not None:
+        if isinstance(target.adapter_type, EnergyLoadForecastProviderAdapter):
+            target.adapter_type = target.adapter_type.value
+
+
+@event.listens_for(LoadConsumptionModel, "after_insert")
+@event.listens_for(LoadConsumptionModel, "after_update")
+def _restore_load_consumption_model_composites(mapper, connection, target: Any) -> None:
+    """Restore enum attributes after persist operations."""
+    if hasattr(target, "adapter_type") and target.adapter_type is not None:
+        if isinstance(target.adapter_type, str):
+            try:
+                target.adapter_type = EnergyLoadForecastProviderAdapter(target.adapter_type)
+            except ValueError:
+                pass
+
+
+mapper_registry.map_imperatively(
+    LoadConsumptionModel,
+    load_consumption_models_table,
 )
