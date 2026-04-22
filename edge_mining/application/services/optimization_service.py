@@ -24,8 +24,8 @@ from edge_mining.domain.energy.value_objects import EnergyStateSnapshot
 from edge_mining.domain.forecast.aggregate_root import Forecast
 from edge_mining.domain.forecast.ports import ForecastProviderPort
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
-from edge_mining.domain.home_load.ports import HomeForecastProviderPort, HomeLoadsProfileRepository
-from edge_mining.domain.home_load.value_objects import ConsumptionForecast
+from edge_mining.domain.home_load.ports import EnergyLoadForecastProviderPort, HomeLoadsProfileRepository
+from edge_mining.domain.home_load.value_objects import LoadEnergyConsumption
 from edge_mining.domain.miner.aggregate_roots import Miner
 from edge_mining.domain.miner.common import MinerFeatureType, MinerStatus
 from edge_mining.domain.miner.events import MinerStateChangedEvent
@@ -185,27 +185,27 @@ class OptimizationService(OptimizationServiceInterface):
                 home_loads_profile = profile
 
         # --- Home Loads Forecast Provider ---
-        home_forecast_providers: Dict[EntityId, HomeForecastProviderPort] = {}
+        energy_load_forecast_providers: Dict[EntityId, EnergyLoadForecastProviderPort] = {}
         if home_loads_profile and home_loads_profile.devices:
             for load_device in home_loads_profile.devices:
-                if load_device.home_forecast_provider_id:
-                    home_forecast_provider = self.adapter_service.get_home_load_forecast_provider(
-                        load_device.home_forecast_provider_id
+                if load_device.energy_load_forecast_provider_id:
+                    energy_load_forecast_provider = self.adapter_service.get_home_load_forecast_provider(
+                        load_device.energy_load_forecast_provider_id
                     )
-                    # Home forecast provider is optional, so log a warning if it's missing but
-                    # continue
-                    if not home_forecast_provider:
+                    # Energy load forecast provider is optional, so log a warning if it's
+                    # missing but continue
+                    if not energy_load_forecast_provider:
                         if self.logger:
                             self.logger.warning(
-                                f"Home forecast provider for "
-                                f"load device '{load_device.name}' of"
+                                f"Energy load forecast provider for "
+                                f"load device '{load_device.name}' of "
                                 f"optimization unit '{optimization_unit.name}' "
-                                f"(Config ID: {optimization_unit.home_forecast_provider_id}) "
+                                f"(Config ID: {load_device.energy_load_forecast_provider_id}) "
                                 "not found. Skipping forecast provider."
                             )
 
-                    if home_forecast_provider:
-                        home_forecast_providers[load_device.id] = home_forecast_provider
+                    if energy_load_forecast_provider:
+                        energy_load_forecast_providers[load_device.id] = energy_load_forecast_provider
 
         # --- Energy State ---
         if energy_source and energy_monitor:
@@ -246,21 +246,9 @@ class OptimizationService(OptimizationServiceInterface):
                     )
 
         # --- Home Load Forecast ---
-        home_load_forecast: Optional[ConsumptionForecast] = None
-        if home_forecast_provider:
-            try:
-                # TODO: Provide parameters if needed
-                home_load_forecast = home_forecast_provider.get_home_consumption_forecast()
-            except Exception as e:
-                if self.logger:
-                    self.logger.warning(
-                        f"Error getting home load forecast for optimization unit '{optimization_unit.name}': {e}"
-                    )
-        else:
-            if self.logger:
-                self.logger.info(
-                    f"No home load forecast provider configured for optimization unit '{optimization_unit.name}'."
-                )
+        # TODO (Step 4): aggregate per-device forecasts from energy_load_forecast_providers
+        # into a unit-level LoadEnergyConsumption for the DecisionalContext.
+        home_load_forecast: Optional[LoadEnergyConsumption] = None
 
         # --- Target Miners ---
         # Process only the first enabled miner in the optimization unit
@@ -529,28 +517,36 @@ class OptimizationService(OptimizationServiceInterface):
                     f"Skipping optimization unit."
                 )
 
-        # --- Home Forecast Provider ---
-        home_forecast_provider: Optional[HomeForecastProviderPort] = None
-        if optimization_unit.home_forecast_provider_id:
-            try:
-                home_forecast_provider = self.adapter_service.get_home_load_forecast_provider(
-                    optimization_unit.home_forecast_provider_id
-                )
-            except Exception as e:
-                if self.logger:
-                    self.logger.error(
-                        f"Error getting home forecast provider for optimization unit '{optimization_unit.name}': {e}"
+        # --- Home Loads ---
+        home_loads_profile: Optional[HomeLoadsProfile] = None
+        if optimization_unit.home_loads_profile:
+            home_loads_profile = self.home_loads_repo.get_by_id(optimization_unit.home_loads_profile)
+
+        # --- Energy Load Forecast Providers (per LoadDevice) ---
+        energy_load_forecast_providers: Dict[EntityId, EnergyLoadForecastProviderPort] = {}
+        if home_loads_profile and home_loads_profile.devices:
+            for load_device in home_loads_profile.devices:
+                if not load_device.energy_load_forecast_provider_id:
+                    continue
+                try:
+                    provider = self.adapter_service.get_home_load_forecast_provider(
+                        load_device.energy_load_forecast_provider_id
                     )
-        # Home forecast provider is optional, so log a warning if it's missing but
-        # continue
-        if not home_forecast_provider:
-            if self.logger:
-                self.logger.warning(
-                    f"Home forecast provider for "
-                    f"optimization unit '{optimization_unit.name}' "
-                    f"(Config ID: {optimization_unit.home_forecast_provider_id}) "
-                    "not found. Skipping forecast provider."
-                )
+                except Exception as e:
+                    provider = None
+                    if self.logger:
+                        self.logger.error(
+                            f"Error getting energy load forecast provider for load device "
+                            f"'{load_device.name}' in optimization unit '{optimization_unit.name}': {e}"
+                        )
+                if provider:
+                    energy_load_forecast_providers[load_device.id] = provider
+                elif self.logger:
+                    self.logger.warning(
+                        f"Energy load forecast provider for load device '{load_device.name}' "
+                        f"(Config ID: {load_device.energy_load_forecast_provider_id}) not found. "
+                        f"Skipping forecast provider for this device."
+                    )
 
         # --- Mining Performance Tracker ---
         mining_performance_tracker: Optional[MiningPerformanceTrackerPort] = None
@@ -636,21 +632,9 @@ class OptimizationService(OptimizationServiceInterface):
                 )
 
         # --- Home Load Forecast ---
-        home_load_forecast: Optional[ConsumptionForecast] = None
-        if home_forecast_provider:
-            try:
-                # TODO: Provide parameters if needed
-                home_load_forecast = home_forecast_provider.get_home_consumption_forecast()
-            except Exception as e:
-                if self.logger:
-                    self.logger.warning(
-                        f"Error getting home load forecast for optimization unit '{optimization_unit.name}': {e}"
-                    )
-        else:
-            if self.logger:
-                self.logger.debug(
-                    f"No home load forecast provider configured for optimization unit '{optimization_unit.name}'."
-                )
+        # TODO (Step 4): aggregate per-device forecasts from energy_load_forecast_providers
+        # into a unit-level LoadEnergyConsumption for the DecisionalContext.
+        home_load_forecast: Optional[LoadEnergyConsumption] = None
 
         # --- Target Miners ---
         # Process each target miner in this optimization unit
