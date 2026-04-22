@@ -62,7 +62,6 @@ async def add_optimization_unit(
             policy_id=optimization_unit_to_add.policy_id,
             target_miner_ids=optimization_unit_to_add.target_miner_ids,
             energy_source_id=optimization_unit_to_add.energy_source_id,
-            home_forecast_provider_id=optimization_unit_to_add.home_forecast_provider_id,
             performance_tracker_id=optimization_unit_to_add.performance_tracker_id,
             notifier_ids=optimization_unit_to_add.notifier_ids,
         )
@@ -127,10 +126,6 @@ async def update_optimization_unit(
         if optimization_unit_update.energy_source_id:
             energy_source_id = EntityId(uuid.UUID(optimization_unit_update.energy_source_id))
 
-        home_forecast_provider_id: Optional[EntityId] = None
-        if optimization_unit_update.home_forecast_provider_id:
-            home_forecast_provider_id = EntityId(uuid.UUID(optimization_unit_update.home_forecast_provider_id))
-
         performance_tracker_id: Optional[EntityId] = None
         if optimization_unit_update.performance_tracker_id:
             performance_tracker_id = EntityId(uuid.UUID(optimization_unit_update.performance_tracker_id))
@@ -147,7 +142,6 @@ async def update_optimization_unit(
             policy_id=policy_id,
             target_miner_ids=target_miner_ids,
             energy_source_id=energy_source_id,
-            home_forecast_provider_id=home_forecast_provider_id,
             performance_tracker_id=performance_tracker_id,
             notifier_ids=notifier_ids,
         )
