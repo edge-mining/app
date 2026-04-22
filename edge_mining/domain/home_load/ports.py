@@ -11,45 +11,73 @@ from edge_mining.domain.home_load.value_objects import HomeLoadEnergyInterval, H
 
 
 class EnergyLoadHistoryRepository(ABC):
-    """Port for the Energy Load History Repository that operates on HomeLoadPowerPoint data."""
+    """Port for device-scoped persistence of HomeLoadPowerPoint time series.
+
+    Every operation is scoped to a single ``LoadDevice`` via its ``device_id``:
+    the repository supports multiple devices as independent, per-key streams.
+    """
 
     @abstractmethod
-    def add_power_point(self, power_point: HomeLoadPowerPoint) -> None:
-        """Adds a single power point to the repository."""
+    def add_power_point(self, device_id: EntityId, power_point: HomeLoadPowerPoint) -> None:
+        """Append a single power point for the given device."""
         raise NotImplementedError
 
     @abstractmethod
-    def add_power_points(self, power_points: List[HomeLoadPowerPoint]) -> None:
-        """Adds multiple power points to the repository."""
+    def add_power_points(self, device_id: EntityId, power_points: List[HomeLoadPowerPoint]) -> None:
+        """Append multiple power points for the given device in one batch."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_power_points_by_time_range(self, start: Timestamp, end: Timestamp) -> List[HomeLoadPowerPoint]:
-        """Retrieves all power points within a specific time range."""
+    def get_power_points(self, device_id: EntityId, start: Timestamp, end: Timestamp) -> List[HomeLoadPowerPoint]:
+        """Retrieve power points for ``device_id`` within the window [start, end)."""
         raise NotImplementedError
 
     @abstractmethod
-    def remove_power_points_before(self, timestamp: Timestamp) -> None:
-        """Removes all power points before the specified timestamp (for data retention)."""
+    def get_latest_timestamp(self, device_id: EntityId) -> Optional[Timestamp]:
+        """Return the newest timestamp stored for ``device_id``, or None if empty.
+
+        Used by ingestion pipelines to resume fetching from the last known point
+        and by the rule engine to evaluate staleness.
+        """
         raise NotImplementedError
 
     @abstractmethod
-    def remove_power_points_by_time_range(self, start: Timestamp, end: Timestamp) -> None:
-        """Removes all power points within a specific time range."""
+    def purge_before(self, device_id: EntityId, timestamp: Timestamp) -> int:
+        """Delete all power points for ``device_id`` with timestamp < ``timestamp``.
+
+        Returns the number of rows deleted (useful for retention metrics).
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def remove_power_points_by_time_range(self, device_id: EntityId, start: Timestamp, end: Timestamp) -> None:
+        """Remove all power points for ``device_id`` within the window [start, end)."""
         raise NotImplementedError
 
 
 class EnergyLoadHistoryProviderPort(ABC):
-    """Port for retrieving historical energy load consumption data."""
+    """Port for retrieving historical energy load consumption data for a single device.
 
-    def __init__(self, provider_type: EnergyLoadHistoryProviderAdapter, history_repo: EnergyLoadHistoryRepository):
-        """Initialize the EnergyLoadHistory Provider."""
+    The port is device-scoped: each provider instance is bound at construction
+    time to the ``LoadDevice`` it covers. The underlying persistence (cache or
+    local repo) is an infrastructure concern of the concrete adapter — it is
+    NOT exposed on the port contract, so domain code can rely on history
+    providers without knowing whether they cache, stream or query live.
+    """
+
+    def __init__(self, device_id: EntityId, provider_type: EnergyLoadHistoryProviderAdapter):
+        """Initialize the EnergyLoadHistory Provider bound to ``device_id``."""
+        self.device_id = device_id
         self.provider_type = provider_type
-        self.history_repo = history_repo
 
     @abstractmethod
-    def get_history(self, start: Timestamp, end: Timestamp) -> List[HomeLoadEnergyInterval]:
-        """Retrieves a list of consumption intervals from a data source."""
+    async def get_power_points(self, start: Timestamp, end: Timestamp) -> List[HomeLoadPowerPoint]:
+        """Retrieve raw power points for this device in the window [start, end)."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_history(self, start: Timestamp, end: Timestamp) -> List[HomeLoadEnergyInterval]:
+        """Retrieve consumption intervals (typically 1h buckets) for this device."""
         raise NotImplementedError
 
 
