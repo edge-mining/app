@@ -19,9 +19,6 @@ class EnergyOptimizationUnitSchema(BaseModel):
     policy_id: Optional[str] = Field(default=None, description="ID of the policy to be used for optimization")
     target_miner_ids: List[str] = Field(default_factory=list, description="List of target miner IDs to be controlled")
     energy_source_id: Optional[str] = Field(default=None, description="ID of the energy source to be used")
-    home_forecast_provider_id: Optional[str] = Field(
-        default=None, description="ID of the home load forecast provider to be used"
-    )
     performance_tracker_id: Optional[str] = Field(default=None, description="ID of the performance tracker to be used")
     notifier_ids: List[str] = Field(default_factory=list, description="List of notifier IDs to be used")
 
@@ -87,17 +84,6 @@ class EnergyOptimizationUnitSchema(BaseModel):
                 raise ValueError("energy_source_id must be a valid UUID string") from exc
         return v
 
-    @field_validator("home_forecast_provider_id")
-    @classmethod
-    def validate_home_forecast_provider_id(cls, v: Optional[str]) -> Optional[str]:
-        """Validate that home_forecast_provider_id is a valid UUID string if provided."""
-        if v is not None:
-            try:
-                uuid.UUID(v)
-            except ValueError as exc:
-                raise ValueError("home_forecast_provider_id must be a valid UUID string") from exc
-        return v
-
     @field_validator("performance_tracker_id")
     @classmethod
     def validate_performance_tracker_id(cls, v: Optional[str]) -> Optional[str]:
@@ -131,11 +117,6 @@ class EnergyOptimizationUnitSchema(BaseModel):
             policy_id=str(optimization_unit.policy_id) if optimization_unit.policy_id else None,
             target_miner_ids=[str(miner_id) for miner_id in optimization_unit.target_miner_ids],
             energy_source_id=str(optimization_unit.energy_source_id) if optimization_unit.energy_source_id else None,
-            home_forecast_provider_id=(
-                str(optimization_unit.home_forecast_provider_id)
-                if optimization_unit.home_forecast_provider_id
-                else None
-            ),
             performance_tracker_id=(
                 str(optimization_unit.performance_tracker_id) if optimization_unit.performance_tracker_id else None
             ),
@@ -162,11 +143,6 @@ class EnergyOptimizationUnitSchema(BaseModel):
         """Serialize energy_source_id field."""
         return str(value) if value is not None else None
 
-    @field_serializer("home_forecast_provider_id")
-    def serialize_home_forecast_provider_id(self, value: Optional[str]) -> Optional[str]:
-        """Serialize home_forecast_provider_id field."""
-        return str(value) if value is not None else None
-
     @field_serializer("performance_tracker_id")
     def serialize_performance_tracker_id(self, value: Optional[str]) -> Optional[str]:
         """Serialize performance_tracker_id field."""
@@ -187,9 +163,6 @@ class EnergyOptimizationUnitSchema(BaseModel):
             policy_id=EntityId(uuid.UUID(self.policy_id)) if self.policy_id else None,
             target_miner_ids=[EntityId(uuid.UUID(miner_id)) for miner_id in self.target_miner_ids],
             energy_source_id=EntityId(uuid.UUID(self.energy_source_id)) if self.energy_source_id else None,
-            home_forecast_provider_id=(
-                EntityId(uuid.UUID(self.home_forecast_provider_id)) if self.home_forecast_provider_id else None
-            ),
             performance_tracker_id=(
                 EntityId(uuid.UUID(self.performance_tracker_id)) if self.performance_tracker_id else None
             ),
@@ -215,9 +188,6 @@ class EnergyOptimizationUnitCreateSchema(BaseModel):
     policy_id: Optional[str] = Field(default=None, description="ID of the policy to be used for optimization")
     target_miner_ids: List[str] = Field(default_factory=list, description="List of target miner IDs to be controlled")
     energy_source_id: Optional[str] = Field(default=None, description="ID of the energy source to be used")
-    home_forecast_provider_id: Optional[str] = Field(
-        default=None, description="ID of the home load forecast provider to be used"
-    )
     performance_tracker_id: Optional[str] = Field(default=None, description="ID of the performance tracker to be used")
     notifier_ids: List[str] = Field(default_factory=list, description="List of notifier IDs to be used")
 
@@ -271,17 +241,6 @@ class EnergyOptimizationUnitCreateSchema(BaseModel):
                 uuid.UUID(v)
             except ValueError as exc:
                 raise ValueError("energy_source_id must be a valid UUID string") from exc
-        return v
-
-    @field_validator("home_forecast_provider_id")
-    @classmethod
-    def validate_home_forecast_provider_id(cls, v: Optional[str]) -> Optional[str]:
-        """Validate that home_forecast_provider_id is a valid UUID string if provided."""
-        if v is not None:
-            try:
-                uuid.UUID(v)
-            except ValueError as exc:
-                raise ValueError("home_forecast_provider_id must be a valid UUID string") from exc
         return v
 
     @field_validator("performance_tracker_id")
@@ -316,9 +275,6 @@ class EnergyOptimizationUnitCreateSchema(BaseModel):
             policy_id=EntityId(uuid.UUID(self.policy_id)) if self.policy_id else None,
             target_miner_ids=[EntityId(uuid.UUID(miner_id)) for miner_id in self.target_miner_ids],
             energy_source_id=EntityId(uuid.UUID(self.energy_source_id)) if self.energy_source_id else None,
-            home_forecast_provider_id=(
-                EntityId(uuid.UUID(self.home_forecast_provider_id)) if self.home_forecast_provider_id else None
-            ),
             performance_tracker_id=(
                 EntityId(uuid.UUID(self.performance_tracker_id)) if self.performance_tracker_id else None
             ),
@@ -343,9 +299,6 @@ class EnergyOptimizationUnitUpdateSchema(BaseModel):
     policy_id: Optional[str] = Field(default=None, description="ID of the policy to be used for optimization")
     target_miner_ids: List[str] = Field(default_factory=list, description="List of target miner IDs to be controlled")
     energy_source_id: Optional[str] = Field(default=None, description="ID of the energy source to be used")
-    home_forecast_provider_id: Optional[str] = Field(
-        default=None, description="ID of the home load forecast provider to be used"
-    )
     performance_tracker_id: Optional[str] = Field(default=None, description="ID of the performance tracker to be used")
     notifier_ids: List[str] = Field(default_factory=list, description="List of notifier IDs to be used")
 
@@ -399,17 +352,6 @@ class EnergyOptimizationUnitUpdateSchema(BaseModel):
                 uuid.UUID(v)
             except ValueError as exc:
                 raise ValueError("energy_source_id must be a valid UUID string") from exc
-        return v
-
-    @field_validator("home_forecast_provider_id")
-    @classmethod
-    def validate_home_forecast_provider_id(cls, v: Optional[str]) -> Optional[str]:
-        """Validate that home_forecast_provider_id is a valid UUID string if provided."""
-        if v is not None:
-            try:
-                uuid.UUID(v)
-            except ValueError as exc:
-                raise ValueError("home_forecast_provider_id must be a valid UUID string") from exc
         return v
 
     @field_validator("performance_tracker_id")
