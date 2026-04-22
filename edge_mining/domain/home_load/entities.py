@@ -1,6 +1,7 @@
 """Collection of Entities for the Home Consumption Analytics domain of the Edge Mining application."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Optional
 
 from edge_mining.domain.common import Entity, EntityId
@@ -42,3 +43,22 @@ class EnergyLoadHistoryProvider(Entity):
     adapter_type: EnergyLoadHistoryProviderAdapter = EnergyLoadHistoryProviderAdapter.DUMMY
     config: Optional[EnergyLoadHistoryProviderConfig] = None
     external_service_id: Optional[EntityId] = None
+
+
+@dataclass
+class LoadConsumptionModel(Entity):
+    """Entity for a trained ML model used by ML-based forecast providers.
+
+    Stores model metadata and serialized weights. The forecast provider
+    adapter loads the model from this entity instead of re-training on
+    every forecast call.
+    """
+
+    device_id: Optional[EntityId] = None  # None = aggregate model for all devices
+    adapter_type: EnergyLoadForecastProviderAdapter = EnergyLoadForecastProviderAdapter.STATSMODELS
+    trained_at: Optional[datetime] = None
+    mae: Optional[float] = None  # mean absolute error on holdout
+    rmse: Optional[float] = None  # root mean squared error on holdout
+    samples_used: int = 0  # number of training samples
+    is_active: bool = False  # promoted to production
+    model_bytes: Optional[bytes] = field(default=None, repr=False)  # serialized model (pickle/joblib)
