@@ -26,10 +26,12 @@ from edge_mining.adapters.domain.home_load.repositories import (
     SqlAlchemyEnergyLoadHistoryProviderRepository,
     SqlAlchemyEnergyLoadHistoryRepository,
     SqlAlchemyHomeLoadsProfileRepository,
+    SqlAlchemyLoadConsumptionModelRepository,
     SqliteEnergyLoadForecastProviderRepository,
     SqliteEnergyLoadHistoryProviderRepository,
     SqliteEnergyLoadHistoryRepository,
     SqliteHomeLoadsProfileRepository,
+    SqliteLoadConsumptionModelRepository,
 )
 from edge_mining.adapters.domain.miner.repositories import (
     InMemoryMinerControllerRepository,
@@ -91,6 +93,7 @@ from edge_mining.domain.home_load.ports import (
     EnergyLoadHistoryProviderRepository,
     EnergyLoadHistoryRepository,
     HomeLoadsProfileRepository,
+    LoadConsumptionModelRepository,
 )
 from edge_mining.domain.miner.ports import MinerControllerRepository, MinerRepository
 from edge_mining.domain.notification.ports import NotifierRepository
@@ -166,6 +169,7 @@ def configure_persistence(logger: LoggerPort, settings: AppSettings) -> Persiste
     energy_load_forecast_provider_repo: EnergyLoadForecastProviderRepository
     energy_load_history_provider_repo: EnergyLoadHistoryProviderRepository
     home_load_history_repo: EnergyLoadHistoryRepository
+    load_consumption_model_repo: LoadConsumptionModelRepository
     optimization_unit_repo: EnergyOptimizationUnitRepository
     external_service_repo: ExternalServiceRepository
 
@@ -184,6 +188,7 @@ def configure_persistence(logger: LoggerPort, settings: AppSettings) -> Persiste
         energy_load_forecast_provider_repo = InMemoryEnergyLoadForecastProviderRepository()
         energy_load_history_provider_repo = InMemoryEnergyLoadHistoryProviderRepository()
         home_load_history_repo = InMemoryEnergyLoadHistoryRepository()
+        load_consumption_model_repo = InMemoryLoadConsumptionModelRepository()
         optimization_unit_repo = InMemoryOptimizationUnitRepository()
         external_service_repo = InMemoryExternalServiceRepository()
 
@@ -208,6 +213,7 @@ def configure_persistence(logger: LoggerPort, settings: AppSettings) -> Persiste
         energy_load_forecast_provider_repo = SqliteEnergyLoadForecastProviderRepository(db=sqlite_db)
         energy_load_history_provider_repo = SqliteEnergyLoadHistoryProviderRepository(db=sqlite_db)
         home_load_history_repo = SqliteEnergyLoadHistoryRepository(db=sqlite_db)
+        load_consumption_model_repo = SqliteLoadConsumptionModelRepository(db=sqlite_db)
         optimization_unit_repo = SqliteOptimizationUnitRepository(db=sqlite_db)
         external_service_repo = SqliteExternalServiceRepository(db=sqlite_db)
 
@@ -233,6 +239,7 @@ def configure_persistence(logger: LoggerPort, settings: AppSettings) -> Persiste
         energy_load_forecast_provider_repo = SqlAlchemyEnergyLoadForecastProviderRepository(db=sqlalchemy_db)
         energy_load_history_provider_repo = SqlAlchemyEnergyLoadHistoryProviderRepository(db=sqlalchemy_db)
         home_load_history_repo = SqlAlchemyEnergyLoadHistoryRepository(db=sqlalchemy_db)
+        load_consumption_model_repo = SqlAlchemyLoadConsumptionModelRepository(db=sqlalchemy_db)
         optimization_unit_repo = SqlAlchemyOptimizationUnitRepository(db=sqlalchemy_db)
         external_service_repo = SqlAlchemyExternalServiceRepository(db=sqlalchemy_db)
 
@@ -281,7 +288,7 @@ def configure_persistence(logger: LoggerPort, settings: AppSettings) -> Persiste
         energy_load_forecast_provider_repo=energy_load_forecast_provider_repo,
         energy_load_history_provider_repo=energy_load_history_provider_repo,
         home_load_history_repo=home_load_history_repo,
-        load_consumption_model_repo=InMemoryLoadConsumptionModelRepository(),
+        load_consumption_model_repo=load_consumption_model_repo,
         notifier_repo=notifier_repo,
         optimization_unit_repo=optimization_unit_repo,
         policy_repo=policy_repo,
