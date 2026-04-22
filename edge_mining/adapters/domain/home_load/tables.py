@@ -26,7 +26,7 @@ import json
 import uuid
 from typing import Any, Optional
 
-from sqlalchemy import JSON, Column, ForeignKey, String, Table, TypeDecorator, event
+from sqlalchemy import JSON, Column, DateTime, Float, ForeignKey, Index, String, Table, TypeDecorator, event
 
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.common import ConfigurationType
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.registry import mapper_registry, metadata
@@ -219,4 +219,24 @@ mapper_registry.map_imperatively(
         "name": home_profiles_table.c.name,
         "devices": home_profiles_table.c.devices_json,
     },
+)
+
+
+# HomeLoadPowerPoint table (device-scoped time series).
+#
+# Not imperatively mapped: HomeLoadPowerPoint is a Value Object (frozen
+# dataclass) and the SQLAlchemy repository interacts with this table via
+# Core (insert/select statements) to keep the domain model pure.
+#
+# Composite primary key (device_id, timestamp) yields:
+#   - natural uniqueness per device over time
+#   - idempotent ingestion (re-fetching the same HA window is a no-op)
+#   - clustered index on (device_id, timestamp) for O(log n) range scans
+home_load_power_points_table = Table(
+    "home_load_power_points",
+    metadata,
+    Column("device_id", String, nullable=False, primary_key=True),
+    Column("timestamp", DateTime(timezone=True), nullable=False, primary_key=True),
+    Column("power", Float, nullable=False),
+    Index("ix_home_load_power_points_device_ts", "device_id", "timestamp"),
 )
