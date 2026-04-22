@@ -11,12 +11,13 @@ for that device.
 from datetime import timedelta
 from typing import List, Optional, cast
 
+from edge_mining.adapters.domain.home_load.history_providers.helpers import group_power_points_into_intervals
 from edge_mining.adapters.infrastructure.homeassistant.homeassistant_api import (
     ServiceHomeAssistantAPI,
 )
 from edge_mining.adapters.infrastructure.homeassistant.models import EntityHistory
 from edge_mining.adapters.infrastructure.homeassistant.utils import EntityState
-from edge_mining.domain.common import EntityId, Timestamp, WattHours, Watts
+from edge_mining.domain.common import EntityId, Timestamp, Watts
 from edge_mining.domain.home_load.common import EnergyLoadHistoryProviderAdapter
 from edge_mining.domain.home_load.entities import LoadDevice
 from edge_mining.domain.home_load.exceptions import (
@@ -156,7 +157,7 @@ class HomeAssistantAPIEnergyLoadHistoryProvider(EnergyLoadHistoryProviderPort):
         if self._logger:
             self._logger.debug(f"Computing 1h intervals for device {self.device_id} in [{start}, {end}).")
         power_points = await self.get_power_points(start, end)
-        return self._group_power_points_into_intervals(power_points, start=start, end=end)
+        return group_power_points_into_intervals(power_points, start=start, end=end)
 
     def _fetch_from_home_assistant(self, start: Timestamp, end: Timestamp) -> List[HomeLoadPowerPoint]:
         """Fetch raw power points from Home Assistant REST API."""
@@ -188,56 +189,3 @@ class HomeAssistantAPIEnergyLoadHistoryProvider(EnergyLoadHistoryProviderPort):
             points.append(HomeLoadPowerPoint(timestamp=Timestamp(raw.timestamp), power=Watts(parsed)))
 
         return points
-
-    @staticmethod
-    def _group_power_points_into_intervals(
-        power_points: List[HomeLoadPowerPoint],
-        start: Optional[Timestamp] = None,
-        end: Optional[Timestamp] = None,
-    ) -> List[HomeLoadEnergyInterval]:
-        """Group power points into contiguous 1-hour intervals.
-
-        Intervals walk forward from ``start`` (or first point) by 1-hour steps
-        up to ``end`` (or last point). Empty intervals contribute zero energy
-        so downstream consumers see a contiguous timeline.
-        """
-        if not power_points and (start is None or end is None):
-            return []
-
-        sorted_points = sorted(power_points, key=lambda p: p.timestamp)
-
-        if start is None:
-            start = sorted_points[0].timestamp
-        if end is None:
-            end = sorted_points[-1].timestamp
-        if start >= end:
-            raise ValueError("Start timestamp must be before end timestamp.")
-
-        intervals: List[HomeLoadEnergyInterval] = []
-        current_start = start
-        while current_start < end:
-            current_end = min(current_start + timedelta(hours=1), end)
-
-            interval_points = [p for p in sorted_points if current_start <= p.timestamp < current_end]
-
-            if interval_points:
-                intervals.append(
-                    HomeLoadEnergyInterval.create_from_power_points(
-                        start=current_start,
-                        end=current_end,
-                        power_points=interval_points,
-                    )
-                )
-            else:
-                intervals.append(
-                    HomeLoadEnergyInterval(
-                        start=current_start,
-                        end=current_end,
-                        energy=WattHours(0.0),
-                        power_points=[],
-                    )
-                )
-
-            current_start = current_end
-
-        return intervals
