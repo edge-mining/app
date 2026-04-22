@@ -6,15 +6,16 @@ import sqlite3
 import uuid
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import delete, func, insert, select
 
 from edge_mining.adapters.domain.home_load.tables import (
     energy_load_forecast_providers_table,
+    home_load_power_points_table,
     home_profiles_table,
 )
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.base import BaseSQLAlchemyRepository
 from edge_mining.adapters.infrastructure.persistence.sqlite import BaseSqliteRepository
-from edge_mining.domain.common import EntityId
+from edge_mining.domain.common import EntityId, Timestamp, Watts
 from edge_mining.domain.exceptions import ConfigurationError
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
 from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter, LoadDeviceCategory
@@ -27,8 +28,10 @@ from edge_mining.domain.home_load.exceptions import (
 )
 from edge_mining.domain.home_load.ports import (
     EnergyLoadForecastProviderRepository,
+    EnergyLoadHistoryRepository,
     HomeLoadsProfileRepository,
 )
+from edge_mining.domain.home_load.value_objects import HomeLoadPowerPoint
 from edge_mining.shared.adapter_maps.home_load import (
     ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP,
 )
@@ -660,3 +663,270 @@ class SqlAlchemyHomeLoadsProfileRepository(HomeLoadsProfileRepository):
             for profile in self.get_all()
             if any(device.energy_load_forecast_provider_id == provider_id for device in profile.devices)
         ]
+
+
+# --- EnergyLoadHistory (per-device power-point time series) Repositories ---
+
+
+class InMemoryEnergyLoadHistoryRepository(EnergyLoadHistoryRepository):
+    """In-memory power-point store, indexed by device and kept sorted by timestamp."""
+
+    def __init__(self) -> None:
+        self._store: Dict[EntityId, List[HomeLoadPowerPoint]] = {}
+
+    def _sorted_points(self, device_id: EntityId) -> List[HomeLoadPowerPoint]:
+        bucket = self._store.setdefault(device_id, [])
+        bucket.sort(key=lambda p: p.timestamp)
+        return bucket
+
+    def add_power_point(self, device_id: EntityId, power_point: HomeLoadPowerPoint) -> None:
+        self._store.setdefault(device_id, []).append(power_point)
+
+    def add_power_points(self, device_id: EntityId, power_points: List[HomeLoadPowerPoint]) -> None:
+        if not power_points:
+            return
+        self._store.setdefault(device_id, []).extend(power_points)
+
+    def get_power_points(self, device_id: EntityId, start: Timestamp, end: Timestamp) -> List[HomeLoadPowerPoint]:
+        return [p for p in self._sorted_points(device_id) if start <= p.timestamp < end]
+
+    def get_latest_timestamp(self, device_id: EntityId) -> Optional[Timestamp]:
+        points = self._store.get(device_id)
+        if not points:
+            return None
+        return max(p.timestamp for p in points)
+
+    def purge_before(self, device_id: EntityId, timestamp: Timestamp) -> int:
+        bucket = self._store.get(device_id)
+        if not bucket:
+            return 0
+        kept = [p for p in bucket if p.timestamp >= timestamp]
+        removed = len(bucket) - len(kept)
+        self._store[device_id] = kept
+        return removed
+
+    def remove_power_points_by_time_range(self, device_id: EntityId, start: Timestamp, end: Timestamp) -> None:
+        bucket = self._store.get(device_id)
+        if not bucket:
+            return
+        self._store[device_id] = [p for p in bucket if not (start <= p.timestamp < end)]
+
+
+class SqliteEnergyLoadHistoryRepository(EnergyLoadHistoryRepository):
+    """SQLite implementation of the device-scoped power-point time series.
+
+    Uses a composite primary key (device_id, timestamp) so re-ingesting the
+    same window is idempotent (``INSERT OR IGNORE``). Retention and range
+    queries lean on the implicit PK index for O(log n) behavior.
+    """
+
+    def __init__(self, db: BaseSqliteRepository):
+        self._db = db
+        self.logger = db.logger
+        self._create_tables()
+
+    def _create_tables(self) -> None:
+        self.logger.debug(f"Ensuring SQLite tables exist for Energy Load History Repository in {self._db.db_path}...")
+        sql = """
+        CREATE TABLE IF NOT EXISTS home_load_power_points (
+            device_id TEXT NOT NULL,
+            timestamp TIMESTAMP NOT NULL,
+            power REAL NOT NULL,
+            PRIMARY KEY (device_id, timestamp)
+        );
+        """
+        conn = self._db.get_connection()
+        try:
+            with conn:
+                conn.execute(sql)
+        except sqlite3.Error as e:
+            self.logger.error(f"Error creating SQLite tables: {e}")
+            raise ConfigurationError(f"DB error creating tables: {e}") from e
+        finally:
+            if conn:
+                conn.close()
+
+    def add_power_point(self, device_id: EntityId, power_point: HomeLoadPowerPoint) -> None:
+        self.add_power_points(device_id, [power_point])
+
+    def add_power_points(self, device_id: EntityId, power_points: List[HomeLoadPowerPoint]) -> None:
+        if not power_points:
+            return
+        sql = """
+            INSERT OR IGNORE INTO home_load_power_points (device_id, timestamp, power)
+            VALUES (?, ?, ?);
+        """
+        conn = self._db.get_connection()
+        try:
+            rows = [(str(device_id), p.timestamp, float(p.power)) for p in power_points]
+            with conn:
+                conn.executemany(sql, rows)
+        except sqlite3.Error as e:
+            self.logger.error(f"SQLite error inserting power points for device {device_id}: {e}")
+            raise ConfigurationError(f"DB error inserting power points: {e}") from e
+        finally:
+            if conn:
+                conn.close()
+
+    def get_power_points(self, device_id: EntityId, start: Timestamp, end: Timestamp) -> List[HomeLoadPowerPoint]:
+        sql = """
+            SELECT timestamp, power
+            FROM home_load_power_points
+            WHERE device_id = ? AND timestamp >= ? AND timestamp < ?
+            ORDER BY timestamp ASC;
+        """
+        conn = self._db.get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(sql, (str(device_id), start, end))
+            rows = cursor.fetchall()
+            return [
+                HomeLoadPowerPoint(timestamp=Timestamp(row["timestamp"]), power=Watts(row["power"])) for row in rows
+            ]
+        except sqlite3.Error as e:
+            self.logger.error(f"SQLite error reading power points for device {device_id}: {e}")
+            return []
+        finally:
+            if conn:
+                conn.close()
+
+    def get_latest_timestamp(self, device_id: EntityId) -> Optional[Timestamp]:
+        sql = "SELECT MAX(timestamp) AS ts FROM home_load_power_points WHERE device_id = ?;"
+        conn = self._db.get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(sql, (str(device_id),))
+            row = cursor.fetchone()
+            if not row or row["ts"] is None:
+                return None
+            return Timestamp(row["ts"])
+        except sqlite3.Error as e:
+            self.logger.error(f"SQLite error getting latest timestamp for device {device_id}: {e}")
+            return None
+        finally:
+            if conn:
+                conn.close()
+
+    def purge_before(self, device_id: EntityId, timestamp: Timestamp) -> int:
+        sql = "DELETE FROM home_load_power_points WHERE device_id = ? AND timestamp < ?;"
+        conn = self._db.get_connection()
+        try:
+            with conn:
+                cursor = conn.cursor()
+                cursor.execute(sql, (str(device_id), timestamp))
+                return cursor.rowcount or 0
+        except sqlite3.Error as e:
+            self.logger.error(f"SQLite error purging power points for device {device_id}: {e}")
+            return 0
+        finally:
+            if conn:
+                conn.close()
+
+    def remove_power_points_by_time_range(self, device_id: EntityId, start: Timestamp, end: Timestamp) -> None:
+        sql = "DELETE FROM home_load_power_points WHERE device_id = ? AND timestamp >= ? AND timestamp < ?;"
+        conn = self._db.get_connection()
+        try:
+            with conn:
+                conn.execute(sql, (str(device_id), start, end))
+        except sqlite3.Error as e:
+            self.logger.error(f"SQLite error removing range for device {device_id}: {e}")
+        finally:
+            if conn:
+                conn.close()
+
+
+class SqlAlchemyEnergyLoadHistoryRepository(EnergyLoadHistoryRepository):
+    """SQLAlchemy Core implementation of the device-scoped power-point store.
+
+    Core (not imperative mapping) is intentional: ``HomeLoadPowerPoint`` is a
+    Value Object, not an Entity — we serialize/deserialize manually and avoid
+    polluting the domain with ORM state.
+    """
+
+    def __init__(self, db: BaseSQLAlchemyRepository):
+        self._db = db
+        self.logger = db.logger
+
+    def add_power_point(self, device_id: EntityId, power_point: HomeLoadPowerPoint) -> None:
+        self.add_power_points(device_id, [power_point])
+
+    def add_power_points(self, device_id: EntityId, power_points: List[HomeLoadPowerPoint]) -> None:
+        if not power_points:
+            return
+        rows = [{"device_id": str(device_id), "timestamp": p.timestamp, "power": float(p.power)} for p in power_points]
+        session = self._db.get_session()
+        try:
+            dialect_name = session.bind.dialect.name if session.bind else ""
+            if dialect_name == "sqlite":
+                from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+                stmt = sqlite_insert(home_load_power_points_table).on_conflict_do_nothing(
+                    index_elements=["device_id", "timestamp"]
+                )
+            elif dialect_name == "postgresql":
+                from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+                stmt = pg_insert(home_load_power_points_table).on_conflict_do_nothing(
+                    index_elements=["device_id", "timestamp"]
+                )
+            else:
+                stmt = insert(home_load_power_points_table)
+            session.execute(stmt, rows)
+            session.commit()
+        finally:
+            session.close()
+
+    def get_power_points(self, device_id: EntityId, start: Timestamp, end: Timestamp) -> List[HomeLoadPowerPoint]:
+        session = self._db.get_session()
+        try:
+            stmt = (
+                select(
+                    home_load_power_points_table.c.timestamp,
+                    home_load_power_points_table.c.power,
+                )
+                .where(home_load_power_points_table.c.device_id == str(device_id))
+                .where(home_load_power_points_table.c.timestamp >= start)
+                .where(home_load_power_points_table.c.timestamp < end)
+                .order_by(home_load_power_points_table.c.timestamp.asc())
+            )
+            rows = session.execute(stmt).all()
+            return [HomeLoadPowerPoint(timestamp=Timestamp(ts), power=Watts(power)) for ts, power in rows]
+        finally:
+            session.close()
+
+    def get_latest_timestamp(self, device_id: EntityId) -> Optional[Timestamp]:
+        session = self._db.get_session()
+        try:
+            stmt = select(func.max(home_load_power_points_table.c.timestamp)).where(
+                home_load_power_points_table.c.device_id == str(device_id)
+            )
+            latest = session.execute(stmt).scalar_one_or_none()
+            return Timestamp(latest) if latest is not None else None
+        finally:
+            session.close()
+
+    def purge_before(self, device_id: EntityId, timestamp: Timestamp) -> int:
+        session = self._db.get_session()
+        try:
+            stmt = delete(home_load_power_points_table).where(
+                home_load_power_points_table.c.device_id == str(device_id),
+                home_load_power_points_table.c.timestamp < timestamp,
+            )
+            result = session.execute(stmt)
+            session.commit()
+            return result.rowcount or 0
+        finally:
+            session.close()
+
+    def remove_power_points_by_time_range(self, device_id: EntityId, start: Timestamp, end: Timestamp) -> None:
+        session = self._db.get_session()
+        try:
+            stmt = delete(home_load_power_points_table).where(
+                home_load_power_points_table.c.device_id == str(device_id),
+                home_load_power_points_table.c.timestamp >= start,
+                home_load_power_points_table.c.timestamp < end,
+            )
+            session.execute(stmt)
+            session.commit()
+        finally:
+            session.close()
