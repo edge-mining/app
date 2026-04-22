@@ -5,10 +5,13 @@ of the Edge Mining application.
 
 from typing import Dict, Optional
 
-from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter
-from edge_mining.shared.adapter_configs.home_load import EnergyLoadForecastProviderDummyConfig
+from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter, EnergyLoadHistoryProviderAdapter
+from edge_mining.shared.adapter_configs.home_load import (
+    EnergyLoadForecastProviderDummyConfig,
+    EnergyLoadHistoryProviderHomeAssistantAPIConfig,
+)
 from edge_mining.shared.external_services.common import ExternalServiceAdapter
-from edge_mining.shared.interfaces.config import EnergyLoadForecastProviderConfig
+from edge_mining.shared.interfaces.config import EnergyLoadForecastProviderConfig, EnergyLoadHistoryProviderConfig
 
 ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP: Dict[
     EnergyLoadForecastProviderAdapter, Optional[type[EnergyLoadForecastProviderConfig]]
@@ -18,4 +21,18 @@ ENERGY_LOAD_FORECAST_PROVIDER_EXTERNAL_SERVICE_MAP: Dict[
     EnergyLoadForecastProviderAdapter, Optional[ExternalServiceAdapter]
 ] = {
     EnergyLoadForecastProviderAdapter.DUMMY: None  # Dummy does not use an external service
+}
+
+ENERGY_LOAD_HISTORY_PROVIDER_CONFIG_TYPE_MAP: Dict[
+    EnergyLoadHistoryProviderAdapter, Optional[type[EnergyLoadHistoryProviderConfig]]
+] = {
+    EnergyLoadHistoryProviderAdapter.DUMMY: None,
+    EnergyLoadHistoryProviderAdapter.HOME_ASSISTANT_API: EnergyLoadHistoryProviderHomeAssistantAPIConfig,
+}
+
+ENERGY_LOAD_HISTORY_PROVIDER_EXTERNAL_SERVICE_MAP: Dict[
+    EnergyLoadHistoryProviderAdapter, Optional[ExternalServiceAdapter]
+] = {
+    EnergyLoadHistoryProviderAdapter.DUMMY: None,
+    EnergyLoadHistoryProviderAdapter.HOME_ASSISTANT_API: ExternalServiceAdapter.HOME_ASSISTANT_API,
 }
