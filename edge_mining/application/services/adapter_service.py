@@ -9,6 +9,10 @@ from edge_mining.adapters.domain.energy.monitors.home_assistant_api import HomeA
 from edge_mining.adapters.domain.forecast.providers.dummy_solar import DummyForecastProviderFactory
 from edge_mining.adapters.domain.forecast.providers.home_assistant_api import HomeAssistantForecastProviderFactory
 from edge_mining.adapters.domain.home_load.forecast_providers.dummy import DummyEnergyLoadForecastProvider
+from edge_mining.adapters.domain.home_load.forecast_providers.naive_last_hour import NaiveLastHourForecastProvider
+from edge_mining.adapters.domain.home_load.forecast_providers.seasonal_baseline import (
+    SeasonalBaselineForecastProvider,
+)
 from edge_mining.adapters.domain.home_load.history_providers.dummy import DummyEnergyLoadHistoryProvider
 from edge_mining.adapters.domain.miner.controllers.dummy import DummyMinerController
 from edge_mining.adapters.domain.miner.controllers.generic_socket_home_assistant_api import (
@@ -531,6 +535,25 @@ class AdapterService(AdapterServiceInterface):
                 # TODO - Add configuration parameters for DummyEnergyLoadForecastProvider
                 # For now, we use a default load power max of 800W.
                 instance = DummyEnergyLoadForecastProvider(load_power_max=800)
+            elif energy_load_forecast_provider.adapter_type == EnergyLoadForecastProviderAdapter.NAIVE_LAST_HOUR:
+                hours_ahead = 3
+                config = energy_load_forecast_provider.config
+                if config and hasattr(config, "hours_ahead"):
+                    hours_ahead = config.hours_ahead
+                instance = NaiveLastHourForecastProvider(hours_ahead=hours_ahead, logger=self.logger)
+            elif energy_load_forecast_provider.adapter_type == EnergyLoadForecastProviderAdapter.SEASONAL_BASELINE:
+                hours_ahead = 3
+                weeks_lookback = 4
+                config = energy_load_forecast_provider.config
+                if config and hasattr(config, "hours_ahead"):
+                    hours_ahead = config.hours_ahead
+                if config and hasattr(config, "weeks_lookback"):
+                    weeks_lookback = config.weeks_lookback
+                instance = SeasonalBaselineForecastProvider(
+                    hours_ahead=hours_ahead,
+                    weeks_lookback=weeks_lookback,
+                    logger=self.logger,
+                )
             else:
                 raise ValueError(
                     f"Unsupported home forecast provider adapter type: {energy_load_forecast_provider.adapter_type}"
