@@ -42,6 +42,41 @@ class EnergyLoadForecastProviderDummyConfig(EnergyLoadForecastProviderConfig):
 
 
 @dataclass(frozen=True)
+class EnergyLoadForecastProviderNaiveLastHourConfig(EnergyLoadForecastProviderConfig):
+    """Configuration for NaiveLastHour forecast provider."""
+
+    hours_ahead: int = field(default=3)
+
+    def is_valid(self, adapter_type: EnergyLoadForecastProviderAdapter) -> bool:
+        return adapter_type == EnergyLoadForecastProviderAdapter.NAIVE_LAST_HOUR
+
+    def to_dict(self) -> dict:
+        return {**asdict(self)}
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        return cls(**data)
+
+
+@dataclass(frozen=True)
+class EnergyLoadForecastProviderSeasonalBaselineConfig(EnergyLoadForecastProviderConfig):
+    """Configuration for SeasonalBaseline forecast provider."""
+
+    hours_ahead: int = field(default=3)
+    weeks_lookback: int = field(default=4)
+
+    def is_valid(self, adapter_type: EnergyLoadForecastProviderAdapter) -> bool:
+        return adapter_type == EnergyLoadForecastProviderAdapter.SEASONAL_BASELINE
+
+    def to_dict(self) -> dict:
+        return {**asdict(self)}
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        return cls(**data)
+
+
+@dataclass(frozen=True)
 class EnergyLoadHistoryProviderHomeAssistantAPIConfig(EnergyLoadHistoryProviderConfig):
     """
     Energy Load History provider configuration. It encapsulate the configuration parameters
