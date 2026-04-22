@@ -69,8 +69,20 @@ class EnergyLoadForecastProviderConfigurationError(EnergyLoadForecastProviderErr
     pass
 
 
-class EnergyLoadHistoryProviderError(EnergyLoadForecastError):
+class EnergyLoadHistoryProviderError(HomeLoadError):
     """Errors related to energy load history provider."""
+
+    pass
+
+
+class EnergyLoadHistoryProviderNotFoundError(EnergyLoadHistoryProviderError):
+    """Energy Load History Provider not found."""
+
+    pass
+
+
+class EnergyLoadHistoryProviderAlreadyExistsError(EnergyLoadHistoryProviderError):
+    """Energy Load History Provider already exists."""
 
     pass
 
