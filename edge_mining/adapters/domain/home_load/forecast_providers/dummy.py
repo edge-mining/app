@@ -10,11 +10,11 @@ from typing import List, Optional
 from edge_mining.domain.common import Timestamp, Watts
 from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter
 from edge_mining.domain.home_load.ports import EnergyLoadForecastProviderPort, EnergyLoadHistoryProviderPort
-from edge_mining.domain.home_load.value_objects import ConsumptionForecast, HomeLoadEnergyInterval, HomeLoadPowerPoint
+from edge_mining.domain.home_load.value_objects import HomeLoadEnergyInterval, HomeLoadPowerPoint, LoadEnergyConsumption
 from edge_mining.shared.logging.port import LoggerPort
 
 
-class EnergyLoadForecastProvider(EnergyLoadForecastProviderPort):
+class DummyEnergyLoadForecastProvider(EnergyLoadForecastProviderPort):
     """Generates a very basic fake energy load forecast."""
 
     def __init__(
@@ -23,18 +23,20 @@ class EnergyLoadForecastProvider(EnergyLoadForecastProviderPort):
         history_provider: Optional[EnergyLoadHistoryProviderPort] = None,
         logger: Optional[LoggerPort] = None,
     ):
-        """Initializes the DummyHomeForecastProvider."""
+        """Initializes the DummyEnergyLoadForecastProvider."""
         super().__init__(provider_type=EnergyLoadForecastProviderAdapter.DUMMY, history_provider=history_provider)
         self._logger = logger
 
         self.load_power_max = load_power_max
 
-    def get_home_consumption_forecast(self, hours_ahead: int = 1, hours_back: int = 3) -> Optional[ConsumptionForecast]:
+    def get_home_consumption_forecast(
+        self, hours_ahead: int = 1, hours_back: int = 3
+    ) -> Optional[LoadEnergyConsumption]:
         """Get the home consumption forecast."""
         # Super simple: return a random average load expected soon for next hours_ahead hours.
         if self._logger:
             self._logger.debug(
-                f"DummyHomeForecastProvider: "
+                f"DummyEnergyLoadForecastProvider: "
                 f"Generating home load forecast for {hours_ahead} hours ahead "
                 f"with max load {self.load_power_max} Wp"
                 f"using history data provider: ${type(self.history_provider).__name__ if self.history_provider else None}"
@@ -54,7 +56,7 @@ class EnergyLoadForecastProvider(EnergyLoadForecastProviderPort):
             # prediction_model.predict(historical_intervals, hours_ahead)
             future_intervals = self._simulate_prediction(historical_intervals, hours_ahead, now)
 
-            consumption_forecast = ConsumptionForecast(timestamp=now, intervals=future_intervals)
+            consumption_forecast = LoadEnergyConsumption(timestamp=now, intervals=future_intervals)
         else:
             # Generate fake predictions if no history provider is provided
 
@@ -64,26 +66,26 @@ class EnergyLoadForecastProvider(EnergyLoadForecastProviderPort):
             # Here we assume a random load between 200W and max load
             avg_load = Watts(random.uniform(200, self.load_power_max))
 
-            home_forecast_points: List[HomeLoadPowerPoint] = []
+            home_load_points: List[HomeLoadPowerPoint] = []
             for i in range(hours_ahead):  # Forecast for next hours_ahead hours
                 future_time = now + timedelta(hours=i)
-                home_forecast_point: HomeLoadPowerPoint = HomeLoadPowerPoint(
+                home_load_point: HomeLoadPowerPoint = HomeLoadPowerPoint(
                     timestamp=Timestamp(future_time), power=avg_load
                 )
-                home_forecast_points.append(home_forecast_point)
+                home_load_points.append(home_load_point)
 
             # Calculate the interval's energy using the factory function
-            home_forecast_interval = HomeLoadEnergyInterval.create_from_power_points(
+            home_load_interval = HomeLoadEnergyInterval.create_from_power_points(
                 start=Timestamp(now),
                 end=Timestamp(now + timedelta(hours=hours_ahead)),
-                power_points=home_forecast_points,
+                power_points=home_load_points,
             )
 
-            consumption_forecast = ConsumptionForecast(timestamp=Timestamp(now), intervals=[home_forecast_interval])
+            consumption_forecast = LoadEnergyConsumption(timestamp=Timestamp(now), intervals=[home_load_interval])
 
         if self._logger:
             self._logger.debug(
-                f"DummyHomeForecastProvider: Estimated avg home load power {consumption_forecast.avg_power:.0f}W, "
+                f"DummyEnergyLoadForecastProvider: Estimated avg home load power {consumption_forecast.avg_power:.0f}W, "
                 f"estimated avg home load energy {consumption_forecast.avg_energy:.0f}Wh "
                 f"for next {hours_ahead} hours"
             )
