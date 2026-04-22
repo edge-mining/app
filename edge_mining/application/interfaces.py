@@ -83,7 +83,7 @@ class AdapterServiceInterface(ABC):
 
     @abstractmethod
     def get_home_load_forecast_provider(
-        self, home_forecast_provider_id: EntityId
+        self, energy_load_forecast_provider_id: EntityId
     ) -> Optional[EnergyLoadForecastProviderPort]:
         """Get an home load forecast provider adapter instance."""
 
@@ -453,7 +453,6 @@ class ConfigurationServiceInterface(ABC):
         policy_id: Optional[EntityId] = None,
         target_miner_ids: Optional[List[EntityId]] = None,
         energy_source_id: Optional[EntityId] = None,
-        home_forecast_provider_id: Optional[EntityId] = None,
         performance_tracker_id: Optional[EntityId] = None,
         notifier_ids: Optional[List[EntityId]] = None,
     ) -> Optional[EnergyOptimizationUnit]:
@@ -473,7 +472,6 @@ class ConfigurationServiceInterface(ABC):
         filter_by_miners: Optional[List[EntityId]] = None,
         filter_by_energy_source: Optional[EntityId] = None,
         filter_by_policy: Optional[EntityId] = None,
-        filter_by_home_forecast_provider: Optional[EntityId] = None,
         filter_by_performance_tracker: Optional[EntityId] = None,
         filter_by_notifiers: Optional[List[EntityId]] = None,
     ) -> List[EnergyOptimizationUnit]:
@@ -493,7 +491,6 @@ class ConfigurationServiceInterface(ABC):
         policy_id: Optional[EntityId] = None,
         target_miner_ids: Optional[List[EntityId]] = None,
         energy_source_id: Optional[EntityId] = None,
-        home_forecast_provider_id: Optional[EntityId] = None,
         performance_tracker_id: Optional[EntityId] = None,
         notifier_ids: Optional[List[EntityId]] = None,
     ) -> EnergyOptimizationUnit:
@@ -534,12 +531,6 @@ class ConfigurationServiceInterface(ABC):
         self, unit_id: EntityId, energy_source_id: EntityId
     ) -> EnergyOptimizationUnit:
         """Assign an energy source to an optimization unit."""
-
-    @abstractmethod
-    async def assign_home_forecast_provider_to_optimization_unit(
-        self, unit_id: EntityId, home_forecast_provider_id: EntityId
-    ) -> EnergyOptimizationUnit:
-        """Assign a home forecast provider to an optimization unit."""
 
     @abstractmethod
     async def assign_performance_tracker_to_optimization_unit(
