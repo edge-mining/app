@@ -24,8 +24,13 @@ from edge_mining.domain.forecast.common import ForecastProviderAdapter
 from edge_mining.domain.forecast.entities import ForecastProvider
 from edge_mining.domain.forecast.exceptions import ForecastProviderConfigurationError, ForecastProviderNotFoundError
 from edge_mining.domain.forecast.ports import ForecastProviderRepository
-from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider
-from edge_mining.domain.home_load.ports import EnergyLoadForecastProviderRepository
+from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
+from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, LoadDevice
+from edge_mining.domain.home_load.exceptions import (
+    HomeLoadsProfileDeviceNotFoundError,
+    HomeLoadsProfileNotFoundError,
+)
+from edge_mining.domain.home_load.ports import EnergyLoadForecastProviderRepository, HomeLoadsProfileRepository
 from edge_mining.domain.miner.aggregate_roots import Miner
 from edge_mining.domain.miner.common import MinerControllerAdapter, MinerFeatureType
 from edge_mining.domain.miner.entities import MinerController
@@ -120,6 +125,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         self.energy_load_forecast_provider_repo: EnergyLoadForecastProviderRepository = (
             persistence_settings.energy_load_forecast_provider_repo
         )
+        self.home_profile_repo: HomeLoadsProfileRepository = persistence_settings.home_profile_repo
         self.mining_performance_tracker_repo: MiningPerformanceTrackerRepository = (
             persistence_settings.mining_performance_tracker_repo
         )
@@ -1798,6 +1804,64 @@ class ConfigurationService(ConfigurationServiceInterface):
                 f"Adapter type {adapter_type} is not supported for notifier external service mapping."
             )
         return NOTIFIER_TYPE_EXTERNAL_SERVICE_MAP.get(adapter_type, None)
+
+    # --- Home Loads Profile Management ---
+    def add_home_loads_profile(self, name: str) -> HomeLoadsProfile:
+        """Create and persist a new home loads profile."""
+        profile = HomeLoadsProfile(name=name)
+        self.home_profile_repo.add(profile)
+        self.logger.info(f"Added home loads profile '{profile.name}' ({profile.id}).")
+        return profile
+
+    def get_home_loads_profile(self, profile_id: EntityId) -> Optional[HomeLoadsProfile]:
+        """Get a home loads profile by ID."""
+        return self.home_profile_repo.get_by_id(profile_id)
+
+    def list_home_loads_profiles(self) -> List[HomeLoadsProfile]:
+        """List all home loads profiles."""
+        return self.home_profile_repo.get_all()
+
+    def update_home_loads_profile(self, profile_id: EntityId, name: str) -> Optional[HomeLoadsProfile]:
+        """Rename an existing home loads profile."""
+        profile = self.home_profile_repo.get_by_id(profile_id)
+        if not profile:
+            raise HomeLoadsProfileNotFoundError(f"Home Loads Profile with ID {profile_id} not found.")
+        profile.name = name
+        self.home_profile_repo.update(profile)
+        return profile
+
+    def remove_home_loads_profile(self, profile_id: EntityId) -> Optional[HomeLoadsProfile]:
+        """Remove a home loads profile by ID."""
+        profile = self.home_profile_repo.get_by_id(profile_id)
+        if not profile:
+            raise HomeLoadsProfileNotFoundError(f"Home Loads Profile with ID {profile_id} not found.")
+        self.home_profile_repo.remove(profile_id)
+        return profile
+
+    def add_load_device_to_profile(self, profile_id: EntityId, load_device: LoadDevice) -> Optional[LoadDevice]:
+        """Append a load device to a profile."""
+        profile = self.home_profile_repo.get_by_id(profile_id)
+        if not profile:
+            raise HomeLoadsProfileNotFoundError(f"Home Loads Profile with ID {profile_id} not found.")
+        profile.devices.append(load_device)
+        self.home_profile_repo.update(profile)
+        return load_device
+
+    def remove_load_device_from_profile(self, profile_id: EntityId, device_id: EntityId) -> Optional[LoadDevice]:
+        """Remove a load device from a profile."""
+        profile = self.home_profile_repo.get_by_id(profile_id)
+        if not profile:
+            raise HomeLoadsProfileNotFoundError(f"Home Loads Profile with ID {profile_id} not found.")
+
+        removed = next((d for d in profile.devices if d.id == device_id), None)
+        if removed is None:
+            raise HomeLoadsProfileDeviceNotFoundError(
+                f"Load Device with ID {device_id} not found in Home Loads Profile {profile_id}."
+            )
+
+        profile.devices = [d for d in profile.devices if d.id != device_id]
+        self.home_profile_repo.update(profile)
+        return removed
 
     # --- Policy Management ---
     async def create_policy(self, name: str, description: str = "") -> OptimizationPolicy:
