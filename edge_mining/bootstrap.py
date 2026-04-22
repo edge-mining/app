@@ -76,6 +76,7 @@ from edge_mining.adapters.infrastructure.sun.factories import AstralSunFactory
 from edge_mining.application.interfaces import SunFactoryInterface
 from edge_mining.application.services.adapter_service import AdapterService
 from edge_mining.application.services.configuration_service import ConfigurationService
+from edge_mining.application.services.home_load_history_service import HomeLoadHistoryService
 from edge_mining.application.services.miner_action_service import MinerActionService
 from edge_mining.application.services.optimization_service import OptimizationService
 from edge_mining.domain.energy.ports import (
@@ -332,6 +333,7 @@ def configure_dependencies(logger: LoggerPort, settings: AppSettings) -> Service
         energy_source_repo=persistence_settings.energy_source_repo,
         policy_repo=persistence_settings.policy_repo,
         miner_repo=persistence_settings.miner_repo,
+        home_loads_repo=persistence_settings.home_profile_repo,
         adapter_service=adapter_service,
         sun_factory=sun_factory,
         event_bus=event_bus,
@@ -352,11 +354,20 @@ def configure_dependencies(logger: LoggerPort, settings: AppSettings) -> Service
         adapter_service=adapter_service,
     )
 
+    home_load_history_service = HomeLoadHistoryService(
+        home_loads_repo=persistence_settings.home_profile_repo,
+        home_load_history_repo=persistence_settings.home_load_history_repo,
+        adapter_service=adapter_service,
+        event_bus=event_bus,
+        logger=logger,
+    )
+
     services = Services(
         adapter_service=adapter_service,
         optimization_service=optimization_service,
         miner_action_service=miner_action_service,
         configuration_service=config_service,
+        home_load_history_service=home_load_history_service,
         event_bus=event_bus,
     )
 
