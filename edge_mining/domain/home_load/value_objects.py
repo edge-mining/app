@@ -4,7 +4,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import List, Optional
 
-from edge_mining.domain.common import Timestamp, ValueObject, WattHours, Watts
+from edge_mining.domain.common import EntityId, Timestamp, ValueObject, WattHours, Watts
+from edge_mining.domain.home_load.common import LoadDeviceCategory
 
 
 @dataclass(frozen=True)
@@ -77,27 +78,106 @@ class HomeLoadEnergyInterval(ValueObject):
 @dataclass(frozen=True)
 class LoadEnergyConsumption(ValueObject):
     """
-    Value Object for a consumption forecast.
-    In most cases intervals can be understood as a list of 1 hour time ranges.
+    Value Object for a time series of load energy consumption.
+    Intended to be agnostic: can represent history, forecast, per-device or aggregate.
+    Intervals are typically 1 hour time ranges.
     """
 
     timestamp: Timestamp = field(default_factory=Timestamp(datetime.now()))
     intervals: List[HomeLoadEnergyInterval] = field(default_factory=list)
 
     @property
+    def total_energy(self) -> WattHours:
+        """Sum of energy across all intervals."""
+        return WattHours(sum(float(i.energy) for i in self.intervals if i.energy is not None))
+
+    @property
     def avg_energy(self) -> WattHours:
-        """Calculate the average energy over all intervals."""
+        """Average of per-interval energy."""
         if not self.intervals:
             return WattHours(0.0)
 
-        total_energy = sum(interval.energy for interval in self.intervals if interval.energy)
+        total_energy = sum(float(interval.energy) for interval in self.intervals if interval.energy)
         return WattHours(total_energy / len(self.intervals)) if total_energy else WattHours(0.0)
 
     @property
     def avg_power(self) -> Watts:
-        """Calculate the average power over all intervals."""
+        """Average of per-interval average power."""
         if not self.intervals:
             return Watts(0.0)
 
         total_power = sum(interval.avg_power for interval in self.intervals)
         return Watts(total_power / len(self.intervals)) if total_power else Watts(0.0)
+
+    @property
+    def peak_power(self) -> Watts:
+        """Maximum avg_power observed across intervals."""
+        if not self.intervals:
+            return Watts(0.0)
+        return Watts(max(float(i.avg_power) for i in self.intervals))
+
+    def in_window(self, start: Timestamp, end: Timestamp) -> "LoadEnergyConsumption":
+        """Return a subset whose intervals overlap the given window [start, end)."""
+        if start >= end:
+            return LoadEnergyConsumption(timestamp=self.timestamp, intervals=[])
+        filtered = [i for i in self.intervals if i.start < end and i.end > start]
+        return LoadEnergyConsumption(timestamp=self.timestamp, intervals=filtered)
+
+    def in_next_hours(self, hours: int, now: Optional[Timestamp] = None) -> "LoadEnergyConsumption":
+        """Return a subset covering the next `hours` starting from `now` (defaults to datetime.now)."""
+        anchor = now if now is not None else Timestamp(datetime.now())
+        return self.in_window(anchor, Timestamp(anchor + timedelta(hours=hours)))
+
+    def in_last_hours(self, hours: int, now: Optional[Timestamp] = None) -> "LoadEnergyConsumption":
+        """Return a subset covering the last `hours` up to `now`."""
+        anchor = now if now is not None else Timestamp(datetime.now())
+        return self.in_window(Timestamp(anchor - timedelta(hours=hours)), anchor)
+
+
+@dataclass(frozen=True)
+class LoadDeviceConsumption(ValueObject):
+    """Consumption (history + forecast) for a single LoadDevice.
+
+    Binds the generic ``LoadEnergyConsumption`` time series to the identity
+    of a LoadDevice so downstream consumers (policy engine, UI) can reason
+    per-device without losing track of "who is consuming what".
+    """
+
+    device_id: EntityId
+    device_name: str
+    device_category: LoadDeviceCategory
+    history: LoadEnergyConsumption = field(default_factory=LoadEnergyConsumption)
+    forecast: LoadEnergyConsumption = field(default_factory=LoadEnergyConsumption)
+
+
+@dataclass(frozen=True)
+class HomeLoadsConsumption(ValueObject):
+    """Unified household consumption view for the DecisionalContext.
+
+    Carries:
+      - ``per_device``: individual device history+forecast, keyed by unique name.
+      - ``total_history`` / ``total_forecast``: aggregated household time series.
+
+    Exposes ``devices`` as a name-indexed mapping for readable rule paths
+    (e.g., ``home_load.devices.boiler.forecast.total_energy``).
+    """
+
+    per_device: List[LoadDeviceConsumption] = field(default_factory=list)
+    total_history: LoadEnergyConsumption = field(default_factory=LoadEnergyConsumption)
+    total_forecast: LoadEnergyConsumption = field(default_factory=LoadEnergyConsumption)
+
+    @property
+    def devices(self) -> "dict[str, LoadDeviceConsumption]":
+        """Device-name-indexed map for rule engine path navigation.
+
+        Relies on the uniqueness invariant enforced by ``HomeLoadsProfile``.
+        """
+        return {d.device_name: d for d in self.per_device}
+
+    def device_by_name(self, name: str) -> Optional[LoadDeviceConsumption]:
+        """Lookup by (unique) device name."""
+        return self.devices.get(name)
+
+    def device_by_id(self, device_id: EntityId) -> Optional[LoadDeviceConsumption]:
+        """Lookup by device id."""
+        return next((d for d in self.per_device if d.device_id == device_id), None)
