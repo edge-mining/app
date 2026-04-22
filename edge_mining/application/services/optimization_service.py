@@ -16,7 +16,9 @@ from edge_mining.application.interfaces import (
     OptimizationServiceInterface,
     SunFactoryInterface,
 )
-from edge_mining.domain.common import EntityId
+from datetime import datetime
+
+from edge_mining.domain.common import EntityId, Timestamp, WattHours
 from edge_mining.domain.energy.entities import EnergySource
 from edge_mining.domain.energy.events import EnergyStateSnapshotUpdatedEvent
 from edge_mining.domain.energy.ports import EnergyMonitorPort, EnergySourceRepository
@@ -24,8 +26,14 @@ from edge_mining.domain.energy.value_objects import EnergyStateSnapshot
 from edge_mining.domain.forecast.aggregate_root import Forecast
 from edge_mining.domain.forecast.ports import ForecastProviderPort
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
+from edge_mining.domain.home_load.entities import LoadDevice
 from edge_mining.domain.home_load.ports import EnergyLoadForecastProviderPort, HomeLoadsProfileRepository
-from edge_mining.domain.home_load.value_objects import LoadEnergyConsumption
+from edge_mining.domain.home_load.value_objects import (
+    HomeLoadEnergyInterval,
+    HomeLoadsConsumption,
+    LoadDeviceConsumption,
+    LoadEnergyConsumption,
+)
 from edge_mining.domain.miner.aggregate_roots import Miner
 from edge_mining.domain.miner.common import MinerFeatureType, MinerStatus
 from edge_mining.domain.miner.events import MinerStateChangedEvent
@@ -89,6 +97,86 @@ class OptimizationService(OptimizationServiceInterface):
         self.adapter_service = adapter_service
         self._event_bus = event_bus
         self.logger = logger
+
+    @staticmethod
+    def _sum_consumptions(consumptions: List[LoadEnergyConsumption]) -> LoadEnergyConsumption:
+        """Sum a list of LoadEnergyConsumption by matching (start, end) intervals."""
+        now_ts = Timestamp(datetime.now())
+        if not consumptions:
+            return LoadEnergyConsumption(timestamp=now_ts, intervals=[])
+
+        buckets: Dict[tuple, List[HomeLoadEnergyInterval]] = {}
+        for consumption in consumptions:
+            for interval in consumption.intervals:
+                buckets.setdefault((interval.start, interval.end), []).append(interval)
+
+        merged: List[HomeLoadEnergyInterval] = []
+        for (start, end), intervals in sorted(buckets.items(), key=lambda kv: kv[0][0]):
+            total_energy = WattHours(sum(float(i.energy) for i in intervals if i.energy is not None))
+            power_points = [p for i in intervals for p in i.power_points]
+            merged.append(
+                HomeLoadEnergyInterval(
+                    start=start,
+                    end=end,
+                    energy=total_energy if total_energy else None,
+                    power_points=power_points,
+                )
+            )
+
+        return LoadEnergyConsumption(timestamp=now_ts, intervals=merged)
+
+    def _build_home_loads_consumption(
+        self,
+        home_loads_profile: Optional[HomeLoadsProfile],
+        forecast_providers: Dict[EntityId, EnergyLoadForecastProviderPort],
+        unit_name: str,
+    ) -> Optional[HomeLoadsConsumption]:
+        """Assemble per-device history+forecast and their household totals.
+
+        History providers are not wired yet, so history is an empty time series.
+        Forecast is obtained by calling each device's provider with the empty
+        history and aggregated into the household total.
+        """
+        if home_loads_profile is None:
+            return None
+
+        empty_history = LoadEnergyConsumption(timestamp=Timestamp(datetime.now()), intervals=[])
+        per_device: List[LoadDeviceConsumption] = []
+        for device in home_loads_profile.devices:
+            device_forecast = empty_history
+            provider = forecast_providers.get(device.id)
+            if provider is not None:
+                try:
+                    result = provider.get_consumption_forecast(empty_history)
+                    if result is not None:
+                        device_forecast = result
+                except Exception as e:
+                    if self.logger:
+                        self.logger.warning(
+                            f"Error getting load forecast for device '{device.name}' "
+                            f"in optimization unit '{unit_name}': {e}"
+                        )
+            per_device.append(self._make_device_consumption(device, empty_history, device_forecast))
+
+        return HomeLoadsConsumption(
+            per_device=per_device,
+            total_history=self._sum_consumptions([d.history for d in per_device]),
+            total_forecast=self._sum_consumptions([d.forecast for d in per_device]),
+        )
+
+    @staticmethod
+    def _make_device_consumption(
+        device: LoadDevice,
+        history: LoadEnergyConsumption,
+        forecast: LoadEnergyConsumption,
+    ) -> LoadDeviceConsumption:
+        return LoadDeviceConsumption(
+            device_id=device.id,
+            device_name=device.name,
+            device_category=device.category,
+            history=history,
+            forecast=forecast,
+        )
 
     async def _notify_unit(self, notifiers: List[NotificationPort], title: str, message: str):
         """Notify the unit."""
@@ -245,10 +333,12 @@ class OptimizationService(OptimizationServiceInterface):
                         f"Error getting solar forecast for optimization unit '{optimization_unit.name}': {e}"
                     )
 
-        # --- Home Load Forecast ---
-        # TODO (Step 4): aggregate per-device forecasts from energy_load_forecast_providers
-        # into a unit-level LoadEnergyConsumption for the DecisionalContext.
-        home_load_forecast: Optional[LoadEnergyConsumption] = None
+        # --- Home Load Consumption (per-device history + forecast) ---
+        home_load = self._build_home_loads_consumption(
+            home_loads_profile,
+            energy_load_forecast_providers,
+            optimization_unit.name,
+        )
 
         # --- Target Miners ---
         # Process only the first enabled miner in the optimization unit
@@ -386,7 +476,7 @@ class OptimizationService(OptimizationServiceInterface):
             energy_source=energy_source,
             energy_state=energy_state,
             forecast=forecast_data,
-            home_load_forecast=home_load_forecast,
+            home_load=home_load,
             tracker_current_hashrate=tracker_current_hashrate,
             sun=sun,
             miner=miner,
@@ -631,10 +721,12 @@ class OptimizationService(OptimizationServiceInterface):
                     f"No solar forecast provider configured for optimization unit '{optimization_unit.name}'."
                 )
 
-        # --- Home Load Forecast ---
-        # TODO (Step 4): aggregate per-device forecasts from energy_load_forecast_providers
-        # into a unit-level LoadEnergyConsumption for the DecisionalContext.
-        home_load_forecast: Optional[LoadEnergyConsumption] = None
+        # --- Home Load Consumption (per-device history + forecast) ---
+        home_load = self._build_home_loads_consumption(
+            home_loads_profile,
+            energy_load_forecast_providers,
+            optimization_unit.name,
+        )
 
         # --- Target Miners ---
         # Process each target miner in this optimization unit
@@ -669,7 +761,7 @@ class OptimizationService(OptimizationServiceInterface):
             energy_source=energy_source,
             energy_state=energy_state,
             forecast=forecast_data,
-            home_load_forecast=home_load_forecast,
+            home_load=home_load,
             tracker_current_hashrate=tracker_current_hashrate,
             sun=sun,
         )
@@ -803,7 +895,7 @@ class OptimizationService(OptimizationServiceInterface):
                 energy_source=context.energy_source,
                 energy_state=context.energy_state,
                 forecast=context.forecast,
-                home_load_forecast=context.home_load_forecast,
+                home_load=context.home_load,
                 tracker_current_hashrate=context.tracker_current_hashrate,
                 sun=context.sun,
                 miner=miner,  # Static config
