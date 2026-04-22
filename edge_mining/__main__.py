@@ -74,6 +74,7 @@ async def main_async():
             logger=logger,
             settings=settings,
             home_load_history_service=services.home_load_history_service,
+            load_forecast_training_service=services.load_forecast_training_service,
         )
 
         await asyncio.gather(
