@@ -17,6 +17,7 @@ from edge_mining.domain.energy.ports import (
 from edge_mining.domain.forecast.ports import ForecastProviderRepository
 from edge_mining.domain.home_load.ports import (
     EnergyLoadForecastProviderRepository,
+    EnergyLoadHistoryProviderRepository,
     EnergyLoadHistoryRepository,
     HomeLoadsProfileRepository,
 )
@@ -47,6 +48,7 @@ class PersistenceSettings:
     forecast_provider_repo: ForecastProviderRepository
     home_profile_repo: HomeLoadsProfileRepository
     energy_load_forecast_provider_repo: EnergyLoadForecastProviderRepository
+    energy_load_history_provider_repo: EnergyLoadHistoryProviderRepository
     home_load_history_repo: EnergyLoadHistoryRepository
     policy_repo: OptimizationPolicyRepository
     mining_performance_tracker_repo: MiningPerformanceTrackerRepository
