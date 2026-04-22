@@ -27,7 +27,6 @@ from edge_mining.domain.forecast.ports import ForecastProviderRepository
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
 from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, LoadDevice
 from edge_mining.domain.home_load.exceptions import (
-    HomeLoadsProfileDeviceNotFoundError,
     HomeLoadsProfileNotFoundError,
 )
 from edge_mining.domain.home_load.ports import EnergyLoadForecastProviderRepository, HomeLoadsProfileRepository
@@ -1821,7 +1820,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         """List all home loads profiles."""
         return self.home_profile_repo.get_all()
 
-    def update_home_loads_profile(self, profile_id: EntityId, name: str) -> Optional[HomeLoadsProfile]:
+    def update_home_loads_profile(self, profile_id: EntityId, name: str) -> HomeLoadsProfile:
         """Rename an existing home loads profile."""
         profile = self.home_profile_repo.get_by_id(profile_id)
         if not profile:
@@ -1830,7 +1829,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         self.home_profile_repo.update(profile)
         return profile
 
-    def remove_home_loads_profile(self, profile_id: EntityId) -> Optional[HomeLoadsProfile]:
+    def remove_home_loads_profile(self, profile_id: EntityId) -> HomeLoadsProfile:
         """Remove a home loads profile by ID."""
         profile = self.home_profile_repo.get_by_id(profile_id)
         if not profile:
@@ -1838,28 +1837,21 @@ class ConfigurationService(ConfigurationServiceInterface):
         self.home_profile_repo.remove(profile_id)
         return profile
 
-    def add_load_device_to_profile(self, profile_id: EntityId, load_device: LoadDevice) -> Optional[LoadDevice]:
-        """Append a load device to a profile."""
+    def add_load_device_to_profile(self, profile_id: EntityId, load_device: LoadDevice) -> LoadDevice:
+        """Append a load device to a profile (raises on duplicate device name)."""
         profile = self.home_profile_repo.get_by_id(profile_id)
         if not profile:
             raise HomeLoadsProfileNotFoundError(f"Home Loads Profile with ID {profile_id} not found.")
-        profile.devices.append(load_device)
+        profile.add_device(load_device)
         self.home_profile_repo.update(profile)
         return load_device
 
-    def remove_load_device_from_profile(self, profile_id: EntityId, device_id: EntityId) -> Optional[LoadDevice]:
+    def remove_load_device_from_profile(self, profile_id: EntityId, device_id: EntityId) -> LoadDevice:
         """Remove a load device from a profile."""
         profile = self.home_profile_repo.get_by_id(profile_id)
         if not profile:
             raise HomeLoadsProfileNotFoundError(f"Home Loads Profile with ID {profile_id} not found.")
-
-        removed = next((d for d in profile.devices if d.id == device_id), None)
-        if removed is None:
-            raise HomeLoadsProfileDeviceNotFoundError(
-                f"Load Device with ID {device_id} not found in Home Loads Profile {profile_id}."
-            )
-
-        profile.devices = [d for d in profile.devices if d.id != device_id]
+        removed = profile.remove_device(device_id)
         self.home_profile_repo.update(profile)
         return removed
 

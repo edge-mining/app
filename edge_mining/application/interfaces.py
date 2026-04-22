@@ -782,24 +782,24 @@ class ConfigurationServiceInterface(ABC):
         """List all home loads profiles in the system."""
 
     @abstractmethod
-    def remove_home_loads_profile(self, profile_id: EntityId) -> Optional[HomeLoadsProfile]:
-        """Remove a home loads profile from the system."""
+    def remove_home_loads_profile(self, profile_id: EntityId) -> HomeLoadsProfile:
+        """Remove a home loads profile from the system. Raises HomeLoadsProfileNotFoundError."""
 
     @abstractmethod
-    def update_home_loads_profile(self, profile_id: EntityId, name: str) -> Optional[HomeLoadsProfile]:
-        """Update a home loads profile in the system."""
+    def update_home_loads_profile(self, profile_id: EntityId, name: str) -> HomeLoadsProfile:
+        """Update a home loads profile in the system. Raises HomeLoadsProfileNotFoundError."""
 
     @abstractmethod
-    def add_load_device_to_profile(self, profile_id: EntityId, load_device: LoadDevice) -> Optional[LoadDevice]:
-        """Add a load device to a home loads profile."""
+    def add_load_device_to_profile(self, profile_id: EntityId, load_device: LoadDevice) -> LoadDevice:
+        """Add a load device to a home loads profile. Raises HomeLoadsProfileNotFoundError."""
 
     @abstractmethod
     def remove_load_device_from_profile(
         self,
         profile_id: EntityId,
         device_id: EntityId,
-    ) -> Optional[LoadDevice]:
-        """Remove a load device from a home loads profile."""
+    ) -> LoadDevice:
+        """Remove a load device from a home loads profile. Raises on missing profile or device."""
 
     @abstractmethod
     def get_forecast_provider_config_by_type(
