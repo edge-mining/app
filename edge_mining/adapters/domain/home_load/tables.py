@@ -139,29 +139,35 @@ mapper_registry.map_imperatively(
 )
 
 
-# Custom TypeDecorator for LoadDevice dictionary serialization
+# Custom TypeDecorator for LoadDevice list serialization
 class LoadDevicesDictType(TypeDecorator):
-    """Custom type for serializing Dict[EntityId, LoadDevice] to JSON."""
+    """Custom type for serializing List[LoadDevice] to a JSON array."""
 
     impl = JSON
     cache_ok = True
 
     def process_bind_param(self, value, dialect):
-        """Convert Dict[EntityId, LoadDevice] to JSON dict for database storage."""
+        """Convert List[LoadDevice] to a JSON list for database storage."""
         if value is None:
             return None
-        # Convert to dict with string keys and LoadDevice dicts
-        return {
-            str(device_id): {
+        return [
+            {
                 "id": str(device.id),
                 "name": device.name,
                 "category": device.category.value,
+                "enabled": device.enabled,
+                "energy_load_forecast_provider_id": (
+                    str(device.energy_load_forecast_provider_id) if device.energy_load_forecast_provider_id else None
+                ),
+                "energy_load_history_provider_id": (
+                    str(device.energy_load_history_provider_id) if device.energy_load_history_provider_id else None
+                ),
             }
-            for device_id, device in value.items()
-        }
+            for device in value
+        ]
 
     def process_result_value(self, value, dialect):
-        """Return raw JSON dict - will be reconstructed in event listener."""
+        """Return raw JSON list - will be reconstructed in event listener."""
         return value
 
 
@@ -179,17 +185,29 @@ home_profiles_table = Table(
 @event.listens_for(HomeLoadsProfile, "load")
 def _receive_home_profile_load(target, context):
     """Reconstruct LoadDevice objects from JSON after loading from database."""
-    if target.devices and isinstance(target.devices, dict):
-        reconstructed_devices = {}
-        for device_id_str, device_data in target.devices.items():
-            if isinstance(device_data, dict):
-                device = LoadDevice(
-                    id=EntityId(device_data["id"]),
+    if isinstance(target.id, str):
+        target.id = EntityId(uuid.UUID(target.id))
+
+    if target.devices and isinstance(target.devices, list):
+        reconstructed: list = []
+        for device_data in target.devices:
+            if not isinstance(device_data, dict):
+                continue
+            forecast_id = device_data.get("energy_load_forecast_provider_id")
+            history_id = device_data.get("energy_load_history_provider_id")
+            reconstructed.append(
+                LoadDevice(
+                    id=EntityId(uuid.UUID(device_data["id"])),
                     name=device_data["name"],
                     category=LoadDeviceCategory(device_data["category"]),
+                    enabled=bool(device_data.get("enabled", True)),
+                    energy_load_forecast_provider_id=(EntityId(uuid.UUID(forecast_id)) if forecast_id else None),
+                    energy_load_history_provider_id=(EntityId(uuid.UUID(history_id)) if history_id else None),
                 )
-                reconstructed_devices[EntityId(device_id_str)] = device
-        target.devices = reconstructed_devices
+            )
+        target.devices = reconstructed
+    elif target.devices is None:
+        target.devices = []
 
 
 # Map HomeLoadsProfile aggregate root to table
