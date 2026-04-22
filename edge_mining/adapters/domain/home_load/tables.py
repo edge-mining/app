@@ -32,11 +32,21 @@ from edge_mining.adapters.infrastructure.persistence.sqlalchemy.common import Co
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.registry import mapper_registry, metadata
 from edge_mining.domain.common import EntityId
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
-from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter, LoadDeviceCategory
-from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, LoadDevice
-from edge_mining.domain.home_load.exceptions import EnergyLoadForecastProviderConfigurationError
-from edge_mining.shared.adapter_maps.home_load import ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP
-from edge_mining.shared.interfaces.config import EnergyLoadForecastProviderConfig
+from edge_mining.domain.home_load.common import (
+    EnergyLoadForecastProviderAdapter,
+    EnergyLoadHistoryProviderAdapter,
+    LoadDeviceCategory,
+)
+from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, EnergyLoadHistoryProvider, LoadDevice
+from edge_mining.domain.home_load.exceptions import (
+    EnergyLoadForecastProviderConfigurationError,
+    EnergyLoadHistoryProviderConfigurationError,
+)
+from edge_mining.shared.adapter_maps.home_load import (
+    ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP,
+    ENERGY_LOAD_HISTORY_PROVIDER_CONFIG_TYPE_MAP,
+)
+from edge_mining.shared.interfaces.config import EnergyLoadForecastProviderConfig, EnergyLoadHistoryProviderConfig
 
 
 class EnergyLoadForecastProviderConfigType(ConfigurationType):
@@ -219,6 +229,100 @@ mapper_registry.map_imperatively(
         "name": home_profiles_table.c.name,
         "devices": home_profiles_table.c.devices_json,
     },
+)
+
+
+# --- EnergyLoadHistoryProvider table + mapping ---
+
+
+class EnergyLoadHistoryProviderConfigType(ConfigurationType):
+    """SQLAlchemy type for EnergyLoadHistoryProviderConfig serialization."""
+
+
+def _deserialize_energy_load_history_provider_config(
+    adapter_type: EnergyLoadHistoryProviderAdapter, config_json: str
+) -> Optional[EnergyLoadHistoryProviderConfig]:
+    """Deserialize JSON string to EnergyLoadHistoryProviderConfig based on adapter type."""
+    if not config_json:
+        return None
+
+    data: dict = json.loads(config_json)
+
+    if adapter_type not in ENERGY_LOAD_HISTORY_PROVIDER_CONFIG_TYPE_MAP:
+        raise EnergyLoadHistoryProviderConfigurationError(
+            f"Error reading EnergyLoadHistoryProvider configuration. Invalid type '{adapter_type}'"
+        )
+
+    config_class: Optional[type[EnergyLoadHistoryProviderConfig]] = ENERGY_LOAD_HISTORY_PROVIDER_CONFIG_TYPE_MAP.get(
+        adapter_type
+    )
+    if not config_class:
+        # Some adapters (e.g. DUMMY) have no config
+        return None
+
+    config_instance = config_class.from_dict(data)
+    if not isinstance(config_instance, EnergyLoadHistoryProviderConfig):
+        raise EnergyLoadHistoryProviderConfigurationError(
+            f"Deserialized config is not of type EnergyLoadHistoryProviderConfig for adapter type {adapter_type}."
+        )
+    return config_instance
+
+
+@event.listens_for(EnergyLoadHistoryProvider, "load")
+def _receive_energy_load_history_provider_load(target: EnergyLoadHistoryProvider, context) -> None:
+    """Event listener that deserializes config after loading from database."""
+    if hasattr(target, "id") and target.id is not None:
+        if isinstance(target.id, str):  # type: ignore[arg-type,misc]
+            target.id = EntityId(uuid.UUID(target.id))  # type: ignore[assignment]
+
+    if hasattr(target, "external_service_id") and target.external_service_id is not None:
+        if isinstance(target.external_service_id, str):  # type: ignore
+            target.external_service_id = EntityId(uuid.UUID(target.external_service_id))  # type: ignore
+
+    if isinstance(target.adapter_type, str):
+        try:
+            target.adapter_type = EnergyLoadHistoryProviderAdapter(target.adapter_type)
+        except ValueError:
+            pass
+
+    if target.config and isinstance(target.config, str):
+        target.config = _deserialize_energy_load_history_provider_config(target.adapter_type, target.config)
+
+
+@event.listens_for(EnergyLoadHistoryProvider, "before_insert")
+@event.listens_for(EnergyLoadHistoryProvider, "before_update")
+def _flatten_energy_load_history_provider_composites(mapper, connection, target: Any) -> None:
+    """Convert enum attributes to primitive values before persisting."""
+    if hasattr(target, "adapter_type") and target.adapter_type is not None:
+        if isinstance(target.adapter_type, EnergyLoadHistoryProviderAdapter):
+            target.adapter_type = target.adapter_type.value
+
+
+@event.listens_for(EnergyLoadHistoryProvider, "after_insert")
+@event.listens_for(EnergyLoadHistoryProvider, "after_update")
+def _restore_energy_load_history_provider_composites(mapper, connection, target: Any) -> None:
+    """Restore enum attributes after persist operations."""
+    if hasattr(target, "adapter_type") and target.adapter_type is not None:
+        if isinstance(target.adapter_type, str):
+            try:
+                target.adapter_type = EnergyLoadHistoryProviderAdapter(target.adapter_type)
+            except ValueError:
+                pass
+
+
+energy_load_history_providers_table = Table(
+    "energy_load_history_providers",
+    metadata,
+    Column("id", String, primary_key=True, index=True),
+    Column("name", String, nullable=False),
+    Column("adapter_type", String, nullable=False),
+    Column("config", EnergyLoadHistoryProviderConfigType, nullable=True),
+    Column("external_service_id", String, ForeignKey("external_services.id"), nullable=True),
+)
+
+mapper_registry.map_imperatively(
+    EnergyLoadHistoryProvider,
+    energy_load_history_providers_table,
 )
 
 
