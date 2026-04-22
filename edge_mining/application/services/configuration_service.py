@@ -25,11 +25,16 @@ from edge_mining.domain.forecast.entities import ForecastProvider
 from edge_mining.domain.forecast.exceptions import ForecastProviderConfigurationError, ForecastProviderNotFoundError
 from edge_mining.domain.forecast.ports import ForecastProviderRepository
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
-from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, LoadDevice
+from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, EnergyLoadHistoryProvider, LoadDevice
 from edge_mining.domain.home_load.exceptions import (
+    EnergyLoadHistoryProviderNotFoundError,
     HomeLoadsProfileNotFoundError,
 )
-from edge_mining.domain.home_load.ports import EnergyLoadForecastProviderRepository, HomeLoadsProfileRepository
+from edge_mining.domain.home_load.ports import (
+    EnergyLoadForecastProviderRepository,
+    EnergyLoadHistoryProviderRepository,
+    HomeLoadsProfileRepository,
+)
 from edge_mining.domain.miner.aggregate_roots import Miner
 from edge_mining.domain.miner.common import MinerControllerAdapter, MinerFeatureType
 from edge_mining.domain.miner.entities import MinerController
@@ -124,6 +129,9 @@ class ConfigurationService(ConfigurationServiceInterface):
         self.energy_load_forecast_provider_repo: EnergyLoadForecastProviderRepository = (
             persistence_settings.energy_load_forecast_provider_repo
         )
+        self.energy_load_history_provider_repo: EnergyLoadHistoryProviderRepository = (
+            persistence_settings.energy_load_history_provider_repo
+        )
         self.home_profile_repo: HomeLoadsProfileRepository = persistence_settings.home_profile_repo
         self.mining_performance_tracker_repo: MiningPerformanceTrackerRepository = (
             persistence_settings.mining_performance_tracker_repo
@@ -183,6 +191,9 @@ class ConfigurationService(ConfigurationServiceInterface):
         energy_load_forecast_providers: List[EnergyLoadForecastProvider] = (
             self.energy_load_forecast_provider_repo.get_by_external_service_id(service_id)
         )
+        energy_load_history_providers: List[EnergyLoadHistoryProvider] = (
+            self.energy_load_history_provider_repo.get_by_external_service_id(service_id)
+        )
         notifiers: List[Notifier] = self.notifier_repo.get_by_external_service_id(service_id)
 
         external_service_linked_entities = ExternalServiceLinkedEntities(
@@ -190,6 +201,7 @@ class ConfigurationService(ConfigurationServiceInterface):
             energy_monitors=energy_monitors,
             forecast_providers=forecast_providers,
             energy_load_forecast_providers=energy_load_forecast_providers,
+            energy_load_history_providers=energy_load_history_providers,
             notifiers=notifiers,
         )
         return external_service_linked_entities
@@ -234,6 +246,15 @@ class ConfigurationService(ConfigurationServiceInterface):
             )
             energy_load_forecast_provider.external_service_id = None
             self.energy_load_forecast_provider_repo.update(energy_load_forecast_provider)
+
+        # Unlink from home history providers
+        for energy_load_history_provider in external_service_linked_entities.energy_load_history_providers:
+            self.logger.debug(
+                f"Unlinking home history provider {energy_load_history_provider.name} "
+                f"({energy_load_history_provider.id}) from external service {service_id}"
+            )
+            energy_load_history_provider.external_service_id = None
+            self.energy_load_history_provider_repo.update(energy_load_history_provider)
 
         # Unlink from notifiers
         for notifier in external_service_linked_entities.notifiers:
@@ -1854,6 +1875,43 @@ class ConfigurationService(ConfigurationServiceInterface):
         removed = profile.remove_device(device_id)
         self.home_profile_repo.update(profile)
         return removed
+
+    # --- Energy Load History Provider Management ---
+    def add_energy_load_history_provider(self, provider: EnergyLoadHistoryProvider) -> EnergyLoadHistoryProvider:
+        """Add a new energy load history provider."""
+        self.energy_load_history_provider_repo.add(provider)
+        self.logger.info(f"Added energy load history provider '{provider.name}' ({provider.id}).")
+        return provider
+
+    def get_energy_load_history_provider(self, provider_id: EntityId) -> Optional[EnergyLoadHistoryProvider]:
+        """Get an energy load history provider by ID."""
+        return self.energy_load_history_provider_repo.get_by_id(provider_id)
+
+    def list_energy_load_history_providers(self) -> List[EnergyLoadHistoryProvider]:
+        """List all energy load history providers."""
+        return self.energy_load_history_provider_repo.get_all()
+
+    def update_energy_load_history_provider(self, provider: EnergyLoadHistoryProvider) -> EnergyLoadHistoryProvider:
+        """Update an existing energy load history provider."""
+        existing = self.energy_load_history_provider_repo.get_by_id(provider.id)
+        if not existing:
+            raise EnergyLoadHistoryProviderNotFoundError(
+                f"Energy Load History Provider with ID {provider.id} not found."
+            )
+        self.energy_load_history_provider_repo.update(provider)
+        self.logger.info(f"Updated energy load history provider '{provider.name}' ({provider.id}).")
+        return provider
+
+    def remove_energy_load_history_provider(self, provider_id: EntityId) -> EnergyLoadHistoryProvider:
+        """Remove an energy load history provider."""
+        provider = self.energy_load_history_provider_repo.get_by_id(provider_id)
+        if not provider:
+            raise EnergyLoadHistoryProviderNotFoundError(
+                f"Energy Load History Provider with ID {provider_id} not found."
+            )
+        self.energy_load_history_provider_repo.remove(provider_id)
+        self.logger.info(f"Removed energy load history provider '{provider.name}' ({provider.id}).")
+        return provider
 
     # --- Policy Management ---
     async def create_policy(self, name: str, description: str = "") -> OptimizationPolicy:
