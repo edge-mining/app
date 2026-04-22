@@ -24,7 +24,12 @@ from edge_mining.domain.home_load.common import (
     EnergyLoadHistoryProviderAdapter,
     LoadDeviceCategory,
 )
-from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, EnergyLoadHistoryProvider, LoadDevice
+from edge_mining.domain.home_load.entities import (
+    EnergyLoadForecastProvider,
+    EnergyLoadHistoryProvider,
+    LoadConsumptionModel,
+    LoadDevice,
+)
 from edge_mining.domain.home_load.exceptions import (
     EnergyLoadForecastProviderAlreadyExistsError,
     EnergyLoadForecastProviderConfigurationError,
@@ -40,6 +45,7 @@ from edge_mining.domain.home_load.ports import (
     EnergyLoadHistoryProviderRepository,
     EnergyLoadHistoryRepository,
     HomeLoadsProfileRepository,
+    LoadConsumptionModelRepository,
 )
 from edge_mining.domain.home_load.value_objects import HomeLoadPowerPoint
 from edge_mining.shared.adapter_maps.home_load import (
@@ -1291,3 +1297,42 @@ class SqlAlchemyEnergyLoadHistoryProviderRepository(EnergyLoadHistoryProviderRep
             return list(entities)
         finally:
             session.close()
+
+
+# --- LoadConsumptionModel Repositories ---
+
+
+class InMemoryLoadConsumptionModelRepository(LoadConsumptionModelRepository):
+    """In-memory implementation of LoadConsumptionModelRepository."""
+
+    def __init__(self) -> None:
+        self._models: Dict[str, LoadConsumptionModel] = {}
+
+    def add(self, model: LoadConsumptionModel) -> None:
+        self._models[str(model.id)] = copy.deepcopy(model)
+
+    def get_by_id(self, model_id: EntityId) -> Optional[LoadConsumptionModel]:
+        model = self._models.get(str(model_id))
+        return copy.deepcopy(model) if model else None
+
+    def get_active_model(
+        self,
+        adapter_type: EnergyLoadForecastProviderAdapter,
+        device_id: Optional[EntityId] = None,
+    ) -> Optional[LoadConsumptionModel]:
+        for model in self._models.values():
+            if model.adapter_type == adapter_type and model.is_active:
+                if device_id is None and model.device_id is None:
+                    return copy.deepcopy(model)
+                if device_id is not None and model.device_id is not None:
+                    if str(model.device_id) == str(device_id):
+                        return copy.deepcopy(model)
+        return None
+
+    def update(self, model: LoadConsumptionModel) -> None:
+        key = str(model.id)
+        if key in self._models:
+            self._models[key] = copy.deepcopy(model)
+
+    def remove(self, model_id: EntityId) -> None:
+        self._models.pop(str(model_id), None)

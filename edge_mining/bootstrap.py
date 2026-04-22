@@ -21,6 +21,7 @@ from edge_mining.adapters.domain.home_load.repositories import (
     InMemoryEnergyLoadHistoryProviderRepository,
     InMemoryEnergyLoadHistoryRepository,
     InMemoryHomeLoadsProfileRepository,
+    InMemoryLoadConsumptionModelRepository,
     SqlAlchemyEnergyLoadForecastProviderRepository,
     SqlAlchemyEnergyLoadHistoryProviderRepository,
     SqlAlchemyEnergyLoadHistoryRepository,
@@ -77,6 +78,7 @@ from edge_mining.application.interfaces import SunFactoryInterface
 from edge_mining.application.services.adapter_service import AdapterService
 from edge_mining.application.services.configuration_service import ConfigurationService
 from edge_mining.application.services.home_load_history_service import HomeLoadHistoryService
+from edge_mining.application.services.load_forecast_training_service import LoadForecastModelTrainingService
 from edge_mining.application.services.miner_action_service import MinerActionService
 from edge_mining.application.services.optimization_service import OptimizationService
 from edge_mining.domain.energy.ports import (
@@ -279,6 +281,7 @@ def configure_persistence(logger: LoggerPort, settings: AppSettings) -> Persiste
         energy_load_forecast_provider_repo=energy_load_forecast_provider_repo,
         energy_load_history_provider_repo=energy_load_history_provider_repo,
         home_load_history_repo=home_load_history_repo,
+        load_consumption_model_repo=InMemoryLoadConsumptionModelRepository(),
         notifier_repo=notifier_repo,
         optimization_unit_repo=optimization_unit_repo,
         policy_repo=policy_repo,
@@ -326,6 +329,7 @@ def configure_dependencies(logger: LoggerPort, settings: AppSettings) -> Service
         external_service_repo=persistence_settings.external_service_repo,
         event_bus=event_bus,
         logger=logger,
+        load_consumption_model_repo=persistence_settings.load_consumption_model_repo,
     )
 
     optimization_service = OptimizationService(
@@ -362,12 +366,20 @@ def configure_dependencies(logger: LoggerPort, settings: AppSettings) -> Service
         logger=logger,
     )
 
+    load_forecast_training_service = LoadForecastModelTrainingService(
+        home_loads_repo=persistence_settings.home_profile_repo,
+        history_repo=persistence_settings.home_load_history_repo,
+        model_repo=persistence_settings.load_consumption_model_repo,
+        logger=logger,
+    )
+
     services = Services(
         adapter_service=adapter_service,
         optimization_service=optimization_service,
         miner_action_service=miner_action_service,
         configuration_service=config_service,
         home_load_history_service=home_load_history_service,
+        load_forecast_training_service=load_forecast_training_service,
         event_bus=event_bus,
     )
 
