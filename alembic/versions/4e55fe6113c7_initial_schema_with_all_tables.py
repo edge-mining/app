@@ -98,12 +98,12 @@ def upgrade() -> None:
     )
     op.create_index(op.f("ix_forecast_providers_id"), "forecast_providers", ["id"], unique=False)
     op.create_table(
-        "home_forecast_providers",
+        "energy_load_forecast_providers",
         sa.Column("id", sa.String(), nullable=False),
         sa.Column("name", sa.String(), nullable=False),
         sa.Column("adapter_type", sa.String(), nullable=False),
         sa.Column(
-            "config", edge_mining.adapters.domain.home_load.tables.HomeForecastProviderConfigType(), nullable=True
+            "config", edge_mining.adapters.domain.home_load.tables.EnergyLoadForecastProviderConfigType(), nullable=True
         ),
         sa.Column("external_service_id", sa.String(), nullable=True),
         sa.ForeignKeyConstraint(
@@ -112,7 +112,9 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(op.f("ix_home_forecast_providers_id"), "home_forecast_providers", ["id"], unique=False)
+    op.create_index(
+        op.f("ix_energy_load_forecast_providers_id"), "energy_load_forecast_providers", ["id"], unique=False
+    )
     op.create_table(
         "miner_controllers",
         sa.Column("id", sa.String(), nullable=False),
@@ -206,7 +208,6 @@ def upgrade() -> None:
             "target_miner_ids", edge_mining.adapters.domain.optimization_unit.tables.EntityIdListType(), nullable=False
         ),
         sa.Column("energy_source_id", sa.String(), nullable=True),
-        sa.Column("home_forecast_provider_id", sa.String(), nullable=True),
         sa.Column("performance_tracker_id", sa.String(), nullable=True),
         sa.Column(
             "notifier_ids", edge_mining.adapters.domain.optimization_unit.tables.EntityIdListType(), nullable=False
@@ -214,10 +215,6 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(
             ["energy_source_id"],
             ["energy_sources.id"],
-        ),
-        sa.ForeignKeyConstraint(
-            ["home_forecast_provider_id"],
-            ["home_forecast_providers.id"],
         ),
         sa.ForeignKeyConstraint(
             ["performance_tracker_id"],
@@ -244,8 +241,8 @@ def downgrade() -> None:
     op.drop_table("mining_performance_trackers")
     op.drop_index(op.f("ix_miner_controllers_id"), table_name="miner_controllers")
     op.drop_table("miner_controllers")
-    op.drop_index(op.f("ix_home_forecast_providers_id"), table_name="home_forecast_providers")
-    op.drop_table("home_forecast_providers")
+    op.drop_index(op.f("ix_energy_load_forecast_providers_id"), table_name="energy_load_forecast_providers")
+    op.drop_table("energy_load_forecast_providers")
     op.drop_index(op.f("ix_forecast_providers_id"), table_name="forecast_providers")
     op.drop_table("forecast_providers")
     op.drop_index(op.f("ix_energy_monitors_id"), table_name="energy_monitors")
