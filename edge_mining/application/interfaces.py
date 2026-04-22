@@ -134,6 +134,18 @@ class OptimizationServiceInterface(ABC):
         """Get the decisional context for a specific optimization unit."""
 
 
+class HomeLoadHistoryServiceInterface(ABC):
+    """Base interface for home load history ingestion and retention."""
+
+    @abstractmethod
+    async def collect_all(self) -> None:
+        """Collect power points from all history providers for all enabled devices."""
+
+    @abstractmethod
+    async def purge_all(self, retention_days: int = 90) -> None:
+        """Purge power points older than retention_days for all devices."""
+
+
 class MinerActionServiceInterface(ABC):
     """Base interface for miner action services in the Edge Mining application."""
 
