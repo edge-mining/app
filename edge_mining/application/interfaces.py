@@ -14,7 +14,7 @@ from edge_mining.domain.forecast.entities import ForecastProvider
 from edge_mining.domain.forecast.ports import ForecastProviderPort
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
 from edge_mining.domain.home_load.entities import LoadDevice
-from edge_mining.domain.home_load.ports import EnergyLoadForecastProviderPort
+from edge_mining.domain.home_load.ports import EnergyLoadForecastProviderPort, EnergyLoadHistoryProviderPort
 from edge_mining.domain.miner.aggregate_roots import Miner
 from edge_mining.domain.miner.common import MinerControllerAdapter, MinerFeatureType
 from edge_mining.domain.miner.entities import MinerController
@@ -86,6 +86,12 @@ class AdapterServiceInterface(ABC):
         self, energy_load_forecast_provider_id: EntityId
     ) -> Optional[EnergyLoadForecastProviderPort]:
         """Get an home load forecast provider adapter instance."""
+
+    @abstractmethod
+    def get_home_load_history_provider(
+        self, energy_load_history_provider_id: EntityId, device_id: EntityId
+    ) -> Optional[EnergyLoadHistoryProviderPort]:
+        """Get an energy load history provider adapter instance."""
 
     @abstractmethod
     async def get_mining_performance_tracker(self, tracker_id: EntityId) -> Optional[MiningPerformanceTrackerPort]:
