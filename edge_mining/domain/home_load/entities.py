@@ -9,7 +9,7 @@ from edge_mining.domain.home_load.common import (
     EnergyLoadHistoryProviderAdapter,
     LoadDeviceCategory,
 )
-from edge_mining.shared.interfaces.config import EnergyLoadForecastProviderConfig
+from edge_mining.shared.interfaces.config import EnergyLoadForecastProviderConfig, EnergyLoadHistoryProviderConfig
 
 
 @dataclass
@@ -40,5 +40,5 @@ class EnergyLoadHistoryProvider(Entity):
 
     name: str = ""
     adapter_type: EnergyLoadHistoryProviderAdapter = EnergyLoadHistoryProviderAdapter.DUMMY
-    config: Optional[EnergyLoadForecastProviderConfig] = None
+    config: Optional[EnergyLoadHistoryProviderConfig] = None
     external_service_id: Optional[EntityId] = None
