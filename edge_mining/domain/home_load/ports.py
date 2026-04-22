@@ -6,7 +6,7 @@ from typing import List, Optional
 from edge_mining.domain.common import EntityId, Timestamp
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
 from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter, EnergyLoadHistoryProviderAdapter
-from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider
+from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, EnergyLoadHistoryProvider
 from edge_mining.domain.home_load.value_objects import HomeLoadEnergyInterval, HomeLoadPowerPoint, LoadEnergyConsumption
 
 
@@ -170,23 +170,23 @@ class EnergyLoadHistoryProviderRepository(ABC):
     """Port for the Energy Load History Provider Repository."""
 
     @abstractmethod
-    def add(self, energy_load_history_provider: EnergyLoadHistoryProviderPort) -> None:
+    def add(self, energy_load_history_provider: EnergyLoadHistoryProvider) -> None:
         """Adds a new energy load history provider to the repository."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_by_id(self, energy_load_history_provider_id: EntityId) -> Optional[EnergyLoadHistoryProviderPort]:
+    def get_by_id(self, energy_load_history_provider_id: EntityId) -> Optional[EnergyLoadHistoryProvider]:
         """Retrieves an energy load history provider by its ID."""
         raise NotImplementedError
 
     @abstractmethod
-    def get_all(self) -> List[EnergyLoadHistoryProviderPort]:
+    def get_all(self) -> List[EnergyLoadHistoryProvider]:
         """Retrieves all energy load history providers in the repository."""
         raise NotImplementedError
 
     @abstractmethod
-    def update(self, energy_load_history_provider: EnergyLoadHistoryProviderPort) -> None:
-        """Updates the state of an existing energy load history provider in the repository."""
+    def update(self, energy_load_history_provider: EnergyLoadHistoryProvider) -> None:
+        """Updates the state of an existing energy load history provider."""
         raise NotImplementedError
 
     @abstractmethod
@@ -195,8 +195,6 @@ class EnergyLoadHistoryProviderRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_by_external_service_id(self, external_service_id: EntityId) -> List[EnergyLoadHistoryProviderPort]:
-        """
-        Retrieves all energy load history providers associated with a specific external service ID.
-        """
+    def get_by_external_service_id(self, external_service_id: EntityId) -> List[EnergyLoadHistoryProvider]:
+        """Retrieves all energy load history providers linked to a specific external service."""
         raise NotImplementedError
