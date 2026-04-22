@@ -6,7 +6,7 @@ from typing import List
 from edge_mining.domain.common import ValueObject
 from edge_mining.domain.energy.entities import EnergyMonitor
 from edge_mining.domain.forecast.entities import ForecastProvider
-from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider
+from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, EnergyLoadHistoryProvider
 from edge_mining.domain.miner.entities import MinerController
 from edge_mining.domain.notification.entities import Notifier
 
@@ -19,4 +19,5 @@ class ExternalServiceLinkedEntities(ValueObject):
     energy_monitors: List[EnergyMonitor]
     forecast_providers: List[ForecastProvider]
     energy_load_forecast_providers: List[EnergyLoadForecastProvider]
+    energy_load_history_providers: List[EnergyLoadHistoryProvider]
     notifiers: List[Notifier]
