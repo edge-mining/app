@@ -13,6 +13,7 @@ from edge_mining.adapters.domain.home_load.tables import (
     energy_load_history_providers_table,
     home_load_power_points_table,
     home_profiles_table,
+    load_consumption_models_table,
 )
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.base import BaseSQLAlchemyRepository
 from edge_mining.adapters.infrastructure.persistence.sqlite import BaseSqliteRepository
@@ -1336,3 +1337,268 @@ class InMemoryLoadConsumptionModelRepository(LoadConsumptionModelRepository):
 
     def remove(self, model_id: EntityId) -> None:
         self._models.pop(str(model_id), None)
+
+
+class SqliteLoadConsumptionModelRepository(LoadConsumptionModelRepository):
+    """SQLite implementation of LoadConsumptionModelRepository."""
+
+    def __init__(self, db: BaseSqliteRepository):
+        self._db = db
+        self.logger = db.logger
+        self._create_tables()
+
+    def _create_tables(self) -> None:
+        self.logger.debug(f"Ensuring SQLite tables exist for LoadConsumptionModel Repository in {self._db.db_path}...")
+        sql = """
+        CREATE TABLE IF NOT EXISTS load_consumption_models (
+            id TEXT PRIMARY KEY,
+            device_id TEXT,
+            adapter_type TEXT NOT NULL,
+            trained_at TIMESTAMP,
+            mae REAL,
+            rmse REAL,
+            samples_used INTEGER NOT NULL DEFAULT 0,
+            is_active INTEGER NOT NULL DEFAULT 0,
+            model_bytes BLOB
+        );
+        """
+        idx_sql = """
+        CREATE INDEX IF NOT EXISTS ix_load_consumption_models_active
+        ON load_consumption_models (adapter_type, device_id, is_active);
+        """
+        conn = self._db.get_connection()
+        try:
+            with conn:
+                conn.execute(sql)
+                conn.execute(idx_sql)
+        except sqlite3.Error as e:
+            self.logger.error(f"Error creating SQLite tables for LoadConsumptionModel: {e}")
+            raise ConfigurationError(f"DB error creating tables: {e}") from e
+        finally:
+            if conn:
+                conn.close()
+
+    def _row_to_model(self, row: sqlite3.Row) -> Optional[LoadConsumptionModel]:
+        if not row:
+            return None
+        try:
+            return LoadConsumptionModel(
+                id=EntityId(uuid.UUID(row["id"])),
+                device_id=EntityId(uuid.UUID(row["device_id"])) if row["device_id"] else None,
+                adapter_type=EnergyLoadForecastProviderAdapter(row["adapter_type"]),
+                trained_at=row["trained_at"],
+                mae=row["mae"],
+                rmse=row["rmse"],
+                samples_used=row["samples_used"],
+                is_active=bool(row["is_active"]),
+                model_bytes=row["model_bytes"],
+            )
+        except (ValueError, KeyError) as e:
+            self.logger.error(f"Error deserializing LoadConsumptionModel from DB row: {e}")
+            return None
+
+    def add(self, model: LoadConsumptionModel) -> None:
+        sql = """
+            INSERT INTO load_consumption_models
+                (id, device_id, adapter_type, trained_at, mae, rmse, samples_used, is_active, model_bytes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+        """
+        conn = self._db.get_connection()
+        try:
+            with conn:
+                conn.execute(
+                    sql,
+                    (
+                        str(model.id),
+                        str(model.device_id) if model.device_id else None,
+                        model.adapter_type.value
+                        if isinstance(model.adapter_type, EnergyLoadForecastProviderAdapter)
+                        else model.adapter_type,
+                        model.trained_at,
+                        model.mae,
+                        model.rmse,
+                        model.samples_used,
+                        int(model.is_active),
+                        model.model_bytes,
+                    ),
+                )
+        except sqlite3.Error as e:
+            self.logger.error(f"SQLite error adding LoadConsumptionModel {model.id}: {e}")
+            raise ConfigurationError(f"DB error adding LoadConsumptionModel: {e}") from e
+        finally:
+            if conn:
+                conn.close()
+
+    def get_by_id(self, model_id: EntityId) -> Optional[LoadConsumptionModel]:
+        sql = "SELECT * FROM load_consumption_models WHERE id = ?;"
+        conn = self._db.get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(sql, (str(model_id),))
+            row = cursor.fetchone()
+            return self._row_to_model(row)
+        except sqlite3.Error as e:
+            self.logger.error(f"SQLite error retrieving LoadConsumptionModel {model_id}: {e}")
+            return None
+        finally:
+            if conn:
+                conn.close()
+
+    def get_active_model(
+        self,
+        adapter_type: EnergyLoadForecastProviderAdapter,
+        device_id: Optional[EntityId] = None,
+    ) -> Optional[LoadConsumptionModel]:
+        adapter_val = (
+            adapter_type.value if isinstance(adapter_type, EnergyLoadForecastProviderAdapter) else adapter_type
+        )
+        if device_id is not None:
+            sql = """
+                SELECT * FROM load_consumption_models
+                WHERE adapter_type = ? AND device_id = ? AND is_active = 1
+                LIMIT 1;
+            """
+            params = (adapter_val, str(device_id))
+        else:
+            sql = """
+                SELECT * FROM load_consumption_models
+                WHERE adapter_type = ? AND device_id IS NULL AND is_active = 1
+                LIMIT 1;
+            """
+            params = (adapter_val,)
+        conn = self._db.get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(sql, params)
+            row = cursor.fetchone()
+            return self._row_to_model(row)
+        except sqlite3.Error as e:
+            self.logger.error(f"SQLite error retrieving active model for {adapter_type}: {e}")
+            return None
+        finally:
+            if conn:
+                conn.close()
+
+    def update(self, model: LoadConsumptionModel) -> None:
+        sql = """
+            UPDATE load_consumption_models
+            SET device_id = ?, adapter_type = ?, trained_at = ?, mae = ?, rmse = ?,
+                samples_used = ?, is_active = ?, model_bytes = ?
+            WHERE id = ?;
+        """
+        conn = self._db.get_connection()
+        try:
+            with conn:
+                conn.execute(
+                    sql,
+                    (
+                        str(model.device_id) if model.device_id else None,
+                        model.adapter_type.value
+                        if isinstance(model.adapter_type, EnergyLoadForecastProviderAdapter)
+                        else model.adapter_type,
+                        model.trained_at,
+                        model.mae,
+                        model.rmse,
+                        model.samples_used,
+                        int(model.is_active),
+                        model.model_bytes,
+                        str(model.id),
+                    ),
+                )
+        except sqlite3.Error as e:
+            self.logger.error(f"SQLite error updating LoadConsumptionModel {model.id}: {e}")
+            raise ConfigurationError(f"DB error updating LoadConsumptionModel: {e}") from e
+        finally:
+            if conn:
+                conn.close()
+
+    def remove(self, model_id: EntityId) -> None:
+        sql = "DELETE FROM load_consumption_models WHERE id = ?;"
+        conn = self._db.get_connection()
+        try:
+            with conn:
+                conn.execute(sql, (str(model_id),))
+        except sqlite3.Error as e:
+            self.logger.error(f"SQLite error removing LoadConsumptionModel {model_id}: {e}")
+            raise ConfigurationError(f"DB error removing LoadConsumptionModel: {e}") from e
+        finally:
+            if conn:
+                conn.close()
+
+
+class SqlAlchemyLoadConsumptionModelRepository(LoadConsumptionModelRepository):
+    """SQLAlchemy implementation of LoadConsumptionModelRepository."""
+
+    def __init__(self, db: BaseSQLAlchemyRepository):
+        self._db = db
+        self.logger = db.logger
+
+    def add(self, model: LoadConsumptionModel) -> None:
+        session = self._db.get_session()
+        try:
+            session.add(model)
+            session.commit()
+        finally:
+            session.close()
+
+    def get_by_id(self, model_id: EntityId) -> Optional[LoadConsumptionModel]:
+        session = self._db.get_session()
+        try:
+            stmt = select(LoadConsumptionModel).where(load_consumption_models_table.c.id == str(model_id))
+            entity = session.execute(stmt).scalar_one_or_none()
+            return entity
+        finally:
+            session.close()
+
+    def get_active_model(
+        self,
+        adapter_type: EnergyLoadForecastProviderAdapter,
+        device_id: Optional[EntityId] = None,
+    ) -> Optional[LoadConsumptionModel]:
+        session = self._db.get_session()
+        try:
+            adapter_val = (
+                adapter_type.value if isinstance(adapter_type, EnergyLoadForecastProviderAdapter) else adapter_type
+            )
+            stmt = (
+                select(LoadConsumptionModel)
+                .where(load_consumption_models_table.c.adapter_type == adapter_val)
+                .where(load_consumption_models_table.c.is_active == True)  # noqa: E712
+            )
+            if device_id is not None:
+                stmt = stmt.where(load_consumption_models_table.c.device_id == str(device_id))
+            else:
+                stmt = stmt.where(load_consumption_models_table.c.device_id.is_(None))
+            entity = session.execute(stmt).scalar_one_or_none()
+            return entity
+        finally:
+            session.close()
+
+    def update(self, model: LoadConsumptionModel) -> None:
+        session = self._db.get_session()
+        try:
+            stmt = select(LoadConsumptionModel).where(load_consumption_models_table.c.id == str(model.id))
+            existing = session.execute(stmt).scalar_one_or_none()
+            if existing:
+                existing.device_id = model.device_id
+                existing.adapter_type = model.adapter_type
+                existing.trained_at = model.trained_at
+                existing.mae = model.mae
+                existing.rmse = model.rmse
+                existing.samples_used = model.samples_used
+                existing.is_active = model.is_active
+                existing.model_bytes = model.model_bytes
+                session.commit()
+        finally:
+            session.close()
+
+    def remove(self, model_id: EntityId) -> None:
+        session = self._db.get_session()
+        try:
+            stmt = select(LoadConsumptionModel).where(load_consumption_models_table.c.id == str(model_id))
+            entity = session.execute(stmt).scalar_one_or_none()
+            if entity:
+                session.delete(entity)
+                session.commit()
+        finally:
+            session.close()
