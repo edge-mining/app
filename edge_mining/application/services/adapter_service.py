@@ -9,6 +9,7 @@ from edge_mining.adapters.domain.energy.monitors.home_assistant_api import HomeA
 from edge_mining.adapters.domain.forecast.providers.dummy_solar import DummyForecastProviderFactory
 from edge_mining.adapters.domain.forecast.providers.home_assistant_api import HomeAssistantForecastProviderFactory
 from edge_mining.adapters.domain.home_load.forecast_providers.dummy import DummyEnergyLoadForecastProvider
+from edge_mining.adapters.domain.home_load.history_providers.dummy import DummyEnergyLoadHistoryProvider
 from edge_mining.adapters.domain.miner.controllers.dummy import DummyMinerController
 from edge_mining.adapters.domain.miner.controllers.generic_socket_home_assistant_api import (
     GenericSocketHomeAssistantAPIMinerControllerAdapterFactory,
@@ -29,9 +30,15 @@ from edge_mining.domain.energy.ports import EnergyMonitorPort, EnergyMonitorRepo
 from edge_mining.domain.forecast.common import ForecastProviderAdapter
 from edge_mining.domain.forecast.entities import ForecastProvider
 from edge_mining.domain.forecast.ports import ForecastProviderPort, ForecastProviderRepository
-from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter
-from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider
-from edge_mining.domain.home_load.ports import EnergyLoadForecastProviderPort, EnergyLoadForecastProviderRepository
+from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter, EnergyLoadHistoryProviderAdapter
+from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, EnergyLoadHistoryProvider
+from edge_mining.domain.home_load.ports import (
+    EnergyLoadForecastProviderPort,
+    EnergyLoadForecastProviderRepository,
+    EnergyLoadHistoryProviderPort,
+    EnergyLoadHistoryProviderRepository,
+    EnergyLoadHistoryRepository,
+)
 from edge_mining.domain.miner.aggregate_roots import Miner
 from edge_mining.domain.miner.common import MinerControllerAdapter, MinerFeatureType
 from edge_mining.domain.miner.entities import MinerController
@@ -71,6 +78,8 @@ class AdapterService(AdapterServiceInterface):
         forecast_provider_repo: ForecastProviderRepository,
         mining_performance_tracker_repo: MiningPerformanceTrackerRepository,
         energy_load_forecast_provider_repo: EnergyLoadForecastProviderRepository,
+        energy_load_history_provider_repo: EnergyLoadHistoryProviderRepository,
+        home_load_history_repo: EnergyLoadHistoryRepository,
         external_service_repo: ExternalServiceRepository,
         event_bus: EventBusInterface,
         logger: Optional[LoggerPort] = None,
@@ -82,6 +91,8 @@ class AdapterService(AdapterServiceInterface):
         self.forecast_provider_repo = forecast_provider_repo
         self.mining_performance_tracker_repo = mining_performance_tracker_repo
         self.energy_load_forecast_provider_repo = energy_load_forecast_provider_repo
+        self.energy_load_history_provider_repo = energy_load_history_provider_repo
+        self.home_load_history_repo = home_load_history_repo
         self.external_service_repo = external_service_repo
         # Cache for already created instances
         self._instance_cache: Dict[
@@ -93,6 +104,7 @@ class AdapterService(AdapterServiceInterface):
                     NotificationPort,
                     ForecastProviderPort,
                     EnergyLoadForecastProviderPort,
+                    EnergyLoadHistoryProviderPort,
                     MiningPerformanceTrackerPort,
                 ]
             ],
@@ -783,6 +795,53 @@ class AdapterService(AdapterServiceInterface):
                 )
             return None
         return self._initialize_energy_load_forecast_provider_adapter(energy_load_forecast_provider)
+
+    def _initialize_energy_load_history_provider_adapter(
+        self, energy_load_history_provider: EnergyLoadHistoryProvider, device_id: EntityId
+    ) -> Optional[EnergyLoadHistoryProviderPort]:
+        """Initialize an energy load history provider adapter."""
+        cache_key = energy_load_history_provider.id
+        if cache_key in self._instance_cache:
+            cached_instance = self._instance_cache[cache_key]
+            if cached_instance and isinstance(cached_instance, EnergyLoadHistoryProviderPort):
+                return cached_instance
+            return None
+
+        try:
+            instance: Optional[EnergyLoadHistoryProviderPort] = None
+
+            if energy_load_history_provider.adapter_type == EnergyLoadHistoryProviderAdapter.DUMMY:
+                instance = DummyEnergyLoadHistoryProvider(
+                    device_id=device_id,
+                    history_repo=self.home_load_history_repo,
+                    logger=self.logger,
+                )
+            else:
+                raise ValueError(
+                    f"Unsupported energy load history provider adapter type: "
+                    f"{energy_load_history_provider.adapter_type}"
+                )
+
+            self._instance_cache[cache_key] = instance
+            return instance
+        except Exception as e:
+            if self.logger:
+                self.logger.error(
+                    f"Failed to initialize adapter '{energy_load_history_provider.name}' "
+                    f"(Type: {energy_load_history_provider.adapter_type}): {e}"
+                )
+            return None
+
+    def get_home_load_history_provider(
+        self, energy_load_history_provider_id: EntityId, device_id: EntityId
+    ) -> Optional[EnergyLoadHistoryProviderPort]:
+        """Get an energy load history provider adapter instance."""
+        energy_load_history_provider = self.energy_load_history_provider_repo.get_by_id(energy_load_history_provider_id)
+        if not energy_load_history_provider:
+            if self.logger:
+                self.logger.error(f"Home History Provider ID {energy_load_history_provider_id} not found.")
+            return None
+        return self._initialize_energy_load_history_provider_adapter(energy_load_history_provider, device_id)
 
     async def get_mining_performance_tracker(self, tracker_id: EntityId) -> Optional[MiningPerformanceTrackerPort]:
         """Get a mining performance tracker adapter instance."""
