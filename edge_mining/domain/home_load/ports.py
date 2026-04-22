@@ -6,7 +6,11 @@ from typing import List, Optional
 from edge_mining.domain.common import EntityId, Timestamp
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
 from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter, EnergyLoadHistoryProviderAdapter
-from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, EnergyLoadHistoryProvider
+from edge_mining.domain.home_load.entities import (
+    EnergyLoadForecastProvider,
+    EnergyLoadHistoryProvider,
+    LoadConsumptionModel,
+)
 from edge_mining.domain.home_load.value_objects import HomeLoadEnergyInterval, HomeLoadPowerPoint, LoadEnergyConsumption
 
 
@@ -197,4 +201,37 @@ class EnergyLoadHistoryProviderRepository(ABC):
     @abstractmethod
     def get_by_external_service_id(self, external_service_id: EntityId) -> List[EnergyLoadHistoryProvider]:
         """Retrieves all energy load history providers linked to a specific external service."""
+        raise NotImplementedError
+
+
+class LoadConsumptionModelRepository(ABC):
+    """Port for persistence of trained LoadConsumptionModel instances."""
+
+    @abstractmethod
+    def add(self, model: LoadConsumptionModel) -> None:
+        """Persist a newly trained model."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_by_id(self, model_id: EntityId) -> Optional[LoadConsumptionModel]:
+        """Retrieve a model by ID."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_active_model(
+        self,
+        adapter_type: EnergyLoadForecastProviderAdapter,
+        device_id: Optional[EntityId] = None,
+    ) -> Optional[LoadConsumptionModel]:
+        """Retrieve the currently active (promoted) model for a given adapter type and device."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def update(self, model: LoadConsumptionModel) -> None:
+        """Update an existing model (e.g. promote to active)."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def remove(self, model_id: EntityId) -> None:
+        """Remove a model."""
         raise NotImplementedError
