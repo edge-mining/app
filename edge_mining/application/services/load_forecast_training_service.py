@@ -2,8 +2,9 @@
 
 import pickle
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import List, Optional
 
+from edge_mining.application.interfaces import LoadForecastTrainingServiceInterface
 from edge_mining.domain.common import EntityId, Timestamp
 from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter
 from edge_mining.domain.home_load.entities import LoadConsumptionModel
@@ -23,7 +24,7 @@ from edge_mining.adapters.domain.home_load.forecast_providers.features import (
 from edge_mining.adapters.domain.home_load.history_providers.helpers import group_power_points_into_intervals
 
 
-class LoadForecastModelTrainingService:
+class LoadForecastModelTrainingService(LoadForecastTrainingServiceInterface):
     """Trains ML models (Statsmodels, XGBoost) on historical home load data.
 
     Designed to be run nightly via the scheduler.  For each enabled device
@@ -60,6 +61,29 @@ class LoadForecastModelTrainingService:
                 except Exception as exc:
                     if self._logger:
                         self._logger.error(f"Training failed for device '{device.name}': {exc}")
+
+    async def train_device(self, device_id: EntityId, weeks_lookback: int = 8) -> None:
+        """Train models for a single device identified by device_id."""
+        profiles = self._home_loads_repo.get_all()
+        device_name: Optional[str] = None
+        for profile in profiles:
+            for device in profile.devices:
+                if device.id == device_id:
+                    device_name = device.name
+                    break
+            if device_name is not None:
+                break
+
+        if device_name is None:
+            if self._logger:
+                self._logger.warning(f"Device {device_id} not found in any profile. Skipping training.")
+            return
+
+        await self._train_for_device(device_id, device_name, weeks_lookback)
+
+    def get_models(self, device_id: Optional[EntityId] = None) -> List[LoadConsumptionModel]:
+        """Retrieve trained models, optionally filtered by device."""
+        return self._model_repo.get_all(device_id)
 
     async def _train_for_device(
         self,

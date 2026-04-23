@@ -12,9 +12,16 @@ from edge_mining.domain.energy.value_objects import Battery, Grid
 from edge_mining.domain.forecast.common import ForecastProviderAdapter
 from edge_mining.domain.forecast.entities import ForecastProvider
 from edge_mining.domain.forecast.ports import ForecastProviderPort
+from edge_mining.domain.common import Timestamp
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
-from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, EnergyLoadHistoryProvider, LoadDevice
+from edge_mining.domain.home_load.entities import (
+    EnergyLoadForecastProvider,
+    EnergyLoadHistoryProvider,
+    LoadConsumptionModel,
+    LoadDevice,
+)
 from edge_mining.domain.home_load.ports import EnergyLoadForecastProviderPort, EnergyLoadHistoryProviderPort
+from edge_mining.domain.home_load.value_objects import HomeLoadPowerPoint
 from edge_mining.domain.miner.aggregate_roots import Miner
 from edge_mining.domain.miner.common import MinerControllerAdapter, MinerFeatureType
 from edge_mining.domain.miner.entities import MinerController
@@ -144,6 +151,26 @@ class HomeLoadHistoryServiceInterface(ABC):
     @abstractmethod
     async def purge_all(self, retention_days: int = 90) -> None:
         """Purge power points older than retention_days for all devices."""
+
+    @abstractmethod
+    def get_device_history(self, device_id: EntityId, start: Timestamp, end: Timestamp) -> List[HomeLoadPowerPoint]:
+        """Retrieve stored power points for a device in a time window."""
+
+
+class LoadForecastTrainingServiceInterface(ABC):
+    """Base interface for ML model training and model listing."""
+
+    @abstractmethod
+    async def train_all(self, weeks_lookback: int = 8) -> None:
+        """Train models for every device that has sufficient history."""
+
+    @abstractmethod
+    async def train_device(self, device_id: EntityId, weeks_lookback: int = 8) -> None:
+        """Train models for a single device."""
+
+    @abstractmethod
+    def get_models(self, device_id: Optional[EntityId] = None) -> List[LoadConsumptionModel]:
+        """Retrieve trained models, optionally filtered by device."""
 
 
 class MinerActionServiceInterface(ABC):

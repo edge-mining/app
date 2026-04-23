@@ -1,7 +1,7 @@
 """Service for collecting and purging home load consumption history."""
 
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import List, Optional
 
 from edge_mining.application.interfaces import (
     AdapterServiceInterface,
@@ -17,6 +17,7 @@ from edge_mining.domain.home_load.ports import (
     EnergyLoadHistoryRepository,
     HomeLoadsProfileRepository,
 )
+from edge_mining.domain.home_load.value_objects import HomeLoadPowerPoint
 from edge_mining.shared.logging.port import LoggerPort
 
 
@@ -142,3 +143,7 @@ class HomeLoadHistoryService(HomeLoadHistoryServiceInterface):
                                 points_purged=purged,
                             )
                         )
+
+    def get_device_history(self, device_id: EntityId, start: Timestamp, end: Timestamp) -> List[HomeLoadPowerPoint]:
+        """Retrieve stored power points for a device in a time window."""
+        return self.home_load_history_repo.get_power_points(device_id, start, end)
