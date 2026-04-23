@@ -13,7 +13,7 @@ from edge_mining.domain.forecast.common import ForecastProviderAdapter
 from edge_mining.domain.forecast.entities import ForecastProvider
 from edge_mining.domain.forecast.ports import ForecastProviderPort
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
-from edge_mining.domain.home_load.entities import LoadDevice
+from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, EnergyLoadHistoryProvider, LoadDevice
 from edge_mining.domain.home_load.ports import EnergyLoadForecastProviderPort, EnergyLoadHistoryProviderPort
 from edge_mining.domain.miner.aggregate_roots import Miner
 from edge_mining.domain.miner.common import MinerControllerAdapter, MinerFeatureType
@@ -818,6 +818,48 @@ class ConfigurationServiceInterface(ABC):
         device_id: EntityId,
     ) -> LoadDevice:
         """Remove a load device from a home loads profile. Raises on missing profile or device."""
+
+    # --- Energy Load Forecast Provider Management ---
+    @abstractmethod
+    def add_energy_load_forecast_provider(self, provider: EnergyLoadForecastProvider) -> EnergyLoadForecastProvider:
+        """Add a new energy load forecast provider."""
+
+    @abstractmethod
+    def get_energy_load_forecast_provider(self, provider_id: EntityId) -> Optional[EnergyLoadForecastProvider]:
+        """Get an energy load forecast provider by ID."""
+
+    @abstractmethod
+    def list_energy_load_forecast_providers(self) -> List[EnergyLoadForecastProvider]:
+        """List all energy load forecast providers."""
+
+    @abstractmethod
+    def update_energy_load_forecast_provider(self, provider: EnergyLoadForecastProvider) -> EnergyLoadForecastProvider:
+        """Update an existing energy load forecast provider."""
+
+    @abstractmethod
+    def remove_energy_load_forecast_provider(self, provider_id: EntityId) -> EnergyLoadForecastProvider:
+        """Remove an energy load forecast provider."""
+
+    # --- Energy Load History Provider Management ---
+    @abstractmethod
+    def add_energy_load_history_provider(self, provider: EnergyLoadHistoryProvider) -> EnergyLoadHistoryProvider:
+        """Add a new energy load history provider."""
+
+    @abstractmethod
+    def get_energy_load_history_provider(self, provider_id: EntityId) -> Optional[EnergyLoadHistoryProvider]:
+        """Get an energy load history provider by ID."""
+
+    @abstractmethod
+    def list_energy_load_history_providers(self) -> List[EnergyLoadHistoryProvider]:
+        """List all energy load history providers."""
+
+    @abstractmethod
+    def update_energy_load_history_provider(self, provider: EnergyLoadHistoryProvider) -> EnergyLoadHistoryProvider:
+        """Update an existing energy load history provider."""
+
+    @abstractmethod
+    def remove_energy_load_history_provider(self, provider_id: EntityId) -> EnergyLoadHistoryProvider:
+        """Remove an energy load history provider."""
 
     @abstractmethod
     def get_forecast_provider_config_by_type(

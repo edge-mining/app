@@ -27,6 +27,7 @@ from edge_mining.domain.forecast.ports import ForecastProviderRepository
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
 from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, EnergyLoadHistoryProvider, LoadDevice
 from edge_mining.domain.home_load.exceptions import (
+    EnergyLoadForecastProviderNotFoundError,
     EnergyLoadHistoryProviderNotFoundError,
     HomeLoadsProfileNotFoundError,
 )
@@ -1875,6 +1876,43 @@ class ConfigurationService(ConfigurationServiceInterface):
         removed = profile.remove_device(device_id)
         self.home_profile_repo.update(profile)
         return removed
+
+    # --- Energy Load Forecast Provider Management ---
+    def add_energy_load_forecast_provider(self, provider: EnergyLoadForecastProvider) -> EnergyLoadForecastProvider:
+        """Add a new energy load forecast provider."""
+        self.energy_load_forecast_provider_repo.add(provider)
+        self.logger.info(f"Added energy load forecast provider '{provider.name}' ({provider.id}).")
+        return provider
+
+    def get_energy_load_forecast_provider(self, provider_id: EntityId) -> Optional[EnergyLoadForecastProvider]:
+        """Get an energy load forecast provider by ID."""
+        return self.energy_load_forecast_provider_repo.get_by_id(provider_id)
+
+    def list_energy_load_forecast_providers(self) -> List[EnergyLoadForecastProvider]:
+        """List all energy load forecast providers."""
+        return self.energy_load_forecast_provider_repo.get_all()
+
+    def update_energy_load_forecast_provider(self, provider: EnergyLoadForecastProvider) -> EnergyLoadForecastProvider:
+        """Update an existing energy load forecast provider."""
+        existing = self.energy_load_forecast_provider_repo.get_by_id(provider.id)
+        if not existing:
+            raise EnergyLoadForecastProviderNotFoundError(
+                f"Energy Load Forecast Provider with ID {provider.id} not found."
+            )
+        self.energy_load_forecast_provider_repo.update(provider)
+        self.logger.info(f"Updated energy load forecast provider '{provider.name}' ({provider.id}).")
+        return provider
+
+    def remove_energy_load_forecast_provider(self, provider_id: EntityId) -> EnergyLoadForecastProvider:
+        """Remove an energy load forecast provider."""
+        provider = self.energy_load_forecast_provider_repo.get_by_id(provider_id)
+        if not provider:
+            raise EnergyLoadForecastProviderNotFoundError(
+                f"Energy Load Forecast Provider with ID {provider_id} not found."
+            )
+        self.energy_load_forecast_provider_repo.remove(provider_id)
+        self.logger.info(f"Removed energy load forecast provider '{provider.name}' ({provider.id}).")
+        return provider
 
     # --- Energy Load History Provider Management ---
     def add_energy_load_history_provider(self, provider: EnergyLoadHistoryProvider) -> EnergyLoadHistoryProvider:
