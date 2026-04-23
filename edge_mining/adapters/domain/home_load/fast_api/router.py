@@ -1,9 +1,10 @@
 """API Router for home load domain."""
 
 import uuid
+from datetime import datetime
 from typing import Annotated, Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from edge_mining.adapters.domain.home_load.schemas import (
     ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_SCHEMA_MAP,
@@ -14,16 +15,26 @@ from edge_mining.adapters.domain.home_load.schemas import (
     EnergyLoadHistoryProviderCreateSchema,
     EnergyLoadHistoryProviderSchema,
     EnergyLoadHistoryProviderUpdateSchema,
+    HomeLoadPowerPointSchema,
     HomeLoadsProfileSchema,
+    LoadConsumptionModelSchema,
     LoadDeviceCreateSchema,
     LoadDeviceSchema,
     LoadDeviceUpdateSchema,
 )
 
 # Import dependency injection setup functions
-from edge_mining.adapters.infrastructure.api.setup import get_config_service
-from edge_mining.application.interfaces import ConfigurationServiceInterface
-from edge_mining.domain.common import EntityId
+from edge_mining.adapters.infrastructure.api.setup import (
+    get_config_service,
+    get_home_load_history_service,
+    get_load_forecast_training_service,
+)
+from edge_mining.application.interfaces import (
+    ConfigurationServiceInterface,
+    HomeLoadHistoryServiceInterface,
+    LoadForecastTrainingServiceInterface,
+)
+from edge_mining.domain.common import EntityId, Timestamp
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
 from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter, EnergyLoadHistoryProviderAdapter
 from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, EnergyLoadHistoryProvider, LoadDevice
@@ -601,5 +612,118 @@ async def delete_energy_load_history_provider(
         return EnergyLoadHistoryProviderSchema.from_model(removed)
     except EnergyLoadHistoryProviderNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# --- Device History Data endpoints ---
+
+
+@router.get(
+    "/home-loads-profiles/{profile_id}/devices/{device_id}/history",
+    response_model=List[HomeLoadPowerPointSchema],
+)
+async def get_device_history(
+    profile_id: EntityId,
+    device_id: EntityId,
+    start: datetime = Query(..., description="Start of the time window (ISO 8601)"),
+    end: datetime = Query(..., description="End of the time window (ISO 8601)"),
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)] = None,
+    history_service: Annotated[HomeLoadHistoryServiceInterface, Depends(get_home_load_history_service)] = None,
+) -> List[HomeLoadPowerPointSchema]:
+    """Get historical power points for a specific device within a time window."""
+    try:
+        # Validate that profile and device exist
+        profile = config_service.get_home_loads_profile(profile_id)
+        if profile is None:
+            raise HomeLoadsProfileNotFoundError(f"Home Loads Profile with ID {profile_id} not found")
+
+        device = next((d for d in profile.devices if d.id == device_id), None)
+        if device is None:
+            raise HomeLoadsProfileDeviceNotFoundError(
+                f"Load Device with ID {device_id} not found in Home Loads Profile {profile_id}"
+            )
+
+        points = history_service.get_device_history(device_id, Timestamp(start), Timestamp(end))
+        return [HomeLoadPowerPointSchema.from_model(p) for p in points]
+    except HomeLoadsProfileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except HomeLoadsProfileDeviceNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# --- Training endpoints ---
+
+
+@router.post("/training/trigger", response_model=Dict[str, str])
+async def trigger_training_all(
+    weeks_lookback: int = Query(default=8, ge=1, le=52, description="Weeks of history to use"),
+    training_service: Annotated[
+        LoadForecastTrainingServiceInterface, Depends(get_load_forecast_training_service)
+    ] = None,
+) -> Dict[str, str]:
+    """Trigger ML model training for all enabled devices."""
+    try:
+        await training_service.train_all(weeks_lookback=weeks_lookback)
+        return {"status": "completed", "detail": "Training completed for all eligible devices."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post(
+    "/home-loads-profiles/{profile_id}/devices/{device_id}/training/trigger",
+    response_model=Dict[str, str],
+)
+async def trigger_training_device(
+    profile_id: EntityId,
+    device_id: EntityId,
+    weeks_lookback: int = Query(default=8, ge=1, le=52, description="Weeks of history to use"),
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)] = None,
+    training_service: Annotated[
+        LoadForecastTrainingServiceInterface, Depends(get_load_forecast_training_service)
+    ] = None,
+) -> Dict[str, str]:
+    """Trigger ML model training for a specific device."""
+    try:
+        # Validate that profile and device exist
+        profile = config_service.get_home_loads_profile(profile_id)
+        if profile is None:
+            raise HomeLoadsProfileNotFoundError(f"Home Loads Profile with ID {profile_id} not found")
+
+        device = next((d for d in profile.devices if d.id == device_id), None)
+        if device is None:
+            raise HomeLoadsProfileDeviceNotFoundError(
+                f"Load Device with ID {device_id} not found in Home Loads Profile {profile_id}"
+            )
+
+        await training_service.train_device(device_id, weeks_lookback=weeks_lookback)
+        return {"status": "completed", "detail": f"Training completed for device '{device.name}'."}
+    except HomeLoadsProfileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except HomeLoadsProfileDeviceNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# --- Training Models endpoints ---
+
+
+@router.get("/training/models", response_model=List[LoadConsumptionModelSchema])
+async def get_training_models(
+    device_id: Optional[str] = Query(default=None, description="Filter by device UUID"),
+    training_service: Annotated[
+        LoadForecastTrainingServiceInterface, Depends(get_load_forecast_training_service)
+    ] = None,
+) -> List[LoadConsumptionModelSchema]:
+    """List trained ML models, optionally filtered by device."""
+    try:
+        filter_device_id = EntityId(uuid.UUID(device_id)) if device_id else None
+        models = training_service.get_models(device_id=filter_device_id)
+        return [LoadConsumptionModelSchema.from_model(m) for m in models]
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid device_id: {e}") from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
