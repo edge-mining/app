@@ -312,8 +312,8 @@ async def get_energy_load_forecast_providers_list(
 ) -> List[EnergyLoadForecastProviderSchema]:
     """Get a list of all energy load forecast providers."""
     try:
-        # This would need to be implemented in the configuration service
-        return []
+        providers = config_service.list_energy_load_forecast_providers()
+        return [EnergyLoadForecastProviderSchema.from_model(p) for p in providers]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -325,7 +325,6 @@ async def add_energy_load_forecast_provider(
 ) -> EnergyLoadForecastProviderSchema:
     """Add a new energy load forecast provider."""
     try:
-        # Convert to domain model
         provider_to_add: EnergyLoadForecastProvider = provider_data.to_model()
 
         if provider_to_add.config is None:
@@ -333,9 +332,8 @@ async def add_energy_load_forecast_provider(
                 "Energy Load Forecast provider configuration should be set"
             )
 
-        # TODO: Add the provider (this would need to be implemented in the configuration service)
-
-        return EnergyLoadForecastProviderSchema.from_model(provider_to_add)
+        added = config_service.add_energy_load_forecast_provider(provider_to_add)
+        return EnergyLoadForecastProviderSchema.from_model(added)
 
     except EnergyLoadForecastProviderAlreadyExistsError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -401,8 +399,12 @@ async def get_energy_load_forecast_provider(
 ) -> EnergyLoadForecastProviderSchema:
     """Get details of a specific energy load forecast provider."""
     try:
-        # This would need to be implemented in the configuration service
-        raise HTTPException(status_code=501, detail="Not implemented yet")
+        provider = config_service.get_energy_load_forecast_provider(provider_id)
+        if provider is None:
+            raise EnergyLoadForecastProviderNotFoundError(
+                f"Energy Load Forecast Provider with ID {provider_id} not found"
+            )
+        return EnergyLoadForecastProviderSchema.from_model(provider)
     except EnergyLoadForecastProviderNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except ValueError as e:
@@ -419,8 +421,20 @@ async def update_energy_load_forecast_provider(
 ) -> EnergyLoadForecastProviderSchema:
     """Update an existing energy load forecast provider."""
     try:
-        # This would need to be implemented in the configuration service
-        raise HTTPException(status_code=501, detail="Not implemented yet")
+        existing = config_service.get_energy_load_forecast_provider(provider_id)
+        if existing is None:
+            raise EnergyLoadForecastProviderNotFoundError(
+                f"Energy Load Forecast Provider with ID {provider_id} not found"
+            )
+        existing.name = provider_update.name or existing.name
+        if provider_update.config is not None and existing.adapter_type:
+            config_type = ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP.get(existing.adapter_type)
+            if config_type:
+                existing.config = config_type.from_dict(provider_update.config)
+        if provider_update.external_service_id is not None:
+            existing.external_service_id = EntityId(uuid.UUID(provider_update.external_service_id))
+        updated = config_service.update_energy_load_forecast_provider(existing)
+        return EnergyLoadForecastProviderSchema.from_model(updated)
     except EnergyLoadForecastProviderNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
@@ -434,8 +448,8 @@ async def delete_energy_load_forecast_provider(
 ) -> EnergyLoadForecastProviderSchema:
     """Remove an energy load forecast provider."""
     try:
-        # This would need to be implemented in the configuration service
-        raise HTTPException(status_code=501, detail="Not implemented yet")
+        removed = config_service.remove_energy_load_forecast_provider(provider_id)
+        return EnergyLoadForecastProviderSchema.from_model(removed)
     except EnergyLoadForecastProviderNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
