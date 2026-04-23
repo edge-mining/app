@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import datetime
-from typing import Annotated, Any, Dict, List, Optional
+from typing import Annotated, Any, Dict, List, Optional, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -36,7 +36,11 @@ from edge_mining.application.interfaces import (
 )
 from edge_mining.domain.common import EntityId, Timestamp
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
-from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter, EnergyLoadHistoryProviderAdapter
+from edge_mining.domain.home_load.common import (
+    EnergyLoadForecastProviderAdapter,
+    EnergyLoadHistoryProviderAdapter,
+    LoadDeviceCategory,
+)
 from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, EnergyLoadHistoryProvider, LoadDevice
 from edge_mining.domain.home_load.exceptions import (
     EnergyLoadForecastProviderAlreadyExistsError,
@@ -270,10 +274,15 @@ async def update_load_device(
             if device_update.energy_load_history_provider_id
             else device.energy_load_history_provider_id
         )
+        category = (
+            LoadDeviceCategory(device_update.category)
+            if isinstance(device_update.category, str)
+            else device_update.category
+        )
         new_device = LoadDevice(
             id=device.id,
             name=device_update.name or device.name,
-            category=device_update.category,
+            category=category,
             enabled=device_update.enabled,
             energy_load_forecast_provider_id=forecast_provider_id,
             energy_load_history_provider_id=history_provider_id,
@@ -449,7 +458,7 @@ async def update_energy_load_forecast_provider(
         if provider_update.config is not None and existing.adapter_type:
             config_type = ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP.get(existing.adapter_type)
             if config_type:
-                existing.config = config_type.from_dict(provider_update.config)
+                existing.config = cast(EnergyLoadForecastProviderConfig, config_type.from_dict(provider_update.config))
         if provider_update.external_service_id is not None:
             existing.external_service_id = EntityId(uuid.UUID(provider_update.external_service_id))
         updated = config_service.update_energy_load_forecast_provider(existing)
@@ -590,7 +599,7 @@ async def update_energy_load_history_provider(
         if provider_update.config is not None and existing.adapter_type:
             config_type = ENERGY_LOAD_HISTORY_PROVIDER_CONFIG_TYPE_MAP.get(existing.adapter_type)
             if config_type:
-                existing.config = config_type.from_dict(provider_update.config)
+                existing.config = cast(EnergyLoadHistoryProviderConfig, config_type.from_dict(provider_update.config))
         if provider_update.external_service_id is not None:
             existing.external_service_id = EntityId(uuid.UUID(provider_update.external_service_id))
         updated = config_service.update_energy_load_history_provider(existing)
@@ -626,10 +635,10 @@ async def delete_energy_load_history_provider(
 async def get_device_history(
     profile_id: EntityId,
     device_id: EntityId,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+    history_service: Annotated[HomeLoadHistoryServiceInterface, Depends(get_home_load_history_service)],
     start: datetime = Query(..., description="Start of the time window (ISO 8601)"),
     end: datetime = Query(..., description="End of the time window (ISO 8601)"),
-    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)] = None,
-    history_service: Annotated[HomeLoadHistoryServiceInterface, Depends(get_home_load_history_service)] = None,
 ) -> List[HomeLoadPowerPointSchema]:
     """Get historical power points for a specific device within a time window."""
     try:
@@ -659,10 +668,8 @@ async def get_device_history(
 
 @router.post("/training/trigger", response_model=Dict[str, str])
 async def trigger_training_all(
+    training_service: Annotated[LoadForecastTrainingServiceInterface, Depends(get_load_forecast_training_service)],
     weeks_lookback: int = Query(default=8, ge=1, le=52, description="Weeks of history to use"),
-    training_service: Annotated[
-        LoadForecastTrainingServiceInterface, Depends(get_load_forecast_training_service)
-    ] = None,
 ) -> Dict[str, str]:
     """Trigger ML model training for all enabled devices."""
     try:
@@ -679,11 +686,9 @@ async def trigger_training_all(
 async def trigger_training_device(
     profile_id: EntityId,
     device_id: EntityId,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+    training_service: Annotated[LoadForecastTrainingServiceInterface, Depends(get_load_forecast_training_service)],
     weeks_lookback: int = Query(default=8, ge=1, le=52, description="Weeks of history to use"),
-    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)] = None,
-    training_service: Annotated[
-        LoadForecastTrainingServiceInterface, Depends(get_load_forecast_training_service)
-    ] = None,
 ) -> Dict[str, str]:
     """Trigger ML model training for a specific device."""
     try:
@@ -713,10 +718,8 @@ async def trigger_training_device(
 
 @router.get("/training/models", response_model=List[LoadConsumptionModelSchema])
 async def get_training_models(
+    training_service: Annotated[LoadForecastTrainingServiceInterface, Depends(get_load_forecast_training_service)],
     device_id: Optional[str] = Query(default=None, description="Filter by device UUID"),
-    training_service: Annotated[
-        LoadForecastTrainingServiceInterface, Depends(get_load_forecast_training_service)
-    ] = None,
 ) -> List[LoadConsumptionModelSchema]:
     """List trained ML models, optionally filtered by device."""
     try:

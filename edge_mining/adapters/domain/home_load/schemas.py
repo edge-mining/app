@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Union, cast
 
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
-from edge_mining.domain.common import EntityId, Timestamp, Watts
+from edge_mining.domain.common import EntityId, Timestamp, WattHours
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
 from edge_mining.domain.home_load.common import (
     EnergyLoadForecastProviderAdapter,
@@ -21,6 +21,7 @@ from edge_mining.domain.home_load.entities import (
 )
 from edge_mining.domain.home_load.value_objects import (
     HomeLoadEnergyInterval,
+    HomeLoadPowerPoint,
     HomeLoadsConsumption,
     LoadDeviceConsumption,
     LoadEnergyConsumption,
@@ -83,7 +84,7 @@ class LoadEnergyConsumptionSchema(BaseModel):
                 HomeLoadEnergyInterval(
                     start=Timestamp(interval_schema.start),
                     end=Timestamp(interval_schema.end),
-                    energy=None if interval_schema.energy is None else Watts(interval_schema.energy),
+                    energy=None if interval_schema.energy is None else WattHours(interval_schema.energy),
                 )
             )
 
@@ -245,7 +246,7 @@ class LoadDeviceSchema(BaseModel):
         return LoadDevice(
             id=EntityId(uuid.UUID(self.id)),
             name=self.name,
-            category=self.category,
+            category=LoadDeviceCategory(self.category) if isinstance(self.category, str) else self.category,
             enabled=self.enabled,
             energy_load_forecast_provider_id=forecast_provider_id,
             energy_load_history_provider_id=history_provider_id,
@@ -307,7 +308,7 @@ class LoadDeviceCreateSchema(BaseModel):
         return LoadDevice(
             id=EntityId(uuid.uuid4()),
             name=self.name,
-            category=self.category,
+            category=LoadDeviceCategory(self.category) if isinstance(self.category, str) else self.category,
             enabled=self.enabled,
             energy_load_forecast_provider_id=forecast_provider_id,
             energy_load_history_provider_id=history_provider_id,
@@ -1038,7 +1039,7 @@ class HomeLoadPowerPointSchema(BaseModel):
     power: float = Field(..., description="Power in watts")
 
     @classmethod
-    def from_model(cls, point: "HomeLoadPowerPoint") -> "HomeLoadPowerPointSchema":
+    def from_model(cls, point: HomeLoadPowerPoint) -> "HomeLoadPowerPointSchema":
         return cls(
             timestamp=cast(datetime, point.timestamp),
             power=float(point.power),
