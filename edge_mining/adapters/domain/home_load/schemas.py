@@ -13,7 +13,12 @@ from edge_mining.domain.home_load.common import (
     EnergyLoadHistoryProviderAdapter,
     LoadDeviceCategory,
 )
-from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, EnergyLoadHistoryProvider, LoadDevice
+from edge_mining.domain.home_load.entities import (
+    EnergyLoadForecastProvider,
+    EnergyLoadHistoryProvider,
+    LoadConsumptionModel,
+    LoadDevice,
+)
 from edge_mining.domain.home_load.value_objects import (
     HomeLoadEnergyInterval,
     HomeLoadsConsumption,
@@ -1024,3 +1029,48 @@ ENERGY_LOAD_HISTORY_PROVIDER_CONFIG_SCHEMA_MAP: Dict[
 ] = {
     EnergyLoadHistoryProviderHomeAssistantAPIConfig: EnergyLoadHistoryProviderHomeAssistantAPIConfigSchema,
 }
+
+
+class HomeLoadPowerPointSchema(BaseModel):
+    """Schema for HomeLoadPowerPoint value object."""
+
+    timestamp: datetime = Field(..., description="Measurement timestamp")
+    power: float = Field(..., description="Power in watts")
+
+    @classmethod
+    def from_model(cls, point: "HomeLoadPowerPoint") -> "HomeLoadPowerPointSchema":
+        return cls(
+            timestamp=cast(datetime, point.timestamp),
+            power=float(point.power),
+        )
+
+
+class LoadConsumptionModelSchema(BaseModel):
+    """Schema for LoadConsumptionModel entity (without serialized model bytes)."""
+
+    id: str = Field(..., description="Model unique identifier")
+    device_id: Optional[str] = Field(default=None, description="Device this model was trained for")
+    adapter_type: EnergyLoadForecastProviderAdapter = Field(..., description="ML adapter type")
+    trained_at: Optional[datetime] = Field(default=None, description="Training timestamp")
+    mae: Optional[float] = Field(default=None, description="Mean absolute error on holdout")
+    rmse: Optional[float] = Field(default=None, description="Root mean squared error on holdout")
+    samples_used: int = Field(default=0, description="Number of training samples")
+    is_active: bool = Field(default=False, description="Whether the model is currently active")
+
+    @classmethod
+    def from_model(cls, model: LoadConsumptionModel) -> "LoadConsumptionModelSchema":
+        return cls(
+            id=str(model.id),
+            device_id=str(model.device_id) if model.device_id else None,
+            adapter_type=model.adapter_type,
+            trained_at=model.trained_at,
+            mae=model.mae,
+            rmse=model.rmse,
+            samples_used=model.samples_used,
+            is_active=model.is_active,
+        )
+
+    class Config:
+        """Pydantic configuration."""
+
+        use_enum_values = True
