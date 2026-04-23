@@ -164,6 +164,9 @@ class LoadDeviceSchema(BaseModel):
     energy_load_forecast_provider_id: Optional[str] = Field(
         default=None, description="ID of the energy load forecast provider associated with this load device"
     )
+    energy_load_history_provider_id: Optional[str] = Field(
+        default=None, description="ID of the energy load history provider associated with this load device"
+    )
 
     @field_validator("id")
     @classmethod
@@ -183,15 +186,15 @@ class LoadDeviceSchema(BaseModel):
             raise ValueError("Device name cannot be empty")
         return v.strip()
 
-    @field_validator("energy_load_forecast_provider_id")
+    @field_validator("energy_load_forecast_provider_id", "energy_load_history_provider_id")
     @classmethod
-    def validate_energy_load_forecast_provider_id(cls, v: Optional[str]) -> Optional[str]:
-        """Validate that energy_load_forecast_provider_id is a valid UUID string if provided."""
+    def validate_provider_id(cls, v: Optional[str]) -> Optional[str]:
+        """Validate that provider ID is a valid UUID string if provided."""
         if v is not None:
             try:
                 uuid.UUID(v)
             except ValueError as exc:
-                raise ValueError("energy_load_forecast_provider_id must be a valid UUID string") from exc
+                raise ValueError("Provider ID must be a valid UUID string") from exc
         return v
 
     @classmethod
@@ -207,6 +210,11 @@ class LoadDeviceSchema(BaseModel):
                 if load_device.energy_load_forecast_provider_id
                 else None
             ),
+            energy_load_history_provider_id=(
+                str(load_device.energy_load_history_provider_id)
+                if load_device.energy_load_history_provider_id
+                else None
+            ),
         )
 
     @field_serializer("id")
@@ -214,24 +222,28 @@ class LoadDeviceSchema(BaseModel):
         """Serialize id field."""
         return value
 
-    @field_serializer("energy_load_forecast_provider_id")
-    def serialize_energy_load_forecast_provider_id(self, value: Optional[str]) -> Optional[str]:
-        """Serialize energy_load_forecast_provider_id field."""
+    @field_serializer("energy_load_forecast_provider_id", "energy_load_history_provider_id")
+    def serialize_provider_id(self, value: Optional[str]) -> Optional[str]:
+        """Serialize provider ID field."""
         return value
 
     def to_model(self) -> LoadDevice:
         """Convert schema to domain model."""
-        provider_id = (
+        forecast_provider_id = (
             EntityId(uuid.UUID(self.energy_load_forecast_provider_id))
             if self.energy_load_forecast_provider_id
             else None
+        )
+        history_provider_id = (
+            EntityId(uuid.UUID(self.energy_load_history_provider_id)) if self.energy_load_history_provider_id else None
         )
         return LoadDevice(
             id=EntityId(uuid.UUID(self.id)),
             name=self.name,
             category=self.category,
             enabled=self.enabled,
-            energy_load_forecast_provider_id=provider_id,
+            energy_load_forecast_provider_id=forecast_provider_id,
+            energy_load_history_provider_id=history_provider_id,
         )
 
     class Config:
@@ -249,6 +261,9 @@ class LoadDeviceCreateSchema(BaseModel):
     energy_load_forecast_provider_id: Optional[str] = Field(
         default=None, description="ID of the energy load forecast provider associated with this load device"
     )
+    energy_load_history_provider_id: Optional[str] = Field(
+        default=None, description="ID of the energy load history provider associated with this load device"
+    )
 
     @field_validator("name")
     @classmethod
@@ -258,35 +273,39 @@ class LoadDeviceCreateSchema(BaseModel):
             raise ValueError("Device name cannot be empty")
         return v.strip()
 
-    @field_validator("energy_load_forecast_provider_id")
+    @field_validator("energy_load_forecast_provider_id", "energy_load_history_provider_id")
     @classmethod
-    def validate_energy_load_forecast_provider_id(cls, v: Optional[str]) -> Optional[str]:
-        """Validate that energy_load_forecast_provider_id is a valid UUID string if provided."""
+    def validate_provider_id(cls, v: Optional[str]) -> Optional[str]:
+        """Validate that provider ID is a valid UUID string if provided."""
         if v is not None:
             try:
                 uuid.UUID(v)
             except ValueError as exc:
-                raise ValueError("energy_load_forecast_provider_id must be a valid UUID string") from exc
+                raise ValueError("Provider ID must be a valid UUID string") from exc
         return v
 
-    @field_serializer("energy_load_forecast_provider_id")
-    def serialize_energy_load_forecast_provider_id(self, value: Optional[str]) -> Optional[str]:
-        """Serialize energy_load_forecast_provider_id field."""
+    @field_serializer("energy_load_forecast_provider_id", "energy_load_history_provider_id")
+    def serialize_provider_id(self, value: Optional[str]) -> Optional[str]:
+        """Serialize provider ID field."""
         return value
 
     def to_model(self) -> LoadDevice:
         """Convert schema to domain model."""
-        provider_id = (
+        forecast_provider_id = (
             EntityId(uuid.UUID(self.energy_load_forecast_provider_id))
             if self.energy_load_forecast_provider_id
             else None
+        )
+        history_provider_id = (
+            EntityId(uuid.UUID(self.energy_load_history_provider_id)) if self.energy_load_history_provider_id else None
         )
         return LoadDevice(
             id=EntityId(uuid.uuid4()),
             name=self.name,
             category=self.category,
             enabled=self.enabled,
-            energy_load_forecast_provider_id=provider_id,
+            energy_load_forecast_provider_id=forecast_provider_id,
+            energy_load_history_provider_id=history_provider_id,
         )
 
     class Config:
@@ -304,6 +323,9 @@ class LoadDeviceUpdateSchema(BaseModel):
     energy_load_forecast_provider_id: Optional[str] = Field(
         default=None, description="ID of the energy load forecast provider associated with this load device"
     )
+    energy_load_history_provider_id: Optional[str] = Field(
+        default=None, description="ID of the energy load history provider associated with this load device"
+    )
 
     @field_validator("name")
     @classmethod
@@ -313,20 +335,20 @@ class LoadDeviceUpdateSchema(BaseModel):
             raise ValueError("Device name cannot be empty")
         return v.strip()
 
-    @field_validator("energy_load_forecast_provider_id")
+    @field_validator("energy_load_forecast_provider_id", "energy_load_history_provider_id")
     @classmethod
-    def validate_energy_load_forecast_provider_id(cls, v: Optional[str]) -> Optional[str]:
-        """Validate that energy_load_forecast_provider_id is a valid UUID string if provided."""
+    def validate_provider_id(cls, v: Optional[str]) -> Optional[str]:
+        """Validate that provider ID is a valid UUID string if provided."""
         if v is not None:
             try:
                 uuid.UUID(v)
             except ValueError as exc:
-                raise ValueError("energy_load_forecast_provider_id must be a valid UUID string") from exc
+                raise ValueError("Provider ID must be a valid UUID string") from exc
         return v
 
-    @field_serializer("energy_load_forecast_provider_id")
-    def serialize_energy_load_forecast_provider_id(self, value: Optional[str]) -> Optional[str]:
-        """Serialize energy_load_forecast_provider_id field."""
+    @field_serializer("energy_load_forecast_provider_id", "energy_load_history_provider_id")
+    def serialize_provider_id(self, value: Optional[str]) -> Optional[str]:
+        """Serialize provider ID field."""
         return value
 
     class Config:
