@@ -10,9 +10,9 @@ from edge_mining.application.interfaces import (
     ConfigurationServiceInterface,
     EventBusInterface,
     HomeLoadHistoryServiceInterface,
+    LoadForecastTrainingServiceInterface,
     OptimizationServiceInterface,
 )
-from edge_mining.application.services.load_forecast_training_service import LoadForecastModelTrainingService
 from edge_mining.domain.energy.ports import (
     EnergyMonitorRepository,
     EnergySourceRepository,
@@ -72,5 +72,5 @@ class Services:
     miner_action_service: MinerActionServiceInterface
     configuration_service: ConfigurationServiceInterface
     home_load_history_service: HomeLoadHistoryServiceInterface
-    load_forecast_training_service: Optional[LoadForecastModelTrainingService]
+    load_forecast_training_service: Optional[LoadForecastTrainingServiceInterface]
     event_bus: EventBusInterface
