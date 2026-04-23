@@ -227,6 +227,11 @@ class LoadConsumptionModelRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def get_all(self, device_id: Optional[EntityId] = None) -> List[LoadConsumptionModel]:
+        """Retrieve all models, optionally filtered by device_id."""
+        raise NotImplementedError
+
+    @abstractmethod
     def update(self, model: LoadConsumptionModel) -> None:
         """Update an existing model (e.g. promote to active)."""
         raise NotImplementedError
