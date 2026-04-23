@@ -249,15 +249,23 @@ async def update_load_device(
             )
 
         # Add the updated device
-        provider_id = (
-            EntityId(device.energy_load_forecast_provider_id) if device.energy_load_forecast_provider_id else None
+        forecast_provider_id = (
+            EntityId(uuid.UUID(device_update.energy_load_forecast_provider_id))
+            if device_update.energy_load_forecast_provider_id
+            else device.energy_load_forecast_provider_id
+        )
+        history_provider_id = (
+            EntityId(uuid.UUID(device_update.energy_load_history_provider_id))
+            if device_update.energy_load_history_provider_id
+            else device.energy_load_history_provider_id
         )
         new_device = LoadDevice(
             id=device.id,
             name=device_update.name or device.name,
             category=device_update.category,
             enabled=device_update.enabled,
-            energy_load_forecast_provider_id=provider_id,
+            energy_load_forecast_provider_id=forecast_provider_id,
+            energy_load_history_provider_id=history_provider_id,
         )
 
         device_added = config_service.add_load_device_to_profile(
