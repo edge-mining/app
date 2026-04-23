@@ -1330,6 +1330,12 @@ class InMemoryLoadConsumptionModelRepository(LoadConsumptionModelRepository):
                         return copy.deepcopy(model)
         return None
 
+    def get_all(self, device_id: Optional[EntityId] = None) -> List[LoadConsumptionModel]:
+        models = list(self._models.values())
+        if device_id is not None:
+            models = [m for m in models if m.device_id is not None and str(m.device_id) == str(device_id)]
+        return [copy.deepcopy(m) for m in models]
+
     def update(self, model: LoadConsumptionModel) -> None:
         key = str(model.id)
         if key in self._models:
@@ -1479,6 +1485,31 @@ class SqliteLoadConsumptionModelRepository(LoadConsumptionModelRepository):
             if conn:
                 conn.close()
 
+    def get_all(self, device_id: Optional[EntityId] = None) -> List[LoadConsumptionModel]:
+        if device_id is not None:
+            sql = "SELECT * FROM load_consumption_models WHERE device_id = ? ORDER BY trained_at DESC;"
+            params = (str(device_id),)
+        else:
+            sql = "SELECT * FROM load_consumption_models ORDER BY trained_at DESC;"
+            params = ()
+        conn = self._db.get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(sql, params)
+            rows = cursor.fetchall()
+            models: List[LoadConsumptionModel] = []
+            for row in rows:
+                model = self._row_to_model(row)
+                if model:
+                    models.append(model)
+            return models
+        except sqlite3.Error as e:
+            self.logger.error(f"SQLite error retrieving all LoadConsumptionModels: {e}")
+            return []
+        finally:
+            if conn:
+                conn.close()
+
     def update(self, model: LoadConsumptionModel) -> None:
         sql = """
             UPDATE load_consumption_models
@@ -1571,6 +1602,17 @@ class SqlAlchemyLoadConsumptionModelRepository(LoadConsumptionModelRepository):
                 stmt = stmt.where(load_consumption_models_table.c.device_id.is_(None))
             entity = session.execute(stmt).scalar_one_or_none()
             return entity
+        finally:
+            session.close()
+
+    def get_all(self, device_id: Optional[EntityId] = None) -> List[LoadConsumptionModel]:
+        session = self._db.get_session()
+        try:
+            stmt = select(LoadConsumptionModel)
+            if device_id is not None:
+                stmt = stmt.where(load_consumption_models_table.c.device_id == str(device_id))
+            stmt = stmt.order_by(load_consumption_models_table.c.trained_at.desc())
+            return list(session.execute(stmt).scalars().all())
         finally:
             session.close()
 
