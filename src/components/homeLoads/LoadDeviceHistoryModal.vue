@@ -159,49 +159,139 @@ const series = computed(() => [
   },
 ]);
 
-const chartOptions = computed(() => ({
-  chart: {
-    id: "device-history",
-    type: "area" as const,
-    height: 320,
-    toolbar: { show: true, tools: { download: true, selection: true, zoom: true, zoomin: true, zoomout: true, pan: true, reset: true } },
-    zoom: { enabled: true },
-    background: "transparent",
-  },
-  colors: ["rgba(38, 198, 218, 0.9)"],
-  fill: {
-    type: "gradient",
-    gradient: {
-      shadeIntensity: 1,
-      opacityFrom: 0.4,
-      opacityTo: 0.05,
-      stops: [0, 100],
+// Average line annotation
+const avgAnnotation = computed(() => {
+  if (stats.value.avgPower === 0) return { yaxis: [] };
+  return {
+    yaxis: [
+      {
+        y: stats.value.avgPower,
+        borderColor: "rgba(250, 204, 21, 0.5)",
+        strokeDashArray: 4,
+        label: {
+          text: `Avg ${formatWatts(stats.value.avgPower)}`,
+          borderColor: "transparent",
+          style: {
+            background: "rgba(250, 204, 21, 0.12)",
+            color: "#facc15",
+            fontSize: "10px",
+            padding: { left: 6, right: 6, top: 2, bottom: 2 },
+          },
+          position: "front" as const,
+        },
+      },
+    ],
+  };
+});
+
+const chartOptions = computed(() => {
+  // Force reactivity on data change
+  void powerPoints.value;
+
+  return {
+    chart: {
+      id: "device-history",
+      type: "area" as const,
+      height: 320,
+      toolbar: {
+        show: true,
+        tools: {
+          download: true,
+          selection: true,
+          zoom: true,
+          zoomin: true,
+          zoomout: true,
+          pan: true,
+          reset: true,
+        },
+        autoSelected: "zoom" as const,
+      },
+      zoom: { enabled: true, type: "x" as const },
+      animations: {
+        enabled: true,
+        easing: "easeinout" as const,
+        speed: 500,
+      },
+      background: "transparent",
+      fontFamily: "inherit",
+      selection: { enabled: true },
     },
-  },
-  stroke: { curve: "smooth" as const, width: 2 },
-  dataLabels: { enabled: false },
-  xaxis: {
-    type: "datetime" as const,
-    labels: { style: { colors: "oklch(80% 0 0 / 0.5)", fontSize: "11px" } },
-    axisBorder: { show: false },
-    axisTicks: { show: false },
-  },
-  yaxis: {
-    labels: {
-      style: { colors: "oklch(80% 0 0 / 0.5)", fontSize: "11px" },
-      formatter: (v: number) => `${Math.round(v)} W`,
+    colors: ["rgba(38, 198, 218, 0.9)"],
+    fill: {
+      type: "gradient" as const,
+      gradient: {
+        shade: "dark" as const,
+        type: "vertical" as const,
+        opacityFrom: 0.35,
+        opacityTo: 0.02,
+        stops: [0, 100],
+      },
     },
-  },
-  grid: {
-    borderColor: "oklch(30% 0 0 / 0.3)",
-    strokeDashArray: 3,
-  },
-  tooltip: {
-    theme: "dark",
-    x: { format: "dd MMM yyyy HH:mm" },
-    y: { formatter: (v: number) => `${Math.round(v)} W` },
-  },
-}));
+    stroke: {
+      curve: "smooth" as const,
+      width: 2.5,
+    },
+    dataLabels: { enabled: false },
+    xaxis: {
+      type: "datetime" as const,
+      labels: {
+        show: true,
+        style: { colors: "rgba(255,255,255,0.3)", fontSize: "10px" },
+        datetimeFormatter: {
+          year: "yyyy",
+          month: "MMM 'yy",
+          day: "dd MMM",
+          hour: "HH:mm",
+          minute: "HH:mm",
+        },
+      },
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+      tooltip: { enabled: false },
+      crosshairs: {
+        show: true,
+        stroke: { color: "rgba(38, 198, 218, 0.3)", width: 1, dashArray: 3 },
+      },
+    },
+    yaxis: {
+      decimalsInFloat: 0,
+      labels: {
+        show: true,
+        style: { colors: "rgba(255,255,255,0.3)", fontSize: "10px" },
+        formatter: (v: number) => formatWatts(v),
+      },
+      title: { text: undefined },
+    },
+    grid: {
+      borderColor: "rgba(255,255,255,0.04)",
+      strokeDashArray: 3,
+      xaxis: { lines: { show: true } },
+      yaxis: { lines: { show: true } },
+      padding: { left: 8, right: 8, top: 0, bottom: 0 },
+    },
+    tooltip: {
+      enabled: true,
+      shared: false,
+      intersect: false,
+      followCursor: true,
+      theme: "dark" as const,
+      x: { show: true, format: "dd MMM yyyy HH:mm" },
+      y: {
+        formatter: (v: number) => formatWatts(v),
+      },
+      marker: { show: true },
+    },
+    markers: {
+      size: powerPoints.value.length > 500 ? 0 : 2,
+      colors: ["rgba(38, 198, 218, 0.9)"],
+      strokeColors: "rgba(38, 198, 218, 0.4)",
+      strokeWidth: 1,
+      hover: { size: 5, sizeOffset: 2 },
+    },
+    annotations: avgAnnotation.value,
+    legend: { show: false },
+  };
+});
 
 function handleClose() {
   emit("close");
