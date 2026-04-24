@@ -59,8 +59,8 @@ from edge_mining.shared.adapter_maps.home_load import (
     ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP,
     ENERGY_LOAD_HISTORY_PROVIDER_CONFIG_TYPE_MAP,
 )
-from edge_mining.shared.interfaces.config import EnergyLoadForecastProviderConfig, EnergyLoadHistoryProviderConfig
 from edge_mining.shared.external_services.common import ExternalServiceAdapter
+from edge_mining.shared.interfaces.config import EnergyLoadForecastProviderConfig, EnergyLoadHistoryProviderConfig
 
 router = APIRouter()
 
@@ -724,6 +724,41 @@ async def collect_device_history(
 
         await history_service.collect_devices([device_id])
         return {"status": "completed", "detail": f"History collection completed for device '{device.name}'."}
+    except HomeLoadsProfileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except HomeLoadsProfileDeviceNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.delete(
+    "/home-loads-profiles/{profile_id}/devices/{device_id}/history",
+    response_model=Dict[str, str],
+)
+async def delete_device_history(
+    profile_id: EntityId,
+    device_id: EntityId,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+    history_service: Annotated[HomeLoadHistoryServiceInterface, Depends(get_home_load_history_service)],
+) -> Dict[str, str]:
+    """Delete all stored power points for a specific device."""
+    try:
+        profile = config_service.get_home_loads_profile(profile_id)
+        if profile is None:
+            raise HomeLoadsProfileNotFoundError(f"Home Loads Profile with ID {profile_id} not found")
+
+        device = next((d for d in profile.devices if d.id == device_id), None)
+        if device is None:
+            raise HomeLoadsProfileDeviceNotFoundError(
+                f"Load Device with ID {device_id} not found in Home Loads Profile {profile_id}"
+            )
+
+        removed = history_service.clear_device_history(device_id)
+        return {
+            "status": "completed",
+            "detail": f"Deleted {removed} power points for device '{device.name}'.",
+        }
     except HomeLoadsProfileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except HomeLoadsProfileDeviceNotFoundError as e:
