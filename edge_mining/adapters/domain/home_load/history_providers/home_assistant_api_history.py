@@ -134,7 +134,7 @@ class HomeAssistantAPIEnergyLoadHistoryProvider(EnergyLoadHistoryProviderPort):
         now_ts = Timestamp(datetime.now())
 
         if latest_cached is None:
-            fetched = self._fetch_from_home_assistant(start, end)
+            fetched = await self._fetch_from_home_assistant(start, end)
             if fetched:
                 self._history_repo.add_power_points(self.device_id, fetched)
             return sorted(fetched, key=lambda p: p.timestamp)
@@ -145,7 +145,7 @@ class HomeAssistantAPIEnergyLoadHistoryProvider(EnergyLoadHistoryProviderPort):
                     f"Cache tail stale for device {self.device_id}: "
                     f"latest={latest_cached}, now={now_ts}. Fetching incremental."
                 )
-            tail = self._fetch_from_home_assistant(latest_cached, end)
+            tail = await self._fetch_from_home_assistant(latest_cached, end)
             if tail:
                 self._history_repo.add_power_points(self.device_id, tail)
                 cached.extend(tail)
@@ -159,9 +159,9 @@ class HomeAssistantAPIEnergyLoadHistoryProvider(EnergyLoadHistoryProviderPort):
         power_points = await self.get_power_points(start, end)
         return group_power_points_into_intervals(power_points, start=start, end=end)
 
-    def _fetch_from_home_assistant(self, start: Timestamp, end: Timestamp) -> List[HomeLoadPowerPoint]:
+    async def _fetch_from_home_assistant(self, start: Timestamp, end: Timestamp) -> List[HomeLoadPowerPoint]:
         """Fetch raw power points from Home Assistant REST API."""
-        entity_history: Optional[EntityHistory] = self._home_assistant.get_entity_history(
+        entity_history: Optional[EntityHistory] = await self._home_assistant.get_entity_history(
             self._entity_power, start, end
         )
         if not entity_history:

@@ -286,7 +286,7 @@ class ServiceHomeAssistantAPI(ExternalServicePort):
                 self.logger.error(f"Unexpected error setting Home Assistant entity '{entity_id}': {e}")
             return False
 
-    def get_entity_history(self, entity_id: str, start: Timestamp, end: Timestamp) -> Optional[EntityHistory]:
+    async def get_entity_history(self, entity_id: str, start: Timestamp, end: Timestamp) -> Optional[EntityHistory]:
         """Retrieves the history of a Home Assistant entity."""
         if self.logger:
             self.logger.debug(f"Fetching history for entity '{entity_id}' from {start} to {end}...")
@@ -302,18 +302,17 @@ class ServiceHomeAssistantAPI(ExternalServicePort):
             return None
 
         try:
-            entity: Optional[Entity] = self.client.get_entity(entity_id=entity_id)
+            entity: Optional[Entity] = await self.client.async_get_entity(entity_id=entity_id)
 
             if not entity:
                 if self.logger:
                     self.logger.warning(f"Home Assistant entity '{entity_id}' not found.")
                 return None
 
-            history_generator = self.client.get_entity_histories((entity,), start, end)
-            try:
-                history_for_entity: Optional[History] = next(history_generator, None)
-            except StopIteration:
-                history_for_entity = None
+            history_for_entity: Optional[History] = None
+            async for history in self.client.async_get_entity_histories((entity,), start, end):
+                history_for_entity = history
+                break
 
             if not history_for_entity:
                 if self.logger:
