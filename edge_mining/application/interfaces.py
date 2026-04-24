@@ -183,6 +183,10 @@ class LoadForecastTrainingServiceInterface(ABC):
     def get_models(self, device_id: Optional[EntityId] = None) -> List[LoadConsumptionModel]:
         """Retrieve trained models, optionally filtered by device."""
 
+    @abstractmethod
+    def delete_model(self, model_id: EntityId) -> None:
+        """Delete a trained model by ID."""
+
 
 class MinerActionServiceInterface(ABC):
     """Base interface for miner action services in the Edge Mining application."""

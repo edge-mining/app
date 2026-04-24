@@ -84,6 +84,10 @@ class LoadForecastModelTrainingService(LoadForecastTrainingServiceInterface):
         """Retrieve trained models, optionally filtered by device."""
         return self._model_repo.get_all(device_id)
 
+    def delete_model(self, model_id: EntityId) -> None:
+        """Delete a trained model by ID."""
+        self._model_repo.remove(model_id)
+
     async def _train_for_device(
         self,
         device_id: EntityId,
