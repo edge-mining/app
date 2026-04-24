@@ -308,7 +308,7 @@ class LoadForecastModelTrainingService(LoadForecastTrainingServiceInterface):
 
         try:
             regressor = _resolve_sklearn_model(sklearn_model)
-            forecaster = FR(regressor=regressor, lags=num_lags)
+            forecaster = FR(estimator=regressor, lags=num_lags)
 
             y = pd_.Series(powers, name="power")
             forecaster.fit(y=y)

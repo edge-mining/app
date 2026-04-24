@@ -208,7 +208,7 @@ class TestSkforecastForecastProvider:
         series = fill_missing_hours(series)
         powers = [p for _, p in series]
         y = pd.Series(powers, name="power")
-        forecaster = ForecasterRecursive(regressor=Ridge(), lags=24)
+        forecaster = ForecasterRecursive(estimator=Ridge(), lags=24)
         forecaster.fit(y=y)
         model_bytes = pickle.dumps(forecaster)
 
