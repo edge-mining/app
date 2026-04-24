@@ -25,9 +25,12 @@ from edge_mining.domain.forecast.entities import ForecastProvider
 from edge_mining.domain.forecast.exceptions import ForecastProviderConfigurationError, ForecastProviderNotFoundError
 from edge_mining.domain.forecast.ports import ForecastProviderRepository
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
+from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter, EnergyLoadHistoryProviderAdapter
 from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, EnergyLoadHistoryProvider, LoadDevice
 from edge_mining.domain.home_load.exceptions import (
+    EnergyLoadForecastProviderConfigurationError,
     EnergyLoadForecastProviderNotFoundError,
+    EnergyLoadHistoryProviderConfigurationError,
     EnergyLoadHistoryProviderNotFoundError,
     HomeLoadsProfileNotFoundError,
 )
@@ -82,6 +85,10 @@ from edge_mining.shared.adapter_maps.external_services import EXTERNAL_SERVICE_C
 from edge_mining.shared.adapter_maps.forecast import (
     FORECAST_PROVIDER_CONFIG_TYPE_MAP,
     FORECAST_PROVIDER_TYPE_EXTERNAL_SERVICE_MAP,
+)
+from edge_mining.shared.adapter_maps.home_load import (
+    ENERGY_LOAD_FORECAST_PROVIDER_EXTERNAL_SERVICE_MAP,
+    ENERGY_LOAD_HISTORY_PROVIDER_EXTERNAL_SERVICE_MAP,
 )
 from edge_mining.shared.adapter_maps.miner import (
     MINER_CONTROLLER_CONFIG_TYPE_MAP,
@@ -1950,6 +1957,28 @@ class ConfigurationService(ConfigurationServiceInterface):
         self.energy_load_history_provider_repo.remove(provider_id)
         self.logger.info(f"Removed energy load history provider '{provider.name}' ({provider.id}).")
         return provider
+
+    def get_energy_load_forecast_provider_external_service_adapter(
+        self, adapter_type: EnergyLoadForecastProviderAdapter
+    ) -> Optional[ExternalServiceAdapter]:
+        """Get the external service adapter type for a specific energy load forecast provider adapter type."""
+        self.logger.debug(f"Getting external service adapter for energy load forecast provider adapter {adapter_type}")
+        if adapter_type not in ENERGY_LOAD_FORECAST_PROVIDER_EXTERNAL_SERVICE_MAP:
+            raise EnergyLoadForecastProviderConfigurationError(
+                f"Adapter type {adapter_type} is not supported for energy load forecast provider configuration."
+            )
+        return ENERGY_LOAD_FORECAST_PROVIDER_EXTERNAL_SERVICE_MAP.get(adapter_type, None)
+
+    def get_energy_load_history_provider_external_service_adapter(
+        self, adapter_type: EnergyLoadHistoryProviderAdapter
+    ) -> Optional[ExternalServiceAdapter]:
+        """Get the external service adapter type for a specific energy load history provider adapter type."""
+        self.logger.debug(f"Getting external service adapter for energy load history provider adapter {adapter_type}")
+        if adapter_type not in ENERGY_LOAD_HISTORY_PROVIDER_EXTERNAL_SERVICE_MAP:
+            raise EnergyLoadHistoryProviderConfigurationError(
+                f"Adapter type {adapter_type} is not supported for energy load history provider configuration."
+            )
+        return ENERGY_LOAD_HISTORY_PROVIDER_EXTERNAL_SERVICE_MAP.get(adapter_type, None)
 
     # --- Policy Management ---
     async def create_policy(self, name: str, description: str = "") -> OptimizationPolicy:

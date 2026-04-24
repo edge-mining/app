@@ -19,6 +19,10 @@ from edge_mining.domain.home_load.entities import (
     LoadConsumptionModel,
     LoadDevice,
 )
+from edge_mining.domain.home_load.common import (
+    EnergyLoadForecastProviderAdapter,
+    EnergyLoadHistoryProviderAdapter,
+)
 from edge_mining.domain.home_load.ports import EnergyLoadForecastProviderPort, EnergyLoadHistoryProviderPort
 from edge_mining.domain.home_load.value_objects import HomeLoadPowerPoint
 from edge_mining.domain.miner.aggregate_roots import Miner
@@ -870,6 +874,12 @@ class ConfigurationServiceInterface(ABC):
     def remove_energy_load_forecast_provider(self, provider_id: EntityId) -> EnergyLoadForecastProvider:
         """Remove an energy load forecast provider."""
 
+    @abstractmethod
+    def get_energy_load_forecast_provider_external_service_adapter(
+        self, adapter_type: EnergyLoadForecastProviderAdapter
+    ) -> Optional[ExternalServiceAdapter]:
+        """Get the external service adapter type for a specific energy load forecast provider adapter type."""
+
     # --- Energy Load History Provider Management ---
     @abstractmethod
     def add_energy_load_history_provider(self, provider: EnergyLoadHistoryProvider) -> EnergyLoadHistoryProvider:
@@ -890,6 +900,12 @@ class ConfigurationServiceInterface(ABC):
     @abstractmethod
     def remove_energy_load_history_provider(self, provider_id: EntityId) -> EnergyLoadHistoryProvider:
         """Remove an energy load history provider."""
+
+    @abstractmethod
+    def get_energy_load_history_provider_external_service_adapter(
+        self, adapter_type: EnergyLoadHistoryProviderAdapter
+    ) -> Optional[ExternalServiceAdapter]:
+        """Get the external service adapter type for a specific energy load history provider adapter type."""
 
     @abstractmethod
     def get_forecast_provider_config_by_type(
