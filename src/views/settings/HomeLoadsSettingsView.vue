@@ -7,7 +7,7 @@ import { useExternalServiceStore } from "../../core/stores/externalServiceStore"
 import type { LoadDevice } from "../../core/models/homeLoadsProfile";
 import type { EnergyLoadForecastProvider } from "../../core/models/energyLoadForecastProvider";
 import type { EnergyLoadHistoryProvider } from "../../core/models/energyLoadHistoryProvider";
-import LoadDeviceCard from "../../components/homeLoads/LoadDeviceCard.vue";
+import LoadDeviceTable from "../../components/homeLoads/LoadDeviceTable.vue";
 import LoadDeviceFormModal from "../../components/homeLoads/LoadDeviceFormModal.vue";
 import LoadDeviceHistoryModal from "../../components/homeLoads/LoadDeviceHistoryModal.vue";
 import {
@@ -378,18 +378,15 @@ function handleCloseHistory() {
               </button>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              <LoadDeviceCard
-                v-for="device in devices"
-                :key="device.id"
-                :device="device"
-                :forecast-providers="forecastProviderStore.providers"
-                :history-providers="historyProviderStore.providers"
-                @edit="handleEditDevice"
-                @delete="handleDeleteDevice"
-                @view-history="handleViewHistory"
-              />
-            </div>
+            <LoadDeviceTable
+              v-if="devices.length > 0"
+              :devices="devices"
+              :forecast-providers="forecastProviderStore.providers"
+              :history-providers="historyProviderStore.providers"
+              @edit="handleEditDevice"
+              @delete="handleDeleteDevice"
+              @view-history="handleViewHistory"
+            />
 
             <div
               v-if="devices.length === 0"
