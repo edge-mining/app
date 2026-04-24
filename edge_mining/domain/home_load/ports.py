@@ -58,6 +58,14 @@ class EnergyLoadHistoryRepository(ABC):
         """Remove all power points for ``device_id`` within the window [start, end)."""
         raise NotImplementedError
 
+    @abstractmethod
+    def clear_device_history(self, device_id: EntityId) -> int:
+        """Delete all power points for ``device_id``.
+
+        Returns the number of rows deleted.
+        """
+        raise NotImplementedError
+
 
 class EnergyLoadHistoryProviderPort(ABC):
     """Port for retrieving historical energy load consumption data for a single device.
