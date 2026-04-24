@@ -60,6 +60,7 @@ from edge_mining.shared.adapter_maps.home_load import (
     ENERGY_LOAD_HISTORY_PROVIDER_CONFIG_TYPE_MAP,
 )
 from edge_mining.shared.interfaces.config import EnergyLoadForecastProviderConfig, EnergyLoadHistoryProviderConfig
+from edge_mining.shared.external_services.common import ExternalServiceAdapter
 
 router = APIRouter()
 
@@ -381,6 +382,21 @@ async def get_energy_load_forecast_provider_types() -> List[EnergyLoadForecastPr
 
 
 @router.get(
+    "/energy-load-forecast-providers/types/{adapter_type}/external-services",
+    response_model=Optional[ExternalServiceAdapter],
+)
+async def get_energy_load_forecast_provider_type_external_service_types(
+    adapter_type: EnergyLoadForecastProviderAdapter,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+) -> Optional[ExternalServiceAdapter]:
+    """Get the compatible external service type for a specific energy load forecast provider type."""
+    try:
+        return config_service.get_energy_load_forecast_provider_external_service_adapter(adapter_type)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get(
     "/energy-load-forecast-providers/types/{adapter_type}/config-schema",
     response_model=Dict[str, Any],
 )
@@ -522,6 +538,21 @@ async def get_energy_load_history_provider_types() -> List[EnergyLoadHistoryProv
     """Get a list of available energy load history provider types."""
     try:
         return [EnergyLoadHistoryProviderAdapter(adapter.value) for adapter in EnergyLoadHistoryProviderAdapter]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get(
+    "/energy-load-history-providers/types/{adapter_type}/external-services",
+    response_model=Optional[ExternalServiceAdapter],
+)
+async def get_energy_load_history_provider_type_external_service_types(
+    adapter_type: EnergyLoadHistoryProviderAdapter,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+) -> Optional[ExternalServiceAdapter]:
+    """Get the compatible external service type for a specific energy load history provider type."""
+    try:
+        return config_service.get_energy_load_history_provider_external_service_adapter(adapter_type)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
