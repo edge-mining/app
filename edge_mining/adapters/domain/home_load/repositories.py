@@ -4,6 +4,7 @@ import copy
 import json
 import sqlite3
 import uuid
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import delete, func, insert, select
@@ -927,7 +928,13 @@ class SqlAlchemyEnergyLoadHistoryRepository(EnergyLoadHistoryRepository):
                 .order_by(home_load_power_points_table.c.timestamp.asc())
             )
             rows = session.execute(stmt).all()
-            return [HomeLoadPowerPoint(timestamp=Timestamp(ts), power=Watts(power)) for ts, power in rows]
+            return [
+                HomeLoadPowerPoint(
+                    timestamp=Timestamp(ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)),
+                    power=Watts(power),
+                )
+                for ts, power in rows
+            ]
         finally:
             session.close()
 
@@ -938,7 +945,11 @@ class SqlAlchemyEnergyLoadHistoryRepository(EnergyLoadHistoryRepository):
                 home_load_power_points_table.c.device_id == str(device_id)
             )
             latest = session.execute(stmt).scalar_one_or_none()
-            return Timestamp(latest) if latest is not None else None
+            if latest is None:
+                return None
+            if isinstance(latest, datetime) and latest.tzinfo is None:
+                latest = latest.replace(tzinfo=timezone.utc)
+            return Timestamp(latest)
         finally:
             session.close()
 

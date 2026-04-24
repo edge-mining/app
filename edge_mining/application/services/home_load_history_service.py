@@ -1,6 +1,6 @@
 """Service for collecting and purging home load consumption history."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from edge_mining.application.interfaces import (
@@ -76,7 +76,7 @@ class HomeLoadHistoryService(HomeLoadHistoryServiceInterface):
                 self.logger.warning(f"History provider {provider_id} not found for device '{device_name}'. Skipping.")
             return
 
-        now = Timestamp(datetime.now())
+        now = Timestamp(datetime.now(timezone.utc))
         last_ts = self.home_load_history_repo.get_latest_timestamp(device_id)
         if last_ts is not None:
             start = last_ts
