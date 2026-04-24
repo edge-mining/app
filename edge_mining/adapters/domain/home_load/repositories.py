@@ -729,6 +729,10 @@ class InMemoryEnergyLoadHistoryRepository(EnergyLoadHistoryRepository):
             return
         self._store[device_id] = [p for p in bucket if not (start <= p.timestamp < end)]
 
+    def clear_device_history(self, device_id: EntityId) -> int:
+        bucket = self._store.pop(device_id, [])
+        return len(bucket)
+
 
 class SqliteEnergyLoadHistoryRepository(EnergyLoadHistoryRepository):
     """SQLite implementation of the device-scoped power-point time series.
@@ -852,6 +856,21 @@ class SqliteEnergyLoadHistoryRepository(EnergyLoadHistoryRepository):
             if conn:
                 conn.close()
 
+    def clear_device_history(self, device_id: EntityId) -> int:
+        sql = "DELETE FROM home_load_power_points WHERE device_id = ?;"
+        conn = self._db.get_connection()
+        try:
+            with conn:
+                cursor = conn.cursor()
+                cursor.execute(sql, (str(device_id),))
+                return cursor.rowcount or 0
+        except sqlite3.Error as e:
+            self.logger.error(f"SQLite error clearing history for device {device_id}: {e}")
+            return 0
+        finally:
+            if conn:
+                conn.close()
+
 
 class SqlAlchemyEnergyLoadHistoryRepository(EnergyLoadHistoryRepository):
     """SQLAlchemy Core implementation of the device-scoped power-point store.
@@ -946,6 +965,18 @@ class SqlAlchemyEnergyLoadHistoryRepository(EnergyLoadHistoryRepository):
             )
             session.execute(stmt)
             session.commit()
+        finally:
+            session.close()
+
+    def clear_device_history(self, device_id: EntityId) -> int:
+        session = self._db.get_session()
+        try:
+            stmt = delete(home_load_power_points_table).where(
+                home_load_power_points_table.c.device_id == str(device_id),
+            )
+            result = session.execute(stmt)
+            session.commit()
+            return result.rowcount or 0
         finally:
             session.close()
 
