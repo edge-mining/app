@@ -211,7 +211,7 @@ class SkforecastForecastProvider(EnergyLoadForecastProviderPort):
 
         try:
             regressor = _resolve_sklearn_model(self._sklearn_model)
-            forecaster = ForecasterRecursive(regressor=regressor, lags=self._num_lags)
+            forecaster = ForecasterRecursive(estimator=regressor, lags=self._num_lags)
 
             y = pd.Series(powers, name="power")
             forecaster.fit(y=y)
