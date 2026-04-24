@@ -11,8 +11,6 @@ import type { EnergyLoadHistoryProvider } from "../../core/models/energyLoadHist
 import LoadDeviceCard from "../../components/homeLoads/LoadDeviceCard.vue";
 import LoadDeviceFormModal from "../../components/homeLoads/LoadDeviceFormModal.vue";
 import LoadDeviceHistoryModal from "../../components/homeLoads/LoadDeviceHistoryModal.vue";
-import EnergyLoadForecastProviderCard from "../../components/homeLoads/EnergyLoadForecastProviderCard.vue";
-import EnergyLoadForecastProviderFormModal from "../../components/homeLoads/EnergyLoadForecastProviderFormModal.vue";
 import EnergyLoadHistoryProviderCard from "../../components/homeLoads/EnergyLoadHistoryProviderCard.vue";
 import EnergyLoadHistoryProviderFormModal from "../../components/homeLoads/EnergyLoadHistoryProviderFormModal.vue";
 import TrainingPanel from "../../components/homeLoads/TrainingPanel.vue";
@@ -35,12 +33,11 @@ const trainingStore = useLoadTrainingStore();
 const externalServiceStore = useExternalServiceStore();
 
 // Tab management
-type Tab = "devices" | "forecast" | "history" | "training";
+type Tab = "devices" | "history" | "training";
 const activeTab = ref<Tab>("devices");
 
 const tabs: { value: Tab; label: string; icon: typeof PhPlug }[] = [
   { value: "devices", label: "Devices", icon: PhPlug },
-  { value: "forecast", label: "Forecast Providers", icon: PhBrain },
   { value: "history", label: "History Providers", icon: PhChartLine },
   { value: "training", label: "Training", icon: PhBrain },
 ];
@@ -59,11 +56,6 @@ const isDeviceEditMode = ref(false);
 // Device history modal state
 const showHistoryModal = ref(false);
 const historyDevice = ref<LoadDevice | undefined>(undefined);
-
-// Forecast provider modal state
-const showForecastModal = ref(false);
-const editingForecastProvider = ref<EnergyLoadForecastProvider | undefined>(undefined);
-const isForecastEditMode = ref(false);
 
 // History provider modal state
 const showHistoryProviderModal = ref(false);
@@ -166,23 +158,69 @@ function handleCloseDeviceModal() {
   editingDevice.value = undefined;
 }
 
-function handleSaveDevice(device: LoadDevice) {
+function handleSaveDevice(device: LoadDevice, forecastProvider?: EnergyLoadForecastProvider | null) {
   const pid = profileStore.selectedProfileId;
   if (!pid) return;
 
+  const saveForecastProvider = async (deviceId: string) => {
+    if (forecastProvider === null) {
+      // Delete existing forecast provider
+      const existingFpId = device.energy_load_forecast_provider_id;
+      if (existingFpId) {
+        try {
+          await forecastProviderStore.deleteProvider(existingFpId);
+        } catch {
+          // Provider may have been already deleted
+        }
+      }
+    } else if (forecastProvider) {
+      if (forecastProvider.id) {
+        // Update existing (same adapter type)
+        await forecastProviderStore.updateProvider(forecastProvider.id, forecastProvider);
+      } else {
+        // No ID → new provider (or adapter type changed: delete old + create new)
+        const existingFpId = device.energy_load_forecast_provider_id;
+        if (existingFpId) {
+          try {
+            await forecastProviderStore.deleteProvider(existingFpId);
+          } catch {
+            // Provider may have been already deleted
+          }
+        }
+        const created = await forecastProviderStore.addProvider(forecastProvider);
+        if (created?.id) {
+          await profileStore.updateDevice(pid, deviceId, {
+            ...device,
+            energy_load_forecast_provider_id: created.id,
+          });
+        }
+      }
+    }
+    await forecastProviderStore.loadProviders();
+  };
+
   if (isDeviceEditMode.value && device.id) {
+    // If removing forecast, clear the link first
+    const saveData = forecastProvider === null
+      ? { ...device, energy_load_forecast_provider_id: undefined }
+      : device;
     profileStore
-      .updateDevice(pid, device.id, device)
-      .then(() => {
-        profileStore.loadProfiles();
+      .updateDevice(pid, device.id, saveData)
+      .then(async () => {
+        await saveForecastProvider(device.id!);
+        await profileStore.loadProfiles();
         handleCloseDeviceModal();
       })
       .showToasts("Device updated successfully", "Failed to update device");
   } else {
     profileStore
       .addDevice(pid, device)
-      .then(() => {
-        profileStore.loadProfiles();
+      .then(async (created) => {
+        const newId = (created as any)?.id ?? device.id;
+        if (newId && forecastProvider) {
+          await saveForecastProvider(newId);
+        }
+        await profileStore.loadProfiles();
         handleCloseDeviceModal();
       })
       .showToasts("Device created successfully", "Failed to create device");
@@ -215,52 +253,6 @@ function handleTrainDevice(device: LoadDevice) {
     .triggerTrainingDevice(pid, device.id)
     .then(() => trainingStore.loadModels())
     .showToasts("Training started for " + device.name, "Failed to start training");
-}
-
-// ── Forecast Provider CRUD ──────────────────────────────
-function openAddForecast() {
-  editingForecastProvider.value = undefined;
-  isForecastEditMode.value = false;
-  showForecastModal.value = true;
-}
-
-function handleEditForecast(provider: EnergyLoadForecastProvider) {
-  editingForecastProvider.value = { ...provider };
-  isForecastEditMode.value = true;
-  showForecastModal.value = true;
-}
-
-function handleCloseForecastModal() {
-  showForecastModal.value = false;
-  editingForecastProvider.value = undefined;
-}
-
-function handleSaveForecast(provider: EnergyLoadForecastProvider) {
-  if (isForecastEditMode.value && provider.id) {
-    forecastProviderStore
-      .updateProvider(provider.id, provider)
-      .then(() => {
-        forecastProviderStore.loadProviders();
-        handleCloseForecastModal();
-      })
-      .showToasts("Forecast provider updated", "Failed to update forecast provider");
-  } else {
-    forecastProviderStore
-      .addProvider(provider)
-      .then(() => {
-        forecastProviderStore.loadProviders();
-        handleCloseForecastModal();
-      })
-      .showToasts("Forecast provider created", "Failed to create forecast provider");
-  }
-}
-
-function handleDeleteForecast(provider: EnergyLoadForecastProvider) {
-  if (!provider.id) return;
-  forecastProviderStore
-    .deleteProvider(provider.id)
-    .then(() => forecastProviderStore.loadProviders())
-    .showToasts("Forecast provider deleted", "Failed to delete forecast provider");
 }
 
 // ── History Provider CRUD ──────────────────────────────
@@ -494,44 +486,6 @@ function handleTrainSingleDevice(deviceId: string) {
             </div>
           </div>
 
-          <!-- FORECAST PROVIDERS TAB -->
-          <div v-if="activeTab === 'forecast'" class="space-y-4">
-            <div class="flex justify-end">
-              <button class="btn btn-primary gap-2" @click="openAddForecast">
-                <PhPlus :size="20" weight="bold" />
-                Add Forecast Provider
-              </button>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              <EnergyLoadForecastProviderCard
-                v-for="provider in forecastProviderStore.providers"
-                :key="provider.id"
-                :provider="provider"
-                :all-devices="devices"
-                @edit="handleEditForecast"
-                @delete="handleDeleteForecast"
-              />
-            </div>
-
-            <div
-              v-if="forecastProviderStore.providers.length === 0"
-              class="flex flex-col items-center justify-center py-16 text-center"
-            >
-              <div class="w-20 h-20 rounded-full bg-base-200 flex items-center justify-center mb-4">
-                <PhBrain :size="40" class="text-base-content/30" />
-              </div>
-              <h3 class="text-lg font-semibold text-base-content/80">No forecast providers</h3>
-              <p class="text-sm text-base-content/50 mt-1 max-w-sm">
-                Add a forecast provider to enable energy load predictions for your devices.
-              </p>
-              <button class="btn btn-primary btn-sm mt-4 gap-2" @click="openAddForecast">
-                <PhPlus :size="16" />
-                Add Forecast Provider
-              </button>
-            </div>
-          </div>
-
           <!-- HISTORY PROVIDERS TAB -->
           <div v-if="activeTab === 'history'" class="space-y-4">
             <div class="flex justify-end">
@@ -612,14 +566,6 @@ function handleTrainSingleDevice(deviceId: string) {
     :device="historyDevice"
     :profile-id="profileStore.selectedProfileId ?? undefined"
     @close="handleCloseHistory"
-  />
-
-  <EnergyLoadForecastProviderFormModal
-    :open="showForecastModal"
-    :provider="editingForecastProvider"
-    :is-edit="isForecastEditMode"
-    @close="handleCloseForecastModal"
-    @save="handleSaveForecast"
   />
 
   <EnergyLoadHistoryProviderFormModal
