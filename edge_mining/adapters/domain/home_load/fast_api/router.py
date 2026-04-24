@@ -711,7 +711,7 @@ async def get_device_forecast(
     adapter_service: Annotated[AdapterServiceInterface, Depends(get_adapter_service)],
     history_service: Annotated[HomeLoadHistoryServiceInterface, Depends(get_home_load_history_service)],
     hours_ahead: int = Query(default=3, ge=1, le=48, description="Forecast horizon in hours"),
-    history_hours: int = Query(default=48, ge=1, le=720, description="Hours of history to feed the model"),
+    history_hours: int = Query(default=72, ge=1, le=720, description="Hours of history to feed the model"),
 ) -> LoadEnergyConsumptionSchema:
     """Get energy consumption forecast for a specific device."""
     try:
