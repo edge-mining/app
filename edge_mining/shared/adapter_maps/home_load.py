@@ -9,8 +9,10 @@ from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapte
 from edge_mining.shared.adapter_configs.home_load import (
     EnergyLoadForecastProviderDummyConfig,
     EnergyLoadForecastProviderNaiveLastHourConfig,
+    EnergyLoadForecastProviderNaivePersistenceConfig,
     EnergyLoadForecastProviderSeasonalBaselineConfig,
     EnergyLoadForecastProviderStatsmodelsConfig,
+    EnergyLoadForecastProviderTypicalProfileConfig,
     EnergyLoadForecastProviderXGBoostConfig,
     EnergyLoadHistoryProviderHomeAssistantAPIConfig,
 )
@@ -22,8 +24,10 @@ ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP: Dict[
 ] = {
     EnergyLoadForecastProviderAdapter.DUMMY: EnergyLoadForecastProviderDummyConfig,
     EnergyLoadForecastProviderAdapter.NAIVE_LAST_HOUR: EnergyLoadForecastProviderNaiveLastHourConfig,
+    EnergyLoadForecastProviderAdapter.NAIVE_PERSISTENCE: EnergyLoadForecastProviderNaivePersistenceConfig,
     EnergyLoadForecastProviderAdapter.SEASONAL_BASELINE: EnergyLoadForecastProviderSeasonalBaselineConfig,
     EnergyLoadForecastProviderAdapter.STATSMODELS: EnergyLoadForecastProviderStatsmodelsConfig,
+    EnergyLoadForecastProviderAdapter.TYPICAL_PROFILE: EnergyLoadForecastProviderTypicalProfileConfig,
     EnergyLoadForecastProviderAdapter.XGBOOST: EnergyLoadForecastProviderXGBoostConfig,
 }
 
@@ -32,8 +36,10 @@ ENERGY_LOAD_FORECAST_PROVIDER_EXTERNAL_SERVICE_MAP: Dict[
 ] = {
     EnergyLoadForecastProviderAdapter.DUMMY: None,
     EnergyLoadForecastProviderAdapter.NAIVE_LAST_HOUR: None,
+    EnergyLoadForecastProviderAdapter.NAIVE_PERSISTENCE: None,
     EnergyLoadForecastProviderAdapter.SEASONAL_BASELINE: None,
     EnergyLoadForecastProviderAdapter.STATSMODELS: None,
+    EnergyLoadForecastProviderAdapter.TYPICAL_PROFILE: None,
     EnergyLoadForecastProviderAdapter.XGBOOST: None,
 }
 

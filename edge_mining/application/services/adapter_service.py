@@ -21,6 +21,9 @@ from edge_mining.adapters.domain.home_load.forecast_providers.seasonal_baseline 
 from edge_mining.adapters.domain.home_load.forecast_providers.statsmodels_hw import (
     StatsmodelsForecastProviderFactory,
 )
+from edge_mining.adapters.domain.home_load.forecast_providers.typical_profile import (
+    TypicalProfileForecastProviderFactory,
+)
 from edge_mining.adapters.domain.home_load.forecast_providers.xgboost_provider import (
     XGBoostForecastProviderFactory,
 )
@@ -560,6 +563,8 @@ class AdapterService(AdapterServiceInterface):
                 factory = SeasonalBaselineForecastProviderFactory()
             elif energy_load_forecast_provider.adapter_type == EnergyLoadForecastProviderAdapter.STATSMODELS:
                 factory = StatsmodelsForecastProviderFactory(model_repo=self.load_consumption_model_repo)
+            elif energy_load_forecast_provider.adapter_type == EnergyLoadForecastProviderAdapter.TYPICAL_PROFILE:
+                factory = TypicalProfileForecastProviderFactory()
             elif energy_load_forecast_provider.adapter_type == EnergyLoadForecastProviderAdapter.XGBOOST:
                 factory = XGBoostForecastProviderFactory(model_repo=self.load_consumption_model_repo)
             else:

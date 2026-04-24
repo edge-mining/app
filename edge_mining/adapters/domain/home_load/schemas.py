@@ -32,6 +32,7 @@ from edge_mining.shared.adapter_configs.home_load import (
     EnergyLoadForecastProviderNaivePersistenceConfig,
     EnergyLoadForecastProviderSeasonalBaselineConfig,
     EnergyLoadForecastProviderStatsmodelsConfig,
+    EnergyLoadForecastProviderTypicalProfileConfig,
     EnergyLoadForecastProviderXGBoostConfig,
     EnergyLoadHistoryProviderHomeAssistantAPIConfig,
 )
@@ -498,6 +499,9 @@ class EnergyLoadForecastProviderSchema(BaseModel):
         if adapter == EnergyLoadForecastProviderAdapter.STATSMODELS:
             seasonal_periods = int(cfg.get("seasonal_periods", 24))
             return seasonal_periods * 2
+        if adapter == EnergyLoadForecastProviderAdapter.TYPICAL_PROFILE:
+            weeks_lookback = int(cfg.get("weeks_lookback", 8))
+            return weeks_lookback * 168
         if adapter == EnergyLoadForecastProviderAdapter.XGBOOST:
             hours_ahead = int(cfg.get("hours_ahead", 3))
             return 168 + 48 + hours_ahead
@@ -767,6 +771,26 @@ class EnergyLoadForecastProviderSeasonalBaselineConfigSchema(BaseModel):
         validate_assignment = True
 
 
+class EnergyLoadForecastProviderTypicalProfileConfigSchema(BaseModel):
+    """Schema for TypicalProfile EnergyLoadForecastProviderConfig."""
+
+    hours_ahead: int = Field(default=24, ge=1, le=72, description="Number of hours to forecast ahead")
+    weeks_lookback: int = Field(
+        default=8, ge=1, le=52, description="Weeks of history to build the typical profile from"
+    )
+
+    def to_model(self) -> EnergyLoadForecastProviderTypicalProfileConfig:
+        """Convert schema to domain model."""
+        return EnergyLoadForecastProviderTypicalProfileConfig(
+            hours_ahead=self.hours_ahead,
+            weeks_lookback=self.weeks_lookback,
+        )
+
+    class Config:
+        use_enum_values = True
+        validate_assignment = True
+
+
 class EnergyLoadForecastProviderStatsmodelsConfigSchema(BaseModel):
     """Schema for Statsmodels EnergyLoadForecastProviderConfig."""
 
@@ -821,6 +845,7 @@ ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_SCHEMA_MAP: Dict[
         type[EnergyLoadForecastProviderNaivePersistenceConfigSchema],
         type[EnergyLoadForecastProviderSeasonalBaselineConfigSchema],
         type[EnergyLoadForecastProviderStatsmodelsConfigSchema],
+        type[EnergyLoadForecastProviderTypicalProfileConfigSchema],
         type[EnergyLoadForecastProviderXGBoostConfigSchema],
     ],
 ] = {
@@ -829,6 +854,7 @@ ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_SCHEMA_MAP: Dict[
     EnergyLoadForecastProviderNaivePersistenceConfig: EnergyLoadForecastProviderNaivePersistenceConfigSchema,
     EnergyLoadForecastProviderSeasonalBaselineConfig: EnergyLoadForecastProviderSeasonalBaselineConfigSchema,
     EnergyLoadForecastProviderStatsmodelsConfig: EnergyLoadForecastProviderStatsmodelsConfigSchema,
+    EnergyLoadForecastProviderTypicalProfileConfig: EnergyLoadForecastProviderTypicalProfileConfigSchema,
     EnergyLoadForecastProviderXGBoostConfig: EnergyLoadForecastProviderXGBoostConfigSchema,
 }
 

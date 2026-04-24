@@ -95,6 +95,24 @@ class EnergyLoadForecastProviderSeasonalBaselineConfig(EnergyLoadForecastProvide
 
 
 @dataclass(frozen=True)
+class EnergyLoadForecastProviderTypicalProfileConfig(EnergyLoadForecastProviderConfig):
+    """Configuration for TypicalProfile forecast provider (monthly + weekly + hourly avg)."""
+
+    hours_ahead: int = field(default=24)
+    weeks_lookback: int = field(default=8)
+
+    def is_valid(self, adapter_type: EnergyLoadForecastProviderAdapter) -> bool:
+        return adapter_type == EnergyLoadForecastProviderAdapter.TYPICAL_PROFILE
+
+    def to_dict(self) -> dict:
+        return {**asdict(self)}
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        return cls(**data)
+
+
+@dataclass(frozen=True)
 class EnergyLoadForecastProviderStatsmodelsConfig(EnergyLoadForecastProviderConfig):
     """Configuration for Statsmodels (Holt-Winters / SARIMA) forecast provider."""
 

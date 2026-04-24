@@ -39,6 +39,7 @@ class EnergyLoadForecastProviderAdapter(AdapterType):
     NAIVE_PERSISTENCE = "naive_persistence"
     SEASONAL_BASELINE = "seasonal_baseline"
     STATSMODELS = "statsmodels"
+    TYPICAL_PROFILE = "typical_profile"
     XGBOOST = "xgboost"
 
 
