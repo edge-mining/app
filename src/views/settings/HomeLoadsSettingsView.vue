@@ -10,6 +10,7 @@ import type { EnergyLoadHistoryProvider } from "../../core/models/energyLoadHist
 import LoadDeviceTable from "../../components/homeLoads/LoadDeviceTable.vue";
 import LoadDeviceFormModal from "../../components/homeLoads/LoadDeviceFormModal.vue";
 import LoadDeviceHistoryModal from "../../components/homeLoads/LoadDeviceHistoryModal.vue";
+import ConfirmDialog from "../../components/ConfirmDialog.vue";
 import {
   PhPlus,
   PhPlug,
@@ -28,6 +29,8 @@ const externalServiceStore = useExternalServiceStore();
 // Profile management
 const showNewProfileInput = ref(false);
 const newProfileName = ref("");
+const profileToDelete = ref<string | null>(null);
+const showDeleteProfileConfirm = ref(false);
 const editingProfileId = ref<string | null>(null);
 const editProfileName = ref("");
 
@@ -106,15 +109,30 @@ function confirmEditProfile() {
 }
 
 function deleteProfile(profileId: string) {
-  profileStore
-    .deleteProfile(profileId)
-    .then(() => {
-      if (profileStore.selectedProfileId === profileId) {
-        profileStore.selectedProfileId = null;
-      }
-      profileStore.loadProfiles();
-    })
-    .showToasts("Profile deleted successfully", "Failed to delete profile");
+  profileToDelete.value = profileId;
+  showDeleteProfileConfirm.value = true;
+}
+
+function confirmDeleteProfile() {
+  if (profileToDelete.value) {
+    const profileId = profileToDelete.value;
+    profileStore
+      .deleteProfile(profileId)
+      .then(() => {
+        if (profileStore.selectedProfileId === profileId) {
+          profileStore.selectedProfileId = null;
+        }
+        profileStore.loadProfiles();
+      })
+      .showToasts("Profile deleted successfully", "Failed to delete profile");
+  }
+  showDeleteProfileConfirm.value = false;
+  profileToDelete.value = null;
+}
+
+function cancelDeleteProfile() {
+  showDeleteProfileConfirm.value = false;
+  profileToDelete.value = null;
 }
 
 // ── Device CRUD ──────────────────────────────
@@ -438,6 +456,16 @@ function handleCloseHistory() {
     :device="historyDevice"
     :profile-id="profileStore.selectedProfileId ?? undefined"
     @close="handleCloseHistory"
+  />
+
+  <ConfirmDialog
+    :open="showDeleteProfileConfirm"
+    title="Delete Profile"
+    :message="`Are you sure you want to delete this profile and all its devices?`"
+    confirm-text="Delete"
+    variant="danger"
+    @confirm="confirmDeleteProfile"
+    @cancel="cancelDeleteProfile"
   />
 </template>
 
