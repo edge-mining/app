@@ -663,6 +663,78 @@ async def get_device_history(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+@router.post(
+    "/home-loads-profiles/{profile_id}/devices/{device_id}/history/collect",
+    response_model=Dict[str, str],
+)
+async def collect_device_history(
+    profile_id: EntityId,
+    device_id: EntityId,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+    history_service: Annotated[HomeLoadHistoryServiceInterface, Depends(get_home_load_history_service)],
+) -> Dict[str, str]:
+    """Fetch power points from the history provider and store them in the database."""
+    try:
+        profile = config_service.get_home_loads_profile(profile_id)
+        if profile is None:
+            raise HomeLoadsProfileNotFoundError(f"Home Loads Profile with ID {profile_id} not found")
+
+        device = next((d for d in profile.devices if d.id == device_id), None)
+        if device is None:
+            raise HomeLoadsProfileDeviceNotFoundError(
+                f"Load Device with ID {device_id} not found in Home Loads Profile {profile_id}"
+            )
+
+        if not device.energy_load_history_provider_id:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Device '{device.name}' has no history provider configured.",
+            )
+
+        await history_service.collect_devices([device_id])
+        return {"status": "completed", "detail": f"History collection completed for device '{device.name}'."}
+    except HomeLoadsProfileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except HomeLoadsProfileDeviceNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+# --- History Collection endpoints ---
+
+
+@router.post("/history/collect", response_model=Dict[str, str])
+async def trigger_history_collection(
+    history_service: Annotated[HomeLoadHistoryServiceInterface, Depends(get_home_load_history_service)],
+) -> Dict[str, str]:
+    """Manually trigger power-point collection for all enabled devices."""
+    try:
+        await history_service.collect_all()
+        return {"status": "completed", "detail": "History collection completed for all eligible devices."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/history/collect/devices", response_model=Dict[str, str])
+async def trigger_history_collection_for_devices(
+    device_ids: List[str],
+    history_service: Annotated[HomeLoadHistoryServiceInterface, Depends(get_home_load_history_service)],
+) -> Dict[str, str]:
+    """Manually trigger power-point collection for specific devices."""
+    try:
+        parsed_ids = [EntityId(uuid.UUID(did)) for did in device_ids]
+        await history_service.collect_devices(parsed_ids)
+        return {
+            "status": "completed",
+            "detail": f"History collection completed for {len(parsed_ids)} device(s).",
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid device ID: {e}") from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 # --- Training endpoints ---
 
 
