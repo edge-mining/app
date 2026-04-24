@@ -122,9 +122,10 @@ class LoadForecastModelTrainingService(LoadForecastTrainingServiceInterface):
 
         hw_model = self._train_hw(train_consumption, holdout_consumption, device_id, device_name)
         xgb_model = self._train_xgb(train_consumption, holdout_consumption, device_id, device_name)
+        skf_model = self._train_skforecast(train_consumption, holdout_consumption, device_id, device_name)
 
         # Promote the best model
-        candidates = [m for m in [hw_model, xgb_model] if m is not None and m.mae is not None]
+        candidates = [m for m in [hw_model, xgb_model, skf_model] if m is not None and m.mae is not None]
         if not candidates:
             if self._logger:
                 self._logger.warning(f"No model trained successfully for device '{device_name}'.")
@@ -134,7 +135,11 @@ class LoadForecastModelTrainingService(LoadForecastTrainingServiceInterface):
         best.is_active = True
 
         # Deactivate previous active models for this device
-        for adapter_type in [EnergyLoadForecastProviderAdapter.STATSMODELS, EnergyLoadForecastProviderAdapter.XGBOOST]:
+        for adapter_type in [
+            EnergyLoadForecastProviderAdapter.STATSMODELS,
+            EnergyLoadForecastProviderAdapter.XGBOOST,
+            EnergyLoadForecastProviderAdapter.SKFORECAST,
+        ]:
             old = self._model_repo.get_active_model(adapter_type, device_id)
             if old is not None:
                 old.is_active = False
@@ -272,4 +277,68 @@ class LoadForecastModelTrainingService(LoadForecastTrainingServiceInterface):
         except Exception as exc:
             if self._logger:
                 self._logger.warning(f"XGBoost training failed for '{device_name}': {exc}")
+            return None
+
+    def _train_skforecast(
+        self,
+        train: LoadEnergyConsumption,
+        holdout: LoadEnergyConsumption,
+        device_id: EntityId,
+        device_name: str,
+        sklearn_model: str = "RandomForestRegressor",
+        num_lags: int = 72,
+    ) -> Optional[LoadConsumptionModel]:
+        """Train skforecast ForecasterRecursive and evaluate on holdout."""
+        try:
+            import pandas as pd_
+            from skforecast.recursive import ForecasterRecursive as FR
+
+            from edge_mining.adapters.domain.home_load.forecast_providers.skforecast_provider import (
+                _resolve_sklearn_model,
+            )
+        except ImportError:
+            return None
+
+        series = intervals_to_hourly_series(train)
+        series = fill_missing_hours(series)
+        powers = [p for _, p in series]
+
+        if len(powers) < num_lags + 24:
+            return None
+
+        try:
+            regressor = _resolve_sklearn_model(sklearn_model)
+            forecaster = FR(regressor=regressor, lags=num_lags)
+
+            y = pd_.Series(powers, name="power")
+            forecaster.fit(y=y)
+            model_bytes = pickle.dumps(forecaster)
+
+            # Evaluate on holdout
+            holdout_series = intervals_to_hourly_series(holdout)
+            holdout_series = fill_missing_hours(holdout_series)
+            holdout_powers = [p for _, p in holdout_series]
+
+            n_eval = min(len(holdout_powers), 24)
+            if n_eval == 0:
+                return None
+
+            predictions = forecaster.predict(steps=n_eval)
+            pred_list = predictions.tolist()
+            mae = sum(abs(float(pred_list[i]) - holdout_powers[i]) for i in range(n_eval)) / n_eval
+            rmse = (sum((float(pred_list[i]) - holdout_powers[i]) ** 2 for i in range(n_eval)) / n_eval) ** 0.5
+
+            return LoadConsumptionModel(
+                device_id=device_id,
+                adapter_type=EnergyLoadForecastProviderAdapter.SKFORECAST,
+                trained_at=datetime.now(),
+                mae=mae,
+                rmse=rmse,
+                samples_used=len(powers),
+                is_active=False,
+                model_bytes=model_bytes,
+            )
+        except Exception as exc:
+            if self._logger:
+                self._logger.warning(f"Skforecast training failed for '{device_name}': {exc}")
             return None

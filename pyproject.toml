@@ -74,6 +74,8 @@ ml = [
     "scikit-learn>=1.5.0",
     "statsmodels>=0.14.0",
     "xgboost>=2.0.0",
+    "skforecast>=0.14",
+    "optuna>=3.0",
 ]
 all = [
     "edge-mining[api,homeassistant,mqtt,telegram,solar,pyasic]",

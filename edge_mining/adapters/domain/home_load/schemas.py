@@ -31,6 +31,7 @@ from edge_mining.shared.adapter_configs.home_load import (
     EnergyLoadForecastProviderNaiveLastHourConfig,
     EnergyLoadForecastProviderNaivePersistenceConfig,
     EnergyLoadForecastProviderSeasonalBaselineConfig,
+    EnergyLoadForecastProviderSkforecastConfig,
     EnergyLoadForecastProviderStatsmodelsConfig,
     EnergyLoadForecastProviderTypicalProfileConfig,
     EnergyLoadForecastProviderXGBoostConfig,
@@ -496,6 +497,10 @@ class EnergyLoadForecastProviderSchema(BaseModel):
         if adapter == EnergyLoadForecastProviderAdapter.NAIVE_PERSISTENCE:
             delta_days = int(cfg.get("delta_days", 1))
             return delta_days * 24
+        if adapter == EnergyLoadForecastProviderAdapter.SKFORECAST:
+            num_lags = int(cfg.get("num_lags", 72))
+            hours_ahead = int(cfg.get("hours_ahead", 24))
+            return num_lags + 48 + hours_ahead
         if adapter == EnergyLoadForecastProviderAdapter.STATSMODELS:
             seasonal_periods = int(cfg.get("seasonal_periods", 24))
             return seasonal_periods * 2
@@ -791,6 +796,31 @@ class EnergyLoadForecastProviderTypicalProfileConfigSchema(BaseModel):
         validate_assignment = True
 
 
+class EnergyLoadForecastProviderSkforecastConfigSchema(BaseModel):
+    """Schema for Skforecast EnergyLoadForecastProviderConfig."""
+
+    hours_ahead: int = Field(default=24, ge=1, le=72, description="Number of hours to forecast ahead")
+    weeks_lookback: int = Field(default=8, ge=1, le=52, description="Weeks of history for training")
+    sklearn_model: str = Field(
+        default="RandomForestRegressor",
+        description="Name of the sklearn regressor class to use as backend",
+    )
+    num_lags: int = Field(default=72, ge=6, le=336, description="Number of lag features (hours)")
+
+    def to_model(self) -> EnergyLoadForecastProviderSkforecastConfig:
+        """Convert schema to domain model."""
+        return EnergyLoadForecastProviderSkforecastConfig(
+            hours_ahead=self.hours_ahead,
+            weeks_lookback=self.weeks_lookback,
+            sklearn_model=self.sklearn_model,
+            num_lags=self.num_lags,
+        )
+
+    class Config:
+        use_enum_values = True
+        validate_assignment = True
+
+
 class EnergyLoadForecastProviderStatsmodelsConfigSchema(BaseModel):
     """Schema for Statsmodels EnergyLoadForecastProviderConfig."""
 
@@ -844,6 +874,7 @@ ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_SCHEMA_MAP: Dict[
         type[EnergyLoadForecastProviderNaiveLastHourConfigSchema],
         type[EnergyLoadForecastProviderNaivePersistenceConfigSchema],
         type[EnergyLoadForecastProviderSeasonalBaselineConfigSchema],
+        type[EnergyLoadForecastProviderSkforecastConfigSchema],
         type[EnergyLoadForecastProviderStatsmodelsConfigSchema],
         type[EnergyLoadForecastProviderTypicalProfileConfigSchema],
         type[EnergyLoadForecastProviderXGBoostConfigSchema],
@@ -853,6 +884,7 @@ ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_SCHEMA_MAP: Dict[
     EnergyLoadForecastProviderNaiveLastHourConfig: EnergyLoadForecastProviderNaiveLastHourConfigSchema,
     EnergyLoadForecastProviderNaivePersistenceConfig: EnergyLoadForecastProviderNaivePersistenceConfigSchema,
     EnergyLoadForecastProviderSeasonalBaselineConfig: EnergyLoadForecastProviderSeasonalBaselineConfigSchema,
+    EnergyLoadForecastProviderSkforecastConfig: EnergyLoadForecastProviderSkforecastConfigSchema,
     EnergyLoadForecastProviderStatsmodelsConfig: EnergyLoadForecastProviderStatsmodelsConfigSchema,
     EnergyLoadForecastProviderTypicalProfileConfig: EnergyLoadForecastProviderTypicalProfileConfigSchema,
     EnergyLoadForecastProviderXGBoostConfig: EnergyLoadForecastProviderXGBoostConfigSchema,

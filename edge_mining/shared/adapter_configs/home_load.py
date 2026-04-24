@@ -113,6 +113,30 @@ class EnergyLoadForecastProviderTypicalProfileConfig(EnergyLoadForecastProviderC
 
 
 @dataclass(frozen=True)
+class EnergyLoadForecastProviderSkforecastConfig(EnergyLoadForecastProviderConfig):
+    """Configuration for skforecast ForecasterRecursive provider.
+
+    ``sklearn_model`` selects the sklearn regressor backend by name, e.g.
+    ``"RandomForestRegressor"``, ``"Ridge"``, ``"KNeighborsRegressor"`` etc.
+    """
+
+    hours_ahead: int = field(default=24)
+    weeks_lookback: int = field(default=8)
+    sklearn_model: str = field(default="RandomForestRegressor")
+    num_lags: int = field(default=72)
+
+    def is_valid(self, adapter_type: EnergyLoadForecastProviderAdapter) -> bool:
+        return adapter_type == EnergyLoadForecastProviderAdapter.SKFORECAST
+
+    def to_dict(self) -> dict:
+        return {**asdict(self)}
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        return cls(**data)
+
+
+@dataclass(frozen=True)
 class EnergyLoadForecastProviderStatsmodelsConfig(EnergyLoadForecastProviderConfig):
     """Configuration for Statsmodels (Holt-Winters / SARIMA) forecast provider."""
 

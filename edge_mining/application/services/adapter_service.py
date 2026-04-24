@@ -18,6 +18,9 @@ from edge_mining.adapters.domain.home_load.forecast_providers.naive_persistence 
 from edge_mining.adapters.domain.home_load.forecast_providers.seasonal_baseline import (
     SeasonalBaselineForecastProviderFactory,
 )
+from edge_mining.adapters.domain.home_load.forecast_providers.skforecast_provider import (
+    SkforecastForecastProviderFactory,
+)
 from edge_mining.adapters.domain.home_load.forecast_providers.statsmodels_hw import (
     StatsmodelsForecastProviderFactory,
 )
@@ -561,6 +564,8 @@ class AdapterService(AdapterServiceInterface):
                 factory = NaivePersistenceForecastProviderFactory()
             elif energy_load_forecast_provider.adapter_type == EnergyLoadForecastProviderAdapter.SEASONAL_BASELINE:
                 factory = SeasonalBaselineForecastProviderFactory()
+            elif energy_load_forecast_provider.adapter_type == EnergyLoadForecastProviderAdapter.SKFORECAST:
+                factory = SkforecastForecastProviderFactory(model_repo=self.load_consumption_model_repo)
             elif energy_load_forecast_provider.adapter_type == EnergyLoadForecastProviderAdapter.STATSMODELS:
                 factory = StatsmodelsForecastProviderFactory(model_repo=self.load_consumption_model_repo)
             elif energy_load_forecast_provider.adapter_type == EnergyLoadForecastProviderAdapter.TYPICAL_PROFILE:
