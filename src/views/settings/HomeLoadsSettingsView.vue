@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useHomeLoadsProfileStore } from "../../core/stores/homeLoadsProfileStore";
 import { useEnergyLoadForecastProviderStore } from "../../core/stores/energyLoadForecastProviderStore";
 import { useEnergyLoadHistoryProviderStore } from "../../core/stores/energyLoadHistoryProviderStore";
@@ -10,12 +10,9 @@ import type { EnergyLoadHistoryProvider } from "../../core/models/energyLoadHist
 import LoadDeviceCard from "../../components/homeLoads/LoadDeviceCard.vue";
 import LoadDeviceFormModal from "../../components/homeLoads/LoadDeviceFormModal.vue";
 import LoadDeviceHistoryModal from "../../components/homeLoads/LoadDeviceHistoryModal.vue";
-import EnergyLoadHistoryProviderCard from "../../components/homeLoads/EnergyLoadHistoryProviderCard.vue";
-import EnergyLoadHistoryProviderFormModal from "../../components/homeLoads/EnergyLoadHistoryProviderFormModal.vue";
 import {
   PhPlus,
   PhPlug,
-  PhChartLine,
   PhHouse,
   PhPencil,
   PhTrash,
@@ -27,15 +24,6 @@ const profileStore = useHomeLoadsProfileStore();
 const forecastProviderStore = useEnergyLoadForecastProviderStore();
 const historyProviderStore = useEnergyLoadHistoryProviderStore();
 const externalServiceStore = useExternalServiceStore();
-
-// Tab management
-type Tab = "devices" | "history";
-const activeTab = ref<Tab>("devices");
-
-const tabs: { value: Tab; label: string; icon: typeof PhPlug }[] = [
-  { value: "devices", label: "Devices", icon: PhPlug },
-  { value: "history", label: "History Providers", icon: PhChartLine },
-];
 
 // Profile management
 const showNewProfileInput = ref(false);
@@ -51,11 +39,6 @@ const isDeviceEditMode = ref(false);
 // Device history modal state
 const showHistoryModal = ref(false);
 const historyDevice = ref<LoadDevice | undefined>(undefined);
-
-// History provider modal state
-const showHistoryProviderModal = ref(false);
-const editingHistoryProvider = ref<EnergyLoadHistoryProvider | undefined>(undefined);
-const isHistoryProviderEditMode = ref(false);
 
 // Computed
 const selectedProfile = computed(() => {
@@ -152,13 +135,12 @@ function handleCloseDeviceModal() {
   editingDevice.value = undefined;
 }
 
-function handleSaveDevice(device: LoadDevice, forecastProvider?: EnergyLoadForecastProvider | null) {
+function handleSaveDevice(device: LoadDevice, forecastProvider?: EnergyLoadForecastProvider | null, historyProvider?: EnergyLoadHistoryProvider | null) {
   const pid = profileStore.selectedProfileId;
   if (!pid) return;
 
   const saveForecastProvider = async (deviceId: string) => {
     if (forecastProvider === null) {
-      // Delete existing forecast provider
       const existingFpId = device.energy_load_forecast_provider_id;
       if (existingFpId) {
         try {
@@ -169,10 +151,8 @@ function handleSaveDevice(device: LoadDevice, forecastProvider?: EnergyLoadForec
       }
     } else if (forecastProvider) {
       if (forecastProvider.id) {
-        // Update existing (same adapter type)
         await forecastProviderStore.updateProvider(forecastProvider.id, forecastProvider);
       } else {
-        // No ID → new provider (or adapter type changed: delete old + create new)
         const existingFpId = device.energy_load_forecast_provider_id;
         if (existingFpId) {
           try {
@@ -193,15 +173,51 @@ function handleSaveDevice(device: LoadDevice, forecastProvider?: EnergyLoadForec
     await forecastProviderStore.loadProviders();
   };
 
+  const saveHistoryProvider = async (deviceId: string) => {
+    if (historyProvider === null) {
+      const existingHpId = device.energy_load_history_provider_id;
+      if (existingHpId) {
+        try {
+          await historyProviderStore.deleteProvider(existingHpId);
+        } catch {
+          // Provider may have been already deleted
+        }
+      }
+    } else if (historyProvider) {
+      if (historyProvider.id) {
+        await historyProviderStore.updateProvider(historyProvider.id, historyProvider);
+      } else {
+        const existingHpId = device.energy_load_history_provider_id;
+        if (existingHpId) {
+          try {
+            await historyProviderStore.deleteProvider(existingHpId);
+          } catch {
+            // Provider may have been already deleted
+          }
+        }
+        const created = await historyProviderStore.addProvider(historyProvider);
+        if (created?.id) {
+          await profileStore.updateDevice(pid, deviceId, {
+            ...device,
+            energy_load_history_provider_id: created.id,
+          });
+        }
+      }
+    }
+    await historyProviderStore.loadProviders();
+  };
+
   if (isDeviceEditMode.value && device.id) {
-    // If removing forecast, clear the link first
-    const saveData = forecastProvider === null
-      ? { ...device, energy_load_forecast_provider_id: undefined }
-      : device;
+    const saveData = {
+      ...device,
+      ...(forecastProvider === null ? { energy_load_forecast_provider_id: undefined } : {}),
+      ...(historyProvider === null ? { energy_load_history_provider_id: undefined } : {}),
+    };
     profileStore
       .updateDevice(pid, device.id, saveData)
       .then(async () => {
         await saveForecastProvider(device.id!);
+        await saveHistoryProvider(device.id!);
         await profileStore.loadProfiles();
         handleCloseDeviceModal();
       })
@@ -211,8 +227,9 @@ function handleSaveDevice(device: LoadDevice, forecastProvider?: EnergyLoadForec
       .addDevice(pid, device)
       .then(async (created) => {
         const newId = (created as any)?.id ?? device.id;
-        if (newId && forecastProvider) {
-          await saveForecastProvider(newId);
+        if (newId) {
+          if (forecastProvider) await saveForecastProvider(newId);
+          if (historyProvider) await saveHistoryProvider(newId);
         }
         await profileStore.loadProfiles();
         handleCloseDeviceModal();
@@ -238,52 +255,6 @@ function handleViewHistory(device: LoadDevice) {
 function handleCloseHistory() {
   showHistoryModal.value = false;
   historyDevice.value = undefined;
-}
-
-// ── History Provider CRUD ──────────────────────────────
-function openAddHistory() {
-  editingHistoryProvider.value = undefined;
-  isHistoryProviderEditMode.value = false;
-  showHistoryProviderModal.value = true;
-}
-
-function handleEditHistory(provider: EnergyLoadHistoryProvider) {
-  editingHistoryProvider.value = { ...provider };
-  isHistoryProviderEditMode.value = true;
-  showHistoryProviderModal.value = true;
-}
-
-function handleCloseHistoryModal() {
-  showHistoryProviderModal.value = false;
-  editingHistoryProvider.value = undefined;
-}
-
-function handleSaveHistory(provider: EnergyLoadHistoryProvider) {
-  if (isHistoryProviderEditMode.value && provider.id) {
-    historyProviderStore
-      .updateProvider(provider.id, provider)
-      .then(() => {
-        historyProviderStore.loadProviders();
-        handleCloseHistoryModal();
-      })
-      .showToasts("History provider updated", "Failed to update history provider");
-  } else {
-    historyProviderStore
-      .addProvider(provider)
-      .then(() => {
-        historyProviderStore.loadProviders();
-        handleCloseHistoryModal();
-      })
-      .showToasts("History provider created", "Failed to create history provider");
-  }
-}
-
-function handleDeleteHistory(provider: EnergyLoadHistoryProvider) {
-  if (!provider.id) return;
-  historyProviderStore
-    .deleteProvider(provider.id)
-    .then(() => historyProviderStore.loadProviders())
-    .showToasts("History provider deleted", "Failed to delete history provider");
 }
 </script>
 
@@ -397,24 +368,9 @@ function handleDeleteHistory(provider: EnergyLoadHistoryProvider) {
           </div>
         </div>
 
-        <!-- Tab Bar -->
-        <div v-if="selectedProfile" class="flex gap-2 flex-wrap border-b border-base-300/40 pb-2">
-          <button
-            v-for="tab in tabs"
-            :key="tab.value"
-            class="btn btn-sm gap-2 transition-all"
-            :class="activeTab === tab.value ? 'btn-primary' : 'btn-ghost opacity-70 hover:opacity-100'"
-            @click="activeTab = tab.value"
-          >
-            <component :is="tab.icon" :size="16" />
-            {{ tab.label }}
-          </button>
-        </div>
-
-        <!-- Tab Content -->
+        <!-- Devices -->
         <template v-if="selectedProfile">
-          <!-- DEVICES TAB -->
-          <div v-if="activeTab === 'devices'" class="space-y-4">
+          <div class="space-y-4">
             <div class="flex justify-end">
               <button class="btn btn-primary gap-2" @click="openAddDevice">
                 <PhPlus :size="20" weight="bold" />
@@ -452,44 +408,6 @@ function handleDeleteHistory(provider: EnergyLoadHistoryProvider) {
               </button>
             </div>
           </div>
-
-          <!-- HISTORY PROVIDERS TAB -->
-          <div v-if="activeTab === 'history'" class="space-y-4">
-            <div class="flex justify-end">
-              <button class="btn btn-primary gap-2" @click="openAddHistory">
-                <PhPlus :size="20" weight="bold" />
-                Add History Provider
-              </button>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              <EnergyLoadHistoryProviderCard
-                v-for="provider in historyProviderStore.providers"
-                :key="provider.id"
-                :provider="provider"
-                :all-devices="devices"
-                @edit="handleEditHistory"
-                @delete="handleDeleteHistory"
-              />
-            </div>
-
-            <div
-              v-if="historyProviderStore.providers.length === 0"
-              class="flex flex-col items-center justify-center py-16 text-center"
-            >
-              <div class="w-20 h-20 rounded-full bg-base-200 flex items-center justify-center mb-4">
-                <PhChartLine :size="40" class="text-base-content/30" />
-              </div>
-              <h3 class="text-lg font-semibold text-base-content/80">No history providers</h3>
-              <p class="text-sm text-base-content/50 mt-1 max-w-sm">
-                Add a history provider to track energy consumption data from your devices.
-              </p>
-              <button class="btn btn-primary btn-sm mt-4 gap-2" @click="openAddHistory">
-                <PhPlus :size="16" />
-                Add History Provider
-              </button>
-            </div>
-          </div>
         </template>
 
         <!-- No Profile Selected State -->
@@ -523,14 +441,6 @@ function handleDeleteHistory(provider: EnergyLoadHistoryProvider) {
     :device="historyDevice"
     :profile-id="profileStore.selectedProfileId ?? undefined"
     @close="handleCloseHistory"
-  />
-
-  <EnergyLoadHistoryProviderFormModal
-    :open="showHistoryProviderModal"
-    :provider="editingHistoryProvider"
-    :is-edit="isHistoryProviderEditMode"
-    @close="handleCloseHistoryModal"
-    @save="handleSaveHistory"
   />
 </template>
 

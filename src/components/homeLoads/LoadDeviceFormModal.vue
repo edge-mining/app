@@ -5,8 +5,12 @@ import {
   EnergyLoadForecastProviderAdapter,
   type EnergyLoadForecastProvider,
 } from "../../core/models/energyLoadForecastProvider";
-import type { EnergyLoadHistoryProvider } from "../../core/models/energyLoadHistoryProvider";
+import {
+  EnergyLoadHistoryProviderAdapter,
+  type EnergyLoadHistoryProvider,
+} from "../../core/models/energyLoadHistoryProvider";
 import { useEnergyLoadForecastProviderStore } from "../../core/stores/energyLoadForecastProviderStore";
+import { useEnergyLoadHistoryProviderStore } from "../../core/stores/energyLoadHistoryProviderStore";
 import { useExternalServiceStore } from "../../core/stores/externalServiceStore";
 import ConfigSchemaForm from "../ConfigSchemaForm.vue";
 import { formatType } from "../../core/utils/index";
@@ -18,6 +22,7 @@ import {
   PhBrain,
   PhPlugs,
   PhTrash,
+  PhChartLine,
 } from "@phosphor-icons/vue";
 
 const props = defineProps<{
@@ -30,10 +35,11 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: [];
-  save: [device: LoadDevice, forecastProvider?: EnergyLoadForecastProvider | null];
+  save: [device: LoadDevice, forecastProvider?: EnergyLoadForecastProvider | null, historyProvider?: EnergyLoadHistoryProvider | null];
 }>();
 
 const forecastProviderStore = useEnergyLoadForecastProviderStore();
+const historyProviderStore = useEnergyLoadHistoryProviderStore();
 const externalServiceStore = useExternalServiceStore();
 
 const categories = Object.values(LoadDeviceCategory);
@@ -54,11 +60,29 @@ const forecastExternalServiceId = ref("");
 const requiresExternalService = ref(false);
 const compatibleExternalServices = ref<any[]>([]);
 
+// History provider inline config
+const historyEnabled = ref(false);
+const historyAdapterType = ref<string>(EnergyLoadHistoryProviderAdapter.DUMMY);
+const historyConfig = ref<Record<string, any>>({});
+const historyExternalServiceId = ref("");
+const historyRequiresExternalService = ref(false);
+const historyCompatibleExternalServices = ref<any[]>([]);
+const showHistoryConfig = ref(false);
+const showForecastConfig = ref(false);
+
 // Resolve the existing forecast provider linked to this device
 const existingForecastProvider = computed(() => {
   if (!formData.value.energy_load_forecast_provider_id) return null;
   return props.forecastProviders.find(
     (p) => p.id === formData.value.energy_load_forecast_provider_id
+  ) ?? null;
+});
+
+// Resolve the existing history provider linked to this device
+const existingHistoryProvider = computed(() => {
+  if (!formData.value.energy_load_history_provider_id) return null;
+  return props.historyProviders.find(
+    (p) => p.id === formData.value.energy_load_history_provider_id
   ) ?? null;
 });
 
@@ -95,6 +119,39 @@ async function updateCompatibleExternalServices(adapterType: string) {
   }
 }
 
+async function updateHistoryCompatibleExternalServices(adapterType: string) {
+  if (!adapterType) {
+    historyRequiresExternalService.value = false;
+    historyCompatibleExternalServices.value = [];
+    return;
+  }
+  try {
+    const resp = await historyProviderStore.externalServices(adapterType);
+    let required = false;
+    let compatibleAdapterTypes: string[] = [];
+    if (resp === null || resp === undefined) {
+      required = false;
+    } else if (typeof resp === "string") {
+      required = true;
+      compatibleAdapterTypes = [resp];
+    }
+    historyRequiresExternalService.value = required;
+    if (compatibleAdapterTypes.length > 0) {
+      historyCompatibleExternalServices.value =
+        externalServiceStore.externalServices.filter((s: any) =>
+          compatibleAdapterTypes.includes(s.adapter_type)
+        );
+    } else if (required) {
+      historyCompatibleExternalServices.value = externalServiceStore.externalServices;
+    } else {
+      historyCompatibleExternalServices.value = [];
+    }
+  } catch {
+    historyRequiresExternalService.value = false;
+    historyCompatibleExternalServices.value = [];
+  }
+}
+
 watch(
   () => props.open,
   (isOpen) => {
@@ -120,6 +177,19 @@ watch(
         } else {
           resetForecastSection();
         }
+        // Initialize history section from existing provider
+        const hp = props.historyProviders.find(
+          (p) => p.id === props.device!.energy_load_history_provider_id
+        );
+        if (hp) {
+          historyEnabled.value = true;
+          historyAdapterType.value = hp.adapter_type;
+          historyConfig.value = hp.config ? { ...hp.config } : {};
+          historyExternalServiceId.value = hp.external_service_id || "";
+          updateHistoryCompatibleExternalServices(hp.adapter_type);
+        } else {
+          resetHistorySection();
+        }
       } else {
         formData.value = {
           name: "",
@@ -129,6 +199,7 @@ watch(
           energy_load_history_provider_id: "",
         };
         resetForecastSection();
+        resetHistorySection();
       }
     }
   },
@@ -145,6 +216,16 @@ function resetForecastSection() {
   compatibleExternalServices.value = [];
 }
 
+function resetHistorySection() {
+  historyEnabled.value = false;
+  historyAdapterType.value =
+    historyProviderStore.adapterTypes[0] || EnergyLoadHistoryProviderAdapter.DUMMY;
+  historyConfig.value = {};
+  historyExternalServiceId.value = "";
+  historyRequiresExternalService.value = false;
+  historyCompatibleExternalServices.value = [];
+}
+
 watch(forecastAdapterType, (newType) => {
   if (newType && forecastEnabled.value) {
     forecastConfig.value = {};
@@ -155,6 +236,19 @@ watch(forecastAdapterType, (newType) => {
 watch(forecastEnabled, (enabled) => {
   if (enabled) {
     updateCompatibleExternalServices(forecastAdapterType.value);
+  }
+});
+
+watch(historyAdapterType, (newType) => {
+  if (newType && historyEnabled.value) {
+    historyConfig.value = {};
+    updateHistoryCompatibleExternalServices(newType);
+  }
+});
+
+watch(historyEnabled, (enabled) => {
+  if (enabled) {
+    updateHistoryCompatibleExternalServices(historyAdapterType.value);
   }
 });
 
@@ -211,7 +305,36 @@ function handleSave() {
     forecastPayload = null;
   }
 
-  emit("save", rawData, forecastPayload);
+  // Build history provider payload
+  let historyPayload: EnergyLoadHistoryProvider | null | undefined;
+
+  if (historyEnabled.value) {
+    const adapterChanged = existingHistoryProvider.value &&
+      existingHistoryProvider.value.adapter_type !== historyAdapterType.value;
+
+    const hpData: EnergyLoadHistoryProvider = {
+      name: `${formData.value.name} - History`,
+      adapter_type: historyAdapterType.value as EnergyLoadHistoryProviderAdapter,
+      config: Object.keys(historyConfig.value).length > 0
+        ? { ...historyConfig.value }
+        : undefined,
+    };
+    if (historyExternalServiceId.value) {
+      hpData.external_service_id = historyExternalServiceId.value;
+    }
+    if (existingHistoryProvider.value?.id && !adapterChanged) {
+      hpData.id = existingHistoryProvider.value.id;
+    }
+    if (!hpData.id) {
+      delete rawData.energy_load_history_provider_id;
+    }
+    historyPayload = hpData;
+  } else if (existingHistoryProvider.value) {
+    // History was enabled, now disabled → signal deletion
+    historyPayload = null;
+  }
+
+  emit("save", rawData, forecastPayload, historyPayload);
 }
 </script>
 
@@ -285,29 +408,107 @@ function handleSave() {
           </div>
         </div>
 
-        <!-- History Provider -->
+        <!-- History Provider (inline) -->
         <div class="space-y-4">
-          <div class="flex items-center gap-2 text-sm font-semibold text-base-content/70 uppercase tracking-wider">
-            <PhGear :size="16" />
-            History Provider
-          </div>
-          <div class="form-control">
-            <label class="label mb-1">
-              <span class="label-text font-medium">History Provider</span>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2 text-sm font-semibold text-base-content/70 uppercase tracking-wider">
+              <PhChartLine :size="16" />
+              History Provider
+            </div>
+            <label class="label cursor-pointer gap-2 p-0">
+              <span class="label-text text-xs text-base-content/50">{{ historyEnabled ? 'Enabled' : 'Disabled' }}</span>
+              <input
+                v-model="historyEnabled"
+                type="checkbox"
+                class="toggle toggle-sm toggle-primary"
+              />
             </label>
-            <select
-              v-model="formData.energy_load_history_provider_id"
-              class="select select-bordered w-full"
-            >
-              <option value="">-- None --</option>
-              <option
-                v-for="provider in historyProviders"
-                :key="provider.id"
-                :value="provider.id"
+          </div>
+
+          <div v-if="historyEnabled" class="bg-base-200/30 rounded-xl border border-base-300/30 p-4 space-y-4">
+            <!-- Adapter Type -->
+            <div class="form-control">
+              <label class="label mb-1">
+                <span class="label-text font-medium">Adapter Type *</span>
+              </label>
+              <select
+                v-model="historyAdapterType"
+                class="select select-bordered w-full"
               >
-                {{ provider.name }} ({{ formatType(provider.adapter_type) }})
-              </option>
-            </select>
+                <option value="" disabled>Select adapter type</option>
+                <option
+                  v-for="at in historyProviderStore.adapterTypes"
+                  :key="at"
+                  :value="at"
+                >
+                  {{ formatType(at) }}
+                </option>
+              </select>
+            </div>
+
+            <!-- External Service -->
+            <div v-if="historyRequiresExternalService" class="form-control">
+              <div class="flex items-center gap-2 mb-1">
+                <PhPlugs :size="14" class="text-warning" />
+                <span class="label-text font-medium">External Service</span>
+                <span class="badge badge-xs badge-warning">Required</span>
+              </div>
+              <select
+                v-model="historyExternalServiceId"
+                class="select select-bordered w-full"
+              >
+                <option value="">-- Select service --</option>
+                <option v-if="historyCompatibleExternalServices.length === 0" disabled>
+                  No compatible services available
+                </option>
+                <option
+                  v-for="svc in historyCompatibleExternalServices"
+                  :key="svc.id"
+                  :value="svc.id"
+                >
+                  {{ svc.name }}
+                </option>
+              </select>
+            </div>
+
+            <!-- Config Schema -->
+            <div>
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs gap-1 mb-1"
+                @click="showHistoryConfig = !showHistoryConfig"
+              >
+                <span class="text-xs">{{ showHistoryConfig ? '▼' : '▶' }}</span>
+                <span class="label-text font-medium">Configuration</span>
+              </button>
+              <div v-if="showHistoryConfig" class="bg-base-200/50 rounded-lg p-3 border border-base-300/30">
+                <ConfigSchemaForm
+                  v-model="historyConfig"
+                  :adapter-type="historyAdapterType"
+                  config-endpoint="energy-load-history-providers"
+                  :sensor-prefix="historyAdapterType === 'home_assistant_api'"
+                />
+              </div>
+            </div>
+
+            <!-- Remove button for existing providers -->
+            <div v-if="existingHistoryProvider" class="pt-2 border-t border-base-300/30">
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm text-error gap-1.5"
+                @click="historyEnabled = false"
+              >
+                <PhTrash :size="14" />
+                Remove History Provider
+              </button>
+              <p class="text-xs text-base-content/40 mt-1">
+                The history provider will be deleted when you save.
+              </p>
+            </div>
+          </div>
+
+          <div v-else class="text-sm text-base-content/40 italic pl-1">
+            No history provider configured for this device.
           </div>
         </div>
 
@@ -376,10 +577,15 @@ function handleSave() {
 
             <!-- Config Schema -->
             <div>
-              <label class="label mb-1">
+              <button
+                type="button"
+                class="btn btn-ghost btn-xs gap-1 mb-1"
+                @click="showForecastConfig = !showForecastConfig"
+              >
+                <span class="text-xs">{{ showForecastConfig ? '▼' : '▶' }}</span>
                 <span class="label-text font-medium">Configuration</span>
-              </label>
-              <div class="bg-base-200/50 rounded-lg p-3 border border-base-300/30">
+              </button>
+              <div v-if="showForecastConfig" class="bg-base-200/50 rounded-lg p-3 border border-base-300/30">
                 <ConfigSchemaForm
                   v-model="forecastConfig"
                   :adapter-type="forecastAdapterType"
