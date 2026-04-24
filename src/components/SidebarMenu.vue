@@ -8,6 +8,7 @@ import {
   PhPlug,
   PhBell,
   PhGraph,
+  PhHouse,
 } from "@phosphor-icons/vue";
 import VectorIcon from "./VectorIcon.vue";
 
@@ -142,6 +143,18 @@ const isAutomationActive = computed(() =>
                 </li>
               </ul>
             </details>
+          </li>
+
+          <!-- Home Loads -->
+          <li class="w-full">
+            <RouterLink
+              to="/settings/home-loads"
+              class="w-full text-sm font-medium"
+              active-class="active text-primary"
+            >
+              <PhHouse :size="18" />
+              Home Loads
+            </RouterLink>
           </li>
 
           <!-- Mining -->
