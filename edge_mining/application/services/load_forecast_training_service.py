@@ -1,9 +1,15 @@
 """Service for training ML forecast models on collected home load history."""
 
 import pickle
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
+from edge_mining.adapters.domain.home_load.forecast_providers.features import (
+    fill_missing_hours,
+    intervals_to_hourly_series,
+    prepare_supervised_dataset,
+)
+from edge_mining.adapters.domain.home_load.history_providers.helpers import group_power_points_into_intervals
 from edge_mining.application.interfaces import LoadForecastTrainingServiceInterface
 from edge_mining.domain.common import EntityId, Timestamp
 from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter
@@ -15,13 +21,6 @@ from edge_mining.domain.home_load.ports import (
 )
 from edge_mining.domain.home_load.value_objects import LoadEnergyConsumption
 from edge_mining.shared.logging.port import LoggerPort
-
-from edge_mining.adapters.domain.home_load.forecast_providers.features import (
-    fill_missing_hours,
-    intervals_to_hourly_series,
-    prepare_supervised_dataset,
-)
-from edge_mining.adapters.domain.home_load.history_providers.helpers import group_power_points_into_intervals
 
 
 class LoadForecastModelTrainingService(LoadForecastTrainingServiceInterface):
@@ -92,15 +91,14 @@ class LoadForecastModelTrainingService(LoadForecastTrainingServiceInterface):
         weeks_lookback: int,
     ) -> None:
         """Train HW + XGBoost models for one device, promote the better one."""
-        now = Timestamp(datetime.now())
+        now = Timestamp(datetime.now(timezone.utc))
         lookback_start = Timestamp(now - timedelta(weeks=weeks_lookback))
 
         power_points = self._history_repo.get_power_points(device_id, lookback_start, now)
         if len(power_points) < 48 * 2:  # at least 48 hours of data for train+holdout
             if self._logger:
                 self._logger.debug(
-                    f"Insufficient history for device '{device_name}' "
-                    f"({len(power_points)} points). Skipping training."
+                    f"Insufficient history for device '{device_name}' ({len(power_points)} points). Skipping training."
                 )
             return
 
@@ -144,7 +142,7 @@ class LoadForecastModelTrainingService(LoadForecastTrainingServiceInterface):
 
         if self._logger:
             self._logger.info(
-                f"Trained models for device '{device_name}': " f"best={best.adapter_type.value} MAE={best.mae:.2f}"
+                f"Trained models for device '{device_name}': best={best.adapter_type.value} MAE={best.mae:.2f}"
             )
 
     def _train_hw(

@@ -1,10 +1,10 @@
 """Statsmodels (Holt-Winters / SARIMA) forecast provider for energy load consumption."""
 
 import pickle
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
-from edge_mining.domain.common import EntityId, Timestamp, Watts, WattHours
+from edge_mining.domain.common import EntityId, Timestamp, WattHours, Watts
 from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter
 from edge_mining.domain.home_load.exceptions import EnergyLoadForecastProviderError
 from edge_mining.domain.home_load.ports import EnergyLoadForecastProviderPort, LoadConsumptionModelRepository
@@ -146,7 +146,7 @@ class StatsmodelsForecastProvider(EnergyLoadForecastProviderPort):
         if len(series) < self._seasonal_periods * 2:
             if self._logger:
                 self._logger.debug(
-                    f"Insufficient data for Holt-Winters ({len(series)} points, " f"need {self._seasonal_periods * 2})"
+                    f"Insufficient data for Holt-Winters ({len(series)} points, need {self._seasonal_periods * 2})"
                 )
             return None
 
@@ -174,7 +174,7 @@ class StatsmodelsForecastProvider(EnergyLoadForecastProviderPort):
 
     def _build_forecast(self, predictions: List[float]) -> LoadEnergyConsumption:
         """Convert a list of predicted avg_power values to LoadEnergyConsumption."""
-        now = Timestamp(datetime.now())
+        now = Timestamp(datetime.now(timezone.utc))
         intervals: List[HomeLoadEnergyInterval] = []
         for i, power_val in enumerate(predictions):
             start = Timestamp(now + timedelta(hours=i))

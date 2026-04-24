@@ -1,7 +1,7 @@
 """Collection of Value Objects for the Home Consumption Analytics domain of the Edge Mining application."""
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from edge_mining.domain.common import EntityId, Timestamp, ValueObject, WattHours, Watts
@@ -83,7 +83,7 @@ class LoadEnergyConsumption(ValueObject):
     Intervals are typically 1 hour time ranges.
     """
 
-    timestamp: Timestamp = field(default_factory=Timestamp(datetime.now()))
+    timestamp: Timestamp = field(default_factory=Timestamp(datetime.now(timezone.utc)))
     intervals: List[HomeLoadEnergyInterval] = field(default_factory=list)
 
     @property
@@ -125,12 +125,12 @@ class LoadEnergyConsumption(ValueObject):
 
     def in_next_hours(self, hours: int, now: Optional[Timestamp] = None) -> "LoadEnergyConsumption":
         """Return a subset covering the next `hours` starting from `now` (defaults to datetime.now)."""
-        anchor = now if now is not None else Timestamp(datetime.now())
+        anchor = now if now is not None else Timestamp(datetime.now(timezone.utc))
         return self.in_window(anchor, Timestamp(anchor + timedelta(hours=hours)))
 
     def in_last_hours(self, hours: int, now: Optional[Timestamp] = None) -> "LoadEnergyConsumption":
         """Return a subset covering the last `hours` up to `now`."""
-        anchor = now if now is not None else Timestamp(datetime.now())
+        anchor = now if now is not None else Timestamp(datetime.now(timezone.utc))
         return self.in_window(Timestamp(anchor - timedelta(hours=hours)), anchor)
 
     # Pre-computed window properties for rule engine paths

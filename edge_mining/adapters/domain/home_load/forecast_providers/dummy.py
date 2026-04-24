@@ -4,7 +4,7 @@ the home loads forecast for Edge Mining Application.
 """
 
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from edge_mining.domain.common import Timestamp, WattHours, Watts
@@ -68,7 +68,7 @@ class DummyEnergyLoadForecastProvider(EnergyLoadForecastProviderPort):
         if hours_ahead <= 0:
             return None
 
-        now = Timestamp(datetime.now())
+        now = Timestamp(datetime.now(timezone.utc))
 
         if consumption_history.intervals:
             # Simple baseline: replay the average of the last observed hour.

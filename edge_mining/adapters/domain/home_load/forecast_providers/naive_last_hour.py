@@ -1,9 +1,9 @@
 """NaiveLastHour forecast provider for energy load consumption."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
-from edge_mining.domain.common import Timestamp, Watts, WattHours
+from edge_mining.domain.common import Timestamp, WattHours, Watts
 from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter
 from edge_mining.domain.home_load.exceptions import EnergyLoadForecastProviderError
 from edge_mining.domain.home_load.ports import EnergyLoadForecastProviderPort
@@ -64,7 +64,7 @@ class NaiveLastHourForecastProvider(EnergyLoadForecastProviderPort):
         if effective_hours <= 0:
             return None
 
-        now = Timestamp(datetime.now())
+        now = Timestamp(datetime.now(timezone.utc))
 
         # Compute baseline from the last hour of history
         last_hour = consumption_history.in_last_hours(1, now=now)

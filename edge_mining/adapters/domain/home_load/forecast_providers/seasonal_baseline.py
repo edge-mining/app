@@ -1,10 +1,10 @@
 """SeasonalBaseline forecast provider for energy load consumption."""
 
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple
 
-from edge_mining.domain.common import Timestamp, Watts, WattHours
+from edge_mining.domain.common import Timestamp, WattHours, Watts
 from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter
 from edge_mining.domain.home_load.exceptions import EnergyLoadForecastProviderError
 from edge_mining.domain.home_load.ports import EnergyLoadForecastProviderPort
@@ -96,7 +96,7 @@ class SeasonalBaselineForecastProvider(EnergyLoadForecastProviderPort):
         all_powers = [p for powers in profile.values() for p in powers]
         global_avg = sum(all_powers) / len(all_powers) if all_powers else 0.0
 
-        now = Timestamp(datetime.now())
+        now = Timestamp(datetime.now(timezone.utc))
         intervals: List[HomeLoadEnergyInterval] = []
         for i in range(effective_hours):
             start = Timestamp(now + timedelta(hours=i))

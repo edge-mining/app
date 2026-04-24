@@ -1,10 +1,10 @@
 """XGBoost forecast provider for energy load consumption."""
 
 import pickle
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
-from edge_mining.domain.common import EntityId, Timestamp, Watts, WattHours
+from edge_mining.domain.common import EntityId, Timestamp, WattHours, Watts
 from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter
 from edge_mining.domain.home_load.exceptions import EnergyLoadForecastProviderError
 from edge_mining.domain.home_load.ports import EnergyLoadForecastProviderPort, LoadConsumptionModelRepository
@@ -187,7 +187,7 @@ class XGBoostForecastProvider(EnergyLoadForecastProviderPort):
             return None
 
         powers = [p for _, p in series]
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         lags = [1, 2, 3, 24, 168]
 
         predictions: List[float] = []
@@ -210,7 +210,7 @@ class XGBoostForecastProvider(EnergyLoadForecastProviderPort):
         return predictions
 
     def _build_forecast(self, predictions: List[float]) -> LoadEnergyConsumption:
-        now = Timestamp(datetime.now())
+        now = Timestamp(datetime.now(timezone.utc))
         intervals: List[HomeLoadEnergyInterval] = []
         for i, power_val in enumerate(predictions):
             start = Timestamp(now + timedelta(hours=i))
