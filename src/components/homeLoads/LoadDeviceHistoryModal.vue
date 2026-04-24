@@ -93,7 +93,7 @@ async function fetchForecast() {
     );
     const historyHours = provider?.min_required_history_hours
       ? Math.ceil(provider.min_required_history_hours * 1.5)
-      : undefined;
+      : 72;
     const result = await profileStore.getDeviceForecast(
       props.profileId,
       props.device.id,
