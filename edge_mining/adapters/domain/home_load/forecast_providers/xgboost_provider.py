@@ -108,6 +108,11 @@ class XGBoostForecastProvider(EnergyLoadForecastProviderPort):
         self._device_id = device_id
         self._logger = logger
 
+    @property
+    def min_required_history_hours(self) -> int:  # noqa: D102
+        # max lag (168h) + minimum training samples (48) + forecast horizon
+        return 168 + 48 + self._hours_ahead
+
     def get_consumption_forecast(
         self, consumption_history: LoadEnergyConsumption, hours_ahead: int = 3
     ) -> Optional[LoadEnergyConsumption]:

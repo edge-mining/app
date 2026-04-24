@@ -57,6 +57,10 @@ class NaiveLastHourForecastProvider(EnergyLoadForecastProviderPort):
         self._hours_ahead = hours_ahead
         self._logger = logger
 
+    @property
+    def min_required_history_hours(self) -> int:  # noqa: D102
+        return 1
+
     def get_consumption_forecast(
         self, consumption_history: LoadEnergyConsumption, hours_ahead: int = 3
     ) -> Optional[LoadEnergyConsumption]:

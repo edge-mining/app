@@ -91,6 +91,10 @@ class StatsmodelsForecastProvider(EnergyLoadForecastProviderPort):
         self._device_id = device_id
         self._logger = logger
 
+    @property
+    def min_required_history_hours(self) -> int:  # noqa: D102
+        return self._seasonal_periods * 2
+
     def get_consumption_forecast(
         self, consumption_history: LoadEnergyConsumption, hours_ahead: int = 3
     ) -> Optional[LoadEnergyConsumption]:

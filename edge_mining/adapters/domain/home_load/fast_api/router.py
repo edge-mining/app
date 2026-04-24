@@ -49,6 +49,7 @@ from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, En
 from edge_mining.domain.home_load.exceptions import (
     EnergyLoadForecastProviderAlreadyExistsError,
     EnergyLoadForecastProviderConfigurationError,
+    EnergyLoadForecastProviderError,
     EnergyLoadForecastProviderNotFoundError,
     EnergyLoadHistoryProviderAlreadyExistsError,
     EnergyLoadHistoryProviderConfigurationError,
@@ -762,6 +763,12 @@ async def get_device_forecast(
         raise HTTPException(status_code=404, detail=str(e)) from e
     except HomeLoadsProfileDeviceNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
+    except EnergyLoadForecastProviderError as e:
+        min_hours = getattr(forecast_provider, "min_required_history_hours", None)
+        detail = str(e)
+        if min_hours:
+            detail += f" (minimum required: {min_hours} hours)"
+        raise HTTPException(status_code=400, detail=detail) from e
     except HTTPException:
         raise
     except Exception as e:

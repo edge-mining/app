@@ -100,6 +100,15 @@ class EnergyLoadForecastProviderPort(ABC):
         """Initialize the EnergyLoadForecast Provider."""
         self.forecast_provider_type = forecast_provider_type
 
+    @property
+    def min_required_history_hours(self) -> int:
+        """Minimum hours of historical data required for this provider to produce a forecast.
+
+        Providers that need more history should override this property.
+        Returns 0 by default (no minimum requirement).
+        """
+        return 0
+
     @abstractmethod
     def get_consumption_forecast(
         self, consumption_history: LoadEnergyConsumption, hours_ahead: int = 3

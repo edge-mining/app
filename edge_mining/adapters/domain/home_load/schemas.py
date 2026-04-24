@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Dict, List, Optional, Union, cast
 
-from pydantic import BaseModel, Field, field_serializer, field_validator
+from pydantic import BaseModel, Field, computed_field, field_serializer, field_validator
 
 from edge_mining.domain.common import EntityId, Timestamp, WattHours
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
@@ -481,6 +481,23 @@ class EnergyLoadForecastProviderSchema(BaseModel):
     )
     config: dict = Field(default={}, description="Energy load forecast provider configuration")
     external_service_id: Optional[str] = Field(default=None, description="ID of external service")
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def min_required_history_hours(self) -> int:
+        """Minimum hours of historical data the provider needs to produce a forecast."""
+        adapter = self.adapter_type
+        cfg = self.config or {}
+
+        if adapter == EnergyLoadForecastProviderAdapter.NAIVE_LAST_HOUR:
+            return 1
+        if adapter == EnergyLoadForecastProviderAdapter.STATSMODELS:
+            seasonal_periods = int(cfg.get("seasonal_periods", 24))
+            return seasonal_periods * 2
+        if adapter == EnergyLoadForecastProviderAdapter.XGBOOST:
+            hours_ahead = int(cfg.get("hours_ahead", 3))
+            return 168 + 48 + hours_ahead
+        return 0
 
     @field_validator("id")
     @classmethod
