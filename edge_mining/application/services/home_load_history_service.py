@@ -148,6 +148,13 @@ class HomeLoadHistoryService(HomeLoadHistoryServiceInterface):
         """Retrieve stored power points for a device in a time window."""
         return self.home_load_history_repo.get_power_points(device_id, start, end)
 
+    def clear_device_history(self, device_id: EntityId) -> int:
+        """Delete all stored power points for a device."""
+        removed = self.home_load_history_repo.clear_device_history(device_id)
+        if self.logger:
+            self.logger.info(f"Cleared {removed} power points for device {device_id}.")
+        return removed
+
     async def collect_devices(self, device_ids: List[EntityId]) -> None:
         """Collect power points for the specified devices only."""
         profiles = self.home_loads_repo.get_all()

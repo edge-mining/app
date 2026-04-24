@@ -163,6 +163,10 @@ class HomeLoadHistoryServiceInterface(ABC):
     def get_device_history(self, device_id: EntityId, start: Timestamp, end: Timestamp) -> List[HomeLoadPowerPoint]:
         """Retrieve stored power points for a device in a time window."""
 
+    @abstractmethod
+    def clear_device_history(self, device_id: EntityId) -> int:
+        """Delete all stored power points for a device. Returns the number of rows deleted."""
+
 
 class LoadForecastTrainingServiceInterface(ABC):
     """Base interface for ML model training and model listing."""
