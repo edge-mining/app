@@ -36,6 +36,7 @@ class EnergyLoadForecastProviderAdapter(AdapterType):
 
     DUMMY = "dummy"
     NAIVE_LAST_HOUR = "naive_last_hour"
+    NAIVE_PERSISTENCE = "naive_persistence"
     SEASONAL_BASELINE = "seasonal_baseline"
     STATSMODELS = "statsmodels"
     XGBOOST = "xgboost"

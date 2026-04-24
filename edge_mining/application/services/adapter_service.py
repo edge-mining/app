@@ -12,6 +12,9 @@ from edge_mining.adapters.domain.home_load.forecast_providers.dummy import Dummy
 from edge_mining.adapters.domain.home_load.forecast_providers.naive_last_hour import (
     NaiveLastHourForecastProviderFactory,
 )
+from edge_mining.adapters.domain.home_load.forecast_providers.naive_persistence import (
+    NaivePersistenceForecastProviderFactory,
+)
 from edge_mining.adapters.domain.home_load.forecast_providers.seasonal_baseline import (
     SeasonalBaselineForecastProviderFactory,
 )
@@ -551,6 +554,8 @@ class AdapterService(AdapterServiceInterface):
                 factory = DummyEnergyLoadForecastProviderFactory()
             elif energy_load_forecast_provider.adapter_type == EnergyLoadForecastProviderAdapter.NAIVE_LAST_HOUR:
                 factory = NaiveLastHourForecastProviderFactory()
+            elif energy_load_forecast_provider.adapter_type == EnergyLoadForecastProviderAdapter.NAIVE_PERSISTENCE:
+                factory = NaivePersistenceForecastProviderFactory()
             elif energy_load_forecast_provider.adapter_type == EnergyLoadForecastProviderAdapter.SEASONAL_BASELINE:
                 factory = SeasonalBaselineForecastProviderFactory()
             elif energy_load_forecast_provider.adapter_type == EnergyLoadForecastProviderAdapter.STATSMODELS:

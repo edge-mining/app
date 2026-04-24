@@ -59,6 +59,24 @@ class EnergyLoadForecastProviderNaiveLastHourConfig(EnergyLoadForecastProviderCo
 
 
 @dataclass(frozen=True)
+class EnergyLoadForecastProviderNaivePersistenceConfig(EnergyLoadForecastProviderConfig):
+    """Configuration for NaivePersistence forecast provider (repeat yesterday's profile)."""
+
+    hours_ahead: int = field(default=24)
+    delta_days: int = field(default=1)
+
+    def is_valid(self, adapter_type: EnergyLoadForecastProviderAdapter) -> bool:
+        return adapter_type == EnergyLoadForecastProviderAdapter.NAIVE_PERSISTENCE
+
+    def to_dict(self) -> dict:
+        return {**asdict(self)}
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        return cls(**data)
+
+
+@dataclass(frozen=True)
 class EnergyLoadForecastProviderSeasonalBaselineConfig(EnergyLoadForecastProviderConfig):
     """Configuration for SeasonalBaseline forecast provider."""
 

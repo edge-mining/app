@@ -29,6 +29,7 @@ from edge_mining.domain.home_load.value_objects import (
 from edge_mining.shared.adapter_configs.home_load import (
     EnergyLoadForecastProviderDummyConfig,
     EnergyLoadForecastProviderNaiveLastHourConfig,
+    EnergyLoadForecastProviderNaivePersistenceConfig,
     EnergyLoadForecastProviderSeasonalBaselineConfig,
     EnergyLoadForecastProviderStatsmodelsConfig,
     EnergyLoadForecastProviderXGBoostConfig,
@@ -491,6 +492,9 @@ class EnergyLoadForecastProviderSchema(BaseModel):
 
         if adapter == EnergyLoadForecastProviderAdapter.NAIVE_LAST_HOUR:
             return 1
+        if adapter == EnergyLoadForecastProviderAdapter.NAIVE_PERSISTENCE:
+            delta_days = int(cfg.get("delta_days", 1))
+            return delta_days * 24
         if adapter == EnergyLoadForecastProviderAdapter.STATSMODELS:
             seasonal_periods = int(cfg.get("seasonal_periods", 24))
             return seasonal_periods * 2
@@ -727,6 +731,24 @@ class EnergyLoadForecastProviderNaiveLastHourConfigSchema(BaseModel):
         validate_assignment = True
 
 
+class EnergyLoadForecastProviderNaivePersistenceConfigSchema(BaseModel):
+    """Schema for NaivePersistence EnergyLoadForecastProviderConfig."""
+
+    hours_ahead: int = Field(default=24, ge=1, le=72, description="Number of hours to forecast ahead")
+    delta_days: int = Field(default=1, ge=1, le=7, description="Number of days back to use as reference")
+
+    def to_model(self) -> EnergyLoadForecastProviderNaivePersistenceConfig:
+        """Convert schema to domain model."""
+        return EnergyLoadForecastProviderNaivePersistenceConfig(
+            hours_ahead=self.hours_ahead,
+            delta_days=self.delta_days,
+        )
+
+    class Config:
+        use_enum_values = True
+        validate_assignment = True
+
+
 class EnergyLoadForecastProviderSeasonalBaselineConfigSchema(BaseModel):
     """Schema for SeasonalBaseline EnergyLoadForecastProviderConfig."""
 
@@ -796,6 +818,7 @@ ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_SCHEMA_MAP: Dict[
     Union[
         type[EnergyLoadForecastProviderDummyConfigSchema],
         type[EnergyLoadForecastProviderNaiveLastHourConfigSchema],
+        type[EnergyLoadForecastProviderNaivePersistenceConfigSchema],
         type[EnergyLoadForecastProviderSeasonalBaselineConfigSchema],
         type[EnergyLoadForecastProviderStatsmodelsConfigSchema],
         type[EnergyLoadForecastProviderXGBoostConfigSchema],
@@ -803,6 +826,7 @@ ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_SCHEMA_MAP: Dict[
 ] = {
     EnergyLoadForecastProviderDummyConfig: EnergyLoadForecastProviderDummyConfigSchema,
     EnergyLoadForecastProviderNaiveLastHourConfig: EnergyLoadForecastProviderNaiveLastHourConfigSchema,
+    EnergyLoadForecastProviderNaivePersistenceConfig: EnergyLoadForecastProviderNaivePersistenceConfigSchema,
     EnergyLoadForecastProviderSeasonalBaselineConfig: EnergyLoadForecastProviderSeasonalBaselineConfigSchema,
     EnergyLoadForecastProviderStatsmodelsConfig: EnergyLoadForecastProviderStatsmodelsConfigSchema,
     EnergyLoadForecastProviderXGBoostConfig: EnergyLoadForecastProviderXGBoostConfigSchema,
