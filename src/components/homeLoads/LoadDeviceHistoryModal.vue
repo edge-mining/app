@@ -272,17 +272,7 @@ const chartOptions = computed(() => {
       type: "area" as const,
       height: 320,
       toolbar: {
-        show: true,
-        tools: {
-          download: true,
-          selection: true,
-          zoom: true,
-          zoomin: true,
-          zoomout: true,
-          pan: true,
-          reset: true,
-        },
-        autoSelected: "zoom" as const,
+        show: false,
       },
       zoom: { enabled: true, type: "x" as const },
       animations: {
