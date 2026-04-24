@@ -12,6 +12,7 @@ import {
   PhArrowsClockwise,
   PhCloudArrowDown,
   PhTrash,
+  PhTrendUp,
 } from "@phosphor-icons/vue";
 import ConfirmDialog from "../ConfirmDialog.vue";
 
@@ -432,6 +433,15 @@ function formatWh(v: number): string {
           <span v-if="loading" class="loading loading-spinner loading-xs"></span>
           <PhArrowsClockwise v-else :size="16" />
           Refresh
+        </button>
+        <button
+          class="btn btn-sm btn-ghost text-purple-400 gap-1"
+          :disabled="loadingForecast"
+          @click="fetchForecast"
+        >
+          <span v-if="loadingForecast" class="loading loading-spinner loading-xs"></span>
+          <PhTrendUp v-else :size="16" />
+          Forecast
         </button>
         <button
           class="btn btn-sm btn-ghost text-error gap-1"
