@@ -417,7 +417,7 @@ function formatWh(v: number): string {
           {{ opt.label }}
         </button>
         <button
-          class="btn btn-sm btn-ghost gap-1 ml-auto"
+          class="btn btn-sm btn-ghost text-cyan-400 gap-1 ml-auto"
           :disabled="collecting"
           @click="showCollectDialog = true"
         >
@@ -426,7 +426,7 @@ function formatWh(v: number): string {
           Collect
         </button>
         <button
-          class="btn btn-sm btn-ghost gap-1"
+          class="btn btn-sm btn-ghost text-cyan-400 gap-1"
           :disabled="loading"
           @click="fetchHistory"
         >
@@ -456,20 +456,20 @@ function formatWh(v: number): string {
 
       <!-- Stats cards -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <div class="stat-card bg-neutral-800/80 border border-base-300/40 rounded-xl p-3">
-          <div class="text-lg font-bold text-primary">{{ formatWatts(stats.avgPower) }}</div>
+        <div class="stat-card bg-neutral-800/80 border border-cyan-500/30 rounded-xl p-3">
+          <div class="text-lg font-bold text-cyan-400">{{ formatWatts(stats.avgPower) }}</div>
           <div class="text-xs text-base-content/50">Avg Power</div>
         </div>
-        <div class="stat-card bg-neutral-800/80 border border-base-300/40 rounded-xl p-3">
-          <div class="text-lg font-bold text-error">{{ formatWatts(stats.peakPower) }}</div>
+        <div class="stat-card bg-neutral-800/80 border border-cyan-500/30 rounded-xl p-3">
+          <div class="text-lg font-bold text-cyan-300">{{ formatWatts(stats.peakPower) }}</div>
           <div class="text-xs text-base-content/50">Peak Power</div>
         </div>
-        <div class="stat-card bg-neutral-800/80 border border-base-300/40 rounded-xl p-3">
-          <div class="text-lg font-bold text-warning">{{ formatWh(stats.totalEnergy) }}</div>
+        <div class="stat-card bg-neutral-800/80 border border-cyan-500/30 rounded-xl p-3">
+          <div class="text-lg font-bold text-cyan-200">{{ formatWh(stats.totalEnergy) }}</div>
           <div class="text-xs text-base-content/50">Total Energy</div>
         </div>
-        <div class="stat-card bg-neutral-800/80 border border-base-300/40 rounded-xl p-3">
-          <div class="text-lg font-bold text-info">{{ stats.dataPoints }}</div>
+        <div class="stat-card bg-neutral-800/80 border border-cyan-500/30 rounded-xl p-3">
+          <div class="text-lg font-bold text-cyan-100">{{ stats.dataPoints }}</div>
           <div class="text-xs text-base-content/50">Data Points</div>
         </div>
       </div>
