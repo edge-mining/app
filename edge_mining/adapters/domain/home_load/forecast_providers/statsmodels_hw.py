@@ -95,9 +95,9 @@ class StatsmodelsForecastProvider(EnergyLoadForecastProviderPort):
         self, consumption_history: LoadEnergyConsumption, hours_ahead: int = 3
     ) -> Optional[LoadEnergyConsumption]:
         if not _HW_AVAILABLE:
-            if self._logger:
-                self._logger.warning("statsmodels is not installed — cannot produce forecast")
-            return None
+            raise EnergyLoadForecastProviderError(
+                "statsmodels is not installed. Install the [ml] extras to enable Holt-Winters forecasting."
+            )
 
         effective_hours = self._hours_ahead or hours_ahead
         if effective_hours <= 0:
@@ -144,11 +144,11 @@ class StatsmodelsForecastProvider(EnergyLoadForecastProviderPort):
         series = fill_missing_hours(series)
 
         if len(series) < self._seasonal_periods * 2:
-            if self._logger:
-                self._logger.debug(
-                    f"Insufficient data for Holt-Winters ({len(series)} points, need {self._seasonal_periods * 2})"
-                )
-            return None
+            raise EnergyLoadForecastProviderError(
+                f"Insufficient data for Holt-Winters forecasting: {len(series)} hourly data points "
+                f"available, but at least {self._seasonal_periods * 2} are required. "
+                f"Collect more history before requesting a forecast."
+            )
 
         # Limit lookback
         max_points = self._weeks_lookback * 7 * 24
@@ -168,9 +168,7 @@ class StatsmodelsForecastProvider(EnergyLoadForecastProviderPort):
             forecast = fitted.forecast(hours_ahead)
             return [max(0.0, float(v)) for v in forecast]
         except Exception as exc:
-            if self._logger:
-                self._logger.warning(f"Holt-Winters fit failed: {exc}")
-            return None
+            raise EnergyLoadForecastProviderError(f"Holt-Winters model fitting failed: {exc}") from exc
 
     def _build_forecast(self, predictions: List[float]) -> LoadEnergyConsumption:
         """Convert a list of predicted avg_power values to LoadEnergyConsumption."""

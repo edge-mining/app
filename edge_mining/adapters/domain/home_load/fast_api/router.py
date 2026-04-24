@@ -6,6 +6,7 @@ from typing import Annotated, Any, Dict, List, Optional, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from edge_mining.adapters.domain.home_load.history_providers.helpers import group_power_points_into_intervals
 from edge_mining.adapters.domain.home_load.schemas import (
     ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_SCHEMA_MAP,
     ENERGY_LOAD_HISTORY_PROVIDER_CONFIG_SCHEMA_MAP,
@@ -712,8 +713,6 @@ async def get_device_forecast(
     history_hours: int = Query(default=48, ge=1, le=720, description="Hours of history to feed the model"),
 ) -> LoadEnergyConsumptionSchema:
     """Get energy consumption forecast for a specific device."""
-    from edge_mining.adapters.domain.home_load.history_providers.helpers import group_power_points_into_intervals
-
     try:
         profile = config_service.get_home_loads_profile(profile_id)
         if profile is None:
