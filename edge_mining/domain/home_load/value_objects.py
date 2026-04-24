@@ -152,6 +152,26 @@ class LoadEnergyConsumption(ValueObject):
         return self.in_next_hours(4)
 
     @property
+    def next_6h(self) -> "LoadEnergyConsumption":
+        """Subset covering the next 6 hours from now."""
+        return self.in_next_hours(6)
+
+    @property
+    def next_8h(self) -> "LoadEnergyConsumption":
+        """Subset covering the next 8 hours from now."""
+        return self.in_next_hours(8)
+
+    @property
+    def next_12h(self) -> "LoadEnergyConsumption":
+        """Subset covering the next 12 hours from now."""
+        return self.in_next_hours(12)
+
+    @property
+    def next_24h(self) -> "LoadEnergyConsumption":
+        """Subset covering the next 24 hours from now."""
+        return self.in_next_hours(24)
+
+    @property
     def last_1h(self) -> "LoadEnergyConsumption":
         """Subset covering the last 1 hour up to now."""
         return self.in_last_hours(1)
@@ -160,6 +180,11 @@ class LoadEnergyConsumption(ValueObject):
     def last_4h(self) -> "LoadEnergyConsumption":
         """Subset covering the last 4 hours up to now."""
         return self.in_last_hours(4)
+
+    @property
+    def last_12h(self) -> "LoadEnergyConsumption":
+        """Subset covering the last 12 hours up to now."""
+        return self.in_last_hours(12)
 
     @property
     def last_24h(self) -> "LoadEnergyConsumption":
