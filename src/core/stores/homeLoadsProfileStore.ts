@@ -74,7 +74,7 @@ export const useHomeLoadsProfileStore = defineStore("homeLoadsProfile", () => {
     profileId: string,
     deviceId: string,
     hoursAhead: number = 3,
-    historyHours: number = 48
+    historyHours: number = 72
   ): Promise<LoadEnergyConsumption> {
     return service.getDeviceForecast(profileId, deviceId, hoursAhead, historyHours);
   }

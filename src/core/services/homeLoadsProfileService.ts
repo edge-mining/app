@@ -89,7 +89,7 @@ export class HomeLoadsProfileService extends BaseService {
     profileId: string,
     deviceId: string,
     hoursAhead: number = 3,
-    historyHours: number = 48
+    historyHours: number = 72
   ): Promise<LoadEnergyConsumption> {
     return this.get<LoadEnergyConsumption>(
       `/home-loads-profiles/${profileId}/devices/${deviceId}/forecast?hours_ahead=${hoursAhead}&history_hours=${historyHours}`
