@@ -301,6 +301,15 @@ class ServiceHomeAssistantAPI(ExternalServicePort):
                 self.logger.error("Home Assistant client is not initialized.")
             return None
 
+        # The homeassistant_api library's construct_params does not URL-encode
+        # query values, so a "+" in "+00:00" is interpreted as a space by the
+        # HA server, causing "Invalid end_time".  Work around this by converting
+        # to naive UTC datetimes – HA treats naive timestamps as UTC.
+        from datetime import timezone as _tz
+
+        _start = start.astimezone(_tz.utc).replace(tzinfo=None) if start.tzinfo else start
+        _end = end.astimezone(_tz.utc).replace(tzinfo=None) if end.tzinfo else end
+
         try:
             entity: Optional[Entity] = await self.client.async_get_entity(entity_id=entity_id)
 
@@ -310,7 +319,7 @@ class ServiceHomeAssistantAPI(ExternalServicePort):
                 return None
 
             history_for_entity: Optional[History] = None
-            async for history in self.client.async_get_entity_histories((entity,), start, end):
+            async for history in self.client.async_get_entity_histories((entity,), _start, _end):
                 history_for_entity = history
                 break
 
