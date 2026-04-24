@@ -952,3 +952,18 @@ async def get_training_models(
         raise HTTPException(status_code=400, detail=f"Invalid device_id: {e}") from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.delete("/training/models/{model_id}", status_code=204)
+async def delete_training_model(
+    model_id: str,
+    training_service: Annotated[LoadForecastTrainingServiceInterface, Depends(get_load_forecast_training_service)],
+) -> None:
+    """Delete a trained ML model by ID."""
+    try:
+        entity_id = EntityId(uuid.UUID(model_id))
+        training_service.delete_model(entity_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid model_id: {e}") from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
