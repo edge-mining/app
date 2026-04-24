@@ -86,6 +86,8 @@ class OptimizationService(OptimizationServiceInterface):
         sun_factory: SunFactoryInterface,
         event_bus: Optional[EventBusInterface] = None,
         logger: Optional[LoggerPort] = None,
+        forecast_mix_alpha: float = 0.5,
+        forecast_mix_beta: float = 0.5,
     ):
         # Domains
 
@@ -101,6 +103,10 @@ class OptimizationService(OptimizationServiceInterface):
         self.adapter_service = adapter_service
         self._event_bus = event_bus
         self.logger = logger
+
+        # Forecast blending (α/β mix of forecast with last real measurement)
+        self.forecast_mix_alpha = forecast_mix_alpha
+        self.forecast_mix_beta = forecast_mix_beta
 
     @staticmethod
     def _sum_consumptions(consumptions: List[LoadEnergyConsumption]) -> LoadEnergyConsumption:
@@ -180,6 +186,17 @@ class OptimizationService(OptimizationServiceInterface):
                             f"Error getting load forecast for device '{device.name}' "
                             f"in optimization unit '{unit_name}': {e}"
                         )
+
+            # --- Mix forecast with last real measurement (α/β blending) ---
+            if device_forecast.intervals and device_history.intervals:
+                last_real_power = device_history.intervals[-1].avg_power
+                device_forecast = LoadEnergyConsumption.mix(
+                    device_forecast,
+                    last_real_power,
+                    alpha=self.forecast_mix_alpha,
+                    beta=self.forecast_mix_beta,
+                )
+
             per_device.append(self._make_device_consumption(device, device_history, device_forecast))
 
         return HomeLoadsConsumption(

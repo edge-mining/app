@@ -349,6 +349,8 @@ def configure_dependencies(logger: LoggerPort, settings: AppSettings) -> Service
         sun_factory=sun_factory,
         event_bus=event_bus,
         logger=logger,
+        forecast_mix_alpha=settings.forecast_mix_alpha,
+        forecast_mix_beta=settings.forecast_mix_beta,
     )
 
     miner_action_service = MinerActionService(

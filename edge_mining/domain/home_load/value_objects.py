@@ -166,6 +166,48 @@ class LoadEnergyConsumption(ValueObject):
         """Subset covering the last 24 hours up to now."""
         return self.in_last_hours(24)
 
+    @staticmethod
+    def mix(
+        forecast: "LoadEnergyConsumption",
+        last_real_power: Watts,
+        alpha: float = 0.5,
+        beta: float = 0.5,
+    ) -> "LoadEnergyConsumption":
+        """Blend the first forecast interval with the last measured power.
+
+        Implements the mix formula:
+
+            P_mix(k) = α · P̂(k) + β · P_real(k-1)
+
+        Only the **first** interval is blended; the remaining forecast is
+        returned unchanged.  This improves short-term accuracy when the
+        optimisation loop runs frequently (e.g. every 5 s).
+
+        :param forecast: The original forecast consumption.
+        :param last_real_power: The most recent measured power value (W).
+        :param alpha: Weight for the forecast side (default 0.5).
+        :param beta: Weight for the real-measurement side (default 0.5).
+        :returns: A new ``LoadEnergyConsumption`` with the blended first interval.
+        """
+        if not forecast.intervals:
+            return forecast
+
+        first = forecast.intervals[0]
+        blended_power = Watts(alpha * first.avg_power + beta * float(last_real_power))
+
+        duration_hours = first.duration.total_seconds() / 3600.0
+        blended_energy = WattHours(blended_power * duration_hours) if duration_hours > 0 else first.energy
+
+        blended_interval = HomeLoadEnergyInterval(
+            start=first.start,
+            end=first.end,
+            energy=blended_energy,
+            power_points=first.power_points,
+        )
+
+        new_intervals = [blended_interval] + list(forecast.intervals[1:])
+        return LoadEnergyConsumption(timestamp=forecast.timestamp, intervals=new_intervals)
+
 
 @dataclass(frozen=True)
 class LoadDeviceConsumption(ValueObject):

@@ -34,6 +34,10 @@ class AppSettings(BaseSettings):
     history_ingestion_interval_seconds: int = 120  # Collect power points every 2 minutes
     history_retention_days: int = 90  # Purge power points older than 90 days
 
+    # Forecast mix settings (α/β blending of forecast with last real measurement)
+    forecast_mix_alpha: float = 0.5  # Weight for the forecasted value
+    forecast_mix_beta: float = 0.5  # Weight for the last real measured value
+
     model_config = SettingsConfigDict(
         env_file=".env",  # Load .env file if exists
         env_file_encoding="utf-8",
