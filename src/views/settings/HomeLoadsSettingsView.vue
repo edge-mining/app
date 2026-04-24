@@ -3,7 +3,6 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useHomeLoadsProfileStore } from "../../core/stores/homeLoadsProfileStore";
 import { useEnergyLoadForecastProviderStore } from "../../core/stores/energyLoadForecastProviderStore";
 import { useEnergyLoadHistoryProviderStore } from "../../core/stores/energyLoadHistoryProviderStore";
-import { useLoadTrainingStore } from "../../core/stores/loadTrainingStore";
 import { useExternalServiceStore } from "../../core/stores/externalServiceStore";
 import type { LoadDevice } from "../../core/models/homeLoadsProfile";
 import type { EnergyLoadForecastProvider } from "../../core/models/energyLoadForecastProvider";
@@ -13,11 +12,9 @@ import LoadDeviceFormModal from "../../components/homeLoads/LoadDeviceFormModal.
 import LoadDeviceHistoryModal from "../../components/homeLoads/LoadDeviceHistoryModal.vue";
 import EnergyLoadHistoryProviderCard from "../../components/homeLoads/EnergyLoadHistoryProviderCard.vue";
 import EnergyLoadHistoryProviderFormModal from "../../components/homeLoads/EnergyLoadHistoryProviderFormModal.vue";
-import TrainingPanel from "../../components/homeLoads/TrainingPanel.vue";
 import {
   PhPlus,
   PhPlug,
-  PhBrain,
   PhChartLine,
   PhHouse,
   PhPencil,
@@ -29,17 +26,15 @@ import {
 const profileStore = useHomeLoadsProfileStore();
 const forecastProviderStore = useEnergyLoadForecastProviderStore();
 const historyProviderStore = useEnergyLoadHistoryProviderStore();
-const trainingStore = useLoadTrainingStore();
 const externalServiceStore = useExternalServiceStore();
 
 // Tab management
-type Tab = "devices" | "history" | "training";
+type Tab = "devices" | "history";
 const activeTab = ref<Tab>("devices");
 
 const tabs: { value: Tab; label: string; icon: typeof PhPlug }[] = [
   { value: "devices", label: "Devices", icon: PhPlug },
   { value: "history", label: "History Providers", icon: PhChartLine },
-  { value: "training", label: "Training", icon: PhBrain },
 ];
 
 // Profile management
@@ -75,7 +70,6 @@ onMounted(() => {
   forecastProviderStore.loadAdapterTypes();
   historyProviderStore.loadProviders();
   historyProviderStore.loadAdapterTypes();
-  trainingStore.loadModels();
   externalServiceStore.loadExternalServices();
 });
 
@@ -246,15 +240,6 @@ function handleCloseHistory() {
   historyDevice.value = undefined;
 }
 
-function handleTrainDevice(device: LoadDevice) {
-  const pid = profileStore.selectedProfileId;
-  if (!pid || !device.id) return;
-  trainingStore
-    .triggerTrainingDevice(pid, device.id)
-    .then(() => trainingStore.loadModels())
-    .showToasts("Training started for " + device.name, "Failed to start training");
-}
-
 // ── History Provider CRUD ──────────────────────────────
 function openAddHistory() {
   editingHistoryProvider.value = undefined;
@@ -299,23 +284,6 @@ function handleDeleteHistory(provider: EnergyLoadHistoryProvider) {
     .deleteProvider(provider.id)
     .then(() => historyProviderStore.loadProviders())
     .showToasts("History provider deleted", "Failed to delete history provider");
-}
-
-// ── Training ──────────────────────────────
-function handleTrainAll() {
-  trainingStore
-    .triggerTrainingAll()
-    .then(() => trainingStore.loadModels())
-    .showToasts("Training triggered for all devices", "Failed to trigger training");
-}
-
-function handleTrainSingleDevice(deviceId: string) {
-  const pid = profileStore.selectedProfileId;
-  if (!pid) return;
-  trainingStore
-    .triggerTrainingDevice(pid, deviceId)
-    .then(() => trainingStore.loadModels())
-    .showToasts("Training started", "Failed to start training");
 }
 </script>
 
@@ -464,7 +432,6 @@ function handleTrainSingleDevice(deviceId: string) {
                 @edit="handleEditDevice"
                 @delete="handleDeleteDevice"
                 @view-history="handleViewHistory"
-                @train="handleTrainDevice"
               />
             </div>
 
@@ -522,16 +489,6 @@ function handleTrainSingleDevice(deviceId: string) {
                 Add History Provider
               </button>
             </div>
-          </div>
-
-          <!-- TRAINING TAB -->
-          <div v-if="activeTab === 'training'">
-            <TrainingPanel
-              :profile-id="profileStore.selectedProfileId ?? undefined"
-              :devices="devices"
-              @train-all="handleTrainAll"
-              @train-device="handleTrainSingleDevice"
-            />
           </div>
         </template>
 

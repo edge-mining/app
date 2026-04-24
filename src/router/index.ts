@@ -10,6 +10,7 @@ import NotifiersSettingsView from "../views/settings/NotifiersSettingsView.vue";
 import ExternalServicesSettingsView from "../views/settings/ExternalServicesSettingsView.vue";
 import OptimizationUnitsSettingsView from "../views/settings/OptimizationUnitsSettingsView.vue";
 import HomeLoadsSettingsView from "../views/settings/HomeLoadsSettingsView.vue";
+import HomeLoadsTrainingView from "../views/settings/HomeLoadsTrainingView.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -74,6 +75,11 @@ const router = createRouter({
           path: "home-loads",
           name: "settings.homeLoads",
           component: HomeLoadsSettingsView,
+        },
+        {
+          path: "home-loads-training",
+          name: "settings.homeLoadsTraining",
+          component: HomeLoadsTrainingView,
         },
       ],
     },

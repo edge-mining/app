@@ -17,6 +17,7 @@ const route = useRoute();
 const isEnergyOpen = ref(true);
 const isMiningOpen = ref(true);
 const isAutomationOpen = ref(true);
+const isHomeLoadsOpen = ref(true);
 
 const isEnergyActive = computed(() =>
   ["/settings/energy-sources", "/settings/energy-monitors", "/settings/forecast-providers"].some(
@@ -34,6 +35,10 @@ const isAutomationActive = computed(() =>
   ["/settings/optimization-units", "/settings/policies"].some((p) =>
     route.path.startsWith(p)
   )
+);
+
+const isHomeLoadsActive = computed(() =>
+  ["/settings/home-loads"].some((p) => route.path.startsWith(p))
 );
 </script>
 <template>
@@ -147,14 +152,37 @@ const isAutomationActive = computed(() =>
 
           <!-- Home Loads -->
           <li class="w-full">
-            <RouterLink
-              to="/settings/home-loads"
-              class="w-full text-sm font-medium"
-              active-class="active text-primary"
-            >
-              <PhHouse :size="18" />
-              Home Loads
-            </RouterLink>
+            <details :open="isHomeLoadsOpen">
+              <summary
+                class="text-sm font-medium"
+                :class="{ 'text-primary': isHomeLoadsActive }"
+                @click.prevent="isHomeLoadsOpen = !isHomeLoadsOpen"
+              >
+                <PhHouse :size="18" />
+                Home Loads
+              </summary>
+              <ul class="rounded-t-none p-2 w-full">
+                <li class="w-full">
+                  <RouterLink
+                    to="/settings/home-loads"
+                    class="w-full text-sm"
+                    active-class="active text-primary"
+                    exact
+                  >
+                    Profiles
+                  </RouterLink>
+                </li>
+                <li class="w-full">
+                  <RouterLink
+                    to="/settings/home-loads-training"
+                    class="w-full text-sm"
+                    active-class="active text-primary"
+                  >
+                    Training
+                  </RouterLink>
+                </li>
+              </ul>
+            </details>
           </li>
 
           <!-- Mining -->

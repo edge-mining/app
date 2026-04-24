@@ -74,12 +74,8 @@ function formatMetric(val?: number): string {
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
       <div>
         <h2 class="text-lg font-bold text-base-content flex items-center gap-2">
-          <PhBrain :size="22" class="text-purple-400" />
           Trained Models
         </h2>
-        <p class="text-sm text-base-content/50 mt-0.5">
-          View and manage forecast models for your devices
-        </p>
       </div>
       <button
         class="btn btn-primary gap-2"
