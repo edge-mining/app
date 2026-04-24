@@ -1,7 +1,7 @@
 """API Router for home load domain."""
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Annotated, Any, Dict, List, Optional, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -21,15 +21,18 @@ from edge_mining.adapters.domain.home_load.schemas import (
     LoadDeviceCreateSchema,
     LoadDeviceSchema,
     LoadDeviceUpdateSchema,
+    LoadEnergyConsumptionSchema,
 )
 
 # Import dependency injection setup functions
 from edge_mining.adapters.infrastructure.api.setup import (
+    get_adapter_service,
     get_config_service,
     get_home_load_history_service,
     get_load_forecast_training_service,
 )
 from edge_mining.application.interfaces import (
+    AdapterServiceInterface,
     ConfigurationServiceInterface,
     HomeLoadHistoryServiceInterface,
     LoadForecastTrainingServiceInterface,
@@ -55,6 +58,7 @@ from edge_mining.domain.home_load.exceptions import (
     HomeLoadsProfileNotFoundError,
     HomeLoadsProfileRemoveDeviceError,
 )
+from edge_mining.domain.home_load.value_objects import LoadEnergyConsumption
 from edge_mining.shared.adapter_maps.home_load import (
     ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP,
     ENERGY_LOAD_HISTORY_PROVIDER_CONFIG_TYPE_MAP,
@@ -690,6 +694,77 @@ async def get_device_history(
         raise HTTPException(status_code=404, detail=str(e)) from e
     except HomeLoadsProfileDeviceNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get(
+    "/home-loads-profiles/{profile_id}/devices/{device_id}/forecast",
+    response_model=LoadEnergyConsumptionSchema,
+)
+async def get_device_forecast(
+    profile_id: EntityId,
+    device_id: EntityId,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+    adapter_service: Annotated[AdapterServiceInterface, Depends(get_adapter_service)],
+    history_service: Annotated[HomeLoadHistoryServiceInterface, Depends(get_home_load_history_service)],
+    hours_ahead: int = Query(default=3, ge=1, le=48, description="Forecast horizon in hours"),
+    history_hours: int = Query(default=48, ge=1, le=720, description="Hours of history to feed the model"),
+) -> LoadEnergyConsumptionSchema:
+    """Get energy consumption forecast for a specific device."""
+    from edge_mining.adapters.domain.home_load.history_providers.helpers import group_power_points_into_intervals
+
+    try:
+        profile = config_service.get_home_loads_profile(profile_id)
+        if profile is None:
+            raise HomeLoadsProfileNotFoundError(f"Home Loads Profile with ID {profile_id} not found")
+
+        device = next((d for d in profile.devices if d.id == device_id), None)
+        if device is None:
+            raise HomeLoadsProfileDeviceNotFoundError(
+                f"Load Device with ID {device_id} not found in Home Loads Profile {profile_id}"
+            )
+
+        if not device.energy_load_forecast_provider_id:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Device '{device.name}' has no forecast provider configured.",
+            )
+
+        forecast_provider = adapter_service.get_home_load_forecast_provider(device.energy_load_forecast_provider_id)
+        if forecast_provider is None:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Could not initialize forecast provider for device '{device.name}'.",
+            )
+
+        now = Timestamp(datetime.now(timezone.utc))
+        history_start = Timestamp(now - timedelta(hours=history_hours))
+        power_points = history_service.get_device_history(device_id, history_start, now)
+
+        if not power_points:
+            raise HTTPException(
+                status_code=400,
+                detail=f"No history data available for device '{device.name}'. Collect history first.",
+            )
+
+        intervals = group_power_points_into_intervals(power_points)
+        consumption = LoadEnergyConsumption(timestamp=now, intervals=intervals)
+
+        forecast = forecast_provider.get_consumption_forecast(consumption, hours_ahead=hours_ahead)
+        if forecast is None:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Forecast provider returned no data for device '{device.name}'.",
+            )
+
+        return LoadEnergyConsumptionSchema.from_model(forecast)
+    except HomeLoadsProfileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except HomeLoadsProfileDeviceNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
