@@ -22,6 +22,9 @@ from edge_mining.adapters.domain.home_load.forecast_providers.xgboost_provider i
     XGBoostForecastProviderFactory,
 )
 from edge_mining.adapters.domain.home_load.history_providers.dummy import DummyEnergyLoadHistoryProvider
+from edge_mining.adapters.domain.home_load.history_providers.home_assistant_api_history import (
+    HomeAssistantAPIEnergyLoadHistoryProviderFactory,
+)
 from edge_mining.adapters.domain.miner.controllers.dummy import DummyMinerController
 from edge_mining.adapters.domain.miner.controllers.generic_socket_home_assistant_api import (
     GenericSocketHomeAssistantAPIMinerControllerAdapterFactory,
@@ -43,7 +46,7 @@ from edge_mining.domain.forecast.common import ForecastProviderAdapter
 from edge_mining.domain.forecast.entities import ForecastProvider
 from edge_mining.domain.forecast.ports import ForecastProviderPort, ForecastProviderRepository
 from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter, EnergyLoadHistoryProviderAdapter
-from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, EnergyLoadHistoryProvider
+from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, EnergyLoadHistoryProvider, LoadDevice
 from edge_mining.domain.home_load.ports import (
     EnergyLoadForecastProviderPort,
     EnergyLoadForecastProviderRepository,
@@ -825,7 +828,7 @@ class AdapterService(AdapterServiceInterface):
             return None
         return self._initialize_energy_load_forecast_provider_adapter(energy_load_forecast_provider)
 
-    def _initialize_energy_load_history_provider_adapter(
+    async def _initialize_energy_load_history_provider_adapter(
         self, energy_load_history_provider: EnergyLoadHistoryProvider, device_id: EntityId
     ) -> Optional[EnergyLoadHistoryProviderPort]:
         """Initialize an energy load history provider adapter."""
@@ -836,6 +839,16 @@ class AdapterService(AdapterServiceInterface):
                 return cached_instance
             return None
 
+        # Resolve external service if needed
+        external_service: Optional[ExternalServicePort] = None
+        if energy_load_history_provider.external_service_id:
+            external_service = await self.get_external_service(energy_load_history_provider.external_service_id)
+            if not external_service:
+                raise ValueError(
+                    f"Unable to load external service {energy_load_history_provider.external_service_id} "
+                    f"for history provider {energy_load_history_provider.name}"
+                )
+
         try:
             instance: Optional[EnergyLoadHistoryProviderPort] = None
 
@@ -844,6 +857,30 @@ class AdapterService(AdapterServiceInterface):
                     device_id=device_id,
                     history_repo=self.home_load_history_repo,
                     logger=self.logger,
+                )
+            elif energy_load_history_provider.adapter_type == EnergyLoadHistoryProviderAdapter.HOME_ASSISTANT_API:
+                if not energy_load_history_provider.config:
+                    raise ValueError(
+                        "EnergyLoadHistoryProvider config is required for HomeAssistantAPI history provider."
+                    )
+                if not external_service:
+                    raise ValueError(
+                        f"External service is required for HomeAssistantAPI history provider "
+                        f"'{energy_load_history_provider.name}'. "
+                        f"Please set external_service_id on the provider."
+                    )
+                # Resolve the LoadDevice for the factory
+                factory = HomeAssistantAPIEnergyLoadHistoryProviderFactory(
+                    history_repo=self.home_load_history_repo,
+                )
+                # Build a minimal LoadDevice for the factory binding
+
+                load_device = LoadDevice(id=device_id)
+                factory.from_load_device(load_device)
+                instance = factory.create(
+                    config=energy_load_history_provider.config,
+                    logger=self.logger,
+                    external_service=external_service,
                 )
             else:
                 raise ValueError(
@@ -861,7 +898,7 @@ class AdapterService(AdapterServiceInterface):
                 )
             return None
 
-    def get_home_load_history_provider(
+    async def get_home_load_history_provider(
         self, energy_load_history_provider_id: EntityId, device_id: EntityId
     ) -> Optional[EnergyLoadHistoryProviderPort]:
         """Get an energy load history provider adapter instance."""
@@ -870,7 +907,7 @@ class AdapterService(AdapterServiceInterface):
             if self.logger:
                 self.logger.error(f"Home History Provider ID {energy_load_history_provider_id} not found.")
             return None
-        return self._initialize_energy_load_history_provider_adapter(energy_load_history_provider, device_id)
+        return await self._initialize_energy_load_history_provider_adapter(energy_load_history_provider, device_id)
 
     async def get_mining_performance_tracker(self, tracker_id: EntityId) -> Optional[MiningPerformanceTrackerPort]:
         """Get a mining performance tracker adapter instance."""

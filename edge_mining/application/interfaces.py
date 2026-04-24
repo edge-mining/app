@@ -95,7 +95,7 @@ class AdapterServiceInterface(ABC):
         """Get an home load forecast provider adapter instance."""
 
     @abstractmethod
-    def get_home_load_history_provider(
+    async def get_home_load_history_provider(
         self, energy_load_history_provider_id: EntityId, device_id: EntityId
     ) -> Optional[EnergyLoadHistoryProviderPort]:
         """Get an energy load history provider adapter instance."""
@@ -147,6 +147,10 @@ class HomeLoadHistoryServiceInterface(ABC):
     @abstractmethod
     async def collect_all(self) -> None:
         """Collect power points from all history providers for all enabled devices."""
+
+    @abstractmethod
+    async def collect_devices(self, device_ids: List[EntityId]) -> None:
+        """Collect power points for the specified devices only."""
 
     @abstractmethod
     async def purge_all(self, retention_days: int = 90) -> None:
