@@ -70,7 +70,7 @@ class HomeLoadHistoryService(HomeLoadHistoryServiceInterface):
         provider_id: EntityId,
     ) -> None:
         """Collect power points for a single device from its history provider."""
-        history_provider = self.adapter_service.get_home_load_history_provider(provider_id, device_id)
+        history_provider = await self.adapter_service.get_home_load_history_provider(provider_id, device_id)
         if not history_provider:
             if self.logger:
                 self.logger.warning(f"History provider {provider_id} not found for device '{device_name}'. Skipping.")
@@ -147,3 +147,24 @@ class HomeLoadHistoryService(HomeLoadHistoryServiceInterface):
     def get_device_history(self, device_id: EntityId, start: Timestamp, end: Timestamp) -> List[HomeLoadPowerPoint]:
         """Retrieve stored power points for a device in a time window."""
         return self.home_load_history_repo.get_power_points(device_id, start, end)
+
+    async def collect_devices(self, device_ids: List[EntityId]) -> None:
+        """Collect power points for the specified devices only."""
+        profiles = self.home_loads_repo.get_all()
+        if not profiles:
+            return
+
+        target_ids = set(device_ids)
+        for profile in profiles:
+            for device in profile.devices:
+                if device.id not in target_ids:
+                    continue
+                if not device.energy_load_history_provider_id:
+                    if self.logger:
+                        self.logger.warning(f"Device '{device.name}' has no history provider configured. Skipping.")
+                    continue
+                await self._collect_for_device(
+                    device_id=device.id,
+                    device_name=device.name,
+                    provider_id=device.energy_load_history_provider_id,
+                )
