@@ -156,7 +156,7 @@ function cancelDelete() {
       <button
         v-if="assignedHistoryProvider"
         class="btn btn-ghost btn-sm btn-square hover:bg-info/20"
-        title="View History"
+        title="View History & Forecast"
         @click="$emit('viewHistory', device)"
       >
         <PhChartLine :size="18" class="text-info" />

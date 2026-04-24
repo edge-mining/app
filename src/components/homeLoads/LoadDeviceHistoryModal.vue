@@ -2,7 +2,7 @@
 import { ref, computed, watch } from "vue";
 import VueApexCharts from "vue3-apexcharts";
 import type { LoadDevice } from "../../core/models/homeLoadsProfile";
-import type { HomeLoadPowerPoint } from "../../core/models/loadTraining";
+import type { HomeLoadPowerPoint, HomeLoadEnergyInterval } from "../../core/models/loadTraining";
 import { useHomeLoadsProfileStore } from "../../core/stores/homeLoadsProfileStore";
 import {
   PhX,
@@ -27,7 +27,9 @@ const emit = defineEmits<{
 const profileStore = useHomeLoadsProfileStore();
 
 const powerPoints = ref<HomeLoadPowerPoint[]>([]);
+const forecastIntervals = ref<HomeLoadEnergyInterval[]>([]);
 const loading = ref(false);
+const loadingForecast = ref(false);
 const collecting = ref(false);
 const clearing = ref(false);
 const showClearConfirm = ref(false);
@@ -78,11 +80,29 @@ async function fetchHistory() {
   }
 }
 
+async function fetchForecast() {
+  if (!props.profileId || !props.device?.id) return;
+  loadingForecast.value = true;
+  try {
+    const result = await profileStore.getDeviceForecast(
+      props.profileId,
+      props.device.id
+    );
+    forecastIntervals.value = result.intervals;
+  } catch (e) {
+    console.error("Failed to load device forecast:", e);
+    forecastIntervals.value = [];
+  } finally {
+    loadingForecast.value = false;
+  }
+}
+
 watch(
   () => props.open,
   (isOpen) => {
     if (isOpen && props.device?.id && props.profileId) {
       fetchHistory();
+      fetchForecast();
     }
   },
   { immediate: true }
@@ -149,15 +169,31 @@ const stats = computed(() => {
 });
 
 // Chart
-const series = computed(() => [
-  {
-    name: "Power",
-    data: powerPoints.value.map((p) => ({
-      x: new Date(p.timestamp).getTime(),
-      y: Math.round(p.power),
-    })),
-  },
-]);
+const series = computed(() => {
+  const s: { name: string; data: { x: number; y: number }[] }[] = [
+    {
+      name: "Power",
+      data: powerPoints.value.map((p) => ({
+        x: new Date(p.timestamp).getTime(),
+        y: Math.round(p.power),
+      })),
+    },
+  ];
+
+  if (forecastIntervals.value.length > 0) {
+    s.push({
+      name: "Forecast",
+      data: forecastIntervals.value
+        .filter((i) => i.avg_power != null)
+        .map((i) => ({
+          x: new Date(i.start).getTime(),
+          y: Math.round(i.avg_power!),
+        })),
+    });
+  }
+
+  return s;
+});
 
 // Average line annotation
 const avgAnnotation = computed(() => {
@@ -216,7 +252,7 @@ const chartOptions = computed(() => {
       fontFamily: "inherit",
       selection: { enabled: true },
     },
-    colors: ["rgba(38, 198, 218, 0.9)"],
+    colors: ["rgba(38, 198, 218, 0.9)", "rgba(168, 85, 247, 0.9)"],
     fill: {
       type: "gradient" as const,
       gradient: {
@@ -229,7 +265,8 @@ const chartOptions = computed(() => {
     },
     stroke: {
       curve: "smooth" as const,
-      width: 2.5,
+      width: [2.5, 2],
+      dashArray: [0, 6],
     },
     dataLabels: { enabled: false },
     xaxis: {
@@ -271,25 +308,31 @@ const chartOptions = computed(() => {
     },
     tooltip: {
       enabled: true,
-      shared: false,
+      shared: true,
       intersect: false,
       followCursor: true,
       theme: "dark" as const,
       x: { show: true, format: "dd MMM yyyy HH:mm" },
       y: {
-        formatter: (v: number) => formatWatts(v),
+        formatter: (v: number) => (v != null ? formatWatts(v) : "—"),
       },
       marker: { show: true },
     },
     markers: {
-      size: powerPoints.value.length > 500 ? 0 : 2,
-      colors: ["rgba(38, 198, 218, 0.9)"],
-      strokeColors: "rgba(38, 198, 218, 0.4)",
+      size: powerPoints.value.length > 500 ? [0, 0] : [2, 3],
+      colors: ["rgba(38, 198, 218, 0.9)", "rgba(168, 85, 247, 0.9)"],
+      strokeColors: ["rgba(38, 198, 218, 0.4)", "rgba(168, 85, 247, 0.4)"],
       strokeWidth: 1,
       hover: { size: 5, sizeOffset: 2 },
     },
     annotations: avgAnnotation.value,
-    legend: { show: false },
+    legend: {
+      show: forecastIntervals.value.length > 0,
+      position: "top" as const,
+      horizontalAlign: "right" as const,
+      labels: { colors: "rgba(255,255,255,0.5)" },
+      markers: { size: 4 },
+    },
   };
 });
 
@@ -319,9 +362,9 @@ function formatWh(v: number): string {
           </div>
           <div>
             <h3 class="text-xl font-bold">
-              {{ device?.name ?? "Device" }} — History
+              {{ device?.name ?? "Device" }} — History & Forecast
             </h3>
-            <p class="text-sm text-base-content/50">Power consumption over time</p>
+            <p class="text-sm text-base-content/50">Power consumption history and forecast</p>
           </div>
         </div>
         <button class="btn btn-ghost btn-sm btn-square" @click="handleClose">
@@ -428,44 +471,53 @@ function formatWh(v: number): string {
 
   <!-- Collect Dialog -->
   <dialog class="modal" :class="{ 'modal-open': showCollectDialog }">
-    <div class="modal-box max-w-sm bg-base-100 border border-base-300/60">
-      <h3 class="font-bold text-lg flex items-center gap-2 mb-4">
-        <PhCloudArrowDown :size="22" class="text-info" />
-        Collect History
-      </h3>
-      <p class="text-sm text-base-content/70 mb-4">
-        Fetch power data from the external history provider for
-        <span class="font-semibold">{{ device?.name ?? 'this device' }}</span>.
-      </p>
-      <div class="form-control mb-6">
-        <label class="label">
-          <span class="label-text font-medium">Lookback period</span>
-        </label>
-        <div class="flex gap-2 flex-wrap mb-2">
+    <div class="modal-box max-w-md bg-base-100 border border-base-300/60">
+      <!-- Header -->
+      <div class="flex items-center gap-3 mb-5">
+        <div class="h-10 w-10 rounded-xl bg-info/10 flex items-center justify-center shrink-0">
+          <PhCloudArrowDown :size="22" class="text-info" />
+        </div>
+        <div>
+          <h3 class="font-bold text-lg leading-tight">Collect History</h3>
+          <p class="text-xs text-base-content/50 mt-0.5">
+            Fetch power data from the external history provider for
+            <span class="font-semibold text-base-content/70">{{ device?.name ?? 'this device' }}</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- Lookback period -->
+      <div class="mb-6">
+        <label class="text-sm font-medium text-base-content/70 mb-3 block">Lookback period</label>
+        <div class="grid grid-cols-4 gap-2 mb-4">
           <button
-            v-for="p in [{ value: 24, label: '24 hours' }, { value: 48, label: '48 hours' }, { value: 168, label: '7 days' }, { value: 720, label: '30 days' }]"
+            v-for="p in [{ value: 24, label: '24h' }, { value: 48, label: '48h' }, { value: 168, label: '7d' }, { value: 720, label: '30d' }]"
             :key="p.value"
-            class="btn btn-xs"
-            :class="lookbackHours === p.value ? 'btn-primary' : 'btn-ghost'"
+            class="btn btn-sm"
+            :class="lookbackHours === p.value ? 'btn-primary' : 'btn-ghost border border-base-300/50'"
             @click="lookbackHours = p.value"
           >{{ p.label }}</button>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-3 bg-base-200/40 rounded-xl px-4 py-3">
+          <span class="text-sm text-base-content/50 shrink-0">Custom</span>
           <input
             v-model.number="lookbackHours"
             type="number"
             min="1"
             max="720"
-            class="input input-bordered input-sm w-24"
+            class="input input-bordered input-sm w-20 text-center"
           />
-          <span class="text-sm text-base-content/50">hours (1–720)</span>
+          <span class="text-sm text-base-content/40">hours</span>
+          <span class="text-xs text-base-content/30 ml-auto">max 720</span>
         </div>
       </div>
-      <div class="modal-action">
+
+      <!-- Actions -->
+      <div class="flex justify-end gap-2">
         <button class="btn btn-ghost btn-sm" @click="showCollectDialog = false">Cancel</button>
-        <button class="btn btn-primary btn-sm gap-1" @click="collectHistory">
+        <button class="btn btn-primary btn-sm gap-1.5" @click="collectHistory">
           <PhCloudArrowDown :size="16" />
-          Start Collection
+          Collect
         </button>
       </div>
     </div>

@@ -1,6 +1,6 @@
 import { BaseService } from "./baseService";
 import type { HomeLoadsProfile, LoadDevice, LoadDeviceCreate, LoadDeviceUpdate } from "../models/homeLoadsProfile";
-import type { HomeLoadPowerPoint } from "../models/loadTraining";
+import type { HomeLoadPowerPoint, LoadEnergyConsumption } from "../models/loadTraining";
 
 export class HomeLoadsProfileService extends BaseService {
   getProfiles(): Promise<HomeLoadsProfile[]> {
@@ -82,6 +82,17 @@ export class HomeLoadsProfileService extends BaseService {
   ): Promise<Record<string, string>> {
     return this.delete<Record<string, string>>(
       `/home-loads-profiles/${profileId}/devices/${deviceId}/history`
+    ).getData();
+  }
+
+  getDeviceForecast(
+    profileId: string,
+    deviceId: string,
+    hoursAhead: number = 3,
+    historyHours: number = 48
+  ): Promise<LoadEnergyConsumption> {
+    return this.get<LoadEnergyConsumption>(
+      `/home-loads-profiles/${profileId}/devices/${deviceId}/forecast?hours_ahead=${hoursAhead}&history_hours=${historyHours}`
     ).getData();
   }
 }

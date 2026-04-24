@@ -3,6 +3,18 @@ export interface HomeLoadPowerPoint {
   power: number;
 }
 
+export interface HomeLoadEnergyInterval {
+  start: string;
+  end: string;
+  energy: number | null;
+  avg_power: number | null;
+}
+
+export interface LoadEnergyConsumption {
+  timestamp: string;
+  intervals: HomeLoadEnergyInterval[];
+}
+
 export interface LoadConsumptionModel {
   id: string;
   device_id?: string;

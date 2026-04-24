@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import type { HomeLoadsProfile, LoadDevice, LoadDeviceCreate, LoadDeviceUpdate } from "../models/homeLoadsProfile";
 import { HomeLoadsProfileService } from "../services/homeLoadsProfileService";
-import type { HomeLoadPowerPoint } from "../models/loadTraining";
+import type { HomeLoadPowerPoint, LoadEnergyConsumption } from "../models/loadTraining";
 
 export const useHomeLoadsProfileStore = defineStore("homeLoadsProfile", () => {
   const service = new HomeLoadsProfileService();
@@ -70,6 +70,15 @@ export const useHomeLoadsProfileStore = defineStore("homeLoadsProfile", () => {
     return service.clearDeviceHistory(profileId, deviceId);
   }
 
+  function getDeviceForecast(
+    profileId: string,
+    deviceId: string,
+    hoursAhead: number = 3,
+    historyHours: number = 48
+  ): Promise<LoadEnergyConsumption> {
+    return service.getDeviceForecast(profileId, deviceId, hoursAhead, historyHours);
+  }
+
   return {
     // STATE
     profiles,
@@ -85,5 +94,6 @@ export const useHomeLoadsProfileStore = defineStore("homeLoadsProfile", () => {
     getDeviceHistory,
     collectDeviceHistory,
     clearDeviceHistory,
+    getDeviceForecast,
   };
 });
