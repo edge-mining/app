@@ -11,6 +11,7 @@ import {
   PhPlugs,
   PhLink,
   PhGear,
+  PhClock,
 } from "@phosphor-icons/vue";
 import ConfirmDialog from "../ConfirmDialog.vue";
 import EdgeMiningCard, { type CardStyleConfig } from "../EdgeMiningCard.vue";
@@ -187,6 +188,13 @@ function cancelDelete() {
 
       <div v-else class="text-sm text-base-content/40 italic py-2">
         No devices assigned
+      </div>
+
+      <div v-if="provider.min_required_history_hours" class="flex items-center gap-2 pt-1">
+        <PhClock :size="16" class="text-base-content/50" />
+        <span class="text-sm text-base-content/70">
+          Min history: <span class="font-semibold text-base-content">{{ provider.min_required_history_hours }}h</span>
+        </span>
       </div>
     </div>
 

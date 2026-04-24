@@ -4,6 +4,7 @@ import VueApexCharts from "vue3-apexcharts";
 import type { LoadDevice } from "../../core/models/homeLoadsProfile";
 import type { HomeLoadPowerPoint, HomeLoadEnergyInterval } from "../../core/models/loadTraining";
 import { useHomeLoadsProfileStore } from "../../core/stores/homeLoadsProfileStore";
+import { useEnergyLoadForecastProviderStore } from "../../core/stores/energyLoadForecastProviderStore";
 import {
   PhX,
   PhChartLine,
@@ -25,6 +26,7 @@ const emit = defineEmits<{
 }>();
 
 const profileStore = useHomeLoadsProfileStore();
+const forecastProviderStore = useEnergyLoadForecastProviderStore();
 
 const powerPoints = ref<HomeLoadPowerPoint[]>([]);
 const forecastIntervals = ref<HomeLoadEnergyInterval[]>([]);
@@ -86,9 +88,17 @@ async function fetchForecast() {
   loadingForecast.value = true;
   forecastError.value = null;
   try {
+    const provider = forecastProviderStore.providers.find(
+      (p) => p.id === props.device?.energy_load_forecast_provider_id
+    );
+    const historyHours = provider?.min_required_history_hours
+      ? Math.ceil(provider.min_required_history_hours * 1.5)
+      : undefined;
     const result = await profileStore.getDeviceForecast(
       props.profileId,
-      props.device.id
+      props.device.id,
+      3,
+      historyHours
     );
     forecastIntervals.value = result.intervals;
   } catch (e: any) {

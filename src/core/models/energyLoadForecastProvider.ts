@@ -18,6 +18,7 @@ export interface EnergyLoadForecastProvider {
   adapter_type: EnergyLoadForecastProviderAdapter;
   config?: EnergyLoadForecastProviderConfig;
   external_service_id?: string;
+  min_required_history_hours?: number;
 }
 
 export interface ConfigSchemaProperty {
