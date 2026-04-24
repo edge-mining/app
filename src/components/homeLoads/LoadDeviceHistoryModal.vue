@@ -171,6 +171,35 @@ const stats = computed(() => {
   };
 });
 
+// Forecast stats
+const forecastStats = computed(() => {
+  const intervals = forecastIntervals.value.filter((i) => i.avg_power != null);
+  if (intervals.length === 0)
+    return { avgPower: 0, peakPower: 0, totalEnergy: 0, dataPoints: 0 };
+
+  const powers = intervals.map((i) => i.avg_power!);
+  const avgPower = powers.reduce((a, b) => a + b, 0) / powers.length;
+  const peakPower = Math.max(...powers);
+
+  let totalEnergy = 0;
+  for (const i of intervals) {
+    if (i.energy != null) {
+      totalEnergy += i.energy;
+    } else if (i.avg_power != null) {
+      const dt =
+        (new Date(i.end).getTime() - new Date(i.start).getTime()) / 3600000;
+      totalEnergy += i.avg_power * dt;
+    }
+  }
+
+  return {
+    avgPower: Math.round(avgPower),
+    peakPower: Math.round(peakPower),
+    totalEnergy: Math.round(totalEnergy),
+    dataPoints: intervals.length,
+  };
+});
+
 // Chart
 const series = computed(() => {
   const s: { name: string; data: { x: number; y: number }[] }[] = [
@@ -432,6 +461,26 @@ function formatWh(v: number): string {
         <div class="stat-card bg-neutral-800/80 border border-base-300/40 rounded-xl p-3">
           <div class="text-lg font-bold text-info">{{ stats.dataPoints }}</div>
           <div class="text-xs text-base-content/50">Data Points</div>
+        </div>
+      </div>
+
+      <!-- Forecast stats cards -->
+      <div v-if="forecastStats.dataPoints > 0" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div class="stat-card bg-neutral-800/80 border border-purple-500/30 rounded-xl p-3">
+          <div class="text-lg font-bold text-purple-400">{{ formatWatts(forecastStats.avgPower) }}</div>
+          <div class="text-xs text-base-content/50">Forecast Avg Power</div>
+        </div>
+        <div class="stat-card bg-neutral-800/80 border border-purple-500/30 rounded-xl p-3">
+          <div class="text-lg font-bold text-purple-300">{{ formatWatts(forecastStats.peakPower) }}</div>
+          <div class="text-xs text-base-content/50">Forecast Peak Power</div>
+        </div>
+        <div class="stat-card bg-neutral-800/80 border border-purple-500/30 rounded-xl p-3">
+          <div class="text-lg font-bold text-purple-200">{{ formatWh(forecastStats.totalEnergy) }}</div>
+          <div class="text-xs text-base-content/50">Forecast Energy</div>
+        </div>
+        <div class="stat-card bg-neutral-800/80 border border-purple-500/30 rounded-xl p-3">
+          <div class="text-lg font-bold text-purple-100">{{ forecastStats.dataPoints }}</div>
+          <div class="text-xs text-base-content/50">Forecast Points</div>
         </div>
       </div>
 
