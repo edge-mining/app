@@ -703,6 +703,7 @@ async def collect_device_history(
     device_id: EntityId,
     config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
     history_service: Annotated[HomeLoadHistoryServiceInterface, Depends(get_home_load_history_service)],
+    lookback_hours: int = Query(default=24, ge=1, le=720, description="Hours of history to fetch on first collection"),
 ) -> Dict[str, str]:
     """Fetch power points from the history provider and store them in the database."""
     try:
@@ -722,7 +723,7 @@ async def collect_device_history(
                 detail=f"Device '{device.name}' has no history provider configured.",
             )
 
-        await history_service.collect_devices([device_id])
+        await history_service.collect_devices([device_id], lookback_hours=lookback_hours)
         return {"status": "completed", "detail": f"History collection completed for device '{device.name}'."}
     except HomeLoadsProfileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
@@ -773,10 +774,11 @@ async def delete_device_history(
 @router.post("/history/collect", response_model=Dict[str, str])
 async def trigger_history_collection(
     history_service: Annotated[HomeLoadHistoryServiceInterface, Depends(get_home_load_history_service)],
+    lookback_hours: int = Query(default=24, ge=1, le=720, description="Hours of history to fetch on first collection"),
 ) -> Dict[str, str]:
     """Manually trigger power-point collection for all enabled devices."""
     try:
-        await history_service.collect_all()
+        await history_service.collect_all(lookback_hours=lookback_hours)
         return {"status": "completed", "detail": "History collection completed for all eligible devices."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -786,11 +788,12 @@ async def trigger_history_collection(
 async def trigger_history_collection_for_devices(
     device_ids: List[str],
     history_service: Annotated[HomeLoadHistoryServiceInterface, Depends(get_home_load_history_service)],
+    lookback_hours: int = Query(default=24, ge=1, le=720, description="Hours of history to fetch on first collection"),
 ) -> Dict[str, str]:
     """Manually trigger power-point collection for specific devices."""
     try:
         parsed_ids = [EntityId(uuid.UUID(did)) for did in device_ids]
-        await history_service.collect_devices(parsed_ids)
+        await history_service.collect_devices(parsed_ids, lookback_hours=lookback_hours)
         return {
             "status": "completed",
             "detail": f"History collection completed for {len(parsed_ids)} device(s).",

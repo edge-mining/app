@@ -38,7 +38,7 @@ class HomeLoadHistoryService(HomeLoadHistoryServiceInterface):
         self._event_bus = event_bus
         self.logger = logger
 
-    async def collect_all(self) -> None:
+    async def collect_all(self, lookback_hours: int = 24) -> None:
         """Collect power points from all history providers for all enabled devices.
 
         For each enabled LoadDevice that has an energy_load_history_provider_id,
@@ -61,6 +61,7 @@ class HomeLoadHistoryService(HomeLoadHistoryServiceInterface):
                     device_id=device.id,
                     device_name=device.name,
                     provider_id=device.energy_load_history_provider_id,
+                    lookback_hours=lookback_hours,
                 )
 
     async def _collect_for_device(
@@ -68,6 +69,7 @@ class HomeLoadHistoryService(HomeLoadHistoryServiceInterface):
         device_id: EntityId,
         device_name: str,
         provider_id: EntityId,
+        lookback_hours: int = 24,
     ) -> None:
         """Collect power points for a single device from its history provider."""
         history_provider = await self.adapter_service.get_home_load_history_provider(provider_id, device_id)
@@ -81,8 +83,7 @@ class HomeLoadHistoryService(HomeLoadHistoryServiceInterface):
         if last_ts is not None:
             start = last_ts
         else:
-            # First collection: fetch last 24 hours
-            start = Timestamp(now - timedelta(hours=24))
+            start = Timestamp(now - timedelta(hours=lookback_hours))
 
         try:
             power_points = await history_provider.get_power_points(start, now)
@@ -155,7 +156,7 @@ class HomeLoadHistoryService(HomeLoadHistoryServiceInterface):
             self.logger.info(f"Cleared {removed} power points for device {device_id}.")
         return removed
 
-    async def collect_devices(self, device_ids: List[EntityId]) -> None:
+    async def collect_devices(self, device_ids: List[EntityId], lookback_hours: int = 24) -> None:
         """Collect power points for the specified devices only."""
         profiles = self.home_loads_repo.get_all()
         if not profiles:
@@ -174,4 +175,5 @@ class HomeLoadHistoryService(HomeLoadHistoryServiceInterface):
                     device_id=device.id,
                     device_name=device.name,
                     provider_id=device.energy_load_history_provider_id,
+                    lookback_hours=lookback_hours,
                 )

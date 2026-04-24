@@ -148,11 +148,11 @@ class HomeLoadHistoryServiceInterface(ABC):
     """Base interface for home load history ingestion and retention."""
 
     @abstractmethod
-    async def collect_all(self) -> None:
+    async def collect_all(self, lookback_hours: int = 24) -> None:
         """Collect power points from all history providers for all enabled devices."""
 
     @abstractmethod
-    async def collect_devices(self, device_ids: List[EntityId]) -> None:
+    async def collect_devices(self, device_ids: List[EntityId], lookback_hours: int = 24) -> None:
         """Collect power points for the specified devices only."""
 
     @abstractmethod
