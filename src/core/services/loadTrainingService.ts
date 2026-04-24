@@ -26,4 +26,8 @@ export class LoadTrainingService extends BaseService {
     const params = deviceId ? `?device_id=${deviceId}` : "";
     return this.get<LoadConsumptionModel[]>(`/training/models${params}`).getData();
   }
+
+  deleteModel(modelId: string): Promise<void> {
+    return this.delete<void>(`/training/models/${modelId}`).getData();
+  }
 }

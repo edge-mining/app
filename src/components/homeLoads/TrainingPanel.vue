@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import type { LoadConsumptionModel } from "../../core/models/loadTraining";
 import type { LoadDevice } from "../../core/models/homeLoadsProfile";
 import { useLoadTrainingStore } from "../../core/stores/loadTrainingStore";
@@ -10,7 +10,9 @@ import {
   PhCheckCircle,
   PhXCircle,
   PhArrowsClockwise,
+  PhTrash,
 } from "@phosphor-icons/vue";
+import ConfirmDialog from "../ConfirmDialog.vue";
 
 const props = defineProps<{
   profileId?: string;
@@ -23,6 +25,27 @@ const emit = defineEmits<{
 }>();
 
 const trainingStore = useLoadTrainingStore();
+
+const modelToDelete = ref<(LoadConsumptionModel & { deviceName: string }) | null>(null);
+const showDeleteConfirm = ref(false);
+
+function handleDeleteClick(model: LoadConsumptionModel & { deviceName: string }) {
+  modelToDelete.value = model;
+  showDeleteConfirm.value = true;
+}
+
+function confirmDelete() {
+  if (modelToDelete.value?.id) {
+    trainingStore.deleteModel(modelToDelete.value.id);
+  }
+  showDeleteConfirm.value = false;
+  modelToDelete.value = null;
+}
+
+function cancelDelete() {
+  showDeleteConfirm.value = false;
+  modelToDelete.value = null;
+}
 
 const modelsWithDeviceName = computed(() => {
   return trainingStore.models.map((m) => {
@@ -130,16 +153,26 @@ function formatMetric(val?: number): string {
             <td class="text-right font-mono text-sm">{{ model.samples_used }}</td>
             <td class="text-sm text-base-content/60">{{ formatDate(model.trained_at) }}</td>
             <td class="text-center">
-              <button
-                v-if="model.device_id"
-                class="btn btn-ghost btn-xs gap-1"
-                :disabled="trainingStore.trainingInProgress"
-                title="Retrain this device"
-                @click="emit('trainDevice', model.device_id!)"
-              >
-                <PhArrowsClockwise :size="14" />
-                Retrain
-              </button>
+              <div class="flex items-center justify-center gap-1">
+                <button
+                  v-if="model.device_id"
+                  class="btn btn-ghost btn-xs gap-1"
+                  :disabled="trainingStore.trainingInProgress"
+                  title="Retrain this device"
+                  @click="emit('trainDevice', model.device_id!)"
+                >
+                  <PhArrowsClockwise :size="14" />
+                  Retrain
+                </button>
+                <button
+                  v-if="model.id"
+                  class="btn btn-ghost btn-xs text-error gap-1"
+                  title="Delete this model"
+                  @click="handleDeleteClick(model)"
+                >
+                  <PhTrash :size="14" />
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -167,5 +200,15 @@ function formatMetric(val?: number): string {
         Start Training
       </button>
     </div>
+
+    <ConfirmDialog
+      :open="showDeleteConfirm"
+      title="Delete Model"
+      :message="`Are you sure you want to delete the ${modelToDelete ? formatType(modelToDelete.adapter_type) : ''} model for '${modelToDelete?.deviceName ?? ''}'?`"
+      confirm-text="Delete"
+      variant="danger"
+      @confirm="confirmDelete"
+      @cancel="cancelDelete"
+    />
   </div>
 </template>

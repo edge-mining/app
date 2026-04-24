@@ -39,6 +39,12 @@ export const useLoadTrainingStore = defineStore("loadTraining", () => {
       });
   }
 
+  function deleteModel(modelId: string) {
+    return service.deleteModel(modelId).then(() => {
+      models.value = models.value.filter((m) => m.id !== modelId);
+    });
+  }
+
   return {
     // STATE
     models,
@@ -47,5 +53,6 @@ export const useLoadTrainingStore = defineStore("loadTraining", () => {
     loadModels,
     triggerTrainingAll,
     triggerTrainingDevice,
+    deleteModel,
   };
 });
