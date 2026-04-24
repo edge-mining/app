@@ -23,6 +23,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   edit: [device: LoadDevice];
   delete: [device: LoadDevice];
+  train: [device: LoadDevice];
   viewHistory: [device: LoadDevice];
 }>();
 
@@ -41,6 +42,12 @@ function getHistoryProvider(device: LoadDevice) {
   return props.historyProviders.find(
     (p) => p.id === device.energy_load_history_provider_id
   ) ?? null;
+}
+
+const mlTypes = ["statsmodels", "xgboost"];
+function isMLProvider(device: LoadDevice) {
+  const fp = getForecastProvider(device);
+  return fp ? mlTypes.includes(fp.adapter_type) : false;
 }
 
 function handleDeleteClick(device: LoadDevice) {
@@ -130,6 +137,14 @@ function cancelDelete() {
                 @click="emit('viewHistory', device)"
               >
                 <PhChartLine :size="15" class="text-cyan-400" />
+              </button>
+              <button
+                v-if="isMLProvider(device)"
+                class="btn btn-ghost btn-xs btn-square"
+                title="Train Model"
+                @click="emit('train', device)"
+              >
+                <PhBrain :size="15" class="text-warning" />
               </button>
               <button
                 class="btn btn-ghost btn-xs btn-square"

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
 import { useHomeLoadsProfileStore } from "../../core/stores/homeLoadsProfileStore";
 import { useEnergyLoadForecastProviderStore } from "../../core/stores/energyLoadForecastProviderStore";
 import { useEnergyLoadHistoryProviderStore } from "../../core/stores/energyLoadHistoryProviderStore";
@@ -25,6 +26,7 @@ const profileStore = useHomeLoadsProfileStore();
 const forecastProviderStore = useEnergyLoadForecastProviderStore();
 const historyProviderStore = useEnergyLoadHistoryProviderStore();
 const externalServiceStore = useExternalServiceStore();
+const router = useRouter();
 
 // Profile management
 const showNewProfileInput = ref(false);
@@ -270,6 +272,10 @@ function handleViewHistory(device: LoadDevice) {
   showHistoryModal.value = true;
 }
 
+function handleTrainDevice(_device: LoadDevice) {
+  router.push({ name: "settings.homeLoadsTraining" });
+}
+
 function handleCloseHistory() {
   showHistoryModal.value = false;
   historyDevice.value = undefined;
@@ -404,6 +410,7 @@ function handleCloseHistory() {
               @edit="handleEditDevice"
               @delete="handleDeleteDevice"
               @view-history="handleViewHistory"
+              @train="handleTrainDevice"
             />
 
             <div
