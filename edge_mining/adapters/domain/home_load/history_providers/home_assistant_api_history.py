@@ -8,7 +8,7 @@ Assistant and opportunistically cached into the ``EnergyLoadHistoryRepository``
 for that device.
 """
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import List, Optional, cast
 
 from edge_mining.adapters.domain.home_load.history_providers.helpers import group_power_points_into_intervals
@@ -131,7 +131,7 @@ class HomeAssistantAPIEnergyLoadHistoryProvider(EnergyLoadHistoryProviderPort):
         cached = self._history_repo.get_power_points(self.device_id, start, end)
 
         latest_cached: Optional[Timestamp] = max((p.timestamp for p in cached), default=None)
-        now_ts = Timestamp.now()
+        now_ts = Timestamp(datetime.now())
 
         if latest_cached is None:
             fetched = self._fetch_from_home_assistant(start, end)
