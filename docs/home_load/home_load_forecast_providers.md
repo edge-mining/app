@@ -392,3 +392,42 @@ The `LoadConsumptionModel` entity stores trained model metadata and weights:
 | `backtest_mae` | `Optional[float]` | MAE from rolling-window backtesting |
 | `backtest_rmse` | `Optional[float]` | RMSE from rolling-window backtesting |
 | `backtest_folds` | `int` | Number of backtesting evaluation folds |
+
+### ML Model Competition and Promotion
+
+During each training run (nightly at 04:00 or triggered manually via API),
+the service trains **three candidate models** for every enabled device:
+Holt-Winters (STATSMODELS), XGBoost, and Skforecast. Each candidate is
+evaluated against a **holdout set** consisting of the last 24 hours of
+history data.
+
+**Selection criterion**: the candidate with the **lowest MAE** (Mean Absolute
+Error) on the holdout wins and is promoted to `is_active = True`. All
+previously active models for that device are demoted to `is_active = False`.
+
+```python
+candidates = [hw_model, xgb_model, skf_model]
+best = min(candidates, key=lambda m: m.mae)
+best.is_active = True
+```
+
+**What `is_active` means in practice**:
+
+| `is_active` | Meaning |
+|---|---|
+| `True` | This is the **production model** — the forecast provider will load and use it for predictions |
+| `False` | Historical/archived model — kept for audit and comparison but not used for live forecasts |
+
+**How providers consume the active model**: when a forecast provider
+(STATSMODELS, XGBOOST, or SKFORECAST) needs to produce a prediction, it
+queries `LoadConsumptionModelRepository.get_active_model(adapter_type,
+device_id)`. If an active model exists, it is deserialised from
+`model_bytes` via `pickle.loads()` and used directly. If no active model is
+found (e.g. training has never run), the provider falls back to
+**fit-on-the-fly** from the supplied history — slower but ensures a forecast
+is always available.
+
+**Other stored metrics** (`rmse`, `backtest_mae`, `backtest_rmse`,
+`backtest_folds`, `tuning_params`) are **informational only** — they are not
+used for model selection. They are persisted for monitoring, comparison, and
+debugging via the `GET /training/models` API endpoint.
