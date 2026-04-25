@@ -63,3 +63,6 @@ class LoadConsumptionModel(Entity):
     is_active: bool = False  # promoted to production
     model_bytes: Optional[bytes] = field(default=None, repr=False)  # serialized model (pickle/joblib)
     tuning_params: Optional[dict] = field(default=None)  # best hyperparameters from Optuna tuning
+    backtest_mae: Optional[float] = None  # MAE from rolling-window backtesting
+    backtest_rmse: Optional[float] = None  # RMSE from rolling-window backtesting
+    backtest_folds: int = 0  # number of folds used in backtesting

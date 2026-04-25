@@ -1157,6 +1157,9 @@ class LoadConsumptionModelSchema(BaseModel):
     samples_used: int = Field(default=0, description="Number of training samples")
     is_active: bool = Field(default=False, description="Whether the model is currently active")
     tuning_params: Optional[dict] = Field(default=None, description="Best hyperparameters from Optuna tuning")
+    backtest_mae: Optional[float] = Field(default=None, description="MAE from rolling-window backtesting")
+    backtest_rmse: Optional[float] = Field(default=None, description="RMSE from rolling-window backtesting")
+    backtest_folds: int = Field(default=0, description="Number of folds used in backtesting")
 
     @classmethod
     def from_model(cls, model: LoadConsumptionModel) -> "LoadConsumptionModelSchema":
@@ -1170,6 +1173,9 @@ class LoadConsumptionModelSchema(BaseModel):
             samples_used=model.samples_used,
             is_active=model.is_active,
             tuning_params=model.tuning_params,
+            backtest_mae=model.backtest_mae,
+            backtest_rmse=model.backtest_rmse,
+            backtest_folds=model.backtest_folds,
         )
 
     class Config:

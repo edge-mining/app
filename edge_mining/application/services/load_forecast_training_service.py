@@ -363,6 +363,28 @@ class LoadForecastModelTrainingService(LoadForecastTrainingServiceInterface):
             mae = sum(abs(float(pred_list[i]) - holdout_powers[i]) for i in range(n_eval)) / n_eval
             rmse = (sum((float(pred_list[i]) - holdout_powers[i]) ** 2 for i in range(n_eval)) / n_eval) ** 0.5
 
+            # --- Rolling-window backtesting ---
+            backtest_mae: Optional[float] = None
+            backtest_rmse: Optional[float] = None
+            backtest_folds: int = 0
+            try:
+                bt_result = SkforecastForecastProvider.backtest(
+                    forecaster=forecaster,
+                    y_series=y,
+                    steps=24,
+                    folds=3,
+                )
+                backtest_mae = bt_result.get("backtest_mae")
+                backtest_rmse = bt_result.get("backtest_rmse")
+                backtest_folds = bt_result.get("backtest_folds", 0)
+                if self._logger:
+                    self._logger.debug(
+                        f"Backtesting for '{device_name}': MAE={backtest_mae}, RMSE={backtest_rmse}, folds={backtest_folds}"
+                    )
+            except Exception as bt_exc:
+                if self._logger:
+                    self._logger.warning(f"Backtesting failed for '{device_name}': {bt_exc}")
+
             return LoadConsumptionModel(
                 device_id=device_id,
                 adapter_type=EnergyLoadForecastProviderAdapter.SKFORECAST,
@@ -373,6 +395,9 @@ class LoadForecastModelTrainingService(LoadForecastTrainingServiceInterface):
                 is_active=False,
                 model_bytes=model_bytes,
                 tuning_params=tuning_params,
+                backtest_mae=backtest_mae,
+                backtest_rmse=backtest_rmse,
+                backtest_folds=backtest_folds,
             )
         except Exception as exc:
             if self._logger:

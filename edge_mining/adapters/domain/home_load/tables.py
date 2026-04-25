@@ -386,6 +386,9 @@ load_consumption_models_table = Table(
     Column("is_active", Boolean, nullable=False, default=False),
     Column("model_bytes", LargeBinary, nullable=True),
     Column("tuning_params", Text, nullable=True),
+    Column("backtest_mae", Float, nullable=True),
+    Column("backtest_rmse", Float, nullable=True),
+    Column("backtest_folds", Integer, nullable=False, default=0),
     Index("ix_load_consumption_models_active", "adapter_type", "device_id", "is_active"),
 )
 

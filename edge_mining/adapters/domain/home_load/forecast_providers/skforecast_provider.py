@@ -298,6 +298,66 @@ class SkforecastForecastProvider(EnergyLoadForecastProviderPort):
         # return_best=True refits the forecaster in-place with the best params
         return best_params, forecaster
 
+    @staticmethod
+    def backtest(
+        forecaster: "ForecasterRecursive",
+        y_series: "pd.Series",
+        steps: int = 24,
+        folds: int = 3,
+        metric: str = "mean_absolute_error",
+    ) -> dict:
+        """Run rolling-window backtesting on an already-fit forecaster.
+
+        Returns a dict with ``backtest_mae``, ``backtest_rmse`` and
+        ``backtest_folds``.
+        """
+        import numpy as np
+        from skforecast.model_selection import TimeSeriesFold, backtesting_forecaster
+
+        # Need at least window_size + steps*(folds+1) data points
+        window = getattr(forecaster, "window_size", steps)
+        min_required = window + steps * (folds + 1)
+        if len(y_series) < min_required:
+            return {"backtest_mae": None, "backtest_rmse": None, "backtest_folds": 0}
+
+        initial_train_size = len(y_series) - steps * folds
+        if initial_train_size <= window:
+            return {"backtest_mae": None, "backtest_rmse": None, "backtest_folds": 0}
+
+        cv = TimeSeriesFold(
+            steps=steps,
+            initial_train_size=initial_train_size,
+            refit=False,
+            fixed_train_size=False,
+        )
+
+        metric_values, predictions = backtesting_forecaster(
+            forecaster=forecaster,
+            y=y_series,
+            cv=cv,
+            metric=[metric, "mean_squared_error"],
+            verbose=False,
+            show_progress=False,
+        )
+
+        # metric_values is a DataFrame with one row, columns = metric names
+        bt_mae = float(metric_values[metric].iloc[0]) if metric in metric_values.columns else None
+        bt_mse = (
+            float(metric_values["mean_squared_error"].iloc[0])
+            if "mean_squared_error" in metric_values.columns
+            else None
+        )
+        bt_rmse = float(np.sqrt(bt_mse)) if bt_mse is not None else None
+
+        # Number of folds = number of complete prediction windows
+        actual_folds = len(predictions) // steps if len(predictions) >= steps else 0
+
+        return {
+            "backtest_mae": bt_mae,
+            "backtest_rmse": bt_rmse,
+            "backtest_folds": actual_folds,
+        }
+
 
 def _build_search_space(sklearn_model_name: str):
     """Return an Optuna search_space callable for the given model."""
