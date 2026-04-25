@@ -25,4 +25,7 @@ export interface LoadConsumptionModel {
   samples_used: number;
   is_active: boolean;
   tuning_params?: Record<string, any>;
+  backtest_mae?: number;
+  backtest_rmse?: number;
+  backtest_folds: number;
 }

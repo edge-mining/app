@@ -111,6 +111,9 @@ function formatMetric(val?: number): string {
             <th>Status</th>
             <th class="text-right">MAE</th>
             <th class="text-right">RMSE</th>
+            <th class="text-right">Backtest MAE</th>
+            <th class="text-right">Backtest RMSE</th>
+            <th class="text-right">Folds</th>
             <th class="text-right">Samples</th>
             <th>Tuning</th>
             <th>Trained At</th>
@@ -147,6 +150,9 @@ function formatMetric(val?: number): string {
             </td>
             <td class="text-right font-mono text-sm">{{ formatMetric(model.mae) }}</td>
             <td class="text-right font-mono text-sm">{{ formatMetric(model.rmse) }}</td>
+            <td class="text-right font-mono text-sm">{{ formatMetric(model.backtest_mae) }}</td>
+            <td class="text-right font-mono text-sm">{{ formatMetric(model.backtest_rmse) }}</td>
+            <td class="text-right font-mono text-sm">{{ model.backtest_folds || '—' }}</td>
             <td class="text-right font-mono text-sm">{{ model.samples_used }}</td>
             <td>
               <div v-if="model.tuning_params && Object.keys(model.tuning_params).length > 0" class="dropdown dropdown-hover dropdown-left">

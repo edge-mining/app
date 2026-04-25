@@ -97,4 +97,21 @@ export class HomeLoadsProfileService extends BaseService {
       `/home-loads-profiles/${profileId}/devices/${deviceId}/forecast?${params}`
     ).getData();
   }
+
+  collectHistoryGlobal(lookbackHours: number = 24): Promise<Record<string, string>> {
+    return this.post<Record<string, string>>(
+      `/history/collect?lookback_hours=${lookbackHours}`,
+      {}
+    ).getData();
+  }
+
+  collectHistoryForDevices(
+    deviceIds: string[],
+    lookbackHours: number = 24
+  ): Promise<Record<string, string>> {
+    return this.post<Record<string, string>>(
+      `/history/collect/devices?lookback_hours=${lookbackHours}`,
+      deviceIds
+    ).getData();
+  }
 }
