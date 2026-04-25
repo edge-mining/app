@@ -62,3 +62,4 @@ class LoadConsumptionModel(Entity):
     samples_used: int = 0  # number of training samples
     is_active: bool = False  # promoted to production
     model_bytes: Optional[bytes] = field(default=None, repr=False)  # serialized model (pickle/joblib)
+    tuning_params: Optional[dict] = field(default=None)  # best hyperparameters from Optuna tuning

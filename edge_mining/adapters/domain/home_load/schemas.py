@@ -1156,6 +1156,7 @@ class LoadConsumptionModelSchema(BaseModel):
     rmse: Optional[float] = Field(default=None, description="Root mean squared error on holdout")
     samples_used: int = Field(default=0, description="Number of training samples")
     is_active: bool = Field(default=False, description="Whether the model is currently active")
+    tuning_params: Optional[dict] = Field(default=None, description="Best hyperparameters from Optuna tuning")
 
     @classmethod
     def from_model(cls, model: LoadConsumptionModel) -> "LoadConsumptionModelSchema":
@@ -1168,6 +1169,7 @@ class LoadConsumptionModelSchema(BaseModel):
             rmse=model.rmse,
             samples_used=model.samples_used,
             is_active=model.is_active,
+            tuning_params=model.tuning_params,
         )
 
     class Config:

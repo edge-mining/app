@@ -287,13 +287,21 @@ class LoadForecastModelTrainingService(LoadForecastTrainingServiceInterface):
         device_name: str,
         sklearn_model: str = "RandomForestRegressor",
         num_lags: int = 72,
+        perform_tuning: bool = True,
+        tuning_trials: int = 20,
     ) -> Optional[LoadConsumptionModel]:
-        """Train skforecast ForecasterRecursive and evaluate on holdout."""
+        """Train skforecast ForecasterRecursive and evaluate on holdout.
+
+        If ``perform_tuning`` is True and Optuna is available, Bayesian
+        hyperparameter tuning is run after the initial fit to find the
+        best combination of model hyperparameters and lag count.
+        """
         try:
             import pandas as pd_
             from skforecast.recursive import ForecasterRecursive as FR
 
             from edge_mining.adapters.domain.home_load.forecast_providers.skforecast_provider import (
+                SkforecastForecastProvider,
                 _resolve_sklearn_model,
             )
         except ImportError:
@@ -307,12 +315,39 @@ class LoadForecastModelTrainingService(LoadForecastTrainingServiceInterface):
             return None
 
         try:
-            regressor = _resolve_sklearn_model(sklearn_model)
-            forecaster = FR(estimator=regressor, lags=num_lags)
-
             y = pd_.Series(powers, name="power")
-            forecaster.fit(y=y)
-            model_bytes = pickle.dumps(forecaster)
+            tuning_params: Optional[dict] = None
+
+            # --- Optuna tuning (optional) ---
+            if perform_tuning and len(powers) >= num_lags + 48 + 24:
+                try:
+                    best_params, tuned_forecaster = SkforecastForecastProvider.tune(
+                        y_series=y,
+                        sklearn_model_name=sklearn_model,
+                        num_lags=num_lags,
+                        steps=24,
+                        n_trials=tuning_trials,
+                    )
+                    tuning_params = best_params
+                    model_bytes = pickle.dumps(tuned_forecaster)
+                    forecaster = tuned_forecaster
+
+                    if self._logger:
+                        self._logger.debug(f"Optuna tuning completed for '{device_name}': {best_params}")
+                except Exception as tune_exc:
+                    if self._logger:
+                        self._logger.warning(f"Optuna tuning failed for '{device_name}', using base fit: {tune_exc}")
+                    # Fallback to base fit
+                    regressor = _resolve_sklearn_model(sklearn_model)
+                    forecaster = FR(estimator=regressor, lags=num_lags)
+                    forecaster.fit(y=y)
+                    model_bytes = pickle.dumps(forecaster)
+            else:
+                # Base fit without tuning
+                regressor = _resolve_sklearn_model(sklearn_model)
+                forecaster = FR(estimator=regressor, lags=num_lags)
+                forecaster.fit(y=y)
+                model_bytes = pickle.dumps(forecaster)
 
             # Evaluate on holdout
             holdout_series = intervals_to_hourly_series(holdout)
@@ -337,6 +372,7 @@ class LoadForecastModelTrainingService(LoadForecastTrainingServiceInterface):
                 samples_used=len(powers),
                 is_active=False,
                 model_bytes=model_bytes,
+                tuning_params=tuning_params,
             )
         except Exception as exc:
             if self._logger:

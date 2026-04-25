@@ -242,3 +242,109 @@ class SkforecastForecastProvider(EnergyLoadForecastProviderPort):
                 )
             )
         return LoadEnergyConsumption(timestamp=now, intervals=intervals)
+
+    @staticmethod
+    def tune(
+        y_series: "pd.Series",
+        sklearn_model_name: str = "RandomForestRegressor",
+        num_lags: int = 72,
+        steps: int = 24,
+        n_trials: int = 20,
+        metric: str = "mean_absolute_error",
+    ) -> tuple:
+        """Run Bayesian hyperparameter optimisation via Optuna.
+
+        Returns ``(best_params, tuned_forecaster)`` where *best_params* is a
+        dict of the winning hyperparameter combination and *tuned_forecaster*
+        is the ``ForecasterRecursive`` already refit with those params.
+
+        This is a **static helper** so it can be called from the training
+        service without instantiating a full provider.
+        """
+        import optuna
+        from skforecast.model_selection import TimeSeriesFold, bayesian_search_forecaster
+
+        optuna.logging.set_verbosity(optuna.logging.WARNING)
+
+        regressor = _resolve_sklearn_model(sklearn_model_name)
+        forecaster = ForecasterRecursive(estimator=regressor, lags=num_lags)
+
+        cv = TimeSeriesFold(
+            steps=steps,
+            initial_train_size=len(y_series) - steps * 2,
+            refit=False,
+            fixed_train_size=False,
+        )
+
+        search_space = _build_search_space(sklearn_model_name)
+
+        results_df, _study = bayesian_search_forecaster(
+            forecaster=forecaster,
+            y=y_series,
+            cv=cv,
+            search_space=search_space,
+            metric=metric,
+            n_trials=n_trials,
+            return_best=True,
+            verbose=False,
+            show_progress=False,
+        )
+
+        best_params = results_df.iloc[0].to_dict() if not results_df.empty else {}
+        # Keep only hyperparameter keys (filter out metric columns)
+        param_keys = {k for k in best_params if k not in ("mean_absolute_error", "mean_squared_error", metric)}
+        best_params = {k: v for k, v in best_params.items() if k in param_keys}
+
+        # return_best=True refits the forecaster in-place with the best params
+        return best_params, forecaster
+
+
+def _build_search_space(sklearn_model_name: str):
+    """Return an Optuna search_space callable for the given model."""
+    import optuna
+
+    def _rf_space(trial: optuna.Trial) -> dict:
+        return {
+            "n_estimators": trial.suggest_int("n_estimators", 50, 400),
+            "max_depth": trial.suggest_int("max_depth", 3, 20),
+            "min_samples_leaf": trial.suggest_int("min_samples_leaf", 1, 10),
+            "lags": trial.suggest_categorical("lags", [24, 48, 72]),
+        }
+
+    def _gb_space(trial: optuna.Trial) -> dict:
+        return {
+            "n_estimators": trial.suggest_int("n_estimators", 50, 400),
+            "max_depth": trial.suggest_int("max_depth", 3, 15),
+            "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
+            "lags": trial.suggest_categorical("lags", [24, 48, 72]),
+        }
+
+    def _ridge_space(trial: optuna.Trial) -> dict:
+        return {
+            "alpha": trial.suggest_float("alpha", 0.01, 100.0, log=True),
+            "lags": trial.suggest_categorical("lags", [24, 48, 72]),
+        }
+
+    def _knn_space(trial: optuna.Trial) -> dict:
+        return {
+            "n_neighbors": trial.suggest_int("n_neighbors", 3, 30),
+            "weights": trial.suggest_categorical("weights", ["uniform", "distance"]),
+            "lags": trial.suggest_categorical("lags", [24, 48, 72]),
+        }
+
+    def _default_space(trial: optuna.Trial) -> dict:
+        return {
+            "lags": trial.suggest_categorical("lags", [24, 48, 72]),
+        }
+
+    space_map = {
+        "RandomForestRegressor": _rf_space,
+        "ExtraTreesRegressor": _rf_space,
+        "GradientBoostingRegressor": _gb_space,
+        "AdaBoostRegressor": _gb_space,
+        "Ridge": _ridge_space,
+        "Lasso": _ridge_space,
+        "ElasticNet": _ridge_space,
+        "KNeighborsRegressor": _knn_space,
+    }
+    return space_map.get(sklearn_model_name, _default_space)

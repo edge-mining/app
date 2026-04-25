@@ -38,6 +38,7 @@ from sqlalchemy import (
     LargeBinary,
     String,
     Table,
+    Text,
     TypeDecorator,
     event,
 )
@@ -384,6 +385,7 @@ load_consumption_models_table = Table(
     Column("samples_used", Integer, nullable=False, default=0),
     Column("is_active", Boolean, nullable=False, default=False),
     Column("model_bytes", LargeBinary, nullable=True),
+    Column("tuning_params", Text, nullable=True),
     Index("ix_load_consumption_models_active", "adapter_type", "device_id", "is_active"),
 )
 
@@ -405,6 +407,12 @@ def _receive_load_consumption_model_load(target: LoadConsumptionModel, context) 
         except ValueError:
             pass
 
+    if hasattr(target, "tuning_params") and isinstance(target.tuning_params, str):
+        try:
+            target.tuning_params = json.loads(target.tuning_params)
+        except (json.JSONDecodeError, TypeError):
+            target.tuning_params = None
+
 
 @event.listens_for(LoadConsumptionModel, "before_insert")
 @event.listens_for(LoadConsumptionModel, "before_update")
@@ -413,6 +421,10 @@ def _flatten_load_consumption_model_composites(mapper, connection, target: Any) 
     if hasattr(target, "adapter_type") and target.adapter_type is not None:
         if isinstance(target.adapter_type, EnergyLoadForecastProviderAdapter):
             target.adapter_type = target.adapter_type.value
+
+    if hasattr(target, "tuning_params") and target.tuning_params is not None:
+        if isinstance(target.tuning_params, dict):
+            target.tuning_params = json.dumps(target.tuning_params)
 
 
 @event.listens_for(LoadConsumptionModel, "after_insert")
@@ -425,6 +437,12 @@ def _restore_load_consumption_model_composites(mapper, connection, target: Any) 
                 target.adapter_type = EnergyLoadForecastProviderAdapter(target.adapter_type)
             except ValueError:
                 pass
+
+    if hasattr(target, "tuning_params") and isinstance(target.tuning_params, str):
+        try:
+            target.tuning_params = json.loads(target.tuning_params)
+        except (json.JSONDecodeError, TypeError):
+            target.tuning_params = None
 
 
 mapper_registry.map_imperatively(
