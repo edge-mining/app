@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, onMounted } from "vue";
 import type { LoadDevice } from "../../core/models/homeLoadsProfile";
 import type { EnergyLoadForecastProvider } from "../../core/models/energyLoadForecastProvider";
 import type { EnergyLoadHistoryProvider } from "../../core/models/energyLoadHistoryProvider";
+import { useLoadTrainingStore } from "../../core/stores/loadTrainingStore";
 import { formatType } from "../../core/utils/index";
 import {
   PhPencil,
@@ -27,6 +28,12 @@ const emit = defineEmits<{
   viewHistory: [device: LoadDevice];
 }>();
 
+const trainingStore = useLoadTrainingStore();
+
+onMounted(() => {
+  trainingStore.loadModels();
+});
+
 const deviceToDelete = ref<LoadDevice | null>(null);
 const showDeleteConfirm = ref(false);
 
@@ -45,6 +52,33 @@ function getHistoryProvider(device: LoadDevice) {
 }
 
 const mlTypes = ["statsmodels", "xgboost", "skforecast"];
+const testingTypes = ["dummy"];
+const baselineTypes = ["naive_last_hour", "naive_persistence"];
+const statisticalTypes = ["seasonal_baseline", "typical_profile"];
+
+function getProviderCategory(adapterType: string): { label: string; class: string } {
+  if (testingTypes.includes(adapterType)) return { label: "Testing", class: "badge-neutral" };
+  if (baselineTypes.includes(adapterType)) return { label: "Baseline", class: "badge-info" };
+  if (statisticalTypes.includes(adapterType)) return { label: "Statistical", class: "badge-warning" };
+  if (mlTypes.includes(adapterType)) return { label: "ML", class: "badge-secondary" };
+  return { label: "Unknown", class: "badge-ghost" };
+}
+
+function getTrainingStatus(device: LoadDevice): { label: string; class: string } | null {
+  const fp = getForecastProvider(device);
+  if (!fp || !mlTypes.includes(fp.adapter_type)) return null;
+
+  if (trainingStore.trainingInProgress) {
+    return { label: "Training…", class: "badge-accent animate-pulse" };
+  }
+
+  const activeModel = trainingStore.models.find(
+    (m) => m.device_id === device.id && m.is_active
+  );
+  if (activeModel) return { label: "Trained", class: "badge-success" };
+  return { label: "Not trained", class: "badge-error badge-outline" };
+}
+
 function isMLProvider(device: LoadDevice) {
   const fp = getForecastProvider(device);
   return fp ? mlTypes.includes(fp.adapter_type) : false;
@@ -111,11 +145,20 @@ function cancelDelete() {
             </div>
           </td>
           <td>
-            <div v-if="getForecastProvider(device)" class="flex items-center gap-1.5">
+            <div v-if="getForecastProvider(device)" class="flex items-center gap-1.5 flex-wrap">
               <PhBrain :size="14" class="text-purple-400 flex-shrink-0" />
-              <span class="text-sm truncate max-w-[150px]" :title="getForecastProvider(device)?.name">
+              <span class="text-sm truncate max-w-[120px]" :title="getForecastProvider(device)?.name">
                 {{ formatType(getForecastProvider(device)?.adapter_type ?? '') }}
               </span>
+              <span
+                class="badge badge-xs"
+                :class="getProviderCategory(getForecastProvider(device)?.adapter_type ?? '').class"
+              >{{ getProviderCategory(getForecastProvider(device)?.adapter_type ?? '').label }}</span>
+              <span
+                v-if="getTrainingStatus(device)"
+                class="badge badge-xs"
+                :class="getTrainingStatus(device)?.class"
+              >{{ getTrainingStatus(device)?.label }}</span>
             </div>
             <span v-else class="text-xs text-base-content/30 italic">None</span>
           </td>

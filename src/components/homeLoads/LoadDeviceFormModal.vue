@@ -13,6 +13,7 @@ import { useEnergyLoadForecastProviderStore } from "../../core/stores/energyLoad
 import { useEnergyLoadHistoryProviderStore } from "../../core/stores/energyLoadHistoryProviderStore";
 import { useExternalServiceStore } from "../../core/stores/externalServiceStore";
 import ConfigSchemaForm from "../ConfigSchemaForm.vue";
+import ForecastProviderInfo from "./ForecastProviderInfo.vue";
 import { formatType } from "../../core/utils/index";
 import {
   PhX,
@@ -535,19 +536,22 @@ function handleSave() {
               <label class="label mb-1">
                 <span class="label-text font-medium">Adapter Type *</span>
               </label>
-              <select
-                v-model="forecastAdapterType"
-                class="select select-bordered w-full"
-              >
-                <option value="" disabled>Select adapter type</option>
-                <option
-                  v-for="at in forecastProviderStore.adapterTypes"
-                  :key="at"
-                  :value="at"
+              <div class="flex items-center gap-2">
+                <select
+                  v-model="forecastAdapterType"
+                  class="select select-bordered w-full"
                 >
-                  {{ formatType(at) }}
-                </option>
-              </select>
+                  <option value="" disabled>Select adapter type</option>
+                  <option
+                    v-for="at in forecastProviderStore.adapterTypes"
+                    :key="at"
+                    :value="at"
+                  >
+                    {{ formatType(at) }}
+                  </option>
+                </select>
+                <ForecastProviderInfo :adapter-type="forecastAdapterType" />
+              </div>
             </div>
 
             <!-- External Service -->
