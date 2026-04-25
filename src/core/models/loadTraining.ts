@@ -24,4 +24,5 @@ export interface LoadConsumptionModel {
   rmse?: number;
   samples_used: number;
   is_active: boolean;
+  tuning_params?: Record<string, any>;
 }

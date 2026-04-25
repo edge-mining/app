@@ -112,6 +112,7 @@ function formatMetric(val?: number): string {
             <th class="text-right">MAE</th>
             <th class="text-right">RMSE</th>
             <th class="text-right">Samples</th>
+            <th>Tuning</th>
             <th>Trained At</th>
             <th class="text-center">Actions</th>
           </tr>
@@ -147,6 +148,21 @@ function formatMetric(val?: number): string {
             <td class="text-right font-mono text-sm">{{ formatMetric(model.mae) }}</td>
             <td class="text-right font-mono text-sm">{{ formatMetric(model.rmse) }}</td>
             <td class="text-right font-mono text-sm">{{ model.samples_used }}</td>
+            <td>
+              <div v-if="model.tuning_params && Object.keys(model.tuning_params).length > 0" class="dropdown dropdown-hover dropdown-left">
+                <label tabindex="0" class="badge badge-sm badge-ghost cursor-pointer">
+                  {{ Object.keys(model.tuning_params).length }} params
+                </label>
+                <div tabindex="0" class="dropdown-content z-10 p-3 shadow-lg bg-base-200 rounded-lg w-64">
+                  <div class="text-xs font-semibold mb-2 text-base-content/60">Tuning Parameters</div>
+                  <div v-for="(val, key) in model.tuning_params" :key="key" class="flex justify-between text-xs py-0.5">
+                    <span class="text-base-content/60">{{ key }}</span>
+                    <span class="font-mono text-base-content">{{ val }}</span>
+                  </div>
+                </div>
+              </div>
+              <span v-else class="text-xs text-base-content/30 italic">—</span>
+            </td>
             <td class="text-sm text-base-content/60">{{ formatDate(model.trained_at) }}</td>
             <td class="text-center">
               <div class="flex items-center justify-center gap-1">

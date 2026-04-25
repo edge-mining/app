@@ -44,7 +44,7 @@ function getHistoryProvider(device: LoadDevice) {
   ) ?? null;
 }
 
-const mlTypes = ["statsmodels", "xgboost"];
+const mlTypes = ["statsmodels", "xgboost", "skforecast"];
 function isMLProvider(device: LoadDevice) {
   const fp = getForecastProvider(device);
   return fp ? mlTypes.includes(fp.adapter_type) : false;

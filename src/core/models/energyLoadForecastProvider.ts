@@ -1,8 +1,11 @@
 export const EnergyLoadForecastProviderAdapter = {
   DUMMY: "dummy",
   NAIVE_LAST_HOUR: "naive_last_hour",
+  NAIVE_PERSISTENCE: "naive_persistence",
   SEASONAL_BASELINE: "seasonal_baseline",
+  SKFORECAST: "skforecast",
   STATSMODELS: "statsmodels",
+  TYPICAL_PROFILE: "typical_profile",
   XGBOOST: "xgboost",
 } as const;
 

@@ -50,7 +50,7 @@ const assignedHistoryProvider = computed(() => {
 
 const isMLProvider = computed(() => {
   if (!assignedForecastProvider.value) return false;
-  const mlTypes = ["statsmodels", "xgboost"];
+  const mlTypes = ["statsmodels", "xgboost", "skforecast"];
   return mlTypes.includes(assignedForecastProvider.value.adapter_type);
 });
 
