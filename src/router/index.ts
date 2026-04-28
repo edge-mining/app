@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import DashboardView from "../views/DashboardView.vue";
+import HomeLoadsDashboardView from "../views/dashboard/HomeLoadsDashboardView.vue";
 import MinersSettingsView from "../views/settings/MinersSettingsView.vue";
 import EnergySourcesSettingsView from "../views/settings/EnergySourcesSettingsView.vue";
 import EnergyMonitorSettingsView from "../views/settings/EnergyMonitorSettingsView.vue";
@@ -20,6 +21,11 @@ const router = createRouter({
       name: "dashboard",
       // This is the default route, it will be replaced by the setHomeRoute function
       component: DashboardView,
+    },
+    {
+      path: "/dashboard/home-loads",
+      name: "dashboard.homeLoads",
+      component: HomeLoadsDashboardView,
     },
     {
       path: "/settings/",
