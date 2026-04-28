@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch, toRaw } from "vue";
+import { computed, ref, watch, toRaw, nextTick } from "vue";
 import { LoadDeviceCategory, type LoadDevice } from "../../core/models/homeLoadsProfile";
 import {
   EnergyLoadForecastProviderAdapter,
@@ -70,6 +70,9 @@ const historyRequiresExternalService = ref(false);
 const historyCompatibleExternalServices = ref<any[]>([]);
 const showHistoryConfig = ref(false);
 const showForecastConfig = ref(false);
+
+// Guard flag to prevent watchers from resetting config during initialization
+const isInitializing = ref(false);
 
 // Resolve the existing forecast provider linked to this device
 const existingForecastProvider = computed(() => {
@@ -157,6 +160,7 @@ watch(
   () => props.open,
   (isOpen) => {
     if (isOpen) {
+      isInitializing.value = true;
       if (props.device) {
         formData.value = {
           ...props.device,
@@ -202,6 +206,7 @@ watch(
         resetForecastSection();
         resetHistorySection();
       }
+      nextTick(() => { isInitializing.value = false; });
     }
   },
   { immediate: true }
@@ -228,7 +233,7 @@ function resetHistorySection() {
 }
 
 watch(forecastAdapterType, (newType) => {
-  if (newType && forecastEnabled.value) {
+  if (newType && forecastEnabled.value && !isInitializing.value) {
     forecastConfig.value = {};
     updateCompatibleExternalServices(newType);
   }
@@ -241,7 +246,7 @@ watch(forecastEnabled, (enabled) => {
 });
 
 watch(historyAdapterType, (newType) => {
-  if (newType && historyEnabled.value) {
+  if (newType && historyEnabled.value && !isInitializing.value) {
     historyConfig.value = {};
     updateHistoryCompatibleExternalServices(newType);
   }
