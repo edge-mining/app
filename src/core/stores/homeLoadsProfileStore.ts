@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import type { HomeLoadsProfile, LoadDevice, LoadDeviceCreate, LoadDeviceUpdate } from "../models/homeLoadsProfile";
+import type { HomeLoadsProfile, LoadDeviceCreate, LoadDeviceUpdate } from "../models/homeLoadsProfile";
 import { HomeLoadsProfileService } from "../services/homeLoadsProfileService";
 import type { HomeLoadPowerPoint, LoadEnergyConsumption } from "../models/loadTraining";
 

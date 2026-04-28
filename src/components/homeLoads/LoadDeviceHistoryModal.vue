@@ -8,7 +8,6 @@ import { useEnergyLoadForecastProviderStore } from "../../core/stores/energyLoad
 import {
   PhX,
   PhChartLine,
-  PhLightning,
   PhArrowsClockwise,
   PhCloudArrowDown,
   PhTrash,

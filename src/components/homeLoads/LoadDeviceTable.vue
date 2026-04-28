@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from "vue";
+import { ref, onMounted } from "vue";
 import type { LoadDevice } from "../../core/models/homeLoadsProfile";
 import type { EnergyLoadForecastProvider } from "../../core/models/energyLoadForecastProvider";
 import type { EnergyLoadHistoryProvider } from "../../core/models/energyLoadHistoryProvider";
