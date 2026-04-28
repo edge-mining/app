@@ -10,6 +10,7 @@ import type { EnergyLoadForecastProvider } from "../../core/models/energyLoadFor
 import type { EnergyLoadHistoryProvider } from "../../core/models/energyLoadHistoryProvider";
 import LoadDeviceTable from "../../components/homeLoads/LoadDeviceTable.vue";
 import LoadDeviceFormModal from "../../components/homeLoads/LoadDeviceFormModal.vue";
+import LoadDeviceWizardModal from "../../components/homeLoads/LoadDeviceWizardModal.vue";
 import LoadDeviceHistoryModal from "../../components/homeLoads/LoadDeviceHistoryModal.vue";
 import ConfirmDialog from "../../components/ConfirmDialog.vue";
 import {
@@ -38,6 +39,7 @@ const editProfileName = ref("");
 
 // Device modal state
 const showDeviceModal = ref(false);
+const showWizardModal = ref(false);
 const editingDevice = ref<LoadDevice | undefined>(undefined);
 const isDeviceEditMode = ref(false);
 
@@ -141,7 +143,7 @@ function cancelDeleteProfile() {
 function openAddDevice() {
   editingDevice.value = undefined;
   isDeviceEditMode.value = false;
-  showDeviceModal.value = true;
+  showWizardModal.value = true;
 }
 
 function handleEditDevice(device: LoadDevice) {
@@ -152,6 +154,7 @@ function handleEditDevice(device: LoadDevice) {
 
 function handleCloseDeviceModal() {
   showDeviceModal.value = false;
+  showWizardModal.value = false;
   editingDevice.value = undefined;
 }
 
@@ -301,7 +304,7 @@ function handleCloseHistory() {
     <div class="card-body">
       <div class="space-y-6">
         <!-- Profile Selector -->
-        <div class="bg-base-200/40 rounded-xl border border-base-300/40 p-4">
+        <div v-if="profileStore.profiles.length > 1 || showNewProfileInput" class="bg-base-200/40 rounded-xl border border-base-300/40 p-4">
           <div class="flex items-center justify-between mb-3">
             <span class="text-sm font-semibold text-base-content/70 uppercase tracking-wider">
               Load Profile
@@ -334,11 +337,25 @@ function handleCloseHistory() {
             </button>
           </div>
 
-          <!-- Profile Tabs -->
-          <div class="flex flex-wrap gap-2">
-            <template v-for="profile in profileStore.profiles" :key="profile.id">
+          <!-- Profile Dropdown -->
+          <div v-if="!showNewProfileInput" class="flex items-center gap-2">
+            <select
+              :value="profileStore.selectedProfileId ?? ''"
+              class="select select-bordered select-sm flex-1"
+              @change="selectProfile(($event.target as HTMLSelectElement).value)"
+            >
+              <option value="" disabled>Select a profile</option>
+              <option
+                v-for="profile in profileStore.profiles"
+                :key="profile.id"
+                :value="profile.id"
+              >
+                {{ profile.name }} ({{ profile.devices.length }} devices)
+              </option>
+            </select>
+            <template v-if="selectedProfile">
               <div
-                v-if="editingProfileId === profile.id"
+                v-if="editingProfileId === selectedProfile.id"
                 class="flex items-center gap-1"
               >
                 <input
@@ -355,40 +372,90 @@ function handleCloseHistory() {
                   <PhX :size="14" />
                 </button>
               </div>
-              <div v-else class="btn-group">
+              <template v-else>
                 <button
-                  class="btn btn-sm"
-                  :class="profileStore.selectedProfileId === profile.id ? 'btn-primary' : 'btn-ghost'"
-                  @click="selectProfile(profile.id!)"
-                >
-                  {{ profile.name }}
-                  <span class="badge badge-xs ml-1 opacity-70">{{ profile.devices.length }}</span>
-                </button>
-                <button
-                  v-if="profileStore.selectedProfileId === profile.id"
-                  class="btn btn-sm btn-ghost btn-square"
-                  title="Rename"
-                  @click.stop="startEditProfile(profile)"
+                  class="btn btn-ghost btn-sm btn-square"
+                  title="Rename profile"
+                  @click="startEditProfile(selectedProfile)"
                 >
                   <PhPencil :size="14" />
                 </button>
                 <button
-                  v-if="profileStore.selectedProfileId === profile.id"
-                  class="btn btn-sm btn-ghost btn-square"
-                  title="Delete"
-                  @click.stop="deleteProfile(profile.id!)"
+                  class="btn btn-ghost btn-sm btn-square"
+                  title="Delete profile"
+                  @click="deleteProfile(selectedProfile.id!)"
                 >
                   <PhTrash :size="14" class="text-error" />
                 </button>
-              </div>
+              </template>
             </template>
+          </div>
+        </div>
 
+        <!-- Single profile: inline header (no selector needed) -->
+        <div v-else-if="profileStore.profiles.length === 1" class="flex items-center justify-between bg-base-200/40 rounded-xl border border-base-300/40 p-4">
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-medium text-base-content/80">{{ profileStore.profiles[0].name }}</span>
+            <span class="badge badge-xs badge-ghost">{{ profileStore.profiles[0].devices.length }} devices</span>
+          </div>
+          <div class="flex items-center gap-1">
             <div
-              v-if="profileStore.profiles.length === 0 && !showNewProfileInput"
-              class="text-sm text-base-content/50 italic py-1"
+              v-if="editingProfileId === profileStore.profiles[0].id"
+              class="flex items-center gap-1"
             >
-              No profiles yet — create one to start adding devices
+              <input
+                v-model="editProfileName"
+                type="text"
+                class="input input-bordered input-sm w-36"
+                @keyup.enter="confirmEditProfile"
+                @keyup.escape="cancelEditProfile"
+              />
+              <button class="btn btn-success btn-sm btn-square" @click="confirmEditProfile">
+                <PhCheck :size="14" />
+              </button>
+              <button class="btn btn-ghost btn-sm btn-square" @click="cancelEditProfile">
+                <PhX :size="14" />
+              </button>
             </div>
+            <template v-else>
+              <button class="btn btn-ghost btn-xs btn-square" title="Rename" @click="startEditProfile(profileStore.profiles[0])">
+                <PhPencil :size="14" />
+              </button>
+              <button class="btn btn-ghost btn-xs gap-1" @click="startAddProfile">
+                <PhPlus :size="14" />
+                Add Profile
+              </button>
+            </template>
+          </div>
+        </div>
+
+        <!-- No profiles at all -->
+        <div v-else class="bg-base-200/40 rounded-xl border border-base-300/40 p-4">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-sm font-semibold text-base-content/70 uppercase tracking-wider">
+              Load Profile
+            </span>
+          </div>
+          <div v-if="showNewProfileInput" class="flex items-center gap-2">
+            <input
+              v-model="newProfileName"
+              type="text"
+              placeholder="Profile name"
+              class="input input-bordered input-sm flex-1"
+              @keyup.enter="confirmAddProfile"
+              @keyup.escape="cancelAddProfile"
+            />
+            <button class="btn btn-primary btn-sm btn-square" @click="confirmAddProfile">
+              <PhCheck :size="16" />
+            </button>
+            <button class="btn btn-ghost btn-sm btn-square" @click="cancelAddProfile">
+              <PhX :size="16" />
+            </button>
+          </div>
+          <div v-else class="text-sm text-base-content/50 italic">
+            No profiles yet —
+            <button class="link link-primary" @click="startAddProfile">create one</button>
+            to start adding devices.
           </div>
         </div>
 
@@ -431,18 +498,6 @@ function handleCloseHistory() {
             </div>
           </div>
         </template>
-
-        <!-- No Profile Selected State -->
-        <div
-          v-if="profileStore.profiles.length > 0 && !selectedProfile"
-          class="flex flex-col items-center justify-center py-16 text-center"
-        >
-          <PhHouse :size="48" class="text-base-content/30 mb-4" />
-          <h3 class="text-lg font-semibold text-base-content/80">Select a profile</h3>
-          <p class="text-sm text-base-content/50 mt-1">
-            Choose a load profile above to manage its devices and providers.
-          </p>
-        </div>
       </div>
     </div>
   </div>
@@ -454,6 +509,12 @@ function handleCloseHistory() {
     :is-edit="isDeviceEditMode"
     :forecast-providers="forecastProviderStore.providers"
     :history-providers="historyProviderStore.providers"
+    @close="handleCloseDeviceModal"
+    @save="handleSaveDevice"
+  />
+
+  <LoadDeviceWizardModal
+    :open="showWizardModal"
     @close="handleCloseDeviceModal"
     @save="handleSaveDevice"
   />
