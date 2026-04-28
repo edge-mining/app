@@ -20,6 +20,7 @@ class EnergyOptimizationUnitSchema(BaseModel):
     target_miner_ids: List[str] = Field(default_factory=list, description="List of target miner IDs to be controlled")
     energy_source_id: Optional[str] = Field(default=None, description="ID of the energy source to be used")
     performance_tracker_id: Optional[str] = Field(default=None, description="ID of the performance tracker to be used")
+    home_loads_profile_id: Optional[str] = Field(default=None, description="ID of the home loads profile to be used")
     notifier_ids: List[str] = Field(default_factory=list, description="List of notifier IDs to be used")
 
     @field_validator("id")
@@ -95,6 +96,17 @@ class EnergyOptimizationUnitSchema(BaseModel):
                 raise ValueError("performance_tracker_id must be a valid UUID string") from exc
         return v
 
+    @field_validator("home_loads_profile_id")
+    @classmethod
+    def validate_home_loads_profile_id(cls, v: Optional[str]) -> Optional[str]:
+        """Validate that home_loads_profile_id is a valid UUID string if provided."""
+        if v is not None:
+            try:
+                uuid.UUID(v)
+            except ValueError as exc:
+                raise ValueError("home_loads_profile_id must be a valid UUID string") from exc
+        return v
+
     @field_validator("notifier_ids")
     @classmethod
     def validate_notifier_ids(cls, v: List[str]) -> List[str]:
@@ -119,6 +131,9 @@ class EnergyOptimizationUnitSchema(BaseModel):
             energy_source_id=str(optimization_unit.energy_source_id) if optimization_unit.energy_source_id else None,
             performance_tracker_id=(
                 str(optimization_unit.performance_tracker_id) if optimization_unit.performance_tracker_id else None
+            ),
+            home_loads_profile_id=(
+                str(optimization_unit.home_loads_profile) if optimization_unit.home_loads_profile else None
             ),
             notifier_ids=[str(notifier_id) for notifier_id in optimization_unit.notifier_ids],
         )
@@ -148,6 +163,11 @@ class EnergyOptimizationUnitSchema(BaseModel):
         """Serialize performance_tracker_id field."""
         return str(value) if value is not None else None
 
+    @field_serializer("home_loads_profile_id")
+    def serialize_home_loads_profile_id(self, value: Optional[str]) -> Optional[str]:
+        """Serialize home_loads_profile_id field."""
+        return str(value) if value is not None else None
+
     @field_serializer("notifier_ids")
     def serialize_notifier_ids(self, value: List[str]) -> List[str]:
         """Serialize notifier_ids field."""
@@ -165,6 +185,9 @@ class EnergyOptimizationUnitSchema(BaseModel):
             energy_source_id=EntityId(uuid.UUID(self.energy_source_id)) if self.energy_source_id else None,
             performance_tracker_id=(
                 EntityId(uuid.UUID(self.performance_tracker_id)) if self.performance_tracker_id else None
+            ),
+            home_loads_profile=(
+                EntityId(uuid.UUID(self.home_loads_profile_id)) if self.home_loads_profile_id else None
             ),
             notifier_ids=[EntityId(uuid.UUID(notifier_id)) for notifier_id in self.notifier_ids],
         )
@@ -189,6 +212,7 @@ class EnergyOptimizationUnitCreateSchema(BaseModel):
     target_miner_ids: List[str] = Field(default_factory=list, description="List of target miner IDs to be controlled")
     energy_source_id: Optional[str] = Field(default=None, description="ID of the energy source to be used")
     performance_tracker_id: Optional[str] = Field(default=None, description="ID of the performance tracker to be used")
+    home_loads_profile_id: Optional[str] = Field(default=None, description="ID of the home loads profile to be used")
     notifier_ids: List[str] = Field(default_factory=list, description="List of notifier IDs to be used")
 
     @field_validator("name")
@@ -252,6 +276,17 @@ class EnergyOptimizationUnitCreateSchema(BaseModel):
                 uuid.UUID(v)
             except ValueError as exc:
                 raise ValueError("performance_tracker_id must be a valid UUID string") from exc
+        return v
+
+    @field_validator("home_loads_profile_id")
+    @classmethod
+    def validate_home_loads_profile_id(cls, v: Optional[str]) -> Optional[str]:
+        """Validate that home_loads_profile_id is a valid UUID string if provided."""
+        if v is not None:
+            try:
+                uuid.UUID(v)
+            except ValueError as exc:
+                raise ValueError("home_loads_profile_id must be a valid UUID string") from exc
         return v
 
     @field_validator("notifier_ids")
@@ -278,6 +313,9 @@ class EnergyOptimizationUnitCreateSchema(BaseModel):
             performance_tracker_id=(
                 EntityId(uuid.UUID(self.performance_tracker_id)) if self.performance_tracker_id else None
             ),
+            home_loads_profile=(
+                EntityId(uuid.UUID(self.home_loads_profile_id)) if self.home_loads_profile_id else None
+            ),
             notifier_ids=[EntityId(uuid.UUID(notifier_id)) for notifier_id in self.notifier_ids],
         )
 
@@ -300,6 +338,7 @@ class EnergyOptimizationUnitUpdateSchema(BaseModel):
     target_miner_ids: List[str] = Field(default_factory=list, description="List of target miner IDs to be controlled")
     energy_source_id: Optional[str] = Field(default=None, description="ID of the energy source to be used")
     performance_tracker_id: Optional[str] = Field(default=None, description="ID of the performance tracker to be used")
+    home_loads_profile_id: Optional[str] = Field(default=None, description="ID of the home loads profile to be used")
     notifier_ids: List[str] = Field(default_factory=list, description="List of notifier IDs to be used")
 
     @field_validator("name")
@@ -363,6 +402,17 @@ class EnergyOptimizationUnitUpdateSchema(BaseModel):
                 uuid.UUID(v)
             except ValueError as exc:
                 raise ValueError("performance_tracker_id must be a valid UUID string") from exc
+        return v
+
+    @field_validator("home_loads_profile_id")
+    @classmethod
+    def validate_home_loads_profile_id(cls, v: Optional[str]) -> Optional[str]:
+        """Validate that home_loads_profile_id is a valid UUID string if provided."""
+        if v is not None:
+            try:
+                uuid.UUID(v)
+            except ValueError as exc:
+                raise ValueError("home_loads_profile_id must be a valid UUID string") from exc
         return v
 
     @field_validator("notifier_ids")

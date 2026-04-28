@@ -8,6 +8,7 @@ It is responsible for:
 """
 
 import asyncio
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
 from edge_mining.application.interfaces import (
@@ -16,8 +17,6 @@ from edge_mining.application.interfaces import (
     OptimizationServiceInterface,
     SunFactoryInterface,
 )
-from datetime import datetime, timedelta
-
 from edge_mining.domain.common import EntityId, Timestamp, WattHours
 from edge_mining.domain.energy.entities import EnergySource
 from edge_mining.domain.energy.events import EnergyStateSnapshotUpdatedEvent
@@ -341,7 +340,7 @@ class OptimizationService(OptimizationServiceInterface):
         if home_loads_profile and home_loads_profile.devices:
             for load_device in home_loads_profile.devices:
                 if load_device.energy_load_history_provider_id:
-                    energy_load_history_provider = self.adapter_service.get_home_load_history_provider(
+                    energy_load_history_provider = await self.adapter_service.get_home_load_history_provider(
                         load_device.energy_load_history_provider_id, load_device.id
                     )
                     if not energy_load_history_provider:
@@ -499,9 +498,16 @@ class OptimizationService(OptimizationServiceInterface):
         tracker_current_hashrate: Optional[HashRate] = None
         mining_performance_tracker: Optional[MiningPerformanceTrackerPort] = None
         if optimization_unit.performance_tracker_id:
-            mining_performance_tracker = await self.adapter_service.get_mining_performance_tracker(
-                optimization_unit.performance_tracker_id
-            )
+            try:
+                mining_performance_tracker = await self.adapter_service.get_mining_performance_tracker(
+                    optimization_unit.performance_tracker_id
+                )
+            except Exception as e:
+                if self.logger:
+                    self.logger.error(
+                        f"Error getting mining performance tracker for optimization unit "
+                        f"'{optimization_unit.name}': {e}"
+                    )
         # Mining performance tracker is optional, so log a warning if it's missing
         # but continue
         if not mining_performance_tracker:

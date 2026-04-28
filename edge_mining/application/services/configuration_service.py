@@ -1171,6 +1171,22 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         return optimization_unit
 
+    async def assign_home_loads_profile_to_optimization_unit(
+        self, unit_id: EntityId, home_loads_profile_id: Optional[EntityId]
+    ) -> EnergyOptimizationUnit:
+        """Assign a home loads profile to an optimization unit."""
+        self.logger.info(f"Assigning home loads profile {home_loads_profile_id} to optimization unit {unit_id}")
+
+        optimization_unit = self.optimization_unit_repo.get_by_id(unit_id)
+
+        if not optimization_unit:
+            raise OptimizationUnitNotFoundError(f"Optimization Unit with ID {unit_id} not found.")
+
+        optimization_unit.assign_home_loads_profile(home_loads_profile_id)
+        self.optimization_unit_repo.update(optimization_unit)
+
+        return optimization_unit
+
     async def assign_notifiers_to_optimization_unit(
         self, unit_id: EntityId, notifier_ids: List[EntityId]
     ) -> EnergyOptimizationUnit:

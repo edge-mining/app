@@ -599,6 +599,12 @@ class ConfigurationServiceInterface(ABC):
         """Assign a performance tracker to an optimization unit."""
 
     @abstractmethod
+    async def assign_home_loads_profile_to_optimization_unit(
+        self, unit_id: EntityId, home_loads_profile_id: Optional[EntityId]
+    ) -> EnergyOptimizationUnit:
+        """Assign a home loads profile to an optimization unit."""
+
+    @abstractmethod
     async def assign_notifiers_to_optimization_unit(
         self, unit_id: EntityId, notifier_ids: List[EntityId]
     ) -> EnergyOptimizationUnit:

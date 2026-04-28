@@ -86,6 +86,7 @@ class SqliteOptimizationUnitRepository(EnergyOptimizationUnitRepository):
                 target_miner_ids TEXT, -- JSON list of MinerId strings
                 energy_source_id TEXT,
                 performance_tracker_id TEXT,
+                home_loads_profile_id TEXT,
                 notifier_ids TEXT -- JSON list of NotifierId strings
             );
             """
@@ -130,6 +131,11 @@ class SqliteOptimizationUnitRepository(EnergyOptimizationUnitRepository):
                 performance_tracker_id=(
                     EntityId(row["performance_tracker_id"]) if row["performance_tracker_id"] else None
                 ),
+                home_loads_profile=(
+                    EntityId(row["home_loads_profile_id"])
+                    if row.keys().__contains__("home_loads_profile_id") and row["home_loads_profile_id"]
+                    else None
+                ),
                 notifier_ids=notifier_ids,
             )
         except (ValueError, KeyError) as e:
@@ -141,8 +147,8 @@ class SqliteOptimizationUnitRepository(EnergyOptimizationUnitRepository):
         self.logger.debug(f"Adding optimization unit {optimization_unit.id} to SQLite.")
         sql = """
             INSERT INTO optimization_units (id, name, description, is_enabled, policy_id, target_miner_ids,
-            energy_source_id, performance_tracker_id, notifier_ids)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            energy_source_id, performance_tracker_id, home_loads_profile_id, notifier_ids)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         conn = self._db.get_connection()
         try:
@@ -162,6 +168,7 @@ class SqliteOptimizationUnitRepository(EnergyOptimizationUnitRepository):
                         target_ids_json,
                         optimization_unit.energy_source_id,
                         optimization_unit.performance_tracker_id,
+                        str(optimization_unit.home_loads_profile) if optimization_unit.home_loads_profile else None,
                         notifier_ids_json,
                     ),
                 )
@@ -245,7 +252,7 @@ class SqliteOptimizationUnitRepository(EnergyOptimizationUnitRepository):
         sql = """
             UPDATE optimization_units
             SET name = ?, description = ?, is_enabled = ?, policy_id = ?, target_miner_ids = ?, energy_source_id = ?,
-            performance_tracker_id = ?, notifier_ids = ?
+            performance_tracker_id = ?, home_loads_profile_id = ?, notifier_ids = ?
             WHERE id = ?
         """
         conn = self._db.get_connection()
@@ -266,6 +273,7 @@ class SqliteOptimizationUnitRepository(EnergyOptimizationUnitRepository):
                         target_ids_json,
                         optimization_unit.energy_source_id,
                         optimization_unit.performance_tracker_id,
+                        str(optimization_unit.home_loads_profile) if optimization_unit.home_loads_profile else None,
                         notifier_ids_json,
                         optimization_unit.id,
                     ),
@@ -379,6 +387,7 @@ class SqlAlchemyOptimizationUnitRepository(EnergyOptimizationUnitRepository):
                 existing_entity.target_miner_ids = optimization_unit.target_miner_ids
                 existing_entity.energy_source_id = optimization_unit.energy_source_id
                 existing_entity.performance_tracker_id = optimization_unit.performance_tracker_id
+                existing_entity.home_loads_profile = optimization_unit.home_loads_profile
                 existing_entity.notifier_ids = optimization_unit.notifier_ids
 
                 session.commit()

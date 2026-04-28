@@ -341,6 +341,32 @@ async def remove_target_miner(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+@router.post("/optimization-units/{unit_id}/home-loads-profile", response_model=EnergyOptimizationUnitSchema)
+async def assign_home_loads_profile(
+    unit_id: EntityId,
+    home_loads_profile_id: Optional[EntityId] = None,
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)] = None,
+) -> EnergyOptimizationUnitSchema:
+    """Assign a home loads profile to an optimization unit."""
+    try:
+        optimization_unit = config_service.get_optimization_unit(unit_id)
+
+        if optimization_unit is None:
+            raise OptimizationUnitNotFoundError(f"Optimization Unit with ID {unit_id} not found")
+
+        updated_unit = await config_service.assign_home_loads_profile_to_optimization_unit(
+            unit_id, home_loads_profile_id
+        )
+
+        response = EnergyOptimizationUnitSchema.from_model(updated_unit)
+
+        return response
+    except OptimizationUnitNotFoundError as e:
+        raise HTTPException(status_code=404, detail="Optimization Unit not found") from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 @router.post("/optimization-units/{unit_id}/notifiers", response_model=EnergyOptimizationUnitSchema)
 async def assign_notifiers(
     unit_id: EntityId,
