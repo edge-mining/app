@@ -903,6 +903,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         target_miner_ids: Optional[List[EntityId]] = None,
         energy_source_id: Optional[EntityId] = None,
         performance_tracker_id: Optional[EntityId] = None,
+        home_loads_profile_id: Optional[EntityId] = None,
         notifier_ids: Optional[List[EntityId]] = None,
     ) -> Optional[EnergyOptimizationUnit]:
         """Create an optimization unit into the system."""
@@ -916,6 +917,7 @@ class ConfigurationService(ConfigurationServiceInterface):
             target_miner_ids=target_miner_ids or [],
             energy_source_id=energy_source_id,
             performance_tracker_id=performance_tracker_id,
+            home_loads_profile=home_loads_profile_id,
             notifier_ids=notifier_ids or [],
         )
 
@@ -985,6 +987,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         target_miner_ids: Optional[List[EntityId]] = None,
         energy_source_id: Optional[EntityId] = None,
         performance_tracker_id: Optional[EntityId] = None,
+        home_loads_profile_id: Optional[EntityId] = None,
         notifier_ids: Optional[List[EntityId]] = None,
     ) -> EnergyOptimizationUnit:
         """Update an optimization unit in the system."""
@@ -1008,6 +1011,8 @@ class ConfigurationService(ConfigurationServiceInterface):
             optimization_unit.energy_source_id = energy_source_id
         if performance_tracker_id is not None:
             optimization_unit.performance_tracker_id = performance_tracker_id
+        if home_loads_profile_id is not None:
+            optimization_unit.assign_home_loads_profile(home_loads_profile_id)
         if notifier_ids is not None:
             optimization_unit.notifier_ids = notifier_ids
 

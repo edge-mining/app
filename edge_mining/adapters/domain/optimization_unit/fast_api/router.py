@@ -63,6 +63,7 @@ async def add_optimization_unit(
             target_miner_ids=optimization_unit_to_add.target_miner_ids,
             energy_source_id=optimization_unit_to_add.energy_source_id,
             performance_tracker_id=optimization_unit_to_add.performance_tracker_id,
+            home_loads_profile_id=optimization_unit_to_add.home_loads_profile,
             notifier_ids=optimization_unit_to_add.notifier_ids,
         )
 
@@ -134,6 +135,10 @@ async def update_optimization_unit(
         if optimization_unit_update.notifier_ids:
             notifier_ids = [EntityId(uuid.UUID(notifier_id)) for notifier_id in optimization_unit_update.notifier_ids]
 
+        home_loads_profile_id: Optional[EntityId] = None
+        if optimization_unit_update.home_loads_profile_id:
+            home_loads_profile_id = EntityId(uuid.UUID(optimization_unit_update.home_loads_profile_id))
+
         # Update the optimization unit
         updated_unit = await config_service.update_optimization_unit(
             unit_id=unit_id,
@@ -143,6 +148,7 @@ async def update_optimization_unit(
             target_miner_ids=target_miner_ids,
             energy_source_id=energy_source_id,
             performance_tracker_id=performance_tracker_id,
+            home_loads_profile_id=home_loads_profile_id,
             notifier_ids=notifier_ids,
         )
 

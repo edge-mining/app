@@ -514,6 +514,7 @@ class ConfigurationServiceInterface(ABC):
         target_miner_ids: Optional[List[EntityId]] = None,
         energy_source_id: Optional[EntityId] = None,
         performance_tracker_id: Optional[EntityId] = None,
+        home_loads_profile_id: Optional[EntityId] = None,
         notifier_ids: Optional[List[EntityId]] = None,
     ) -> Optional[EnergyOptimizationUnit]:
         """Create an optimization unit into the system."""
@@ -552,6 +553,7 @@ class ConfigurationServiceInterface(ABC):
         target_miner_ids: Optional[List[EntityId]] = None,
         energy_source_id: Optional[EntityId] = None,
         performance_tracker_id: Optional[EntityId] = None,
+        home_loads_profile_id: Optional[EntityId] = None,
         notifier_ids: Optional[List[EntityId]] = None,
     ) -> EnergyOptimizationUnit:
         """Update an optimization unit in the system."""
