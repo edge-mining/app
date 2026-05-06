@@ -164,12 +164,19 @@ class OptimizationService(OptimizationServiceInterface):
                     intervals = await history_provider.get_history(window_start, now)
                     if intervals:
                         device_history = LoadEnergyConsumption(timestamp=now, intervals=intervals)
+                    elif self.logger:
+                        self.logger.debug(f"[HomeLoad] History provider for '{device.name}' returned empty intervals")
                 except Exception as e:
                     if self.logger:
                         self.logger.warning(
                             f"Error getting load history for device '{device.name}' "
                             f"in optimization unit '{unit_name}': {e}"
                         )
+            elif self.logger:
+                self.logger.debug(
+                    f"[HomeLoad] No history provider for device '{device.name}' "
+                    f"(history_provider_id={device.energy_load_history_provider_id})"
+                )
 
             # --- Forecast ---
             device_forecast = empty_consumption
@@ -179,12 +186,19 @@ class OptimizationService(OptimizationServiceInterface):
                     result = forecast_provider.get_consumption_forecast(device_history)
                     if result is not None:
                         device_forecast = result
+                    elif self.logger:
+                        self.logger.debug(f"[HomeLoad] Forecast provider for '{device.name}' returned None")
                 except Exception as e:
                     if self.logger:
                         self.logger.warning(
                             f"Error getting load forecast for device '{device.name}' "
                             f"in optimization unit '{unit_name}': {e}"
                         )
+            elif self.logger:
+                self.logger.debug(
+                    f"[HomeLoad] No forecast provider for device '{device.name}' "
+                    f"(forecast_provider_id={device.energy_load_forecast_provider_id})"
+                )
 
             # --- Mix forecast with last real measurement (α/β blending) ---
             if device_forecast.intervals and device_history.intervals:
