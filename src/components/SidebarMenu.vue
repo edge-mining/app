@@ -24,10 +24,6 @@ const isDashboardActive = computed(() =>
   route.path === "/" || route.path.startsWith("/dashboard")
 );
 
-const isDashboardActive = computed(() =>
-  route.path === "/" || route.path.startsWith("/dashboard")
-);
-
 const isEnergyActive = computed(() =>
   ["/settings/energy-sources", "/settings/energy-monitors", "/settings/forecast-providers"].some(
     (p) => route.path.startsWith(p)
