@@ -1,7 +1,15 @@
 import type { EnergySource, EnergyStateSnapshot } from "./energySource";
 import type { Forecast, Sun } from "./forecast";
 import type { ConsumptionForecast } from "./homeLoad";
-import type { Miner, HashRate, MinerStateSnapshot } from "./miner";
+import type { Miner, MinerStateSnapshot } from "./miner";
+import type { HashRate, PayoutSchedule, PoolStats } from "./performanceTracker";
+
+export interface MiningPerformanceSnapshot {
+  current_hashrate?: HashRate | null;
+  pool_stats?: PoolStats | null;
+  payout_schedule?: PayoutSchedule | null;
+  timestamp: string; // ISO datetime
+}
 
 export type RuleType = "start" | "stop";
 
@@ -62,7 +70,7 @@ export interface DecisionalContext {
   energy_state?: EnergyStateSnapshot;
   forecast?: Forecast;
   home_load_forecast?: ConsumptionForecast;
-  tracker_current_hashrate?: HashRate;
+  mining_performance?: MiningPerformanceSnapshot;
   sun?: Sun;
   miner?: Miner;
   miner_state?: MinerStateSnapshot;
