@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Home Load — Phase 3: DecisionalContext Integration**
+  - Extended field resolver (`helpers.py`) with dict key lookup for `home_load.devices.<name>.*` paths and `None` guard for `Optional` intermediate fields
+  - Pre-computed window properties on `LoadEnergyConsumption`: `next_1h`, `next_2h`, `next_4h`, `last_1h`, `last_4h`, `last_24h`
+  - Example YAML rules: `home_load_start_rules.yaml` (3 rules), `home_load_stop_rules.yaml` (4 rules)
+  - Fixed existing rules from `home_load_forecast` → `home_load.total_forecast.next_2h.avg_power`
+  - 5 new unit tests for dict resolver
+
+- **Home Load — Phase 4: ML Forecast Providers (Statsmodels + XGBoost)**
+  - ML optional dependencies: `scikit-learn>=1.5.0`, `statsmodels>=0.14.0`, `xgboost>=2.0.0` in `[ml]` extras
+  - `EnergyLoadForecastProviderAdapter.STATSMODELS` and `.XGBOOST` enum values
+  - Config dataclasses: `EnergyLoadForecastProviderStatsmodelsConfig`, `EnergyLoadForecastProviderXGBoostConfig`
+  - Feature engineering utilities (`features.py`): `intervals_to_hourly_series()`, `fill_missing_hours()`, `build_calendar_features()`, `build_lag_features()`, `prepare_supervised_dataset()`
+  - `LoadConsumptionModel` entity with `model_bytes` (serialized pickle), MAE/RMSE metrics, `is_active` flag
+  - `LoadConsumptionModelRepository` port + three implementations: InMemory, SQLite, SQLAlchemy
+  - `load_consumption_models` database table with composite index on `(adapter_type, device_id, is_active)`
+  - Alembic migration `c3d4e5f6a7b8` for `load_consumption_models` table
+  - `StatsmodelsForecastProvider` (Holt-Winters exponential smoothing) with factory, lazy import
+  - `XGBoostForecastProvider` (gradient boosting with calendar + lag features) with factory, lazy import
+  - `LoadForecastModelTrainingService`: nightly batch training with holdout evaluation + best model promotion
+  - Pydantic schemas: `EnergyLoadForecastProviderStatsmodelsConfigSchema`, `EnergyLoadForecastProviderXGBoostConfigSchema`
+  - Scheduler cron job at 04:00 for nightly ML model training
+
+- **Home Load — API Completion**
+  - `ConfigurationServiceInterface`: 10 new abstract CRUD methods for `EnergyLoadForecastProvider` (5) and `EnergyLoadHistoryProvider` (5)
+  - `ConfigurationService`: implemented `add_`, `get_`, `list_`, `update_`, `remove_energy_load_forecast_provider`
+  - Completed 5 forecast provider REST endpoints (previously stubs returning 501/empty):
+    - `GET /energy-load-forecast-providers` — list all providers
+    - `POST /energy-load-forecast-providers` — create and persist provider
+    - `GET /energy-load-forecast-providers/{id}` — get provider by ID
+    - `PUT /energy-load-forecast-providers/{id}` — update provider with config deserialization
+    - `DELETE /energy-load-forecast-providers/{id}` — remove provider
+
+### Changed
+- `AdapterService`: new factory branches for STATSMODELS and XGBOOST with `model_repo` injection
+- `PersistenceSettings`: added `load_consumption_model_repo` field
+- `Services` dataclass: added `load_forecast_training_service` field
+- `AutomationScheduler`: accepts optional `load_forecast_training_service`, schedules nightly training
+- `bootstrap.py`: `LoadConsumptionModelRepository` wired in all three persistence branches (InMemory/SQLite/SQLAlchemy)
+
 ## [0.1.0-rev2]
 
 ### Added
