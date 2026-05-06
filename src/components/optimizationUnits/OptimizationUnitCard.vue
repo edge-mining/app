@@ -3,7 +3,7 @@ import type { OptimizationUnit } from "../../core/models/optimizationUnit";
 import { usePolicyStore } from "../../core/stores/policyStore";
 import { useMinerStore } from "../../core/stores/minerStore";
 import { useEnergySourceStore } from "../../core/stores/energySourceStore";
-import { useForecastProviderStore } from "../../core/stores/forecastProviderStore";
+import { useHomeLoadsProfileStore } from "../../core/stores/homeLoadsProfileStore";
 import { useNotifierStore } from "../../core/stores/notifierStore";
 import { computed, ref } from "vue";
 import {
@@ -35,7 +35,7 @@ const emit = defineEmits<{
 const policyStore = usePolicyStore();
 const minerStore = useMinerStore();
 const energySourceStore = useEnergySourceStore();
-const forecastProviderStore = useForecastProviderStore();
+const homeLoadsProfileStore = useHomeLoadsProfileStore();
 const notifierStore = useNotifierStore();
 const showDeleteConfirm = ref(false);
 
@@ -52,10 +52,10 @@ const energySource = computed(() => {
   );
 });
 
-const forecastProvider = computed(() => {
-  if (!props.unit.home_forecast_provider_id) return null;
-  return forecastProviderStore.forecastProviders.find(
-    (fp) => fp.id?.toString() === props.unit.home_forecast_provider_id
+const homeLoadsProfile = computed(() => {
+  if (!props.unit.home_loads_profile_id) return null;
+  return homeLoadsProfileStore.profiles.find(
+    (p) => p.id?.toString() === props.unit.home_loads_profile_id
   );
 });
 
@@ -96,7 +96,7 @@ const totalAssignments = computed(() => {
   let count = 0;
   if (props.unit.policy_id) count++;
   if (props.unit.energy_source_id) count++;
-  if (props.unit.home_forecast_provider_id) count++;
+  if (props.unit.home_loads_profile_id) count++;
   count += props.unit.target_miner_ids.length;
   count += props.unit.notifier_ids.length;
   return count;
@@ -265,22 +265,22 @@ function handleToggleEnabled() {
             </div>
           </div>
 
-          <!-- Forecast Provider -->
-          <div v-if="forecastProvider" class="flex items-center gap-1.5 min-w-0">
+          <!-- Home Loads Profile -->
+          <div v-if="homeLoadsProfile" class="flex items-center gap-1.5 min-w-0">
             <div class="h-6 w-6 rounded-full bg-info/20 flex items-center justify-center flex-shrink-0">
               <PhChartLine :size="14" class="text-info" />
             </div>
             <div class="min-w-0">
-              <div class="text-[10px] uppercase tracking-wider text-base-content/40">Forecast</div>
+              <div class="text-[10px] uppercase tracking-wider text-base-content/40">Home Loads</div>
               <div class="text-sm text-base-content/80 leading-tight truncate max-w-[100px]">
-                {{ forecastProvider.name }}
+                {{ homeLoadsProfile.name }}
               </div>
             </div>
           </div>
 
           <!-- No assignments fallback -->
           <div
-            v-if="!policy && !energySource && !forecastProvider"
+            v-if="!policy && !energySource && !homeLoadsProfile"
             class="text-xs text-base-content/40 italic flex items-center gap-1"
           >
             No resources linked

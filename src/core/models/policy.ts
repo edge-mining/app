@@ -1,6 +1,6 @@
 import type { EnergySource, EnergyStateSnapshot } from "./energySource";
 import type { Forecast, Sun } from "./forecast";
-import type { ConsumptionForecast } from "./homeLoad";
+import type { HomeLoadsConsumption } from "./homeLoad";
 import type { Miner, HashRate, MinerStateSnapshot } from "./miner";
 
 export type RuleType = "start" | "stop";
@@ -61,7 +61,7 @@ export interface DecisionalContext {
   energy_source?: EnergySource;
   energy_state?: EnergyStateSnapshot;
   forecast?: Forecast;
-  home_load_forecast?: ConsumptionForecast;
+  home_load?: HomeLoadsConsumption;
   tracker_current_hashrate?: HashRate;
   sun?: Sun;
   miner?: Miner;
