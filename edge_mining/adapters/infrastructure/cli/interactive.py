@@ -7,6 +7,7 @@ from edge_mining.adapters.domain.forecast.cli.commands import forecast_menu
 from edge_mining.adapters.domain.miner.cli.commands import miner_menu
 from edge_mining.adapters.domain.notification.cli.commands import notifier_menu
 from edge_mining.adapters.domain.optimization_unit.cli.commands import optimization_unit_menu
+from edge_mining.adapters.domain.performance.cli.commands import mining_performance_tracker_menu
 from edge_mining.adapters.domain.policy.cli.commands import policy_menu
 from edge_mining.adapters.infrastructure.cli.setup import cli
 from edge_mining.adapters.infrastructure.cli.utils import run_evaluation
@@ -40,7 +41,9 @@ def interactive(ctx: click.Context):
         click.echo("")
         click.echo("7. Manage External Services")
         click.echo("")
-        click.echo("8. Run all optimization units")
+        click.echo("8. Manage Mining Performance Trackers")
+        click.echo("")
+        click.echo("9. Run all optimization units")
         click.echo("q. Close application")
         click.echo("--------------------------")
 
@@ -106,6 +109,15 @@ def interactive(ctx: click.Context):
             if sub_choice == "q":
                 break
         elif choice == "8":
+            sub_choice = mining_performance_tracker_menu(
+                configuration_service=services.configuration_service,
+                logger=logger,
+                adapter_service=services.adapter_service,
+            )
+
+            if sub_choice == "q":
+                break
+        elif choice == "9":
             run_evaluation(services.optimization_service)
         elif choice == "q":
             break

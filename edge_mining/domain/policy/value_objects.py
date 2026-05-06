@@ -11,7 +11,8 @@ from edge_mining.domain.forecast.aggregate_root import Forecast
 from edge_mining.domain.forecast.value_objects import Sun
 from edge_mining.domain.home_load.value_objects import ConsumptionForecast
 from edge_mining.domain.miner.aggregate_roots import Miner
-from edge_mining.domain.miner.value_objects import HashRate, MinerStateSnapshot
+from edge_mining.domain.miner.value_objects import MinerStateSnapshot
+from edge_mining.domain.performance.value_objects import MiningPerformanceSnapshot
 
 
 @dataclass(frozen=True)
@@ -24,7 +25,7 @@ class DecisionalContext(ValueObject):
     forecast: Optional[Forecast]
     home_load_forecast: Optional[ConsumptionForecast]
 
-    tracker_current_hashrate: Optional[HashRate]
+    mining_performance: Optional[MiningPerformanceSnapshot]
 
     sun: Optional[Sun] = field(default=None)
 

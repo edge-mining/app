@@ -127,7 +127,7 @@ OPERATOR_EXAMPLES: Dict[OperatorType, str] = {
     OperatorType.GT: '{"field": "energy_state.grid.power", "operator": "gt", "value": 1000}',
     OperatorType.GTE: '{"field": "forecast.total_energy", "operator": "gte", "value": 5000}',
     OperatorType.LT: '{"field": "energy_state.battery.percentage", "operator": "lt", "value": 20}',
-    OperatorType.LTE: '{"field": "tracker_current_hashrate", "operator": "lte", "value": 50}',
+    OperatorType.LTE: '{"field": "mining_performance.current_hashrate.value", "operator": "lte", "value": 50}',
     OperatorType.IN: '{"field": "miner_state.status", "operator": "in", "value": ["running", "mining"]}',
     OperatorType.NOT_IN: '{"field": "energy_source.type", "operator": "not_in", "value": ["GRID"]}',
     OperatorType.CONTAINS: '{"field": "miner.name", "operator": "contains", "value": "antminer"}',
