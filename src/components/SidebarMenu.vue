@@ -24,6 +24,10 @@ const isDashboardActive = computed(() =>
   route.path === "/" || route.path.startsWith("/dashboard")
 );
 
+const isDashboardActive = computed(() =>
+  route.path === "/" || route.path.startsWith("/dashboard")
+);
+
 const isEnergyActive = computed(() =>
   ["/settings/energy-sources", "/settings/energy-monitors", "/settings/forecast-providers"].some(
     (p) => route.path.startsWith(p)
@@ -31,9 +35,11 @@ const isEnergyActive = computed(() =>
 );
 
 const isMiningActive = computed(() =>
-  ["/settings/miners", "/settings/miner-controllers"].some((p) =>
-    route.path.startsWith(p)
-  )
+  [
+    "/settings/miners",
+    "/settings/miner-controllers",
+    "/settings/performance-trackers",
+  ].some((p) => route.path.startsWith(p))
 );
 
 const isAutomationActive = computed(() =>
@@ -85,6 +91,15 @@ const isHomeLoadsActive = computed(() =>
                     exact
                   >
                     Overview
+                  </RouterLink>
+                </li>
+                <li class="w-full">
+                  <RouterLink
+                    to="/dashboard/mining"
+                    class="w-full text-sm"
+                    active-class="active text-primary"
+                  >
+                    Mining
                   </RouterLink>
                 </li>
                 <li class="w-full">
@@ -240,6 +255,15 @@ const isHomeLoadsActive = computed(() =>
                     active-class="active text-primary"
                   >
                     Miner Controllers
+                  </RouterLink>
+                </li>
+                <li class="w-full">
+                  <RouterLink
+                    to="/settings/performance-trackers"
+                    class="w-full text-sm"
+                    active-class="active text-primary"
+                  >
+                    Performance Trackers
                   </RouterLink>
                 </li>
               </ul>

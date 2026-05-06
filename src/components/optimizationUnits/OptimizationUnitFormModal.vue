@@ -6,6 +6,7 @@ import { useMinerStore } from "../../core/stores/minerStore";
 import { useEnergySourceStore } from "../../core/stores/energySourceStore";
 import { useNotifierStore } from "../../core/stores/notifierStore";
 import { useHomeLoadsProfileStore } from "../../core/stores/homeLoadsProfileStore";
+import { usePerformanceTrackerStore } from "../../core/stores/performanceTrackerStore";
 import {
   PhX,
   PhFloppyDisk,
@@ -13,6 +14,7 @@ import {
   PhCpu,
   PhLightning,
   PhChartLine,
+  PhChartLineUp,
   PhBell,
   PhShieldCheck,
 } from "@phosphor-icons/vue";
@@ -34,6 +36,7 @@ const energySourceStore = useEnergySourceStore();
 //const forecastProviderStore = useForecastProviderStore();
 const notifierStore = useNotifierStore();
 const homeLoadsProfileStore = useHomeLoadsProfileStore();
+const performanceTrackerStore = usePerformanceTrackerStore();
 
 // Local form state
 const formData = ref({
@@ -42,6 +45,7 @@ const formData = ref({
   policy_id: undefined as string | undefined,
   energy_source_id: undefined as string | undefined,
   home_loads_profile_id: undefined as string | undefined,
+  performance_tracker_id: undefined as string | undefined,
 });
 
 const selectedMinerIds = ref<string[]>([]);
@@ -59,6 +63,7 @@ watch(
           policy_id: props.unit.policy_id,
           energy_source_id: props.unit.energy_source_id,
           home_loads_profile_id: props.unit.home_loads_profile_id,
+          performance_tracker_id: props.unit.performance_tracker_id,
         };
         selectedMinerIds.value = [...props.unit.target_miner_ids];
         selectedNotifierIds.value = [...props.unit.notifier_ids];
@@ -69,6 +74,7 @@ watch(
           policy_id: undefined,
           energy_source_id: undefined,
           home_loads_profile_id: undefined,
+          performance_tracker_id: undefined,
         };
         selectedMinerIds.value = [];
         selectedNotifierIds.value = [];
@@ -112,6 +118,7 @@ function handleSave() {
     policy_id: formData.value.policy_id,
     energy_source_id: formData.value.energy_source_id,
     home_loads_profile_id: formData.value.home_loads_profile_id,
+    performance_tracker_id: formData.value.performance_tracker_id,
     target_miner_ids: selectedMinerIds.value,
     notifier_ids: selectedNotifierIds.value,
   });
@@ -176,7 +183,7 @@ function handleSave() {
           RESOURCE ASSIGNMENTS
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <!-- Policy -->
           <div class="form-control">
             <label class="label mb-1">
@@ -233,6 +240,29 @@ function handleSave() {
                 :value="profile.id?.toString()"
               >
                 {{ profile.name }}
+              </option>
+            </select>
+          </div>
+
+          <!-- Performance Tracker -->
+          <div class="form-control">
+            <label class="label mb-1">
+              <span class="label-text flex items-center gap-2">
+                <PhChartLineUp :size="16" class="text-warning" />
+                Performance Tracker
+              </span>
+            </label>
+            <select
+              v-model="formData.performance_tracker_id"
+              class="select select-bordered w-full"
+            >
+              <option :value="undefined">None</option>
+              <option
+                v-for="tracker in performanceTrackerStore.performanceTrackers"
+                :key="tracker.id"
+                :value="tracker.id?.toString()"
+              >
+                {{ tracker.name }}
               </option>
             </select>
           </div>

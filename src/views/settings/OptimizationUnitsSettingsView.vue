@@ -6,6 +6,7 @@ import { useMinerStore } from "../../core/stores/minerStore";
 import { useEnergySourceStore } from "../../core/stores/energySourceStore";
 import { useForecastProviderStore } from "../../core/stores/forecastProviderStore";
 import { useNotifierStore } from "../../core/stores/notifierStore";
+import { usePerformanceTrackerStore } from "../../core/stores/performanceTrackerStore";
 import OptimizationUnitCard from "../../components/optimizationUnits/OptimizationUnitCard.vue";
 import OptimizationUnitFormModal from "../../components/optimizationUnits/OptimizationUnitFormModal.vue";
 import type { OptimizationUnit } from "../../core/models/optimizationUnit";
@@ -22,6 +23,7 @@ const minerStore = useMinerStore();
 const energySourceStore = useEnergySourceStore();
 const forecastProviderStore = useForecastProviderStore();
 const notifierStore = useNotifierStore();
+const performanceTrackerStore = usePerformanceTrackerStore();
 
 // Modal state
 const showModal = ref(false);
@@ -66,6 +68,7 @@ onMounted(() => {
   energySourceStore.loadEnergySources();
   forecastProviderStore.loadForecastProviders();
   notifierStore.loadNotifiers();
+  performanceTrackerStore.loadPerformanceTrackers();
 });
 
 function openAddModal() {

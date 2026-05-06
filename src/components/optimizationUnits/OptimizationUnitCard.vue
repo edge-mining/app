@@ -5,6 +5,7 @@ import { useMinerStore } from "../../core/stores/minerStore";
 import { useEnergySourceStore } from "../../core/stores/energySourceStore";
 import { useHomeLoadsProfileStore } from "../../core/stores/homeLoadsProfileStore";
 import { useNotifierStore } from "../../core/stores/notifierStore";
+import { usePerformanceTrackerStore } from "../../core/stores/performanceTrackerStore";
 import { computed, ref } from "vue";
 import {
   PhPencil,
@@ -13,6 +14,7 @@ import {
   PhCpu,
   PhLightning,
   PhChartLine,
+  PhChartLineUp,
   PhBell,
   PhShieldCheck,
   PhToggleLeft,
@@ -37,6 +39,7 @@ const minerStore = useMinerStore();
 const energySourceStore = useEnergySourceStore();
 const homeLoadsProfileStore = useHomeLoadsProfileStore();
 const notifierStore = useNotifierStore();
+const performanceTrackerStore = usePerformanceTrackerStore();
 const showDeleteConfirm = ref(false);
 
 // Resolved references
@@ -56,6 +59,13 @@ const homeLoadsProfile = computed(() => {
   if (!props.unit.home_loads_profile_id) return null;
   return homeLoadsProfileStore.profiles.find(
     (p) => p.id?.toString() === props.unit.home_loads_profile_id
+  );
+});
+
+const performanceTracker = computed(() => {
+  if (!props.unit.performance_tracker_id) return null;
+  return performanceTrackerStore.performanceTrackers.find(
+    (t) => t.id?.toString() === props.unit.performance_tracker_id
   );
 });
 
@@ -97,6 +107,7 @@ const totalAssignments = computed(() => {
   if (props.unit.policy_id) count++;
   if (props.unit.energy_source_id) count++;
   if (props.unit.home_loads_profile_id) count++;
+  if (props.unit.performance_tracker_id) count++;
   count += props.unit.target_miner_ids.length;
   count += props.unit.notifier_ids.length;
   return count;
@@ -278,9 +289,22 @@ function handleToggleEnabled() {
             </div>
           </div>
 
+          <!-- Performance Tracker -->
+          <div v-if="performanceTracker" class="flex items-center gap-1.5 min-w-0">
+            <div class="h-6 w-6 rounded-full bg-warning/20 flex items-center justify-center flex-shrink-0">
+              <PhChartLineUp :size="14" class="text-warning" />
+            </div>
+            <div class="min-w-0">
+              <div class="text-[10px] uppercase tracking-wider text-base-content/40">Tracker</div>
+              <div class="text-sm text-base-content/80 leading-tight truncate max-w-[100px]">
+                {{ performanceTracker.name }}
+              </div>
+            </div>
+          </div>
+
           <!-- No assignments fallback -->
           <div
-            v-if="!policy && !energySource && !homeLoadsProfile"
+            v-if="!policy && !energySource && !homeLoadsProfile && !performanceTracker"
             class="text-xs text-base-content/40 italic flex items-center gap-1"
           >
             No resources linked
