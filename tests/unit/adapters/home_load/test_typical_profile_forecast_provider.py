@@ -1,6 +1,7 @@
 """Unit tests for TypicalProfile forecast provider."""
 
 from datetime import datetime, timedelta, timezone
+from unittest.mock import patch
 
 import pytest
 
@@ -26,14 +27,14 @@ from edge_mining.shared.adapter_configs.home_load import (
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _make_history(weeks: int = 4, base_power: float = 300.0) -> LoadEnergyConsumption:
+def _make_history(weeks: int = 4, base_power: float = 300.0, ref_time: datetime = None) -> LoadEnergyConsumption:
     """Build a synthetic hourly history going back ``weeks`` weeks.
 
     Power follows a deterministic pattern:
       ``base_power + (month * 5) + (dow * 3) + (hour * 10)``
     so each (month, dow, hour) has a unique, predictable value.
     """
-    now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+    now = ref_time if ref_time else datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
     total_hours = weeks * 168
     intervals = []
     for i in range(total_hours, 0, -1):
@@ -142,9 +143,16 @@ class TestTypicalProfileForecastProvider:
 
     def test_forecast_uses_month_dow_hour_profile(self):
         """Power should match the (month, dow, hour) average from history."""
+        # Use a fixed reference time deep in a month so 4 weeks back stays in the same month.
+        fixed_now = datetime(2026, 7, 29, 12, 0, 0, tzinfo=timezone.utc)
         provider = TypicalProfileForecastProvider(hours_ahead=6)
-        history = _make_history(4, base_power=300.0)
-        forecast = provider.get_consumption_forecast(history)
+        history = _make_history(4, base_power=300.0, ref_time=fixed_now)
+        with patch(
+            "edge_mining.adapters.domain.home_load.forecast_providers.typical_profile.datetime",
+            wraps=datetime,
+        ) as mock_dt:
+            mock_dt.now.return_value = fixed_now
+            forecast = provider.get_consumption_forecast(history)
         assert forecast is not None
 
         for interval in forecast.intervals:

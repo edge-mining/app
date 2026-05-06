@@ -26,7 +26,7 @@ class DecisionalContext(ValueObject):
 
     home_load: Optional[HomeLoadsConsumption] = None
 
-    mining_performance: Optional[MiningPerformanceSnapshot]
+    mining_performance: Optional[MiningPerformanceSnapshot] = None
 
     sun: Optional[Sun] = field(default=None)
 
