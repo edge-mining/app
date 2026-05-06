@@ -9,7 +9,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_valid
 from edge_mining.adapters.domain.energy.schemas import EnergySourceSchema, EnergyStateSnapshotSchema
 from edge_mining.adapters.domain.forecast.schemas import ForecastSchema, SunSchema
 from edge_mining.adapters.domain.home_load.schemas import HomeLoadsConsumptionSchema
-from edge_mining.adapters.domain.miner.schemas import HashRateSchema, MinerSchema, MinerStateSnapshotSchema
+from edge_mining.adapters.domain.miner.schemas import MinerSchema, MinerStateSnapshotSchema
+from edge_mining.adapters.domain.performance.schemas import MiningPerformanceSnapshotSchema
 from edge_mining.adapters.domain.policy.utils import FieldStructureSchema, _extract_schema_structure
 from edge_mining.domain.common import EntityId
 from edge_mining.domain.policy.aggregate_roots import OptimizationPolicy
@@ -466,7 +467,9 @@ class DecisionalContextSchema(BaseModel):
     home_load: Optional[HomeLoadsConsumptionSchema] = Field(
         None, description="Household consumption (per-device history + forecast + totals)"
     )
-    tracker_current_hashrate: Optional[HashRateSchema] = Field(None, description="Current mining hashrate")
+    mining_performance: Optional[MiningPerformanceSnapshotSchema] = Field(
+        None, description="Consolidated mining performance snapshot from the pool"
+    )
     sun: Optional[SunSchema] = Field(None, description="Sun position and timing information")
     miner: Optional[MinerSchema] = Field(None, description="Miner static configuration")
     miner_state: Optional[MinerStateSnapshotSchema] = Field(None, description="Miner runtime state snapshot")
@@ -502,9 +505,9 @@ class DecisionalContextSchema(BaseModel):
             energy_state=EnergyStateSnapshotSchema.from_model(context.energy_state) if context.energy_state else None,
             forecast=ForecastSchema.from_model(context.forecast) if context.forecast else None,
             home_load=(HomeLoadsConsumptionSchema.from_model(context.home_load) if context.home_load else None),
-            tracker_current_hashrate=(
-                HashRateSchema(value=context.tracker_current_hashrate.value, unit=context.tracker_current_hashrate.unit)
-                if context.tracker_current_hashrate
+            mining_performance=(
+                MiningPerformanceSnapshotSchema.from_model(context.mining_performance)
+                if context.mining_performance
                 else None
             ),
             sun=SunSchema.from_model(context.sun) if context.sun else None,
@@ -520,9 +523,7 @@ class DecisionalContextSchema(BaseModel):
             energy_state=self.energy_state.to_model() if self.energy_state else None,
             forecast=self.forecast.to_model() if self.forecast else None,
             home_load=self.home_load.to_model() if self.home_load else None,
-            tracker_current_hashrate=(
-                self.tracker_current_hashrate.to_model() if self.tracker_current_hashrate else None
-            ),
+            mining_performance=(self.mining_performance.to_model() if self.mining_performance else None),
             sun=self.sun.to_model() if self.sun else None,
             miner=self.miner.to_model() if self.miner else None,
             miner_state=self.miner_state.to_model() if self.miner_state else None,

@@ -7,7 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-rev3]
+
 ### Added
+
+- **Mining Performance Analysis Domain** (`edge_mining/domain/performance/`):
+  - Value objects: `MiningReward`, `PoolWorkerStats`, `PoolStats`, `PayoutSchedule` in `value_objects.py` (renamed from misspelled `values_objects.py`)
+  - Entity `MiningSession` for tracking aggregated mining activity (`entities.py`)
+  - Common types: `PayoutFrequency` enum, `Satoshi` NewType (`common.py`)
+  - Domain exceptions: `MiningPoolUnreachableError`, `MiningPoolAuthError`, `MiningPoolResponseError`
+  - Domain events: `RewardReceivedEvent`, `HashrateDropDetectedEvent` (`events.py`)
+  - Async `MiningPerformanceTrackerPort` contract for live pool data (stats, rewards history, payout schedule, workers)
+
+- **Pool Tracker Adapters** (`edge_mining/adapters/domain/performance/trackers/`):
+  - `OceanMiningPerformanceTracker` — public Ocean pool API integration (no authentication, Bitcoin address based)
+  - `BraiinsPoolMiningPerformanceTracker` — Braiins Pool v1 API integration using `Pool-Auth-Token` header
+  - Corresponding adapter factories (`OceanMiningPerformanceTrackerFactory`, `BraiinsPoolMiningPerformanceTrackerFactory`)
+  - Abstract `MiningPerformanceTrackerAdapterFactory` in `shared/interfaces/factories.py`
+
+- **REST API** (`edge_mining/adapters/domain/performance/fast_api/router.py`):
+  - 13 endpoints under `/api/v1` covering tracker CRUD, type discovery, config schema inspection, external service listing, connectivity test, live stats, workers, rewards history, payout schedule
+  - Error mapping: `MiningPoolAuthError` → 401, `MiningPoolUnreachableError` → 503, `MiningPoolResponseError` → 502, `NotFoundError` → 404, `ConfigurationError` → 400
+
+- **Pydantic Schemas** (`edge_mining/adapters/domain/performance/schemas.py`):
+  - Tracker CRUD schemas with `to_model`/`from_model` converters
+  - Per-adapter config schemas (Dummy, Ocean requires `bitcoin_address`, Braiins Pool requires `api_token`) + `MINING_PERFORMANCE_TRACKER_CONFIG_SCHEMA_MAP`
+  - Response schemas: `HashRateSchema`, `PoolWorkerStatsSchema`, `PoolStatsSchema`, `MiningRewardSchema`, `PayoutScheduleSchema`, `MiningPerformanceSnapshotSchema` (all with both `from_model` and `to_model`)
+
+- **MiningPerformanceSnapshot Value Object** (`edge_mining/domain/performance/value_objects.py`):
+  - Consolidated snapshot grouping `current_hashrate` + `pool_stats` + `payout_schedule` under a single `timestamp`, following the same pattern as `EnergyStateSnapshot` and `MinerStateSnapshot`
+  - Exposed to the rule engine via the new `DecisionalContext.mining_performance` field — enables rules on aggregated metrics (24h/7d average hashrate, unpaid balance, estimated next payout, payout frequency/threshold)
+
+- **Interactive CLI** (`edge_mining/adapters/domain/performance/cli/commands.py`):
+  - New main menu option "Manage Mining Performance Trackers" (list, create, update, delete, test, show stats/workers/rewards/payout)
+  - Adapter-aware configuration wizard with dict-dispatch handler map
+  - Async-to-sync bridging via `run_async_func` helper
+
+- **Configuration & Wiring**:
+  - `MINING_PERFORMANCE_TRACKER_CONFIG_TYPE_MAP` and `MINING_PERFORMANCE_TRACKER_EXTERNAL_SERVICE_MAP` in `shared/adapter_maps/performance.py`
+  - New adapter configs (`DummyMiningPerformanceTrackerConfig`, `OceanMiningPerformanceTrackerConfig`, `BraiinsPoolMiningPerformanceTrackerConfig`)
+  - Nine new `ConfigurationService` methods for tracker lifecycle management
+  - `ConfigurationUpdatedEventType.MINING_PERFORMANCE_TRACKER` event type
+  - `adapter_service.py` registers the three tracker factories
+
+- **Shared Helper** (`edge_mining/domain/common.py`):
+  - `utc_now_timestamp()` function to produce fresh `Timestamp` values for dataclass `default_factory` usage
+
+- **Rate-limit / caching layer for pool trackers** (`edge_mining/adapters/domain/performance/trackers/_base.py`):
+  - New shared base class `CachedRateLimitedTrackerBase` providing per-method TTL caching and exponential backoff (5s / 10s / 20s / 40s / 80s with ±20% jitter) around HTTP 429 responses
+  - `MiningPoolRateLimitedError` domain exception (with optional `retry_after` hint) raised when the pool signals throttling; mapped to HTTP 429 by the REST router (including `Retry-After` response header) and displayed with hint in the CLI
+  - Stale-while-error fallback: when all retries are exhausted a cached value — even if past its TTL — is served in preference to propagating the error; the error is only re-raised when no cached value exists
+  - In-memory cache keyed by `(method_name, args_tuple)` so methods with arguments (e.g. `get_recent_rewards(limit)`) get separate cache slots
+  - TTL tables (`TTL_MAP`) tuned per pool: hashrate 60s, pool/worker stats 300s (worker data updates every ~5 min upstream), recent rewards 600s, payout schedule 3600s
+  - Applied transparently to both `OceanMiningPerformanceTracker` and `BraiinsPoolMiningPerformanceTracker`; `_get()` detects 429 before any auth/5xx mapping and extracts `Retry-After`
+
+- **Tests** — 107 new unit tests across tracker adapters, configuration service, REST router, and CLI commands
+- **Tests** — 15 new unit tests for `CachedRateLimitedTrackerBase` (cache hit/miss, TTL expiry, backoff progression, stale-while-error, retry-after handling, cache invalidation) plus 429-detection tests for the Ocean and Braiins adapters
 
 - **Home Load — Phase 3: DecisionalContext Integration**
   - Extended field resolver (`helpers.py`) with dict key lookup for `home_load.devices.<name>.*` paths and `None` guard for `Optional` intermediate fields
@@ -42,11 +97,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `DELETE /energy-load-forecast-providers/{id}` — remove provider
 
 ### Changed
+- `MiningPerformanceTrackerPort` methods are now `async`; the dummy tracker adapter has been adapted accordingly
+- `OptimizationService` now awaits `get_current_hashrate` calls to match the async port contract, and consolidates the three tracker calls behind a new private helper `_build_mining_performance_snapshot` that returns a single `MiningPerformanceSnapshot`
+- Replaced `DecisionalContext.tracker_current_hashrate: Optional[HashRate]` with `mining_performance: Optional[MiningPerformanceSnapshot]`; `DecisionalContextSchema` and the rule engine `OPERATOR_EXAMPLES[LTE]` example updated accordingly (new field path: `mining_performance.current_hashrate.value`)
+- Interactive CLI main menu: "Run all optimization units" shifted from option 8 to 9 to accommodate the new tracker menu at option 8
+- Replaced per-module `_utc_now_timestamp()` helpers in `domain/performance/entities.py` and `domain/performance/value_objects.py` with the shared `utc_now_timestamp()` from `domain/common.py`
 - `AdapterService`: new factory branches for STATSMODELS and XGBOOST with `model_repo` injection
 - `PersistenceSettings`: added `load_consumption_model_repo` field
 - `Services` dataclass: added `load_forecast_training_service` field
 - `AutomationScheduler`: accepts optional `load_forecast_training_service`, schedules nightly training
 - `bootstrap.py`: `LoadConsumptionModelRepository` wired in all three persistence branches (InMemory/SQLite/SQLAlchemy)
+
+### Fixed
+- Replaced latent `default_factory=Timestamp(datetime.now())` bugs (which froze a single timestamp at class-definition time) with the proper callable `utc_now_timestamp`, producing a fresh timestamp per instance
+- **Braiins Pool adapter aligned to post-FPPS API schema** (`edge_mining/adapters/domain/performance/trackers/braiins_pool.py`): the adapter was reading pre-FPPS field names that were removed in the November 2023 migration, so `unpaid_balance`, worker `valid_shares`, `payout_schedule.threshold` and `payout_schedule.next_payout_at` were always `None` in the `DecisionalContext`. Mapping now follows the current schema:
+  - `unpaid_balance` reads `current_balance` (previously `unconfirmed_reward`, removed upstream)
+  - current-hashrate fallback chain uses `hash_rate_60m` (previously `hash_rate_1h`, which never existed)
+  - `average_hashrate_7d` is left `None` (Braiins exposes only 24h/yesterday aggregates)
+  - `PayoutSchedule` is now `DAILY` with `threshold=None` and `next_payout_at=None` (FPPS pays daily, threshold is no longer configurable)
+  - Worker `valid_shares` maps to `shares_24h` (the only cumulative share metric exposed); `stale_shares`/`rejected_shares` stay `None` as Braiins doesn't surface them
 
 ## [0.1.0-rev2]
 

@@ -24,7 +24,7 @@ class TestDecisionalContextUpdatedEvent(unittest.TestCase):
             energy_state=None,
             forecast=None,
             home_load=None,
-            tracker_current_hashrate=None,
+            mining_performance=None,
         )
         event = DecisionalContextUpdatedEvent(
             optimization_unit_id=unit_id,

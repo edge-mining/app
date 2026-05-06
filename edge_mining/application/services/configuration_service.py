@@ -59,7 +59,12 @@ from edge_mining.domain.optimization_unit.exceptions import (
     OptimizationUnitNotFoundError,
 )
 from edge_mining.domain.optimization_unit.ports import EnergyOptimizationUnitRepository
-from edge_mining.domain.performance.exceptions import MiningPerformanceTrackerNotFoundError
+from edge_mining.domain.performance.common import MiningPerformanceTrackerAdapter
+from edge_mining.domain.performance.entities import MiningPerformanceTracker
+from edge_mining.domain.performance.exceptions import (
+    MiningPerformanceTrackerConfigurationError,
+    MiningPerformanceTrackerNotFoundError,
+)
 from edge_mining.domain.performance.ports import MiningPerformanceTrackerRepository
 from edge_mining.domain.policy.aggregate_roots import OptimizationPolicy
 from edge_mining.domain.policy.common import RuleType
@@ -95,6 +100,10 @@ from edge_mining.shared.adapter_maps.miner import (
     MINER_CONTROLLER_TYPE_EXTERNAL_SERVICE_MAP,
 )
 from edge_mining.shared.adapter_maps.notification import NOTIFIER_CONFIG_TYPE_MAP, NOTIFIER_TYPE_EXTERNAL_SERVICE_MAP
+from edge_mining.shared.adapter_maps.performance import (
+    MINING_PERFORMANCE_TRACKER_CONFIG_TYPE_MAP,
+    MINING_PERFORMANCE_TRACKER_TYPE_EXTERNAL_SERVICE_MAP,
+)
 from edge_mining.shared.external_services.common import ExternalServiceAdapter
 from edge_mining.shared.external_services.entities import ExternalService
 from edge_mining.shared.external_services.exceptions import (
@@ -109,6 +118,7 @@ from edge_mining.shared.interfaces.config import (
     ExternalServiceConfig,
     ForecastProviderConfig,
     MinerControllerConfig,
+    MiningPerformanceTrackerConfig,
     NotificationConfig,
 )
 from edge_mining.shared.logging.port import LoggerPort
@@ -2000,6 +2010,164 @@ class ConfigurationService(ConfigurationServiceInterface):
                 f"Adapter type {adapter_type} is not supported for energy load history provider configuration."
             )
         return ENERGY_LOAD_HISTORY_PROVIDER_EXTERNAL_SERVICE_MAP.get(adapter_type, None)
+
+    # --- Mining Performance Tracker Management ---
+    async def add_mining_performance_tracker(
+        self,
+        name: str,
+        adapter_type: MiningPerformanceTrackerAdapter,
+        config: Optional[MiningPerformanceTrackerConfig],
+        external_service_id: Optional[EntityId] = None,
+    ) -> MiningPerformanceTracker:
+        """Add a new mining performance tracker."""
+        self.logger.debug(f"Adding mining performance tracker '{name}' with adapter {adapter_type}")
+
+        tracker = MiningPerformanceTracker(
+            name=name,
+            adapter_type=adapter_type,
+            config=config,
+            external_service_id=external_service_id,
+        )
+
+        self.check_mining_performance_tracker(tracker)
+
+        self.mining_performance_tracker_repo.add(tracker)
+
+        await self._event_bus.publish(
+            ConfigurationUpdatedEvent(
+                entity_type=ConfigurationUpdatedEventType.MINING_PERFORMANCE_TRACKER,
+                entity_id=tracker.id,
+                action=ConfigurationAction.CREATED,
+            )
+        )
+
+        return tracker
+
+    def get_mining_performance_tracker(self, tracker_id: EntityId) -> Optional[MiningPerformanceTracker]:
+        """Get a mining performance tracker by its ID."""
+        tracker = self.mining_performance_tracker_repo.get_by_id(tracker_id)
+        if not tracker:
+            raise MiningPerformanceTrackerNotFoundError(f"Mining Performance Tracker with ID {tracker_id} not found.")
+        return tracker
+
+    def list_mining_performance_trackers(self) -> List[MiningPerformanceTracker]:
+        """List all mining performance trackers in the system."""
+        return self.mining_performance_tracker_repo.get_all()
+
+    async def update_mining_performance_tracker(
+        self,
+        tracker_id: EntityId,
+        name: str,
+        config: MiningPerformanceTrackerConfig,
+        external_service_id: Optional[EntityId] = None,
+    ) -> MiningPerformanceTracker:
+        """Update a mining performance tracker in the system."""
+        self.logger.debug(f"Updating mining performance tracker {tracker_id} ({name})")
+
+        tracker = self.mining_performance_tracker_repo.get_by_id(tracker_id)
+        if not tracker:
+            raise MiningPerformanceTrackerNotFoundError(f"Mining Performance Tracker with ID {tracker_id} not found.")
+
+        tracker.name = name
+        tracker.config = config
+        tracker.external_service_id = external_service_id
+
+        self.check_mining_performance_tracker(tracker)
+        self.mining_performance_tracker_repo.update(tracker)
+
+        await self._event_bus.publish(
+            ConfigurationUpdatedEvent(
+                entity_type=ConfigurationUpdatedEventType.MINING_PERFORMANCE_TRACKER,
+                entity_id=tracker_id,
+                action=ConfigurationAction.UPDATED,
+            )
+        )
+
+        return tracker
+
+    async def unlink_mining_performance_tracker(self, tracker_id: EntityId) -> None:
+        """Detach a mining performance tracker from any optimization unit that references it."""
+        self.logger.debug(f"Unlinking mining performance tracker {tracker_id}")
+
+        optimization_units: List[EnergyOptimizationUnit] = self.optimization_unit_repo.get_all()
+        for unit in optimization_units:
+            if unit.performance_tracker_id == tracker_id:
+                self.logger.debug(f"Unlinking mining performance tracker {tracker_id} from optimization unit {unit.id}")
+                unit.performance_tracker_id = None
+                self.optimization_unit_repo.update(unit)
+
+    async def remove_mining_performance_tracker(self, tracker_id: EntityId) -> MiningPerformanceTracker:
+        """Remove a mining performance tracker from the system."""
+        self.logger.debug(f"Removing mining performance tracker {tracker_id}")
+
+        tracker = self.mining_performance_tracker_repo.get_by_id(tracker_id)
+        if not tracker:
+            raise MiningPerformanceTrackerNotFoundError(f"Mining Performance Tracker with ID {tracker_id} not found.")
+
+        await self.unlink_mining_performance_tracker(tracker_id)
+
+        self.mining_performance_tracker_repo.remove(tracker_id)
+
+        await self._event_bus.publish(
+            ConfigurationUpdatedEvent(
+                entity_type=ConfigurationUpdatedEventType.MINING_PERFORMANCE_TRACKER,
+                entity_id=tracker_id,
+                action=ConfigurationAction.REMOVED,
+            )
+        )
+
+        return tracker
+
+    def check_mining_performance_tracker(self, tracker: MiningPerformanceTracker) -> bool:
+        """Check if a mining performance tracker is valid and can be used."""
+        self.logger.debug(f"Checking mining performance tracker {tracker.id} ({tracker.name})")
+
+        if tracker.external_service_id:
+            external_service = self.external_service_repo.get_by_id(tracker.external_service_id)
+            if not external_service:
+                raise ExternalServiceNotFoundError(f"External Service with ID {tracker.external_service_id} not found.")
+
+            required_external_service_type = MINING_PERFORMANCE_TRACKER_TYPE_EXTERNAL_SERVICE_MAP.get(
+                tracker.adapter_type, None
+            )
+            if required_external_service_type and external_service.adapter_type != required_external_service_type:
+                raise MiningPerformanceTrackerConfigurationError(
+                    f"External Service {external_service.id} is not compatible "
+                    f"with Mining Performance Tracker {tracker.name} using adapter "
+                    f"{tracker.adapter_type}. "
+                    f"Expected type {required_external_service_type}."
+                )
+
+        if tracker.config is None or not tracker.config.is_valid(tracker.adapter_type):
+            raise MiningPerformanceTrackerConfigurationError(
+                f"Invalid configuration for Mining Performance Tracker "
+                f"{tracker.name} with adapter {tracker.adapter_type}."
+            )
+
+        self.logger.debug(f"Mining Performance Tracker {tracker.id} ({tracker.name}) is valid.")
+        return True
+
+    def get_mining_performance_tracker_config_by_type(
+        self, adapter_type: MiningPerformanceTrackerAdapter
+    ) -> Optional[type[MiningPerformanceTrackerConfig]]:
+        """Get the configuration class for a specific tracker adapter type."""
+        self.logger.debug(f"Getting configuration for mining performance tracker adapter {adapter_type}")
+        if adapter_type not in MINING_PERFORMANCE_TRACKER_CONFIG_TYPE_MAP:
+            raise MiningPerformanceTrackerConfigurationError(
+                f"Adapter type {adapter_type} is not supported for mining performance tracker configuration."
+            )
+        return MINING_PERFORMANCE_TRACKER_CONFIG_TYPE_MAP.get(adapter_type, None)
+
+    def get_mining_performance_tracker_external_service_adapter(
+        self, adapter_type: MiningPerformanceTrackerAdapter
+    ) -> Optional[ExternalServiceAdapter]:
+        """Get the external service adapter type for a specific tracker adapter type."""
+        self.logger.debug(f"Getting external service adapter for mining performance tracker adapter {adapter_type}")
+        if adapter_type not in MINING_PERFORMANCE_TRACKER_TYPE_EXTERNAL_SERVICE_MAP:
+            raise MiningPerformanceTrackerConfigurationError(
+                f"Adapter type {adapter_type} is not supported for mining performance tracker external service mapping."
+            )
+        return MINING_PERFORMANCE_TRACKER_TYPE_EXTERNAL_SERVICE_MAP.get(adapter_type, None)
 
     # --- Policy Management ---
     async def create_policy(self, name: str, description: str = "") -> OptimizationPolicy:

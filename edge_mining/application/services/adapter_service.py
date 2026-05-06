@@ -41,7 +41,11 @@ from edge_mining.adapters.domain.miner.controllers.generic_socket_home_assistant
 from edge_mining.adapters.domain.miner.controllers.pyasic import PyASICMinerControllerAdapterFactory
 from edge_mining.adapters.domain.notification.notifiers.dummy import DummyNotifier
 from edge_mining.adapters.domain.notification.notifiers.telegram import TelegramNotifierFactory
-from edge_mining.adapters.domain.performance.trackers.dummy import DummyMiningPerformanceTracker
+from edge_mining.adapters.domain.performance.trackers.braiins_pool import (
+    BraiinsPoolMiningPerformanceTrackerFactory,
+)
+from edge_mining.adapters.domain.performance.trackers.dummy import DummyMiningPerformanceTrackerFactory
+from edge_mining.adapters.domain.performance.trackers.ocean import OceanMiningPerformanceTrackerFactory
 from edge_mining.adapters.infrastructure.homeassistant.homeassistant_api import ServiceHomeAssistantAPIFactory
 from edge_mining.adapters.infrastructure.rule_engine.factory import RuleEngineFactory
 from edge_mining.application.events.common import ConfigurationUpdatedEventType
@@ -86,6 +90,7 @@ from edge_mining.shared.interfaces.factories import (
     ExternalServiceFactory,
     ForecastAdapterFactory,
     MinerControllerAdapterFactory,
+    MiningPerformanceTrackerAdapterFactory,
 )
 from edge_mining.shared.logging.port import LoggerPort
 
@@ -629,7 +634,8 @@ class AdapterService(AdapterServiceInterface):
             # If the cached instance is valid, we return it
             return cached_instance
 
-        # Retrieve the external service associated to the energy monitor
+        # Retrieve the external service associated to the tracker (if any)
+        external_service: Optional[ExternalServicePort] = None
         if tracker.external_service_id:
             external_service = await self.get_external_service(tracker.external_service_id)
             if not external_service:
@@ -639,20 +645,25 @@ class AdapterService(AdapterServiceInterface):
                 )
 
         try:
-            instance: Optional[MiningPerformanceTrackerPort] = None
-
-            # No configuration is needed for the dummy tracker.
-            # We instantiate it directly using DummyMiningPerformanceTracker.
-            # In the future, if we may have other types of trackers
-            # that require different initialization logic, we can use
-            # a factory pattern similar to the other adapters.
+            tracker_factory: Optional[MiningPerformanceTrackerAdapterFactory] = None
 
             if tracker.adapter_type == MiningPerformanceTrackerAdapter.DUMMY:
                 # --- Dummy Tracker ---
-
-                instance = DummyMiningPerformanceTracker()
+                tracker_factory = DummyMiningPerformanceTrackerFactory()
+            elif tracker.adapter_type == MiningPerformanceTrackerAdapter.OCEAN:
+                # --- Ocean.xyz Tracker ---
+                tracker_factory = OceanMiningPerformanceTrackerFactory()
+            elif tracker.adapter_type == MiningPerformanceTrackerAdapter.BRAIINS_POOL:
+                # --- Braiins Pool Tracker ---
+                tracker_factory = BraiinsPoolMiningPerformanceTrackerFactory()
             else:
                 raise ValueError(f"Unsupported mining performance tracker adapter type: {tracker.adapter_type}")
+
+            instance = tracker_factory.create(
+                config=tracker.config,
+                logger=self.logger,
+                external_service=external_service,
+            )
 
             self._instance_cache[tracker.id] = instance
             return instance

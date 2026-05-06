@@ -1,0 +1,54 @@
+rules:
+  - name: "Pre-Payout Push"
+    description: "Keep mining aggressively when the estimated next payout is close to the pool threshold — don't leave satoshis on the table"
+    conditions:
+      all_of:
+        - field: "mining_performance.pool_stats.estimated_next_payout"
+          operator: "gt"
+          value: 80000  # at least 80k sats estimated
+        - field: "mining_performance.payout_schedule.threshold"
+          operator: "lte"
+          value: 100000  # threshold is 100k sats or lower (close enough to reach)
+        - field: "energy_state.battery.state_of_charge"
+          operator: "gt"
+          value: 40
+    priority: 30
+    enabled: true
+
+  - name: "Hashrate Below Weekly Average — Recovery Mode"
+    description: "Start mining to recover from a hashrate dip vs the 7-day pool baseline, provided energy conditions are acceptable"
+    conditions:
+      all_of:
+        - field: "mining_performance.pool_stats.average_hashrate_7d.value"
+          operator: "gt"
+          value: 0
+        - field: "mining_performance.current_hashrate.value"
+          operator: "lt"
+          value: 50   # current ≤ 50 TH/s (tune to your fleet nominal)
+        - field: "energy_state.production"
+          operator: "gt"
+          value: 1500
+        - field: "energy_state.battery.state_of_charge"
+          operator: "gt"
+          value: 50
+    priority: 15
+    enabled: true
+
+  - name: "Healthy Pool + Healthy Energy"
+    description: "Start mining when both pool connectivity (recent current_hashrate) and energy conditions are green"
+    conditions:
+      all_of:
+        - field: "mining_performance.current_hashrate.value"
+          operator: "gt"
+          value: 0   # tracker is reporting a live hashrate
+        - field: "mining_performance.payout_schedule.frequency"
+          operator: "in"
+          value: ["hourly", "daily", "per_block", "threshold"]  # exclude "unknown"
+        - field: "energy_state.production"
+          operator: "gt"
+          value: 2000
+        - field: "energy_state.battery.state_of_charge"
+          operator: "gt"
+          value: 60
+    priority: 10
+    enabled: true

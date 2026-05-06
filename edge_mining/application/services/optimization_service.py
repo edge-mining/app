@@ -53,13 +53,14 @@ from edge_mining.domain.miner.ports import (
     PowerMonitorPort,
     StatusMonitorPort,
 )
-from edge_mining.domain.miner.value_objects import HashRate, MinerStateSnapshot
+from edge_mining.domain.miner.value_objects import MinerStateSnapshot
 from edge_mining.domain.notification.ports import NotificationPort
 from edge_mining.domain.optimization_unit.aggregate_roots import EnergyOptimizationUnit
 from edge_mining.domain.optimization_unit.events import RuleEngagedEvent
 from edge_mining.domain.optimization_unit.exceptions import OptimizationUnitNotFoundError
 from edge_mining.domain.optimization_unit.ports import EnergyOptimizationUnitRepository
 from edge_mining.domain.performance.ports import MiningPerformanceTrackerPort
+from edge_mining.domain.performance.value_objects import MiningPerformanceSnapshot
 from edge_mining.domain.policy.aggregate_roots import OptimizationPolicy
 from edge_mining.domain.policy.common import MiningDecision
 from edge_mining.domain.policy.entities import AutomationRule
@@ -231,6 +232,29 @@ class OptimizationService(OptimizationServiceInterface):
             history=history,
             forecast=forecast,
         )
+
+    async def _build_mining_performance_snapshot(
+        self,
+        tracker: MiningPerformanceTrackerPort,
+        miner_ids: List[EntityId],
+        optimization_unit_name: str,
+    ) -> Optional[MiningPerformanceSnapshot]:
+        """Fetch live pool data and consolidate it into a single snapshot."""
+        try:
+            current_hashrate = await tracker.get_current_hashrate(miner_ids=miner_ids)
+            pool_stats = await tracker.get_pool_stats()
+            payout_schedule = await tracker.get_payout_schedule()
+            return MiningPerformanceSnapshot(
+                current_hashrate=current_hashrate,
+                pool_stats=pool_stats,
+                payout_schedule=payout_schedule,
+            )
+        except Exception as e:
+            if self.logger:
+                self.logger.warning(
+                    f"Error getting mining performance tracker for optimization unit '{optimization_unit_name}': {e}"
+                )
+            return None
 
     async def _notify_unit(self, notifiers: List[NotificationPort], title: str, message: str):
         """Notify the unit."""
@@ -509,7 +533,7 @@ class OptimizationService(OptimizationServiceInterface):
                 break  # We found a valid miner and controller, we can stop looking for more miners
 
         # --- Mining Performance Tracker ---
-        tracker_current_hashrate: Optional[HashRate] = None
+        mining_performance: Optional[MiningPerformanceSnapshot] = None
         mining_performance_tracker: Optional[MiningPerformanceTrackerPort] = None
         if optimization_unit.performance_tracker_id:
             try:
@@ -533,19 +557,12 @@ class OptimizationService(OptimizationServiceInterface):
                     f"Skipping mining performance tracker."
                 )
         else:
-            # --- Mining Performance Tracker ---
-            if optimization_unit.target_miner_ids and mining_performance_tracker:
-                try:
-                    # TODO: Provide parameters if needed
-                    miner_ids = optimization_unit.target_miner_ids
-                    tracker_current_hashrate = mining_performance_tracker.get_current_hashrate(miner_ids=miner_ids)
-                except Exception as e:
-                    if self.logger:
-                        self.logger.warning(
-                            f"Error getting mining performance tracker "
-                            f"for optimization unit '{optimization_unit.name}': {e}"
-                        )
-                    tracker_current_hashrate = None
+            if optimization_unit.target_miner_ids:
+                mining_performance = await self._build_mining_performance_snapshot(
+                    mining_performance_tracker,
+                    optimization_unit.target_miner_ids,
+                    optimization_unit.name,
+                )
 
         # Creates the Sun object for the current date.
         sun: Sun = self.sun_factory.create_sun_for_date()
@@ -559,7 +576,7 @@ class OptimizationService(OptimizationServiceInterface):
             energy_state=energy_state,
             forecast=forecast_data,
             home_load=home_load,
-            tracker_current_hashrate=tracker_current_hashrate,
+            mining_performance=mining_performance,
             sun=sun,
             miner=miner,
             miner_state=miner_state,
@@ -845,19 +862,13 @@ class OptimizationService(OptimizationServiceInterface):
             return
 
         # --- Mining Performance Tracker ---
-        tracker_current_hashrate: Optional[HashRate] = None
+        mining_performance: Optional[MiningPerformanceSnapshot] = None
         if mining_performance_tracker:
-            try:
-                # TODO: Provide parameters if needed
-                miner_ids = optimization_unit.target_miner_ids
-                tracker_current_hashrate = mining_performance_tracker.get_current_hashrate(miner_ids=miner_ids)
-            except Exception as e:
-                if self.logger:
-                    self.logger.warning(
-                        f"Error getting mining performance tracker "
-                        f"for optimization unit '{optimization_unit.name}': {e}"
-                    )
-                tracker_current_hashrate = None
+            mining_performance = await self._build_mining_performance_snapshot(
+                mining_performance_tracker,
+                optimization_unit.target_miner_ids,
+                optimization_unit.name,
+            )
 
         # Creates the Sun object for the current date.
         sun: Sun = self.sun_factory.create_sun_for_date()
@@ -871,7 +882,7 @@ class OptimizationService(OptimizationServiceInterface):
             energy_state=energy_state,
             forecast=forecast_data,
             home_load=home_load,
-            tracker_current_hashrate=tracker_current_hashrate,
+            mining_performance=mining_performance,
             sun=sun,
         )
 
@@ -1005,7 +1016,7 @@ class OptimizationService(OptimizationServiceInterface):
                 energy_state=context.energy_state,
                 forecast=context.forecast,
                 home_load=context.home_load,
-                tracker_current_hashrate=context.tracker_current_hashrate,
+                mining_performance=context.mining_performance,
                 sun=context.sun,
                 miner=miner,  # Static config
                 miner_state=miner_state,  # Runtime state snapshot

@@ -16,6 +16,11 @@ EntityId = NewType("EntityId", uuid.UUID)
 TimePeriod = Tuple[datetime, datetime]
 
 
+def utc_now_timestamp() -> "Timestamp":
+    """Return the current UTC time as a Timestamp."""
+    return Timestamp(datetime.now(timezone.utc))
+
+
 @dataclass(frozen=True)
 class ValueObject:
     """Base class for value objects."""

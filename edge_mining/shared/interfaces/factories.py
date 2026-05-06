@@ -80,3 +80,7 @@ class EnergyLoadHistoryAdapterFactory(AdapterFactory):
         ``device_id`` scope.
         """
         pass
+
+
+class MiningPerformanceTrackerAdapterFactory(AdapterFactory):
+    """Abstract factory for mining performance tracker adapters"""
