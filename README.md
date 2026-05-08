@@ -14,9 +14,15 @@ Edge Mining is intended to be run via **Docker Compose**.
 Clone the repository and move into the project root:
 
 ```bash
-git clone --recurse-submodules https://github.com/edge-mining/app.git
+git clone https://github.com/edge-mining/app.git
 cd app/
 ```
+
+Repository layout:
+
+- `core/`: Edge Mining backend and domain logic
+- `frontend/`: Vue web UI
+- root files: Docker Compose, Nginx, application scripts, release metadata
 
 ---
 
@@ -87,7 +93,7 @@ docker run -d \
   -e SCHEDULER_INTERVAL_SECONDS=5 \
   edge-mining:latest
 ```
-```
+
 ### 2.6. Core interactive CLI mode
 
 Once the container is running in the background with:
@@ -167,15 +173,14 @@ docker compose logs
 
 ## 6. Updating the Application
 
-When a new version is available, use the `update.sh` script to pull the latest changes (including submodules) and restart the application:
+When a new version is available, use the `update.sh` script to pull the latest changes and restart the application:
 
 ```bash
 ./update.sh
 ```
 
 This script will:
-- Pull the latest changes from the current branch (with `--recurse-submodules`)
-- Ensure all submodules are in sync
+- Pull the latest changes from the current branch
 - Re-initialize `user_data/` (copies missing defaults only)
 - Rebuild and restart the Docker stack
 
@@ -191,46 +196,18 @@ This script will:
 - Fetch the latest remote branches
 - Display a numbered list of all available branches
 - Prompt you to select the desired branch
-- Switch with `--recurse-submodules` so that all submodules are correctly updated to the matching commit
+- Switch to the selected branch
 - Rebuild and restart the Docker stack
-
-### 6.2 Updating Submodules (manual)
-
-This repository uses Git submodules for the `core` and `frontend` components. The submodules are configured to track the `dev` and `develop` branches respectively.
-
-**After cloning**, the submodules will be checked out at the commit SHAs recorded in the parent repository. To update them to the latest commits from their respective branches:
-
-```bash
-# Update all submodules to the latest commits from their configured branches
-git submodule update --remote --merge
-```
-
-**To update a specific submodule:**
-
-```bash
-# Update core submodule to latest dev branch
-cd core
-git checkout dev
-git pull origin dev
-cd ..
-
-# Update frontend submodule to latest develop branch
-cd frontend
-git checkout develop
-git pull origin develop
-cd ..
-```
-
 
 ## 7. Updating the Application Version
 
-After updating the `core` and `frontend` submodules (see above), **but before committing changes to the main `app` repository**, you need to update the `VERSION.json` file with the new application version. This file is served statically by Nginx and must be updated whenever there is a change involving the backend or frontend.
+After updating the backend or frontend code, update the `VERSION.json` file with the new application version before committing the release change. This file is served statically by Nginx and must stay aligned with the bundled application state.
 
 **Procedure:**
 
-1. Update the `core` and `frontend` submodules as described above.
-2. Edit the `VERSION.json` file and enter the desired new version (for example, by incrementing the version number or adding a date/commit).
-3. Only after updating `VERSION.json`, commit the changes in the `app` repository.
+1. Update the relevant files under `core/` and/or `frontend/`.
+2. Edit `VERSION.json` and enter the desired new version.
+3. Commit the code and `VERSION.json` together.
 
 **Example of an update:**
 
@@ -243,12 +220,3 @@ git commit -m "Update core, frontend and VERSION.json"
 ```
 
 **Note:** It is important to keep `VERSION.json` aligned with the actual state of backend and frontend for correct traceability of the distributed version.
-
----
-
-**Note:** After updating the submodules, if you want to commit the new submodule references in the main repository:
-
-```bash
-git add core frontend
-git commit -m "Update submodules to latest dev/develop branches"
-```

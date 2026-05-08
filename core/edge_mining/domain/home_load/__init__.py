@@ -1,0 +1,1 @@
+"""Home Consumption Analytics subdomain."""

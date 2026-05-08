@@ -1,0 +1,55 @@
+rules:
+  - name: "Hashrate Drop vs 24h Average"
+    description: "Stop mining when current pool hashrate has dropped well below the 24h average — likely a worker or pool connectivity issue"
+    conditions:
+      all_of:
+        - field: "mining_performance.pool_stats.average_hashrate_24h.value"
+          operator: "gt"
+          value: 10  # guard: only evaluate if a meaningful 24h baseline exists
+        - field: "mining_performance.current_hashrate.value"
+          operator: "lt"
+          value: 5   # current ≤ 5 TH/s (tune to your fleet; absolute floor)
+    priority: 80
+    enabled: true
+
+  - name: "Stale Pool Data"
+    description: "Stop mining if the pool is not reporting a current hashrate at all — safer to pause than mine blindly"
+    conditions:
+      all_of:
+        - field: "mining_performance.current_hashrate.value"
+          operator: "lte"
+          value: 0
+        - field: "mining_performance.payout_schedule.frequency"
+          operator: "eq"
+          value: "unknown"
+    priority: 70
+    enabled: true
+
+  - name: "Payout Far + Low Energy"
+    description: "When the estimated payout is still distant from the pool threshold AND battery is low, don't burn stored energy on marginal rewards"
+    conditions:
+      all_of:
+        - field: "mining_performance.pool_stats.estimated_next_payout"
+          operator: "lt"
+          value: 10000  # less than 10k sats accumulated
+        - field: "mining_performance.payout_schedule.threshold"
+          operator: "gte"
+          value: 100000  # threshold is still ≥ 100k sats away
+        - field: "energy_state.battery.state_of_charge"
+          operator: "lt"
+          value: 35
+    priority: 60
+    enabled: true
+
+  - name: "Unprofitable Weekly Trend"
+    description: "Pool's 7-day average hashrate has collapsed vs 24h — possible pool-side degradation, stop and investigate"
+    conditions:
+      all_of:
+        - field: "mining_performance.pool_stats.average_hashrate_24h.value"
+          operator: "gt"
+          value: 0
+        - field: "mining_performance.pool_stats.average_hashrate_7d.value"
+          operator: "lt"
+          value: 20  # 7-day avg very low in TH/s — tune to your fleet
+    priority: 40
+    enabled: true

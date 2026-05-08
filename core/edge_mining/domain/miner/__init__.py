@@ -1,0 +1,1 @@
+"""Mining Device Management subdomain."""

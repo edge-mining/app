@@ -1,0 +1,109 @@
+@import "tailwindcss";
+@plugin "daisyui";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", sans-serif;
+}
+
+@plugin "daisyui/theme" {
+  name: "edge";
+  default: true;
+  prefersdark: true;
+  color-scheme: "dark";
+  --color-base-100: oklch(25% 0 0);
+  --color-base-200: oklch(35% 0 0);
+  --color-base-300: oklch(50% 0 0);
+  --color-base-content: #e8e8e8;
+  --color-primary: #beffa3;
+  --color-primary-content: #0c0c0c;
+  --color-secondary: #f4b860;
+  --color-secondary-content: oklch(13.955% 0.027 168.327);
+  --color-accent: #fe5f55;
+  --color-accent-content: #0c0c0c;
+  --color-neutral: oklch(43% 0 0);
+  --color-neutral-content: #fffaff;
+  --color-info: #336699;
+  --color-info-content: #e8e8e8;
+  --color-success: #4caf50;
+  --color-success-content: #0c0c0c;
+  --color-warning: #f4b860;
+  --color-warning-content: #0c0c0c;
+  --color-error: #fe5f55;
+  --color-error-content: #0c0c0c;
+  --radius-selector: 2rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.5rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+.flenter {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Keep DaisyUI tooltip content on a single line (IDs, tokens, etc.) */
+.id-tooltip::before,
+.id-tooltip::after {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+  max-width: min(70vw, 36rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Card styling - refined dark theme */
+.card {
+  @apply bg-base-100 border border-base-300/40 rounded-box;
+}
+
+.card-header {
+  @apply px-5 pt-5 pb-3;
+}
+
+.card-header h2,
+.card-header .card-title {
+  @apply text-lg font-semibold tracking-tight text-base-content m-0;
+}
+
+.card-body {
+  @apply px-5 pb-5 pt-0;
+}
+
+/* Modal styling - enhanced visibility */
+.modal-backdrop {
+  background-color: oklch(0% 0 0 / 0.7);
+  backdrop-filter: blur(4px);
+}
+
+.modal-box {
+  @apply bg-base-100 border border-base-300/60;
+  box-shadow: 
+    0 0 0 1px oklch(100% 0 0 / 0.05),
+    0 4px 6px -1px oklch(0% 0 0 / 0.3),
+    0 10px 15px -3px oklch(0% 0 0 / 0.4),
+    0 20px 25px -5px oklch(0% 0 0 / 0.3);
+}
+
+.marquee-on-overflow {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.badge:has(.marquee-on-overflow) {
+  justify-content: flex-start;
+}
+
+.overflow-hidden:hover .marquee-on-overflow {
+  animation: marquee-bounce 3s ease-in-out infinite alternate;
+}
+
+@keyframes marquee-bounce {
+  0%, 20% { transform: translateX(0); }
+  80%, 100% { transform: translateX(min(0px, calc(-100% + 9rem))); }
+}

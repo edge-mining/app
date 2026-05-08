@@ -35,11 +35,9 @@ if [ -n "$RUNNING_CONTAINERS" ]; then
     echo ""
 fi
 
-# Pull latest changes and update submodules (--init handles newly added submodules)
+# Pull latest changes
 echo -e "${YELLOW}>> Pulling latest changes...${NC}"
 git pull
-echo -e "${YELLOW}>> Updating submodules...${NC}"
-git submodule update --init --recursive
 
 # Initialize user_data structure and default files
 echo -e "${YELLOW}>> Initializing user data...${NC}"

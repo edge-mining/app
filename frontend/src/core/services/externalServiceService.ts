@@ -1,0 +1,49 @@
+import { BaseService } from "./baseService";
+import type {
+  ExternalService,
+  ExternalServiceStatus,
+  ExternalServiceLinkedEntities,
+  ConfigSchema,
+} from "../models/externalService";
+
+export class ExternalServiceService extends BaseService {
+  getExternalServices(): Promise<ExternalService[]> {
+    return this.get<ExternalService[]>("/external-services").getData();
+  }
+
+  getExternalService(serviceId: string): Promise<ExternalService> {
+    return this.get<ExternalService>(`/external-services/${serviceId}`).getData();
+  }
+
+  getServiceStatus(serviceId: string): Promise<ExternalServiceStatus> {
+    return this.get<ExternalServiceStatus>(`/external-services/${serviceId}/status`).getData();
+  }
+
+  addExternalService(externalService: ExternalService): Promise<ExternalService> {
+    return this.post<ExternalService>("/external-services", externalService).getData();
+  }
+
+  updateExternalService(serviceId: string, externalService: Partial<ExternalService>): Promise<ExternalService> {
+    return this.put<ExternalService>(`/external-services/${serviceId}`, externalService).getData();
+  }
+
+  deleteExternalService(serviceId: string): Promise<ExternalService> {
+    return this.delete<ExternalService>(`/external-services/${serviceId}`).getData();
+  }
+
+  getAdapterTypes(): Promise<string[]> {
+    return this.get<string[]>("/external-services/types").getData();
+  }
+
+  getConfigSchema(adapterType: string): Promise<ConfigSchema> {
+    return this.get<ConfigSchema>(`/external-services/types/${adapterType}/config-schema`).getData();
+  }
+
+  getExternalServiceStatus(serviceId: string): Promise<ExternalServiceStatus> {
+    return this.get<ExternalServiceStatus>(`/external-services/${serviceId}/status`).getData();
+  }
+
+  getLinkedEntities(serviceId: string): Promise<ExternalServiceLinkedEntities> {
+    return this.get<ExternalServiceLinkedEntities>(`/external-services/${serviceId}/linked-entities`).getData();
+  }
+}
