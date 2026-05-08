@@ -25,6 +25,28 @@ export interface ConsumptionForecast {
   readonly next_hour_energy?: number; // Computed: energy for next hour (WattHours)
 }
 
+// ---------- Backend-aligned types (from DecisionalContext.home_load) ----------
+
+// Re-export from loadTraining (same structure used by both)
+export type { HomeLoadEnergyInterval, LoadEnergyConsumption } from "./loadTraining";
+import type { LoadEnergyConsumption } from "./loadTraining";
+
+/** Per-device consumption breakdown */
+export interface LoadDeviceConsumption {
+  device_id: string;
+  device_name: string;
+  device_category: string;
+  history: LoadEnergyConsumption;
+  forecast: LoadEnergyConsumption;
+}
+
+/** Top-level home_load field in DecisionalContext */
+export interface HomeLoadsConsumption {
+  per_device: LoadDeviceConsumption[];
+  total_history: LoadEnergyConsumption;
+  total_forecast: LoadEnergyConsumption;
+}
+
 // Factory functions for computed fields
 export function createConsumptionInterval(data: Omit<ConsumptionInterval, 'duration' | 'avg_power'>): ConsumptionInterval {
   return {

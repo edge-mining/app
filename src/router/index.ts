@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import DashboardView from "../views/DashboardView.vue";
+import HomeLoadsDashboardView from "../views/dashboard/HomeLoadsDashboardView.vue";
 import MiningDashboardView from "../views/dashboard/MiningDashboardView.vue";
 import MinersSettingsView from "../views/settings/MinersSettingsView.vue";
 import EnergySourcesSettingsView from "../views/settings/EnergySourcesSettingsView.vue";
@@ -11,6 +12,8 @@ import PoliciesSettingsView from "../views/settings/PoliciesSettingsView.vue";
 import NotifiersSettingsView from "../views/settings/NotifiersSettingsView.vue";
 import ExternalServicesSettingsView from "../views/settings/ExternalServicesSettingsView.vue";
 import OptimizationUnitsSettingsView from "../views/settings/OptimizationUnitsSettingsView.vue";
+import HomeLoadsSettingsView from "../views/settings/HomeLoadsSettingsView.vue";
+import HomeLoadsTrainingView from "../views/settings/HomeLoadsTrainingView.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -25,6 +28,11 @@ const router = createRouter({
       path: "/dashboard/mining",
       name: "dashboard.mining",
       component: MiningDashboardView,
+    },
+    {
+      path: "/dashboard/home-loads",
+      name: "dashboard.homeLoads",
+      component: HomeLoadsDashboardView,
     },
     {
       path: "/settings/",
@@ -80,6 +88,16 @@ const router = createRouter({
           path: "external-services",
           name: "settings.externalServices",
           component: ExternalServicesSettingsView,
+        },
+        {
+          path: "home-loads",
+          name: "settings.homeLoads",
+          component: HomeLoadsSettingsView,
+        },
+        {
+          path: "home-loads-training",
+          name: "settings.homeLoadsTraining",
+          component: HomeLoadsTrainingView,
         },
       ],
     },

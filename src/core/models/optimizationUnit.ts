@@ -6,7 +6,7 @@ export interface OptimizationUnit {
   policy_id?: string;
   target_miner_ids: string[];
   energy_source_id?: string;
-  home_forecast_provider_id?: string;
+  home_loads_profile_id?: string;
   performance_tracker_id?: string;
   notifier_ids: string[];
 }
@@ -17,7 +17,7 @@ export interface OptimizationUnitCreate {
   policy_id?: string;
   target_miner_ids?: string[];
   energy_source_id?: string;
-  home_forecast_provider_id?: string;
+  home_loads_profile_id?: string;
   performance_tracker_id?: string;
   notifier_ids?: string[];
 }
@@ -28,7 +28,7 @@ export interface OptimizationUnitUpdate {
   policy_id?: string;
   target_miner_ids?: string[];
   energy_source_id?: string;
-  home_forecast_provider_id?: string;
+  home_loads_profile_id?: string;
   performance_tracker_id?: string;
   notifier_ids?: string[];
 }

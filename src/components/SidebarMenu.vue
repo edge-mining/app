@@ -8,6 +8,7 @@ import {
   PhPlug,
   PhBell,
   PhGraph,
+  PhHouse,
 } from "@phosphor-icons/vue";
 import VectorIcon from "./VectorIcon.vue";
 
@@ -17,6 +18,7 @@ const isDashboardOpen = ref(true);
 const isEnergyOpen = ref(true);
 const isMiningOpen = ref(true);
 const isAutomationOpen = ref(true);
+const isHomeLoadsOpen = ref(true);
 
 const isDashboardActive = computed(() =>
   route.path === "/" || route.path.startsWith("/dashboard")
@@ -40,6 +42,10 @@ const isAutomationActive = computed(() =>
   ["/settings/optimization-units", "/settings/policies"].some((p) =>
     route.path.startsWith(p)
   )
+);
+
+const isHomeLoadsActive = computed(() =>
+  ["/settings/home-loads"].some((p) => route.path.startsWith(p))
 );
 </script>
 <template>
@@ -90,6 +96,15 @@ const isAutomationActive = computed(() =>
                     active-class="active text-primary"
                   >
                     Mining
+                  </RouterLink>
+                </li>
+                <li class="w-full">
+                  <RouterLink
+                    to="/dashboard/home-loads"
+                    class="w-full text-sm"
+                    active-class="active text-primary"
+                  >
+                    Home Loads
                   </RouterLink>
                 </li>
               </ul>
@@ -167,6 +182,41 @@ const isAutomationActive = computed(() =>
                     active-class="active text-primary"
                   >
                     Forecast Providers
+                  </RouterLink>
+                </li>
+              </ul>
+            </details>
+          </li>
+
+          <!-- Home Loads -->
+          <li class="w-full">
+            <details :open="isHomeLoadsOpen">
+              <summary
+                class="text-sm font-medium"
+                :class="{ 'text-primary': isHomeLoadsActive }"
+                @click.prevent="isHomeLoadsOpen = !isHomeLoadsOpen"
+              >
+                <PhHouse :size="18" />
+                Home Loads
+              </summary>
+              <ul class="rounded-t-none p-2 w-full">
+                <li class="w-full">
+                  <RouterLink
+                    to="/settings/home-loads"
+                    class="w-full text-sm"
+                    active-class="active text-primary"
+                    exact
+                  >
+                    Profiles
+                  </RouterLink>
+                </li>
+                <li class="w-full">
+                  <RouterLink
+                    to="/settings/home-loads-training"
+                    class="w-full text-sm"
+                    active-class="active text-primary"
+                  >
+                    Training
                   </RouterLink>
                 </li>
               </ul>

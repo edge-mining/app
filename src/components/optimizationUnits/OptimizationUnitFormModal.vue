@@ -5,6 +5,7 @@ import { usePolicyStore } from "../../core/stores/policyStore";
 import { useMinerStore } from "../../core/stores/minerStore";
 import { useEnergySourceStore } from "../../core/stores/energySourceStore";
 import { useNotifierStore } from "../../core/stores/notifierStore";
+import { useHomeLoadsProfileStore } from "../../core/stores/homeLoadsProfileStore";
 import { usePerformanceTrackerStore } from "../../core/stores/performanceTrackerStore";
 import {
   PhX,
@@ -34,6 +35,7 @@ const minerStore = useMinerStore();
 const energySourceStore = useEnergySourceStore();
 //const forecastProviderStore = useForecastProviderStore();
 const notifierStore = useNotifierStore();
+const homeLoadsProfileStore = useHomeLoadsProfileStore();
 const performanceTrackerStore = usePerformanceTrackerStore();
 
 // Local form state
@@ -42,7 +44,7 @@ const formData = ref({
   description: "",
   policy_id: undefined as string | undefined,
   energy_source_id: undefined as string | undefined,
-  home_forecast_provider_id: undefined as string | undefined,
+  home_loads_profile_id: undefined as string | undefined,
   performance_tracker_id: undefined as string | undefined,
 });
 
@@ -60,7 +62,7 @@ watch(
           description: props.unit.description || "",
           policy_id: props.unit.policy_id,
           energy_source_id: props.unit.energy_source_id,
-          home_forecast_provider_id: props.unit.home_forecast_provider_id,
+          home_loads_profile_id: props.unit.home_loads_profile_id,
           performance_tracker_id: props.unit.performance_tracker_id,
         };
         selectedMinerIds.value = [...props.unit.target_miner_ids];
@@ -71,7 +73,7 @@ watch(
           description: "",
           policy_id: undefined,
           energy_source_id: undefined,
-          home_forecast_provider_id: undefined,
+          home_loads_profile_id: undefined,
           performance_tracker_id: undefined,
         };
         selectedMinerIds.value = [];
@@ -115,7 +117,7 @@ function handleSave() {
     description: formData.value.description || undefined,
     policy_id: formData.value.policy_id,
     energy_source_id: formData.value.energy_source_id,
-    home_forecast_provider_id: formData.value.home_forecast_provider_id,
+    home_loads_profile_id: formData.value.home_loads_profile_id,
     performance_tracker_id: formData.value.performance_tracker_id,
     target_miner_ids: selectedMinerIds.value,
     notifier_ids: selectedNotifierIds.value,
@@ -222,23 +224,23 @@ function handleSave() {
             </select>
           </div>
 
-          <!-- Home Forecast Provider -->
+          <!-- Home Loads Profile -->
           <div class="form-control">
             <label class="label mb-1">
               <span class="label-text flex items-center gap-2">
                 <PhChartLine :size="16" class="text-info" />
-                Home Forecast Provider
+                Home Loads Profile
               </span>
             </label>
-            <select v-model="formData.home_forecast_provider_id" class="select select-bordered w-full" disabled>
-              <option :value="null">None</option>
-              <!-- <option
-                v-for="provider in homeForecastProviderStore.forecastProviders"
-                :key="provider.id"
-                :value="provider.id?.toString()"
+            <select v-model="formData.home_loads_profile_id" class="select select-bordered w-full">
+              <option :value="undefined">None</option>
+              <option
+                v-for="profile in homeLoadsProfileStore.profiles"
+                :key="profile.id"
+                :value="profile.id?.toString()"
               >
-                {{ provider.name }}
-              </option> -->
+                {{ profile.name }}
+              </option>
             </select>
           </div>
 
