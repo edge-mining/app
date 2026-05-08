@@ -20,3 +20,10 @@ homeassistant_api==4.2.2.post1
 python-telegram-bot>=20.0
 astral==3.2
 pyasic==0.78.10
+
+# Optional - For ML Forecast Adapters
+scikit-learn>=1.5.0
+statsmodels>=0.14.0
+xgboost>=2.0.0
+skforecast>=0.14
+optuna>=3.0

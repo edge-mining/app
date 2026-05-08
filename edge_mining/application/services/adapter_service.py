@@ -8,7 +8,32 @@ from edge_mining.adapters.domain.energy.monitors.dummy_solar import DummySolarEn
 from edge_mining.adapters.domain.energy.monitors.home_assistant_api import HomeAssistantAPIEnergyMonitorFactory
 from edge_mining.adapters.domain.forecast.providers.dummy_solar import DummyForecastProviderFactory
 from edge_mining.adapters.domain.forecast.providers.home_assistant_api import HomeAssistantForecastProviderFactory
-from edge_mining.adapters.domain.home_load.providers.dummy import DummyHomeForecastProvider
+from edge_mining.adapters.domain.home_load.forecast_providers.dummy import DummyEnergyLoadForecastProviderFactory
+from edge_mining.adapters.domain.home_load.forecast_providers.naive_last_hour import (
+    NaiveLastHourForecastProviderFactory,
+)
+from edge_mining.adapters.domain.home_load.forecast_providers.naive_persistence import (
+    NaivePersistenceForecastProviderFactory,
+)
+from edge_mining.adapters.domain.home_load.forecast_providers.seasonal_baseline import (
+    SeasonalBaselineForecastProviderFactory,
+)
+from edge_mining.adapters.domain.home_load.forecast_providers.skforecast_provider import (
+    SkforecastForecastProviderFactory,
+)
+from edge_mining.adapters.domain.home_load.forecast_providers.statsmodels_hw import (
+    StatsmodelsForecastProviderFactory,
+)
+from edge_mining.adapters.domain.home_load.forecast_providers.typical_profile import (
+    TypicalProfileForecastProviderFactory,
+)
+from edge_mining.adapters.domain.home_load.forecast_providers.xgboost_provider import (
+    XGBoostForecastProviderFactory,
+)
+from edge_mining.adapters.domain.home_load.history_providers.dummy import DummyEnergyLoadHistoryProvider
+from edge_mining.adapters.domain.home_load.history_providers.home_assistant_api_history import (
+    HomeAssistantAPIEnergyLoadHistoryProviderFactory,
+)
 from edge_mining.adapters.domain.miner.controllers.dummy import DummyMinerController
 from edge_mining.adapters.domain.miner.controllers.generic_socket_home_assistant_api import (
     GenericSocketHomeAssistantAPIMinerControllerAdapterFactory,
@@ -33,9 +58,16 @@ from edge_mining.domain.energy.ports import EnergyMonitorPort, EnergyMonitorRepo
 from edge_mining.domain.forecast.common import ForecastProviderAdapter
 from edge_mining.domain.forecast.entities import ForecastProvider
 from edge_mining.domain.forecast.ports import ForecastProviderPort, ForecastProviderRepository
-from edge_mining.domain.home_load.common import HomeForecastProviderAdapter
-from edge_mining.domain.home_load.entities import HomeForecastProvider
-from edge_mining.domain.home_load.ports import HomeForecastProviderPort, HomeForecastProviderRepository
+from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter, EnergyLoadHistoryProviderAdapter
+from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, EnergyLoadHistoryProvider, LoadDevice
+from edge_mining.domain.home_load.ports import (
+    EnergyLoadForecastProviderPort,
+    EnergyLoadForecastProviderRepository,
+    EnergyLoadHistoryProviderPort,
+    EnergyLoadHistoryProviderRepository,
+    EnergyLoadHistoryRepository,
+    LoadConsumptionModelRepository,
+)
 from edge_mining.domain.miner.aggregate_roots import Miner
 from edge_mining.domain.miner.common import MinerControllerAdapter, MinerFeatureType
 from edge_mining.domain.miner.entities import MinerController
@@ -53,6 +85,7 @@ from edge_mining.shared.external_services.common import ExternalServiceAdapter
 from edge_mining.shared.external_services.entities import ExternalService
 from edge_mining.shared.external_services.ports import ExternalServicePort, ExternalServiceRepository
 from edge_mining.shared.interfaces.factories import (
+    EnergyLoadForecastAdapterFactory,
     EnergyMonitorAdapterFactory,
     ExternalServiceFactory,
     ForecastAdapterFactory,
@@ -75,10 +108,13 @@ class AdapterService(AdapterServiceInterface):
         notifier_repo: NotifierRepository,
         forecast_provider_repo: ForecastProviderRepository,
         mining_performance_tracker_repo: MiningPerformanceTrackerRepository,
-        home_forecast_provider_repo: HomeForecastProviderRepository,
+        energy_load_forecast_provider_repo: EnergyLoadForecastProviderRepository,
+        energy_load_history_provider_repo: EnergyLoadHistoryProviderRepository,
+        home_load_history_repo: EnergyLoadHistoryRepository,
         external_service_repo: ExternalServiceRepository,
         event_bus: EventBusInterface,
         logger: Optional[LoggerPort] = None,
+        load_consumption_model_repo: Optional[LoadConsumptionModelRepository] = None,
     ):
         self.energy_monitor_repo = energy_monitor_repo
         self.miner_controller_repo = miner_controller_repo
@@ -86,8 +122,11 @@ class AdapterService(AdapterServiceInterface):
         self.notifier_repo = notifier_repo
         self.forecast_provider_repo = forecast_provider_repo
         self.mining_performance_tracker_repo = mining_performance_tracker_repo
-        self.home_forecast_provider_repo = home_forecast_provider_repo
+        self.energy_load_forecast_provider_repo = energy_load_forecast_provider_repo
+        self.energy_load_history_provider_repo = energy_load_history_provider_repo
+        self.home_load_history_repo = home_load_history_repo
         self.external_service_repo = external_service_repo
+        self.load_consumption_model_repo = load_consumption_model_repo
         # Cache for already created instances
         self._instance_cache: Dict[
             EntityId,
@@ -97,7 +136,8 @@ class AdapterService(AdapterServiceInterface):
                     MinerFeaturePort,
                     NotificationPort,
                     ForecastProviderPort,
-                    HomeForecastProviderPort,
+                    EnergyLoadForecastProviderPort,
+                    EnergyLoadHistoryProviderPort,
                     MiningPerformanceTrackerPort,
                 ]
             ],
@@ -481,19 +521,19 @@ class AdapterService(AdapterServiceInterface):
                 )
             return None
 
-    def _initialize_home_forecast_provider_adapter(
-        self, home_forecast_provider: HomeForecastProvider
-    ) -> Optional[HomeForecastProviderPort]:
+    def _initialize_energy_load_forecast_provider_adapter(
+        self, energy_load_forecast_provider: EnergyLoadForecastProvider
+    ) -> Optional[EnergyLoadForecastProviderPort]:
         """Initialize a home forecast provider adapter."""
         # If the adapter has already been created, we use it.
-        if home_forecast_provider.id in self._instance_cache:
+        if energy_load_forecast_provider.id in self._instance_cache:
             if self.logger:
                 self.logger.debug(
                     f"Returning cached adapter instance "
-                    f"for home forecast provider ID {home_forecast_provider.id} "
-                    f"(Type: {home_forecast_provider.adapter_type})"
+                    f"for home forecast provider ID {energy_load_forecast_provider.id} "
+                    f"(Type: {energy_load_forecast_provider.adapter_type})"
                 )
-            cached_instance = self._instance_cache[home_forecast_provider.id]
+            cached_instance = self._instance_cache[energy_load_forecast_provider.id]
 
             if not cached_instance:
                 # If the cached instance is None, we return it
@@ -501,16 +541,16 @@ class AdapterService(AdapterServiceInterface):
                 if self.logger:
                     self.logger.warning(
                         f"Cached instance for home forecast provider ID "
-                        f"{home_forecast_provider.id} is None. Reinitializing adapter."
+                        f"{energy_load_forecast_provider.id} is None. Reinitializing adapter."
                     )
                 return None
 
             # Check if the cached instance is of the correct type
-            if not isinstance(cached_instance, HomeForecastProviderPort):
+            if not isinstance(cached_instance, EnergyLoadForecastProviderPort):
                 if self.logger:
                     self.logger.warning(
                         f"Cached instance for home forecast provider ID "
-                        f"{home_forecast_provider.id} is not of type HomeForecastProviderPort. "
+                        f"{energy_load_forecast_provider.id} is not of type EnergyLoadForecastProviderPort. "
                         "Reinitializing adapter."
                     )
                 return None
@@ -519,23 +559,42 @@ class AdapterService(AdapterServiceInterface):
             return cached_instance
 
         try:
-            if home_forecast_provider.adapter_type == HomeForecastProviderAdapter.DUMMY:
-                # --- Dummy Home Forecast Provider ---
-                # TODO - Add configuration parameters for DummyHomeForecastProvider
-                # For now, we use a default load power max of 800W.
-                instance = DummyHomeForecastProvider(load_power_max=800)
+            factory: Optional[EnergyLoadForecastAdapterFactory] = None
+
+            if energy_load_forecast_provider.adapter_type == EnergyLoadForecastProviderAdapter.DUMMY:
+                factory = DummyEnergyLoadForecastProviderFactory()
+            elif energy_load_forecast_provider.adapter_type == EnergyLoadForecastProviderAdapter.NAIVE_LAST_HOUR:
+                factory = NaiveLastHourForecastProviderFactory()
+            elif energy_load_forecast_provider.adapter_type == EnergyLoadForecastProviderAdapter.NAIVE_PERSISTENCE:
+                factory = NaivePersistenceForecastProviderFactory()
+            elif energy_load_forecast_provider.adapter_type == EnergyLoadForecastProviderAdapter.SEASONAL_BASELINE:
+                factory = SeasonalBaselineForecastProviderFactory()
+            elif energy_load_forecast_provider.adapter_type == EnergyLoadForecastProviderAdapter.SKFORECAST:
+                factory = SkforecastForecastProviderFactory(model_repo=self.load_consumption_model_repo)
+            elif energy_load_forecast_provider.adapter_type == EnergyLoadForecastProviderAdapter.STATSMODELS:
+                factory = StatsmodelsForecastProviderFactory(model_repo=self.load_consumption_model_repo)
+            elif energy_load_forecast_provider.adapter_type == EnergyLoadForecastProviderAdapter.TYPICAL_PROFILE:
+                factory = TypicalProfileForecastProviderFactory()
+            elif energy_load_forecast_provider.adapter_type == EnergyLoadForecastProviderAdapter.XGBOOST:
+                factory = XGBoostForecastProviderFactory(model_repo=self.load_consumption_model_repo)
             else:
                 raise ValueError(
-                    f"Unsupported home forecast provider adapter type: {home_forecast_provider.adapter_type}"
+                    f"Unsupported home forecast provider adapter type: {energy_load_forecast_provider.adapter_type}"
                 )
 
-            self._instance_cache[home_forecast_provider.id] = instance
+            instance = factory.create(
+                config=energy_load_forecast_provider.config,
+                logger=self.logger,
+                external_service=None,
+            )
+
+            self._instance_cache[energy_load_forecast_provider.id] = instance
             return instance
         except Exception as e:
             if self.logger:
                 self.logger.error(
-                    f"Failed to initialize adapter '{home_forecast_provider.name}' "
-                    f"(Type: {home_forecast_provider.adapter_type}) using factory: {e}"
+                    f"Failed to initialize adapter '{energy_load_forecast_provider.name}' "
+                    f"(Type: {energy_load_forecast_provider.adapter_type}) using factory: {e}"
                 )
             return None
 
@@ -781,17 +840,100 @@ class AdapterService(AdapterServiceInterface):
         return await self._initialize_forecast_provider_adapter(energy_source, forecast_provider)
 
     def get_home_load_forecast_provider(
-        self, home_forecast_provider_id: EntityId
-    ) -> Optional[HomeForecastProviderPort]:
+        self, energy_load_forecast_provider_id: EntityId
+    ) -> Optional[EnergyLoadForecastProviderPort]:
         """Get an home load forecast provider adapter instance."""
-        home_forecast_provider = self.home_forecast_provider_repo.get_by_id(home_forecast_provider_id)
-        if not home_forecast_provider:
+        energy_load_forecast_provider = self.energy_load_forecast_provider_repo.get_by_id(
+            energy_load_forecast_provider_id
+        )
+        if not energy_load_forecast_provider:
             if self.logger:
                 self.logger.error(
-                    f"Home Forecast Provider ID {home_forecast_provider_id} not found or not a Home Forecast Provider."
+                    f"Home Forecast Provider ID {energy_load_forecast_provider_id} not found or not a Home Forecast Provider."
                 )
             return None
-        return self._initialize_home_forecast_provider_adapter(home_forecast_provider)
+        return self._initialize_energy_load_forecast_provider_adapter(energy_load_forecast_provider)
+
+    async def _initialize_energy_load_history_provider_adapter(
+        self, energy_load_history_provider: EnergyLoadHistoryProvider, device_id: EntityId
+    ) -> Optional[EnergyLoadHistoryProviderPort]:
+        """Initialize an energy load history provider adapter."""
+        cache_key = energy_load_history_provider.id
+        if cache_key in self._instance_cache:
+            cached_instance = self._instance_cache[cache_key]
+            if cached_instance and isinstance(cached_instance, EnergyLoadHistoryProviderPort):
+                return cached_instance
+            return None
+
+        # Resolve external service if needed
+        external_service: Optional[ExternalServicePort] = None
+        if energy_load_history_provider.external_service_id:
+            external_service = await self.get_external_service(energy_load_history_provider.external_service_id)
+            if not external_service:
+                raise ValueError(
+                    f"Unable to load external service {energy_load_history_provider.external_service_id} "
+                    f"for history provider {energy_load_history_provider.name}"
+                )
+
+        try:
+            instance: Optional[EnergyLoadHistoryProviderPort] = None
+
+            if energy_load_history_provider.adapter_type == EnergyLoadHistoryProviderAdapter.DUMMY:
+                instance = DummyEnergyLoadHistoryProvider(
+                    device_id=device_id,
+                    history_repo=self.home_load_history_repo,
+                    logger=self.logger,
+                )
+            elif energy_load_history_provider.adapter_type == EnergyLoadHistoryProviderAdapter.HOME_ASSISTANT_API:
+                if not energy_load_history_provider.config:
+                    raise ValueError(
+                        "EnergyLoadHistoryProvider config is required for HomeAssistantAPI history provider."
+                    )
+                if not external_service:
+                    raise ValueError(
+                        f"External service is required for HomeAssistantAPI history provider "
+                        f"'{energy_load_history_provider.name}'. "
+                        f"Please set external_service_id on the provider."
+                    )
+                # Resolve the LoadDevice for the factory
+                factory = HomeAssistantAPIEnergyLoadHistoryProviderFactory(
+                    history_repo=self.home_load_history_repo,
+                )
+                # Build a minimal LoadDevice for the factory binding
+
+                load_device = LoadDevice(id=device_id)
+                factory.from_load_device(load_device)
+                instance = factory.create(
+                    config=energy_load_history_provider.config,
+                    logger=self.logger,
+                    external_service=external_service,
+                )
+            else:
+                raise ValueError(
+                    f"Unsupported energy load history provider adapter type: "
+                    f"{energy_load_history_provider.adapter_type}"
+                )
+
+            self._instance_cache[cache_key] = instance
+            return instance
+        except Exception as e:
+            if self.logger:
+                self.logger.error(
+                    f"Failed to initialize adapter '{energy_load_history_provider.name}' "
+                    f"(Type: {energy_load_history_provider.adapter_type}): {e}"
+                )
+            return None
+
+    async def get_home_load_history_provider(
+        self, energy_load_history_provider_id: EntityId, device_id: EntityId
+    ) -> Optional[EnergyLoadHistoryProviderPort]:
+        """Get an energy load history provider adapter instance."""
+        energy_load_history_provider = self.energy_load_history_provider_repo.get_by_id(energy_load_history_provider_id)
+        if not energy_load_history_provider:
+            if self.logger:
+                self.logger.error(f"Home History Provider ID {energy_load_history_provider_id} not found.")
+            return None
+        return await self._initialize_energy_load_history_provider_adapter(energy_load_history_provider, device_id)
 
     async def get_mining_performance_tracker(self, tracker_id: EntityId) -> Optional[MiningPerformanceTrackerPort]:
         """Get a mining performance tracker adapter instance."""

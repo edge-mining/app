@@ -17,12 +17,21 @@ from edge_mining.adapters.domain.forecast.repositories import (
     SqliteForecastProviderRepository,
 )
 from edge_mining.adapters.domain.home_load.repositories import (
-    InMemoryHomeForecastProviderRepository,
+    InMemoryEnergyLoadForecastProviderRepository,
+    InMemoryEnergyLoadHistoryProviderRepository,
+    InMemoryEnergyLoadHistoryRepository,
     InMemoryHomeLoadsProfileRepository,
-    SqlAlchemyHomeForecastProviderRepository,
+    InMemoryLoadConsumptionModelRepository,
+    SqlAlchemyEnergyLoadForecastProviderRepository,
+    SqlAlchemyEnergyLoadHistoryProviderRepository,
+    SqlAlchemyEnergyLoadHistoryRepository,
     SqlAlchemyHomeLoadsProfileRepository,
-    SqliteHomeForecastProviderRepository,
+    SqlAlchemyLoadConsumptionModelRepository,
+    SqliteEnergyLoadForecastProviderRepository,
+    SqliteEnergyLoadHistoryProviderRepository,
+    SqliteEnergyLoadHistoryRepository,
     SqliteHomeLoadsProfileRepository,
+    SqliteLoadConsumptionModelRepository,
 )
 from edge_mining.adapters.domain.miner.repositories import (
     InMemoryMinerControllerRepository,
@@ -70,6 +79,8 @@ from edge_mining.adapters.infrastructure.sun.factories import AstralSunFactory
 from edge_mining.application.interfaces import SunFactoryInterface
 from edge_mining.application.services.adapter_service import AdapterService
 from edge_mining.application.services.configuration_service import ConfigurationService
+from edge_mining.application.services.home_load_history_service import HomeLoadHistoryService
+from edge_mining.application.services.load_forecast_training_service import LoadForecastModelTrainingService
 from edge_mining.application.services.miner_action_service import MinerActionService
 from edge_mining.application.services.optimization_service import OptimizationService
 from edge_mining.domain.energy.ports import (
@@ -78,8 +89,11 @@ from edge_mining.domain.energy.ports import (
 )
 from edge_mining.domain.forecast.ports import ForecastProviderRepository
 from edge_mining.domain.home_load.ports import (
-    HomeForecastProviderRepository,
+    EnergyLoadForecastProviderRepository,
+    EnergyLoadHistoryProviderRepository,
+    EnergyLoadHistoryRepository,
     HomeLoadsProfileRepository,
+    LoadConsumptionModelRepository,
 )
 from edge_mining.domain.miner.ports import MinerControllerRepository, MinerRepository
 from edge_mining.domain.notification.ports import NotifierRepository
@@ -152,7 +166,10 @@ def configure_persistence(logger: LoggerPort, settings: AppSettings) -> Persiste
     mining_performance_tracker_repo: MiningPerformanceTrackerRepository
     settings_repo: SettingsRepository
     home_profile_repo: HomeLoadsProfileRepository
-    home_forecast_provider_repo: HomeForecastProviderRepository
+    energy_load_forecast_provider_repo: EnergyLoadForecastProviderRepository
+    energy_load_history_provider_repo: EnergyLoadHistoryProviderRepository
+    home_load_history_repo: EnergyLoadHistoryRepository
+    load_consumption_model_repo: LoadConsumptionModelRepository
     optimization_unit_repo: EnergyOptimizationUnitRepository
     external_service_repo: ExternalServiceRepository
 
@@ -168,7 +185,10 @@ def configure_persistence(logger: LoggerPort, settings: AppSettings) -> Persiste
         mining_performance_tracker_repo = InMemoryMiningPerformanceTrackerRepository()
         settings_repo = InMemorySettingsRepository()
         home_profile_repo = InMemoryHomeLoadsProfileRepository()
-        home_forecast_provider_repo = InMemoryHomeForecastProviderRepository()
+        energy_load_forecast_provider_repo = InMemoryEnergyLoadForecastProviderRepository()
+        energy_load_history_provider_repo = InMemoryEnergyLoadHistoryProviderRepository()
+        home_load_history_repo = InMemoryEnergyLoadHistoryRepository()
+        load_consumption_model_repo = InMemoryLoadConsumptionModelRepository()
         optimization_unit_repo = InMemoryOptimizationUnitRepository()
         external_service_repo = InMemoryExternalServiceRepository()
 
@@ -190,7 +210,10 @@ def configure_persistence(logger: LoggerPort, settings: AppSettings) -> Persiste
         mining_performance_tracker_repo = SqliteMiningPerformanceTrackerRepository(db=sqlite_db)
         settings_repo = SqliteSettingsRepository(db=sqlite_db)
         home_profile_repo = SqliteHomeLoadsProfileRepository(db=sqlite_db)
-        home_forecast_provider_repo = SqliteHomeForecastProviderRepository(db=sqlite_db)
+        energy_load_forecast_provider_repo = SqliteEnergyLoadForecastProviderRepository(db=sqlite_db)
+        energy_load_history_provider_repo = SqliteEnergyLoadHistoryProviderRepository(db=sqlite_db)
+        home_load_history_repo = SqliteEnergyLoadHistoryRepository(db=sqlite_db)
+        load_consumption_model_repo = SqliteLoadConsumptionModelRepository(db=sqlite_db)
         optimization_unit_repo = SqliteOptimizationUnitRepository(db=sqlite_db)
         external_service_repo = SqliteExternalServiceRepository(db=sqlite_db)
 
@@ -213,7 +236,10 @@ def configure_persistence(logger: LoggerPort, settings: AppSettings) -> Persiste
         mining_performance_tracker_repo = SqlAlchemyMiningPerformanceTrackerRepository(db=sqlalchemy_db)
         settings_repo = SqlAlchemySettingsRepository(db=sqlalchemy_db)
         home_profile_repo = SqlAlchemyHomeLoadsProfileRepository(db=sqlalchemy_db)
-        home_forecast_provider_repo = SqlAlchemyHomeForecastProviderRepository(db=sqlalchemy_db)
+        energy_load_forecast_provider_repo = SqlAlchemyEnergyLoadForecastProviderRepository(db=sqlalchemy_db)
+        energy_load_history_provider_repo = SqlAlchemyEnergyLoadHistoryProviderRepository(db=sqlalchemy_db)
+        home_load_history_repo = SqlAlchemyEnergyLoadHistoryRepository(db=sqlalchemy_db)
+        load_consumption_model_repo = SqlAlchemyLoadConsumptionModelRepository(db=sqlalchemy_db)
         optimization_unit_repo = SqlAlchemyOptimizationUnitRepository(db=sqlalchemy_db)
         external_service_repo = SqlAlchemyExternalServiceRepository(db=sqlalchemy_db)
 
@@ -259,7 +285,10 @@ def configure_persistence(logger: LoggerPort, settings: AppSettings) -> Persiste
         miner_controller_repo=miner_controller_repo,
         forecast_provider_repo=forecast_provider_repo,
         home_profile_repo=home_profile_repo,
-        home_forecast_provider_repo=home_forecast_provider_repo,
+        energy_load_forecast_provider_repo=energy_load_forecast_provider_repo,
+        energy_load_history_provider_repo=energy_load_history_provider_repo,
+        home_load_history_repo=home_load_history_repo,
+        load_consumption_model_repo=load_consumption_model_repo,
         notifier_repo=notifier_repo,
         optimization_unit_repo=optimization_unit_repo,
         policy_repo=policy_repo,
@@ -300,11 +329,14 @@ def configure_dependencies(logger: LoggerPort, settings: AppSettings) -> Service
         miner_repo=persistence_settings.miner_repo,
         notifier_repo=persistence_settings.notifier_repo,
         forecast_provider_repo=persistence_settings.forecast_provider_repo,
-        home_forecast_provider_repo=persistence_settings.home_forecast_provider_repo,
+        energy_load_forecast_provider_repo=persistence_settings.energy_load_forecast_provider_repo,
+        energy_load_history_provider_repo=persistence_settings.energy_load_history_provider_repo,
+        home_load_history_repo=persistence_settings.home_load_history_repo,
         mining_performance_tracker_repo=persistence_settings.mining_performance_tracker_repo,
         external_service_repo=persistence_settings.external_service_repo,
         event_bus=event_bus,
         logger=logger,
+        load_consumption_model_repo=persistence_settings.load_consumption_model_repo,
     )
 
     optimization_service = OptimizationService(
@@ -312,10 +344,13 @@ def configure_dependencies(logger: LoggerPort, settings: AppSettings) -> Service
         energy_source_repo=persistence_settings.energy_source_repo,
         policy_repo=persistence_settings.policy_repo,
         miner_repo=persistence_settings.miner_repo,
+        home_loads_repo=persistence_settings.home_profile_repo,
         adapter_service=adapter_service,
         sun_factory=sun_factory,
         event_bus=event_bus,
         logger=logger,
+        forecast_mix_alpha=settings.forecast_mix_alpha,
+        forecast_mix_beta=settings.forecast_mix_beta,
     )
 
     miner_action_service = MinerActionService(
@@ -332,11 +367,28 @@ def configure_dependencies(logger: LoggerPort, settings: AppSettings) -> Service
         adapter_service=adapter_service,
     )
 
+    home_load_history_service = HomeLoadHistoryService(
+        home_loads_repo=persistence_settings.home_profile_repo,
+        home_load_history_repo=persistence_settings.home_load_history_repo,
+        adapter_service=adapter_service,
+        event_bus=event_bus,
+        logger=logger,
+    )
+
+    load_forecast_training_service = LoadForecastModelTrainingService(
+        home_loads_repo=persistence_settings.home_profile_repo,
+        history_repo=persistence_settings.home_load_history_repo,
+        model_repo=persistence_settings.load_consumption_model_repo,
+        logger=logger,
+    )
+
     services = Services(
         adapter_service=adapter_service,
         optimization_service=optimization_service,
         miner_action_service=miner_action_service,
         configuration_service=config_service,
+        home_load_history_service=home_load_history_service,
+        load_forecast_training_service=load_forecast_training_service,
         event_bus=event_bus,
     )
 

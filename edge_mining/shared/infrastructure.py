@@ -2,12 +2,15 @@
 
 from dataclasses import dataclass
 from enum import Enum
+from typing import Optional
 
 from edge_mining.application.interfaces import (
     MinerActionServiceInterface,
     AdapterServiceInterface,
     ConfigurationServiceInterface,
     EventBusInterface,
+    HomeLoadHistoryServiceInterface,
+    LoadForecastTrainingServiceInterface,
     OptimizationServiceInterface,
 )
 from edge_mining.domain.energy.ports import (
@@ -16,8 +19,11 @@ from edge_mining.domain.energy.ports import (
 )
 from edge_mining.domain.forecast.ports import ForecastProviderRepository
 from edge_mining.domain.home_load.ports import (
-    HomeForecastProviderRepository,
+    EnergyLoadForecastProviderRepository,
+    EnergyLoadHistoryProviderRepository,
+    EnergyLoadHistoryRepository,
     HomeLoadsProfileRepository,
+    LoadConsumptionModelRepository,
 )
 from edge_mining.domain.miner.ports import MinerControllerRepository, MinerRepository
 from edge_mining.domain.notification.ports import NotifierRepository
@@ -45,7 +51,10 @@ class PersistenceSettings:
     miner_controller_repo: MinerControllerRepository
     forecast_provider_repo: ForecastProviderRepository
     home_profile_repo: HomeLoadsProfileRepository
-    home_forecast_provider_repo: HomeForecastProviderRepository
+    energy_load_forecast_provider_repo: EnergyLoadForecastProviderRepository
+    energy_load_history_provider_repo: EnergyLoadHistoryProviderRepository
+    home_load_history_repo: EnergyLoadHistoryRepository
+    load_consumption_model_repo: LoadConsumptionModelRepository
     policy_repo: OptimizationPolicyRepository
     mining_performance_tracker_repo: MiningPerformanceTrackerRepository
     optimization_unit_repo: EnergyOptimizationUnitRepository
@@ -62,4 +71,6 @@ class Services:
     optimization_service: OptimizationServiceInterface
     miner_action_service: MinerActionServiceInterface
     configuration_service: ConfigurationServiceInterface
+    home_load_history_service: HomeLoadHistoryServiceInterface
+    load_forecast_training_service: Optional[LoadForecastTrainingServiceInterface]
     event_bus: EventBusInterface

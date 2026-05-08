@@ -23,7 +23,7 @@ class TestDecisionalContextUpdatedEvent(unittest.TestCase):
             energy_source=None,
             energy_state=None,
             forecast=None,
-            home_load_forecast=None,
+            home_load=None,
             mining_performance=None,
         )
         event = DecisionalContextUpdatedEvent(

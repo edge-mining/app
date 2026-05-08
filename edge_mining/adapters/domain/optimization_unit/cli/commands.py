@@ -74,7 +74,6 @@ def handle_add_optimization_unit(configuration_service: ConfigurationServiceInte
         selected_notifiers = [selected_notifiers]
 
     # To be implemented in the next release
-    home_forecast_provider_id = None
     performance_tracker_id = None
 
     try:
@@ -88,7 +87,6 @@ def handle_add_optimization_unit(configuration_service: ConfigurationServiceInte
                 energy_source_id=selected_energy_source.id if selected_energy_source else None,
                 target_miner_ids=target_miner_ids,
                 policy_id=selected_policy.id if selected_policy else None,
-                home_forecast_provider_id=home_forecast_provider_id,
                 performance_tracker_id=performance_tracker_id,
                 notifier_ids=notifier_ids,
             )
@@ -288,7 +286,6 @@ def update_optimization_unit(
     new_optimization_unit.target_miner_ids = optimization_unit.target_miner_ids
     new_optimization_unit.policy_id = optimization_unit.policy_id
     new_optimization_unit.notifier_ids = optimization_unit.notifier_ids
-    new_optimization_unit.home_forecast_provider_id = optimization_unit.home_forecast_provider_id
     new_optimization_unit.performance_tracker_id = optimization_unit.performance_tracker_id
 
     click.echo("\nDo you want to change the energy source?")
@@ -351,7 +348,6 @@ def update_optimization_unit(
                 energy_source_id=new_optimization_unit.energy_source_id,
                 target_miner_ids=new_optimization_unit.target_miner_ids,
                 policy_id=new_optimization_unit.policy_id,
-                home_forecast_provider_id=new_optimization_unit.home_forecast_provider_id,
                 performance_tracker_id=new_optimization_unit.performance_tracker_id,
                 notifier_ids=new_optimization_unit.notifier_ids,
                 is_enabled=new_optimization_unit.is_enabled,

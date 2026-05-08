@@ -26,7 +26,7 @@ rules:
     description: "Stop mining when home load is high and battery is not full"
     conditions:
       all_of:
-        - field: "home_load_forecast"
+        - field: "home_load.total_forecast.next_2h.avg_power"
           operator: "gt"
           value: 2500
         - field: "energy_state.battery.state_of_charge"

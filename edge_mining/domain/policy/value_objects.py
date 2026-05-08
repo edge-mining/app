@@ -9,7 +9,7 @@ from edge_mining.domain.energy.entities import EnergySource
 from edge_mining.domain.energy.value_objects import EnergyStateSnapshot
 from edge_mining.domain.forecast.aggregate_root import Forecast
 from edge_mining.domain.forecast.value_objects import Sun
-from edge_mining.domain.home_load.value_objects import ConsumptionForecast
+from edge_mining.domain.home_load.value_objects import HomeLoadsConsumption
 from edge_mining.domain.miner.aggregate_roots import Miner
 from edge_mining.domain.miner.value_objects import MinerStateSnapshot
 from edge_mining.domain.performance.value_objects import MiningPerformanceSnapshot
@@ -23,9 +23,10 @@ class DecisionalContext(ValueObject):
     energy_state: Optional[EnergyStateSnapshot]
 
     forecast: Optional[Forecast]
-    home_load_forecast: Optional[ConsumptionForecast]
 
-    mining_performance: Optional[MiningPerformanceSnapshot]
+    home_load: Optional[HomeLoadsConsumption] = None
+
+    mining_performance: Optional[MiningPerformanceSnapshot] = None
 
     sun: Optional[Sun] = field(default=None)
 

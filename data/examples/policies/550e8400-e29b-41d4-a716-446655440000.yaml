@@ -119,7 +119,7 @@ stop_rules:
     description: Stop mining during high home energy demand periods
     conditions:
       all_of:
-        - field: home_load_forecast
+        - field: home_load.total_forecast.next_2h.avg_power
           operator: gt
           value: 2800
         - field: timestamp.hour
@@ -136,6 +136,6 @@ stop_rules:
     enabled: true
 metadata:
   author: Edge Mining User
-  version: 5
+  version: 6
   created: '2025-08-04'
-  last_modified: '2026-01-18'
+  last_modified: '2026-04-22'

@@ -80,12 +80,21 @@ class RuleEvaluator:
 
     @staticmethod
     def _get_field_value(context: DecisionalContext, field_path: str) -> Any:
-        """Get value from DecisionalContext using dot notation."""
+        """Get value from DecisionalContext using dot notation.
+
+        Supports:
+        - Attribute access (dataclass fields, properties)
+        - Dict key lookup (e.g. ``home_load.devices.boiler``)
+        """
         parts = field_path.split(".")
         current = context
 
         for part in parts:
-            if hasattr(current, part):
+            if current is None:
+                return None
+            if isinstance(current, dict):
+                current = current.get(part)
+            elif hasattr(current, part):
                 current = getattr(current, part)
             else:
                 return None

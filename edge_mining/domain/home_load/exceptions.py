@@ -9,31 +9,85 @@ class HomeLoadError(DomainError):
     pass
 
 
-class HomeForecastError(HomeLoadError):
-    """Base class for home forecast-specific errors."""
+class HomeLoadsProfileAlreadyExistsError(HomeLoadError):
+    """Home Loads Profile already exists."""
 
     pass
 
 
-class HomeForecastProviderError(HomeForecastError):
-    """Errors related to home forecast provider."""
+class HomeLoadsProfileNotFoundError(HomeLoadError):
+    """Home Loads Profile not found."""
 
     pass
 
 
-class HomeForecastProviderNotFoundError(HomeForecastProviderError):
-    """Home Forecast Provider not found."""
+class HomeLoadsProfileAddDeviceError(HomeLoadError):
+    """Error adding device to Home Loads Profile."""
 
     pass
 
 
-class HomeForecastProviderAlreadyExistsError(HomeForecastProviderError):
-    """Home Forecast Provider already exists."""
+class HomeLoadsProfileDeviceNotFoundError(HomeLoadError):
+    """Load Device not found in Home Loads Profile."""
 
     pass
 
 
-class HomeForecastProviderConfigurationError(HomeForecastProviderError):
+class HomeLoadsProfileRemoveDeviceError(HomeLoadError):
+    """Error removing device from Home Loads Profile."""
+
+    pass
+
+
+class EnergyLoadForecastError(HomeLoadError):
+    """Base class for energy load forecast-specific errors."""
+
+    pass
+
+
+class EnergyLoadForecastProviderError(EnergyLoadForecastError):
+    """Errors related to energy load forecast provider."""
+
+    pass
+
+
+class EnergyLoadForecastProviderNotFoundError(EnergyLoadForecastProviderError):
+    """Energy Load Forecast Provider not found."""
+
+    pass
+
+
+class EnergyLoadForecastProviderAlreadyExistsError(EnergyLoadForecastProviderError):
+    """Energy Load Forecast Provider already exists."""
+
+    pass
+
+
+class EnergyLoadForecastProviderConfigurationError(EnergyLoadForecastProviderError):
+    """Error with the configuration."""
+
+    pass
+
+
+class EnergyLoadHistoryProviderError(HomeLoadError):
+    """Errors related to energy load history provider."""
+
+    pass
+
+
+class EnergyLoadHistoryProviderNotFoundError(EnergyLoadHistoryProviderError):
+    """Energy Load History Provider not found."""
+
+    pass
+
+
+class EnergyLoadHistoryProviderAlreadyExistsError(EnergyLoadHistoryProviderError):
+    """Energy Load History Provider already exists."""
+
+    pass
+
+
+class EnergyLoadHistoryProviderConfigurationError(EnergyLoadHistoryProviderError):
     """Error with the configuration."""
 
     pass

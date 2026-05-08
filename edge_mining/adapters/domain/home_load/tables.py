@@ -6,14 +6,13 @@ creating separate ORM model classes, maintaining domain purity.
 
 The mappings handle complex objects using SQLAlchemy event listeners and custom types:
 - LoadDevice dictionaries are serialized to JSON and reconstructed after loading
-- HomeForecastProviderConfig is serialized using custom ConfigurationType
+- EnergyLoadForecastProviderConfig is serialized using custom ConfigurationType
 - EntityId value objects are implicitly converted to/from strings
 
 All tables and mappings use the shared metadata and mapper registry from
 the sqlalchemy.registry module, which are available as module-level singletons.
 
-⚠️  DEVELOPER WARNING ⚠️
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WARNING - DEVELOPER WARNING
 ANY SCHEMA CHANGE (adding/removing/modifying tables or columns) REQUIRES an
 Alembic migration. Do NOT modify this file without creating a migration:
 
@@ -21,63 +20,94 @@ Alembic migration. Do NOT modify this file without creating a migration:
 
 For detailed instructions, see: docs/ALEMBIC_MIGRATIONS.md
 For a step-by-step example, see: docs/MIGRATION_EXAMPLE.md
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
 import json
 import uuid
 from typing import Any, Optional
 
-from sqlalchemy import JSON, Column, ForeignKey, String, Table, TypeDecorator, event
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    LargeBinary,
+    String,
+    Table,
+    Text,
+    TypeDecorator,
+    event,
+)
 
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.common import ConfigurationType
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.registry import mapper_registry, metadata
 from edge_mining.domain.common import EntityId
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
-from edge_mining.domain.home_load.common import HomeForecastProviderAdapter
-from edge_mining.domain.home_load.entities import HomeForecastProvider, LoadDevice
-from edge_mining.domain.home_load.exceptions import HomeForecastProviderConfigurationError
-from edge_mining.shared.adapter_maps.home_load import HOME_FORECAST_PROVIDER_CONFIG_TYPE_MAP
-from edge_mining.shared.interfaces.config import HomeForecastProviderConfig
+from edge_mining.domain.home_load.common import (
+    EnergyLoadForecastProviderAdapter,
+    EnergyLoadHistoryProviderAdapter,
+    LoadDeviceCategory,
+)
+from edge_mining.domain.home_load.entities import (
+    EnergyLoadForecastProvider,
+    EnergyLoadHistoryProvider,
+    LoadConsumptionModel,
+    LoadDevice,
+)
+from edge_mining.domain.home_load.exceptions import (
+    EnergyLoadForecastProviderConfigurationError,
+    EnergyLoadHistoryProviderConfigurationError,
+)
+from edge_mining.shared.adapter_maps.home_load import (
+    ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP,
+    ENERGY_LOAD_HISTORY_PROVIDER_CONFIG_TYPE_MAP,
+)
+from edge_mining.shared.interfaces.config import EnergyLoadForecastProviderConfig, EnergyLoadHistoryProviderConfig
 
 
-class HomeForecastProviderConfigType(ConfigurationType):
-    """SQLAlchemy type for HomeForecastProviderConfig serialization.
+class EnergyLoadForecastProviderConfigType(ConfigurationType):
+    """SQLAlchemy type for EnergyLoadForecastProviderConfig serialization.
 
     Inherits from ConfigurationType to handle JSON serialization/deserialization.
     """
 
 
-def _deserialize_home_forecast_provider_config(
-    adapter_type: HomeForecastProviderAdapter, config_json: str
-) -> Optional[HomeForecastProviderConfig]:
-    """Deserialize JSON string to HomeForecastProviderConfig based on adapter type."""
+def _deserialize_energy_load_forecast_provider_config(
+    adapter_type: EnergyLoadForecastProviderAdapter, config_json: str
+) -> Optional[EnergyLoadForecastProviderConfig]:
+    """Deserialize JSON string to EnergyLoadForecastProviderConfig based on adapter type."""
     if not config_json:
         return None
 
     data: dict = json.loads(config_json)
 
-    if adapter_type not in HOME_FORECAST_PROVIDER_CONFIG_TYPE_MAP:
-        raise HomeForecastProviderConfigurationError(
-            f"Error reading HomeForecastProvider configuration. Invalid type '{adapter_type}'"
+    if adapter_type not in ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP:
+        raise EnergyLoadForecastProviderConfigurationError(
+            f"Error reading EnergyLoadForecastProvider configuration. Invalid type '{adapter_type}'"
         )
 
-    config_class: Optional[type[HomeForecastProviderConfig]] = HOME_FORECAST_PROVIDER_CONFIG_TYPE_MAP.get(adapter_type)
+    config_class: Optional[type[EnergyLoadForecastProviderConfig]] = ENERGY_LOAD_FORECAST_PROVIDER_CONFIG_TYPE_MAP.get(
+        adapter_type
+    )
     if not config_class:
-        raise HomeForecastProviderConfigurationError(
-            f"Error creating HomeForecastProvider configuration. Type '{adapter_type}'"
+        raise EnergyLoadForecastProviderConfigurationError(
+            f"Error creating EnergyLoadForecastProvider configuration. Type '{adapter_type}'"
         )
 
     config_instance = config_class.from_dict(data)
-    if not isinstance(config_instance, HomeForecastProviderConfig):
-        raise HomeForecastProviderConfigurationError(
-            f"Deserialized config is not of type HomeForecastProviderConfig for adapter type {adapter_type}."
+    if not isinstance(config_instance, EnergyLoadForecastProviderConfig):
+        raise EnergyLoadForecastProviderConfigurationError(
+            f"Deserialized config is not of type EnergyLoadForecastProviderConfig for adapter type {adapter_type}."
         )
     return config_instance
 
 
-@event.listens_for(HomeForecastProvider, "load")
-def _receive_home_forecast_provider_load(target: HomeForecastProvider, context) -> None:
+@event.listens_for(EnergyLoadForecastProvider, "load")
+def _receive_energy_load_forecast_provider_load(target: EnergyLoadForecastProvider, context) -> None:
     """Event listener that deserializes config after loading from database."""
     # Convert id string to EntityId if needed
     if hasattr(target, "id") and target.id is not None:
@@ -92,76 +122,82 @@ def _receive_home_forecast_provider_load(target: HomeForecastProvider, context) 
     # Convert adapter_type string to enum if needed
     if isinstance(target.adapter_type, str):
         try:
-            target.adapter_type = HomeForecastProviderAdapter(target.adapter_type)
+            target.adapter_type = EnergyLoadForecastProviderAdapter(target.adapter_type)
         except ValueError:
             pass
 
     if target.config and isinstance(target.config, str):
-        target.config = _deserialize_home_forecast_provider_config(target.adapter_type, target.config)
+        target.config = _deserialize_energy_load_forecast_provider_config(target.adapter_type, target.config)
 
 
-@event.listens_for(HomeForecastProvider, "before_insert")
-@event.listens_for(HomeForecastProvider, "before_update")
-def _flatten_home_forecast_provider_composites(mapper, connection, target: Any) -> None:
+@event.listens_for(EnergyLoadForecastProvider, "before_insert")
+@event.listens_for(EnergyLoadForecastProvider, "before_update")
+def _flatten_energy_load_forecast_provider_composites(mapper, connection, target: Any) -> None:
     """Convert enum attributes to primitive values before persisting."""
     if hasattr(target, "adapter_type") and target.adapter_type is not None:
-        if isinstance(target.adapter_type, HomeForecastProviderAdapter):
+        if isinstance(target.adapter_type, EnergyLoadForecastProviderAdapter):
             target.adapter_type = target.adapter_type.value
 
 
-@event.listens_for(HomeForecastProvider, "after_insert")
-@event.listens_for(HomeForecastProvider, "after_update")
-def _restore_home_forecast_provider_composites(mapper, connection, target: Any) -> None:
+@event.listens_for(EnergyLoadForecastProvider, "after_insert")
+@event.listens_for(EnergyLoadForecastProvider, "after_update")
+def _restore_energy_load_forecast_provider_composites(mapper, connection, target: Any) -> None:
     """Restore enum attributes after persist operations."""
     if hasattr(target, "adapter_type") and target.adapter_type is not None:
         if isinstance(target.adapter_type, str):
             try:
-                target.adapter_type = HomeForecastProviderAdapter(target.adapter_type)
+                target.adapter_type = EnergyLoadForecastProviderAdapter(target.adapter_type)
             except ValueError:
                 pass
 
 
-# Define the home_forecast_providers table using imperative style
-home_forecast_providers_table = Table(
-    "home_forecast_providers",
+# Define the energy_load_forecast_providers table using imperative style
+energy_load_forecast_providers_table = Table(
+    "energy_load_forecast_providers",
     metadata,
     Column("id", String, primary_key=True, index=True),
     Column("name", String, nullable=False),
     Column("adapter_type", String, nullable=False),
-    Column("config", HomeForecastProviderConfigType, nullable=True),
+    Column("config", EnergyLoadForecastProviderConfigType, nullable=True),
     Column("external_service_id", String, ForeignKey("external_services.id"), nullable=True),
 )
 
-# Map HomeForecastProvider
+# Map EnergyLoadForecastProvider
 mapper_registry.map_imperatively(
-    HomeForecastProvider,
-    home_forecast_providers_table,
+    EnergyLoadForecastProvider,
+    energy_load_forecast_providers_table,
 )
 
 
-# Custom TypeDecorator for LoadDevice dictionary serialization
+# Custom TypeDecorator for LoadDevice list serialization
 class LoadDevicesDictType(TypeDecorator):
-    """Custom type for serializing Dict[EntityId, LoadDevice] to JSON."""
+    """Custom type for serializing List[LoadDevice] to a JSON array."""
 
     impl = JSON
     cache_ok = True
 
     def process_bind_param(self, value, dialect):
-        """Convert Dict[EntityId, LoadDevice] to JSON dict for database storage."""
+        """Convert List[LoadDevice] to a JSON list for database storage."""
         if value is None:
             return None
-        # Convert to dict with string keys and LoadDevice dicts
-        return {
-            str(device_id): {
+        return [
+            {
                 "id": str(device.id),
                 "name": device.name,
-                "type": device.type,
+                "category": device.category.value,
+                "enabled": device.enabled,
+                "energy_load_forecast_provider_id": (
+                    str(device.energy_load_forecast_provider_id) if device.energy_load_forecast_provider_id else None
+                ),
+                "energy_load_history_provider_id": (
+                    str(device.energy_load_history_provider_id) if device.energy_load_history_provider_id else None
+                ),
             }
-            for device_id, device in value.items()
-        }
+            for device in value
+        ]
 
     def process_result_value(self, value, dialect):
-        """Return raw JSON dict - will be reconstructed in event listener."""
+        """Return raw JSON list - will be reconstructed in event listener."""
         return value
 
 
@@ -179,17 +215,29 @@ home_profiles_table = Table(
 @event.listens_for(HomeLoadsProfile, "load")
 def _receive_home_profile_load(target, context):
     """Reconstruct LoadDevice objects from JSON after loading from database."""
-    if target.devices and isinstance(target.devices, dict):
-        reconstructed_devices = {}
-        for device_id_str, device_data in target.devices.items():
-            if isinstance(device_data, dict):
-                device = LoadDevice(
-                    id=EntityId(device_data["id"]),
+    if isinstance(target.id, str):
+        target.id = EntityId(uuid.UUID(target.id))
+
+    if target.devices and isinstance(target.devices, list):
+        reconstructed: list = []
+        for device_data in target.devices:
+            if not isinstance(device_data, dict):
+                continue
+            forecast_id = device_data.get("energy_load_forecast_provider_id")
+            history_id = device_data.get("energy_load_history_provider_id")
+            reconstructed.append(
+                LoadDevice(
+                    id=EntityId(uuid.UUID(device_data["id"])),
                     name=device_data["name"],
-                    type=device_data["type"],
+                    category=LoadDeviceCategory(device_data["category"]),
+                    enabled=bool(device_data.get("enabled", True)),
+                    energy_load_forecast_provider_id=(EntityId(uuid.UUID(forecast_id)) if forecast_id else None),
+                    energy_load_history_provider_id=(EntityId(uuid.UUID(history_id)) if history_id else None),
                 )
-                reconstructed_devices[EntityId(device_id_str)] = device
-        target.devices = reconstructed_devices
+            )
+        target.devices = reconstructed
+    elif target.devices is None:
+        target.devices = []
 
 
 # Map HomeLoadsProfile aggregate root to table
@@ -201,4 +249,206 @@ mapper_registry.map_imperatively(
         "name": home_profiles_table.c.name,
         "devices": home_profiles_table.c.devices_json,
     },
+)
+
+
+# --- EnergyLoadHistoryProvider table + mapping ---
+
+
+class EnergyLoadHistoryProviderConfigType(ConfigurationType):
+    """SQLAlchemy type for EnergyLoadHistoryProviderConfig serialization."""
+
+
+def _deserialize_energy_load_history_provider_config(
+    adapter_type: EnergyLoadHistoryProviderAdapter, config_json: str
+) -> Optional[EnergyLoadHistoryProviderConfig]:
+    """Deserialize JSON string to EnergyLoadHistoryProviderConfig based on adapter type."""
+    if not config_json:
+        return None
+
+    data: dict = json.loads(config_json)
+
+    if adapter_type not in ENERGY_LOAD_HISTORY_PROVIDER_CONFIG_TYPE_MAP:
+        raise EnergyLoadHistoryProviderConfigurationError(
+            f"Error reading EnergyLoadHistoryProvider configuration. Invalid type '{adapter_type}'"
+        )
+
+    config_class: Optional[type[EnergyLoadHistoryProviderConfig]] = ENERGY_LOAD_HISTORY_PROVIDER_CONFIG_TYPE_MAP.get(
+        adapter_type
+    )
+    if not config_class:
+        # Some adapters (e.g. DUMMY) have no config
+        return None
+
+    config_instance = config_class.from_dict(data)
+    if not isinstance(config_instance, EnergyLoadHistoryProviderConfig):
+        raise EnergyLoadHistoryProviderConfigurationError(
+            f"Deserialized config is not of type EnergyLoadHistoryProviderConfig for adapter type {adapter_type}."
+        )
+    return config_instance
+
+
+@event.listens_for(EnergyLoadHistoryProvider, "load")
+def _receive_energy_load_history_provider_load(target: EnergyLoadHistoryProvider, context) -> None:
+    """Event listener that deserializes config after loading from database."""
+    if hasattr(target, "id") and target.id is not None:
+        if isinstance(target.id, str):  # type: ignore[arg-type,misc]
+            target.id = EntityId(uuid.UUID(target.id))  # type: ignore[assignment]
+
+    if hasattr(target, "external_service_id") and target.external_service_id is not None:
+        if isinstance(target.external_service_id, str):  # type: ignore
+            target.external_service_id = EntityId(uuid.UUID(target.external_service_id))  # type: ignore
+
+    if isinstance(target.adapter_type, str):
+        try:
+            target.adapter_type = EnergyLoadHistoryProviderAdapter(target.adapter_type)
+        except ValueError:
+            pass
+
+    if target.config and isinstance(target.config, str):
+        target.config = _deserialize_energy_load_history_provider_config(target.adapter_type, target.config)
+
+
+@event.listens_for(EnergyLoadHistoryProvider, "before_insert")
+@event.listens_for(EnergyLoadHistoryProvider, "before_update")
+def _flatten_energy_load_history_provider_composites(mapper, connection, target: Any) -> None:
+    """Convert enum attributes to primitive values before persisting."""
+    if hasattr(target, "adapter_type") and target.adapter_type is not None:
+        if isinstance(target.adapter_type, EnergyLoadHistoryProviderAdapter):
+            target.adapter_type = target.adapter_type.value
+
+
+@event.listens_for(EnergyLoadHistoryProvider, "after_insert")
+@event.listens_for(EnergyLoadHistoryProvider, "after_update")
+def _restore_energy_load_history_provider_composites(mapper, connection, target: Any) -> None:
+    """Restore enum attributes after persist operations."""
+    if hasattr(target, "adapter_type") and target.adapter_type is not None:
+        if isinstance(target.adapter_type, str):
+            try:
+                target.adapter_type = EnergyLoadHistoryProviderAdapter(target.adapter_type)
+            except ValueError:
+                pass
+
+
+energy_load_history_providers_table = Table(
+    "energy_load_history_providers",
+    metadata,
+    Column("id", String, primary_key=True, index=True),
+    Column("name", String, nullable=False),
+    Column("adapter_type", String, nullable=False),
+    Column("config", EnergyLoadHistoryProviderConfigType, nullable=True),
+    Column("external_service_id", String, ForeignKey("external_services.id"), nullable=True),
+)
+
+mapper_registry.map_imperatively(
+    EnergyLoadHistoryProvider,
+    energy_load_history_providers_table,
+)
+
+
+# HomeLoadPowerPoint table (device-scoped time series).
+#
+# Not imperatively mapped: HomeLoadPowerPoint is a Value Object (frozen
+# dataclass) and the SQLAlchemy repository interacts with this table via
+# Core (insert/select statements) to keep the domain model pure.
+#
+# Composite primary key (device_id, timestamp) yields:
+#   - natural uniqueness per device over time
+#   - idempotent ingestion (re-fetching the same HA window is a no-op)
+#   - clustered index on (device_id, timestamp) for O(log n) range scans
+home_load_power_points_table = Table(
+    "home_load_power_points",
+    metadata,
+    Column("device_id", String, nullable=False, primary_key=True),
+    Column("timestamp", DateTime(timezone=True), nullable=False, primary_key=True),
+    Column("power", Float, nullable=False),
+    Index("ix_home_load_power_points_device_ts", "device_id", "timestamp"),
+)
+
+
+# --- LoadConsumptionModel table + mapping ---
+#
+# Stores trained ML models (Holt-Winters, XGBoost, etc.) with serialized
+# weights in `model_bytes` (LargeBinary / BLOB).  The `is_active` flag
+# designates the currently promoted model per (adapter_type, device_id)
+# combination.
+
+load_consumption_models_table = Table(
+    "load_consumption_models",
+    metadata,
+    Column("id", String, primary_key=True, index=True),
+    Column("device_id", String, nullable=True),
+    Column("adapter_type", String, nullable=False),
+    Column("trained_at", DateTime(timezone=True), nullable=True),
+    Column("mae", Float, nullable=True),
+    Column("rmse", Float, nullable=True),
+    Column("samples_used", Integer, nullable=False, default=0),
+    Column("is_active", Boolean, nullable=False, default=False),
+    Column("model_bytes", LargeBinary, nullable=True),
+    Column("tuning_params", Text, nullable=True),
+    Column("backtest_mae", Float, nullable=True),
+    Column("backtest_rmse", Float, nullable=True),
+    Column("backtest_folds", Integer, nullable=False, default=0),
+    Index("ix_load_consumption_models_active", "adapter_type", "device_id", "is_active"),
+)
+
+
+@event.listens_for(LoadConsumptionModel, "load")
+def _receive_load_consumption_model_load(target: LoadConsumptionModel, context) -> None:
+    """Reconstruct domain types after loading from database."""
+    if hasattr(target, "id") and target.id is not None:
+        if isinstance(target.id, str):
+            target.id = EntityId(uuid.UUID(target.id))
+
+    if hasattr(target, "device_id") and target.device_id is not None:
+        if isinstance(target.device_id, str):
+            target.device_id = EntityId(uuid.UUID(target.device_id))
+
+    if isinstance(target.adapter_type, str):
+        try:
+            target.adapter_type = EnergyLoadForecastProviderAdapter(target.adapter_type)
+        except ValueError:
+            pass
+
+    if hasattr(target, "tuning_params") and isinstance(target.tuning_params, str):
+        try:
+            target.tuning_params = json.loads(target.tuning_params)
+        except (json.JSONDecodeError, TypeError):
+            target.tuning_params = None
+
+
+@event.listens_for(LoadConsumptionModel, "before_insert")
+@event.listens_for(LoadConsumptionModel, "before_update")
+def _flatten_load_consumption_model_composites(mapper, connection, target: Any) -> None:
+    """Convert enum attributes to primitive values before persisting."""
+    if hasattr(target, "adapter_type") and target.adapter_type is not None:
+        if isinstance(target.adapter_type, EnergyLoadForecastProviderAdapter):
+            target.adapter_type = target.adapter_type.value
+
+    if hasattr(target, "tuning_params") and target.tuning_params is not None:
+        if isinstance(target.tuning_params, dict):
+            target.tuning_params = json.dumps(target.tuning_params)
+
+
+@event.listens_for(LoadConsumptionModel, "after_insert")
+@event.listens_for(LoadConsumptionModel, "after_update")
+def _restore_load_consumption_model_composites(mapper, connection, target: Any) -> None:
+    """Restore enum attributes after persist operations."""
+    if hasattr(target, "adapter_type") and target.adapter_type is not None:
+        if isinstance(target.adapter_type, str):
+            try:
+                target.adapter_type = EnergyLoadForecastProviderAdapter(target.adapter_type)
+            except ValueError:
+                pass
+
+    if hasattr(target, "tuning_params") and isinstance(target.tuning_params, str):
+        try:
+            target.tuning_params = json.loads(target.tuning_params)
+        except (json.JSONDecodeError, TypeError):
+            target.tuning_params = None
+
+
+mapper_registry.map_imperatively(
+    LoadConsumptionModel,
+    load_consumption_models_table,
 )

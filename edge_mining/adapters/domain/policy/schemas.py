@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_valid
 
 from edge_mining.adapters.domain.energy.schemas import EnergySourceSchema, EnergyStateSnapshotSchema
 from edge_mining.adapters.domain.forecast.schemas import ForecastSchema, SunSchema
-from edge_mining.adapters.domain.home_load.schemas import ConsumptionForecastSchema
+from edge_mining.adapters.domain.home_load.schemas import HomeLoadsConsumptionSchema
 from edge_mining.adapters.domain.miner.schemas import MinerSchema, MinerStateSnapshotSchema
 from edge_mining.adapters.domain.performance.schemas import MiningPerformanceSnapshotSchema
 from edge_mining.adapters.domain.policy.utils import FieldStructureSchema, _extract_schema_structure
@@ -464,7 +464,9 @@ class DecisionalContextSchema(BaseModel):
     energy_source: Optional[EnergySourceSchema] = Field(None, description="Energy source information")
     energy_state: Optional[EnergyStateSnapshotSchema] = Field(None, description="Current energy state snapshot")
     forecast: Optional[ForecastSchema] = Field(None, description="Energy production forecast")
-    home_load_forecast: Optional[ConsumptionForecastSchema] = Field(None, description="Home consumption forecast")
+    home_load: Optional[HomeLoadsConsumptionSchema] = Field(
+        None, description="Household consumption (per-device history + forecast + totals)"
+    )
     mining_performance: Optional[MiningPerformanceSnapshotSchema] = Field(
         None, description="Consolidated mining performance snapshot from the pool"
     )
@@ -502,9 +504,7 @@ class DecisionalContextSchema(BaseModel):
             energy_source=EnergySourceSchema.from_model(context.energy_source) if context.energy_source else None,
             energy_state=EnergyStateSnapshotSchema.from_model(context.energy_state) if context.energy_state else None,
             forecast=ForecastSchema.from_model(context.forecast) if context.forecast else None,
-            home_load_forecast=(
-                ConsumptionForecastSchema.from_model(context.home_load_forecast) if context.home_load_forecast else None
-            ),
+            home_load=(HomeLoadsConsumptionSchema.from_model(context.home_load) if context.home_load else None),
             mining_performance=(
                 MiningPerformanceSnapshotSchema.from_model(context.mining_performance)
                 if context.mining_performance
@@ -522,7 +522,7 @@ class DecisionalContextSchema(BaseModel):
             energy_source=self.energy_source.to_model() if self.energy_source else None,
             energy_state=self.energy_state.to_model() if self.energy_state else None,
             forecast=self.forecast.to_model() if self.forecast else None,
-            home_load_forecast=self.home_load_forecast.to_model() if self.home_load_forecast else None,
+            home_load=self.home_load.to_model() if self.home_load else None,
             mining_performance=(self.mining_performance.to_model() if self.mining_performance else None),
             sun=self.sun.to_model() if self.sun else None,
             miner=self.miner.to_model() if self.miner else None,

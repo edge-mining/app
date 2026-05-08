@@ -42,7 +42,6 @@ def optimization_unit():
 @click.option("--energy_source_id", help="ID of the energy source to use")
 @click.option("--target_miner_ids", help="Comma-separated list of target miner IDs")
 @click.option("--policy_id", help="ID of the policy to use")
-@click.option("--home_forecast_provider_id", help="ID of the home load forecast provider")
 @click.option("--performance_tracker_id", help="ID of the performance tracker")
 @click.option("--notifier_ids", help="Comma-separated list of notifier IDs")
 @click.pass_context
@@ -53,7 +52,6 @@ def create_optimization_unit(
     energy_source_id_str: str,
     target_miner_ids_str: str,
     policy_id_str: str,
-    home_forecast_provider_id_str: str,
     performance_tracker_id_str: str,
     notifier_ids_str: str,
 ):
@@ -78,9 +76,6 @@ def create_optimization_unit(
         )
         energy_source_id = EntityId(cast(UUID, energy_source_id_str)) if energy_source_id_str else None
         policy_id = EntityId(cast(UUID, policy_id_str)) if policy_id_str else None
-        home_forecast_provider_id = (
-            EntityId(cast(UUID, home_forecast_provider_id_str)) if home_forecast_provider_id_str else None
-        )
         performance_tracker_id = (
             EntityId(cast(UUID, performance_tracker_id_str)) if performance_tracker_id_str else None
         )
@@ -92,7 +87,6 @@ def create_optimization_unit(
                 energy_source_id=energy_source_id,
                 target_miner_ids=target_miner_ids,
                 policy_id=policy_id,
-                home_forecast_provider_id=home_forecast_provider_id,
                 performance_tracker_id=performance_tracker_id,
                 notifier_ids=notifier_ids,
             )

@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 
 from edge_mining.domain.energy.common import EnergyMonitorAdapter
 from edge_mining.domain.forecast.common import ForecastProviderAdapter
-from edge_mining.domain.home_load.common import HomeForecastProviderAdapter
+from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter, EnergyLoadHistoryProviderAdapter
 from edge_mining.domain.miner.common import MinerControllerAdapter
 from edge_mining.domain.notification.common import NotificationAdapter
 from edge_mining.domain.performance.common import MiningPerformanceTrackerAdapter
@@ -51,11 +51,20 @@ class ForecastProviderConfig(Configuration):
         pass
 
 
-class HomeForecastProviderConfig(Configuration):
-    """Base interface for Home Loads Forecast Provider configurations."""
+class EnergyLoadForecastProviderConfig(Configuration):
+    """Base interface for Energy Load Forecast Provider configurations."""
 
     @abstractmethod
-    def is_valid(self, adapter_type: HomeForecastProviderAdapter) -> bool:
+    def is_valid(self, adapter_type: EnergyLoadForecastProviderAdapter) -> bool:
+        """Check if the configuration is valid for the given adapter type."""
+        pass
+
+
+class EnergyLoadHistoryProviderConfig(Configuration):
+    """Base interface for Energy Load History Provider configurations."""
+
+    @abstractmethod
+    def is_valid(self, adapter_type: EnergyLoadHistoryProviderAdapter) -> bool:
         """Check if the configuration is valid for the given adapter type."""
         pass
 

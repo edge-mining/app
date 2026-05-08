@@ -544,9 +544,70 @@ class TestRuleEvaluator(unittest.TestCase):
             result = RuleEvaluator.evaluate_rule_conditions(self.mock_context, conditions_dict)
             self.assertTrue(result)
 
+    # === Tests for dict key lookup in _get_field_value ===
+
+    def test_get_field_value_dict_key_lookup(self):
+        """Test field resolver traverses dict keys (e.g. home_load.devices.boiler)."""
+        self.mock_context.home_load = Mock()
+        self.mock_context.home_load.devices = {
+            "boiler": Mock(forecast=Mock(total_energy=1500.0)),
+        }
+
+        result = RuleEvaluator._get_field_value(
+            self.mock_context, "home_load.devices.boiler.forecast.total_energy"
+        )
+        self.assertEqual(result, 1500.0)
+
+    def test_get_field_value_dict_key_missing(self):
+        """Test field resolver returns None for missing dict key."""
+        self.mock_context.home_load = Mock()
+        self.mock_context.home_load.devices = {"boiler": Mock()}
+
+        result = RuleEvaluator._get_field_value(
+            self.mock_context, "home_load.devices.fridge.forecast.total_energy"
+        )
+        self.assertIsNone(result)
+
+    def test_get_field_value_none_intermediate(self):
+        """Test field resolver returns None when intermediate value is None."""
+        self.mock_context.home_load = None
+
+        result = RuleEvaluator._get_field_value(
+            self.mock_context, "home_load.devices.boiler"
+        )
+        self.assertIsNone(result)
+
+    def test_evaluate_condition_with_dict_path(self):
+        """Test end-to-end evaluation through dict key path."""
+        self.mock_context.home_load = Mock()
+        self.mock_context.home_load.total_forecast = Mock()
+        self.mock_context.home_load.total_forecast.avg_power = 2800.0
+
+        conditions_dict = {
+            "field": "home_load.total_forecast.avg_power",
+            "operator": "gt",
+            "value": 2500,
+        }
+
+        result = RuleEvaluator.evaluate_rule_conditions(self.mock_context, conditions_dict)
+        self.assertTrue(result)
+
+    def test_evaluate_condition_device_dict_path(self):
+        """Test evaluation using device name in dict path."""
+        self.mock_context.home_load = Mock()
+        self.mock_context.home_load.devices = {
+            "boiler": Mock(forecast=Mock(next_1h=Mock(peak_power=2200.0))),
+        }
+
+        conditions_dict = {
+            "field": "home_load.devices.boiler.forecast.next_1h.peak_power",
+            "operator": "gt",
+            "value": 2000,
+        }
+
+        result = RuleEvaluator.evaluate_rule_conditions(self.mock_context, conditions_dict)
+        self.assertTrue(result)
+
 
 if __name__ == "__main__":
-    unittest.main()
-    unittest.main()
-    unittest.main()
     unittest.main()

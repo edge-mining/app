@@ -85,8 +85,8 @@ class SqliteOptimizationUnitRepository(EnergyOptimizationUnitRepository):
                 policy_id TEXT,
                 target_miner_ids TEXT, -- JSON list of MinerId strings
                 energy_source_id TEXT,
-                home_forecast_provider_id TEXT,
                 performance_tracker_id TEXT,
+                home_loads_profile_id TEXT,
                 notifier_ids TEXT -- JSON list of NotifierId strings
             );
             """
@@ -128,11 +128,13 @@ class SqliteOptimizationUnitRepository(EnergyOptimizationUnitRepository):
                 policy_id=(EntityId(row["policy_id"]) if row["policy_id"] else None),
                 target_miner_ids=target_miner_ids,
                 energy_source_id=(EntityId(row["energy_source_id"]) if row["energy_source_id"] else None),
-                home_forecast_provider_id=(
-                    EntityId(row["home_forecast_provider_id"]) if row["home_forecast_provider_id"] else None
-                ),
                 performance_tracker_id=(
                     EntityId(row["performance_tracker_id"]) if row["performance_tracker_id"] else None
+                ),
+                home_loads_profile=(
+                    EntityId(row["home_loads_profile_id"])
+                    if row.keys().__contains__("home_loads_profile_id") and row["home_loads_profile_id"]
+                    else None
                 ),
                 notifier_ids=notifier_ids,
             )
@@ -145,7 +147,7 @@ class SqliteOptimizationUnitRepository(EnergyOptimizationUnitRepository):
         self.logger.debug(f"Adding optimization unit {optimization_unit.id} to SQLite.")
         sql = """
             INSERT INTO optimization_units (id, name, description, is_enabled, policy_id, target_miner_ids,
-            energy_source_id, home_forecast_provider_id, performance_tracker_id, notifier_ids)
+            energy_source_id, performance_tracker_id, home_loads_profile_id, notifier_ids)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         conn = self._db.get_connection()
@@ -165,8 +167,8 @@ class SqliteOptimizationUnitRepository(EnergyOptimizationUnitRepository):
                         optimization_unit.policy_id,
                         target_ids_json,
                         optimization_unit.energy_source_id,
-                        optimization_unit.home_forecast_provider_id,
                         optimization_unit.performance_tracker_id,
+                        str(optimization_unit.home_loads_profile) if optimization_unit.home_loads_profile else None,
                         notifier_ids_json,
                     ),
                 )
@@ -250,7 +252,7 @@ class SqliteOptimizationUnitRepository(EnergyOptimizationUnitRepository):
         sql = """
             UPDATE optimization_units
             SET name = ?, description = ?, is_enabled = ?, policy_id = ?, target_miner_ids = ?, energy_source_id = ?,
-            home_forecast_provider_id = ?, performance_tracker_id = ?, notifier_ids = ?
+            performance_tracker_id = ?, home_loads_profile_id = ?, notifier_ids = ?
             WHERE id = ?
         """
         conn = self._db.get_connection()
@@ -270,8 +272,8 @@ class SqliteOptimizationUnitRepository(EnergyOptimizationUnitRepository):
                         optimization_unit.policy_id,
                         target_ids_json,
                         optimization_unit.energy_source_id,
-                        optimization_unit.home_forecast_provider_id,
                         optimization_unit.performance_tracker_id,
+                        str(optimization_unit.home_loads_profile) if optimization_unit.home_loads_profile else None,
                         notifier_ids_json,
                         optimization_unit.id,
                     ),
@@ -384,8 +386,8 @@ class SqlAlchemyOptimizationUnitRepository(EnergyOptimizationUnitRepository):
                 existing_entity.policy_id = optimization_unit.policy_id
                 existing_entity.target_miner_ids = optimization_unit.target_miner_ids
                 existing_entity.energy_source_id = optimization_unit.energy_source_id
-                existing_entity.home_forecast_provider_id = optimization_unit.home_forecast_provider_id
                 existing_entity.performance_tracker_id = optimization_unit.performance_tracker_id
+                existing_entity.home_loads_profile = optimization_unit.home_loads_profile
                 existing_entity.notifier_ids = optimization_unit.notifier_ids
 
                 session.commit()

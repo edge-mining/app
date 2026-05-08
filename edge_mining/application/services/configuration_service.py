@@ -24,9 +24,21 @@ from edge_mining.domain.forecast.common import ForecastProviderAdapter
 from edge_mining.domain.forecast.entities import ForecastProvider
 from edge_mining.domain.forecast.exceptions import ForecastProviderConfigurationError, ForecastProviderNotFoundError
 from edge_mining.domain.forecast.ports import ForecastProviderRepository
-from edge_mining.domain.home_load.entities import HomeForecastProvider
-from edge_mining.domain.home_load.exceptions import HomeForecastProviderNotFoundError
-from edge_mining.domain.home_load.ports import HomeForecastProviderRepository
+from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
+from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter, EnergyLoadHistoryProviderAdapter
+from edge_mining.domain.home_load.entities import EnergyLoadForecastProvider, EnergyLoadHistoryProvider, LoadDevice
+from edge_mining.domain.home_load.exceptions import (
+    EnergyLoadForecastProviderConfigurationError,
+    EnergyLoadForecastProviderNotFoundError,
+    EnergyLoadHistoryProviderConfigurationError,
+    EnergyLoadHistoryProviderNotFoundError,
+    HomeLoadsProfileNotFoundError,
+)
+from edge_mining.domain.home_load.ports import (
+    EnergyLoadForecastProviderRepository,
+    EnergyLoadHistoryProviderRepository,
+    HomeLoadsProfileRepository,
+)
 from edge_mining.domain.miner.aggregate_roots import Miner
 from edge_mining.domain.miner.common import MinerControllerAdapter, MinerFeatureType
 from edge_mining.domain.miner.entities import MinerController
@@ -79,6 +91,10 @@ from edge_mining.shared.adapter_maps.forecast import (
     FORECAST_PROVIDER_CONFIG_TYPE_MAP,
     FORECAST_PROVIDER_TYPE_EXTERNAL_SERVICE_MAP,
 )
+from edge_mining.shared.adapter_maps.home_load import (
+    ENERGY_LOAD_FORECAST_PROVIDER_EXTERNAL_SERVICE_MAP,
+    ENERGY_LOAD_HISTORY_PROVIDER_EXTERNAL_SERVICE_MAP,
+)
 from edge_mining.shared.adapter_maps.miner import (
     MINER_CONTROLLER_CONFIG_TYPE_MAP,
     MINER_CONTROLLER_TYPE_EXTERNAL_SERVICE_MAP,
@@ -128,9 +144,13 @@ class ConfigurationService(ConfigurationServiceInterface):
         self.policy_repo: OptimizationPolicyRepository = persistence_settings.policy_repo
         self.optimization_unit_repo: EnergyOptimizationUnitRepository = persistence_settings.optimization_unit_repo
         self.forecast_provider_repo: ForecastProviderRepository = persistence_settings.forecast_provider_repo
-        self.home_forecast_provider_repo: HomeForecastProviderRepository = (
-            persistence_settings.home_forecast_provider_repo
+        self.energy_load_forecast_provider_repo: EnergyLoadForecastProviderRepository = (
+            persistence_settings.energy_load_forecast_provider_repo
         )
+        self.energy_load_history_provider_repo: EnergyLoadHistoryProviderRepository = (
+            persistence_settings.energy_load_history_provider_repo
+        )
+        self.home_profile_repo: HomeLoadsProfileRepository = persistence_settings.home_profile_repo
         self.mining_performance_tracker_repo: MiningPerformanceTrackerRepository = (
             persistence_settings.mining_performance_tracker_repo
         )
@@ -186,8 +206,11 @@ class ConfigurationService(ConfigurationServiceInterface):
         miner_controllers: List[MinerController] = self.miner_controller_repo.get_by_external_service_id(service_id)
         energy_monitors: List[EnergyMonitor] = self.energy_monitor_repo.get_by_external_service_id(service_id)
         forecast_providers: List[ForecastProvider] = self.forecast_provider_repo.get_by_external_service_id(service_id)
-        home_forecast_providers: List[HomeForecastProvider] = (
-            self.home_forecast_provider_repo.get_by_external_service_id(service_id)
+        energy_load_forecast_providers: List[EnergyLoadForecastProvider] = (
+            self.energy_load_forecast_provider_repo.get_by_external_service_id(service_id)
+        )
+        energy_load_history_providers: List[EnergyLoadHistoryProvider] = (
+            self.energy_load_history_provider_repo.get_by_external_service_id(service_id)
         )
         notifiers: List[Notifier] = self.notifier_repo.get_by_external_service_id(service_id)
 
@@ -195,7 +218,8 @@ class ConfigurationService(ConfigurationServiceInterface):
             miner_controllers=miner_controllers,
             energy_monitors=energy_monitors,
             forecast_providers=forecast_providers,
-            home_forecast_providers=home_forecast_providers,
+            energy_load_forecast_providers=energy_load_forecast_providers,
+            energy_load_history_providers=energy_load_history_providers,
             notifiers=notifiers,
         )
         return external_service_linked_entities
@@ -233,13 +257,22 @@ class ConfigurationService(ConfigurationServiceInterface):
             self.forecast_provider_repo.update(forecast_provider)
 
         # Unlink from home forecast providers
-        for home_forecast_provider in external_service_linked_entities.home_forecast_providers:
+        for energy_load_forecast_provider in external_service_linked_entities.energy_load_forecast_providers:
             self.logger.debug(
-                f"Unlinking home forecast provider {home_forecast_provider.name} "
-                f"({home_forecast_provider.id}) from external service {service_id}"
+                f"Unlinking home forecast provider {energy_load_forecast_provider.name} "
+                f"({energy_load_forecast_provider.id}) from external service {service_id}"
             )
-            home_forecast_provider.external_service_id = None
-            self.home_forecast_provider_repo.update(home_forecast_provider)
+            energy_load_forecast_provider.external_service_id = None
+            self.energy_load_forecast_provider_repo.update(energy_load_forecast_provider)
+
+        # Unlink from home history providers
+        for energy_load_history_provider in external_service_linked_entities.energy_load_history_providers:
+            self.logger.debug(
+                f"Unlinking home history provider {energy_load_history_provider.name} "
+                f"({energy_load_history_provider.id}) from external service {service_id}"
+            )
+            energy_load_history_provider.external_service_id = None
+            self.energy_load_history_provider_repo.update(energy_load_history_provider)
 
         # Unlink from notifiers
         for notifier in external_service_linked_entities.notifiers:
@@ -879,8 +912,8 @@ class ConfigurationService(ConfigurationServiceInterface):
         policy_id: Optional[EntityId] = None,
         target_miner_ids: Optional[List[EntityId]] = None,
         energy_source_id: Optional[EntityId] = None,
-        home_forecast_provider_id: Optional[EntityId] = None,
         performance_tracker_id: Optional[EntityId] = None,
+        home_loads_profile_id: Optional[EntityId] = None,
         notifier_ids: Optional[List[EntityId]] = None,
     ) -> Optional[EnergyOptimizationUnit]:
         """Create an optimization unit into the system."""
@@ -893,8 +926,8 @@ class ConfigurationService(ConfigurationServiceInterface):
             policy_id=policy_id,
             target_miner_ids=target_miner_ids or [],
             energy_source_id=energy_source_id,
-            home_forecast_provider_id=home_forecast_provider_id,
             performance_tracker_id=performance_tracker_id,
+            home_loads_profile=home_loads_profile_id,
             notifier_ids=notifier_ids or [],
         )
 
@@ -922,7 +955,6 @@ class ConfigurationService(ConfigurationServiceInterface):
         filter_by_miners: Optional[List[EntityId]] = None,
         filter_by_energy_source: Optional[EntityId] = None,
         filter_by_policy: Optional[EntityId] = None,
-        filter_by_home_forecast_provider: Optional[EntityId] = None,
         filter_by_performance_tracker: Optional[EntityId] = None,
         filter_by_notifiers: Optional[List[EntityId]] = None,
     ) -> List[EnergyOptimizationUnit]:
@@ -936,8 +968,6 @@ class ConfigurationService(ConfigurationServiceInterface):
             eous = [eou for eou in eous if eou.energy_source_id == filter_by_energy_source]
         if filter_by_policy is not None:
             eous = [eou for eou in eous if eou.policy_id == filter_by_policy]
-        if filter_by_home_forecast_provider is not None:
-            eous = [eou for eou in eous if eou.home_forecast_provider_id == filter_by_home_forecast_provider]
         if filter_by_performance_tracker is not None:
             eous = [eou for eou in eous if eou.performance_tracker_id == filter_by_performance_tracker]
         if filter_by_notifiers is not None:
@@ -966,8 +996,8 @@ class ConfigurationService(ConfigurationServiceInterface):
         policy_id: Optional[EntityId] = None,
         target_miner_ids: Optional[List[EntityId]] = None,
         energy_source_id: Optional[EntityId] = None,
-        home_forecast_provider_id: Optional[EntityId] = None,
         performance_tracker_id: Optional[EntityId] = None,
+        home_loads_profile_id: Optional[EntityId] = None,
         notifier_ids: Optional[List[EntityId]] = None,
     ) -> EnergyOptimizationUnit:
         """Update an optimization unit in the system."""
@@ -989,10 +1019,10 @@ class ConfigurationService(ConfigurationServiceInterface):
             optimization_unit.target_miner_ids = target_miner_ids
         if energy_source_id is not None:
             optimization_unit.energy_source_id = energy_source_id
-        if home_forecast_provider_id is not None:
-            optimization_unit.home_forecast_provider_id = home_forecast_provider_id
         if performance_tracker_id is not None:
             optimization_unit.performance_tracker_id = performance_tracker_id
+        if home_loads_profile_id is not None:
+            optimization_unit.assign_home_loads_profile(home_loads_profile_id)
         if notifier_ids is not None:
             optimization_unit.notifier_ids = notifier_ids
 
@@ -1139,23 +1169,6 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         return optimization_unit
 
-    async def assign_home_forecast_provider_to_optimization_unit(
-        self, unit_id: EntityId, home_forecast_provider_id: EntityId
-    ) -> EnergyOptimizationUnit:
-        """Assign a home forecast provider to an optimization unit."""
-        self.logger.info(f"Assigning home forecast provider {home_forecast_provider_id} to optimization unit {unit_id}")
-
-        optimization_unit = self.optimization_unit_repo.get_by_id(unit_id)
-
-        if not optimization_unit:
-            raise OptimizationUnitNotFoundError(f"Optimization Unit with ID {unit_id} not found.")
-
-        optimization_unit.home_forecast_provider_id = home_forecast_provider_id
-        self.check_optimization_unit(optimization_unit)
-        self.optimization_unit_repo.update(optimization_unit)
-
-        return optimization_unit
-
     async def assign_performance_tracker_to_optimization_unit(
         self, unit_id: EntityId, performance_tracker_id: EntityId
     ) -> EnergyOptimizationUnit:
@@ -1169,6 +1182,22 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         optimization_unit.performance_tracker_id = performance_tracker_id
         self.check_optimization_unit(optimization_unit)
+        self.optimization_unit_repo.update(optimization_unit)
+
+        return optimization_unit
+
+    async def assign_home_loads_profile_to_optimization_unit(
+        self, unit_id: EntityId, home_loads_profile_id: Optional[EntityId]
+    ) -> EnergyOptimizationUnit:
+        """Assign a home loads profile to an optimization unit."""
+        self.logger.info(f"Assigning home loads profile {home_loads_profile_id} to optimization unit {unit_id}")
+
+        optimization_unit = self.optimization_unit_repo.get_by_id(unit_id)
+
+        if not optimization_unit:
+            raise OptimizationUnitNotFoundError(f"Optimization Unit with ID {unit_id} not found.")
+
+        optimization_unit.assign_home_loads_profile(home_loads_profile_id)
         self.optimization_unit_repo.update(optimization_unit)
 
         return optimization_unit
@@ -1275,16 +1304,6 @@ class ConfigurationService(ConfigurationServiceInterface):
             if strict:
                 raise OptimizationUnitConfigurationError(
                     f"Optimization Unit {optimization_unit.id} must have an energy source assigned."
-                )
-
-        # Check if the home forecast provider is valid
-        if optimization_unit.home_forecast_provider_id:
-            home_forecast_provider = self.home_forecast_provider_repo.get_by_id(
-                optimization_unit.home_forecast_provider_id
-            )
-            if not home_forecast_provider:
-                raise HomeForecastProviderNotFoundError(
-                    f"Home Forecast Provider with ID {optimization_unit.home_forecast_provider_id} not found."
                 )
 
         # Check if the performance tracker is valid
@@ -1845,6 +1864,153 @@ class ConfigurationService(ConfigurationServiceInterface):
             )
         return NOTIFIER_TYPE_EXTERNAL_SERVICE_MAP.get(adapter_type, None)
 
+    # --- Home Loads Profile Management ---
+    def add_home_loads_profile(self, name: str) -> HomeLoadsProfile:
+        """Create and persist a new home loads profile."""
+        profile = HomeLoadsProfile(name=name)
+        self.home_profile_repo.add(profile)
+        self.logger.info(f"Added home loads profile '{profile.name}' ({profile.id}).")
+        return profile
+
+    def get_home_loads_profile(self, profile_id: EntityId) -> Optional[HomeLoadsProfile]:
+        """Get a home loads profile by ID."""
+        return self.home_profile_repo.get_by_id(profile_id)
+
+    def list_home_loads_profiles(self) -> List[HomeLoadsProfile]:
+        """List all home loads profiles."""
+        return self.home_profile_repo.get_all()
+
+    def update_home_loads_profile(self, profile_id: EntityId, name: str) -> HomeLoadsProfile:
+        """Rename an existing home loads profile."""
+        profile = self.home_profile_repo.get_by_id(profile_id)
+        if not profile:
+            raise HomeLoadsProfileNotFoundError(f"Home Loads Profile with ID {profile_id} not found.")
+        profile.name = name
+        self.home_profile_repo.update(profile)
+        return profile
+
+    def remove_home_loads_profile(self, profile_id: EntityId) -> HomeLoadsProfile:
+        """Remove a home loads profile by ID."""
+        profile = self.home_profile_repo.get_by_id(profile_id)
+        if not profile:
+            raise HomeLoadsProfileNotFoundError(f"Home Loads Profile with ID {profile_id} not found.")
+        self.home_profile_repo.remove(profile_id)
+        return profile
+
+    def add_load_device_to_profile(self, profile_id: EntityId, load_device: LoadDevice) -> LoadDevice:
+        """Append a load device to a profile (raises on duplicate device name)."""
+        profile = self.home_profile_repo.get_by_id(profile_id)
+        if not profile:
+            raise HomeLoadsProfileNotFoundError(f"Home Loads Profile with ID {profile_id} not found.")
+        profile.add_device(load_device)
+        self.home_profile_repo.update(profile)
+        return load_device
+
+    def remove_load_device_from_profile(self, profile_id: EntityId, device_id: EntityId) -> LoadDevice:
+        """Remove a load device from a profile."""
+        profile = self.home_profile_repo.get_by_id(profile_id)
+        if not profile:
+            raise HomeLoadsProfileNotFoundError(f"Home Loads Profile with ID {profile_id} not found.")
+        removed = profile.remove_device(device_id)
+        self.home_profile_repo.update(profile)
+        return removed
+
+    # --- Energy Load Forecast Provider Management ---
+    def add_energy_load_forecast_provider(self, provider: EnergyLoadForecastProvider) -> EnergyLoadForecastProvider:
+        """Add a new energy load forecast provider."""
+        self.energy_load_forecast_provider_repo.add(provider)
+        self.logger.info(f"Added energy load forecast provider '{provider.name}' ({provider.id}).")
+        return provider
+
+    def get_energy_load_forecast_provider(self, provider_id: EntityId) -> Optional[EnergyLoadForecastProvider]:
+        """Get an energy load forecast provider by ID."""
+        return self.energy_load_forecast_provider_repo.get_by_id(provider_id)
+
+    def list_energy_load_forecast_providers(self) -> List[EnergyLoadForecastProvider]:
+        """List all energy load forecast providers."""
+        return self.energy_load_forecast_provider_repo.get_all()
+
+    def update_energy_load_forecast_provider(self, provider: EnergyLoadForecastProvider) -> EnergyLoadForecastProvider:
+        """Update an existing energy load forecast provider."""
+        existing = self.energy_load_forecast_provider_repo.get_by_id(provider.id)
+        if not existing:
+            raise EnergyLoadForecastProviderNotFoundError(
+                f"Energy Load Forecast Provider with ID {provider.id} not found."
+            )
+        self.energy_load_forecast_provider_repo.update(provider)
+        self.logger.info(f"Updated energy load forecast provider '{provider.name}' ({provider.id}).")
+        return provider
+
+    def remove_energy_load_forecast_provider(self, provider_id: EntityId) -> EnergyLoadForecastProvider:
+        """Remove an energy load forecast provider."""
+        provider = self.energy_load_forecast_provider_repo.get_by_id(provider_id)
+        if not provider:
+            raise EnergyLoadForecastProviderNotFoundError(
+                f"Energy Load Forecast Provider with ID {provider_id} not found."
+            )
+        self.energy_load_forecast_provider_repo.remove(provider_id)
+        self.logger.info(f"Removed energy load forecast provider '{provider.name}' ({provider.id}).")
+        return provider
+
+    # --- Energy Load History Provider Management ---
+    def add_energy_load_history_provider(self, provider: EnergyLoadHistoryProvider) -> EnergyLoadHistoryProvider:
+        """Add a new energy load history provider."""
+        self.energy_load_history_provider_repo.add(provider)
+        self.logger.info(f"Added energy load history provider '{provider.name}' ({provider.id}).")
+        return provider
+
+    def get_energy_load_history_provider(self, provider_id: EntityId) -> Optional[EnergyLoadHistoryProvider]:
+        """Get an energy load history provider by ID."""
+        return self.energy_load_history_provider_repo.get_by_id(provider_id)
+
+    def list_energy_load_history_providers(self) -> List[EnergyLoadHistoryProvider]:
+        """List all energy load history providers."""
+        return self.energy_load_history_provider_repo.get_all()
+
+    def update_energy_load_history_provider(self, provider: EnergyLoadHistoryProvider) -> EnergyLoadHistoryProvider:
+        """Update an existing energy load history provider."""
+        existing = self.energy_load_history_provider_repo.get_by_id(provider.id)
+        if not existing:
+            raise EnergyLoadHistoryProviderNotFoundError(
+                f"Energy Load History Provider with ID {provider.id} not found."
+            )
+        self.energy_load_history_provider_repo.update(provider)
+        self.logger.info(f"Updated energy load history provider '{provider.name}' ({provider.id}).")
+        return provider
+
+    def remove_energy_load_history_provider(self, provider_id: EntityId) -> EnergyLoadHistoryProvider:
+        """Remove an energy load history provider."""
+        provider = self.energy_load_history_provider_repo.get_by_id(provider_id)
+        if not provider:
+            raise EnergyLoadHistoryProviderNotFoundError(
+                f"Energy Load History Provider with ID {provider_id} not found."
+            )
+        self.energy_load_history_provider_repo.remove(provider_id)
+        self.logger.info(f"Removed energy load history provider '{provider.name}' ({provider.id}).")
+        return provider
+
+    def get_energy_load_forecast_provider_external_service_adapter(
+        self, adapter_type: EnergyLoadForecastProviderAdapter
+    ) -> Optional[ExternalServiceAdapter]:
+        """Get the external service adapter type for a specific energy load forecast provider adapter type."""
+        self.logger.debug(f"Getting external service adapter for energy load forecast provider adapter {adapter_type}")
+        if adapter_type not in ENERGY_LOAD_FORECAST_PROVIDER_EXTERNAL_SERVICE_MAP:
+            raise EnergyLoadForecastProviderConfigurationError(
+                f"Adapter type {adapter_type} is not supported for energy load forecast provider configuration."
+            )
+        return ENERGY_LOAD_FORECAST_PROVIDER_EXTERNAL_SERVICE_MAP.get(adapter_type, None)
+
+    def get_energy_load_history_provider_external_service_adapter(
+        self, adapter_type: EnergyLoadHistoryProviderAdapter
+    ) -> Optional[ExternalServiceAdapter]:
+        """Get the external service adapter type for a specific energy load history provider adapter type."""
+        self.logger.debug(f"Getting external service adapter for energy load history provider adapter {adapter_type}")
+        if adapter_type not in ENERGY_LOAD_HISTORY_PROVIDER_EXTERNAL_SERVICE_MAP:
+            raise EnergyLoadHistoryProviderConfigurationError(
+                f"Adapter type {adapter_type} is not supported for energy load history provider configuration."
+            )
+        return ENERGY_LOAD_HISTORY_PROVIDER_EXTERNAL_SERVICE_MAP.get(adapter_type, None)
+
     # --- Mining Performance Tracker Management ---
     async def add_mining_performance_tracker(
         self,
@@ -1999,8 +2165,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         self.logger.debug(f"Getting external service adapter for mining performance tracker adapter {adapter_type}")
         if adapter_type not in MINING_PERFORMANCE_TRACKER_TYPE_EXTERNAL_SERVICE_MAP:
             raise MiningPerformanceTrackerConfigurationError(
-                f"Adapter type {adapter_type} is not supported "
-                "for mining performance tracker external service mapping."
+                f"Adapter type {adapter_type} is not supported for mining performance tracker external service mapping."
             )
         return MINING_PERFORMANCE_TRACKER_TYPE_EXTERNAL_SERVICE_MAP.get(adapter_type, None)
 

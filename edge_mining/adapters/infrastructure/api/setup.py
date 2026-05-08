@@ -7,6 +7,8 @@ from fastapi import Depends, HTTPException
 from edge_mining.application.interfaces import (
     AdapterServiceInterface,
     ConfigurationServiceInterface,
+    HomeLoadHistoryServiceInterface,
+    LoadForecastTrainingServiceInterface,
     MinerActionServiceInterface,
     OptimizationServiceInterface,
 )
@@ -97,6 +99,26 @@ async def get_optimization_service(
 ) -> OptimizationServiceInterface:
     """Get OptimizationService via dependency injection."""
     return container.services.optimization_service
+
+
+async def get_home_load_history_service(
+    container: ServiceContainer = Depends(get_service_container),
+) -> HomeLoadHistoryServiceInterface:
+    """Get HomeLoadHistoryService via dependency injection."""
+    return container.services.home_load_history_service
+
+
+async def get_load_forecast_training_service(
+    container: ServiceContainer = Depends(get_service_container),
+) -> LoadForecastTrainingServiceInterface:
+    """Get LoadForecastTrainingService via dependency injection."""
+    service = container.services.load_forecast_training_service
+    if service is None:
+        raise HTTPException(
+            status_code=503,
+            detail="ML training service not available. Install ML dependencies.",
+        )
+    return service
 
 
 async def get_logger(

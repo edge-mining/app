@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Type
 
-from edge_mining.domain.common import DomainEvent, EntityId, Watts
+from edge_mining.domain.common import DomainEvent, EntityId, Timestamp, Watts
 from edge_mining.domain.energy.common import EnergyMonitorAdapter, EnergySourceType
 from edge_mining.domain.energy.entities import EnergyMonitor, EnergySource
 from edge_mining.domain.energy.ports import EnergyMonitorPort
@@ -12,7 +12,19 @@ from edge_mining.domain.energy.value_objects import Battery, Grid
 from edge_mining.domain.forecast.common import ForecastProviderAdapter
 from edge_mining.domain.forecast.entities import ForecastProvider
 from edge_mining.domain.forecast.ports import ForecastProviderPort
-from edge_mining.domain.home_load.ports import HomeForecastProviderPort
+from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
+from edge_mining.domain.home_load.entities import (
+    EnergyLoadForecastProvider,
+    EnergyLoadHistoryProvider,
+    LoadConsumptionModel,
+    LoadDevice,
+)
+from edge_mining.domain.home_load.common import (
+    EnergyLoadForecastProviderAdapter,
+    EnergyLoadHistoryProviderAdapter,
+)
+from edge_mining.domain.home_load.ports import EnergyLoadForecastProviderPort, EnergyLoadHistoryProviderPort
+from edge_mining.domain.home_load.value_objects import HomeLoadPowerPoint
 from edge_mining.domain.miner.aggregate_roots import Miner
 from edge_mining.domain.miner.common import MinerControllerAdapter, MinerFeatureType
 from edge_mining.domain.miner.entities import MinerController
@@ -84,9 +96,15 @@ class AdapterServiceInterface(ABC):
 
     @abstractmethod
     def get_home_load_forecast_provider(
-        self, home_forecast_provider_id: EntityId
-    ) -> Optional[HomeForecastProviderPort]:
+        self, energy_load_forecast_provider_id: EntityId
+    ) -> Optional[EnergyLoadForecastProviderPort]:
         """Get an home load forecast provider adapter instance."""
+
+    @abstractmethod
+    async def get_home_load_history_provider(
+        self, energy_load_history_provider_id: EntityId, device_id: EntityId
+    ) -> Optional[EnergyLoadHistoryProviderPort]:
+        """Get an energy load history provider adapter instance."""
 
     @abstractmethod
     async def get_mining_performance_tracker(self, tracker_id: EntityId) -> Optional[MiningPerformanceTrackerPort]:
@@ -127,6 +145,50 @@ class OptimizationServiceInterface(ABC):
     @abstractmethod
     async def get_decisional_context(self, optimization_unit_id: EntityId) -> Optional[DecisionalContext]:
         """Get the decisional context for a specific optimization unit."""
+
+
+class HomeLoadHistoryServiceInterface(ABC):
+    """Base interface for home load history ingestion and retention."""
+
+    @abstractmethod
+    async def collect_all(self, lookback_hours: int = 24) -> None:
+        """Collect power points from all history providers for all enabled devices."""
+
+    @abstractmethod
+    async def collect_devices(self, device_ids: List[EntityId], lookback_hours: int = 24) -> None:
+        """Collect power points for the specified devices only."""
+
+    @abstractmethod
+    async def purge_all(self, retention_days: int = 90) -> None:
+        """Purge power points older than retention_days for all devices."""
+
+    @abstractmethod
+    def get_device_history(self, device_id: EntityId, start: Timestamp, end: Timestamp) -> List[HomeLoadPowerPoint]:
+        """Retrieve stored power points for a device in a time window."""
+
+    @abstractmethod
+    def clear_device_history(self, device_id: EntityId) -> int:
+        """Delete all stored power points for a device. Returns the number of rows deleted."""
+
+
+class LoadForecastTrainingServiceInterface(ABC):
+    """Base interface for ML model training and model listing."""
+
+    @abstractmethod
+    async def train_all(self, weeks_lookback: int = 8) -> None:
+        """Train models for every device that has sufficient history."""
+
+    @abstractmethod
+    async def train_device(self, device_id: EntityId, weeks_lookback: int = 8) -> None:
+        """Train models for a single device."""
+
+    @abstractmethod
+    def get_models(self, device_id: Optional[EntityId] = None) -> List[LoadConsumptionModel]:
+        """Retrieve trained models, optionally filtered by device."""
+
+    @abstractmethod
+    def delete_model(self, model_id: EntityId) -> None:
+        """Delete a trained model by ID."""
 
 
 class MinerActionServiceInterface(ABC):
@@ -507,8 +569,8 @@ class ConfigurationServiceInterface(ABC):
         policy_id: Optional[EntityId] = None,
         target_miner_ids: Optional[List[EntityId]] = None,
         energy_source_id: Optional[EntityId] = None,
-        home_forecast_provider_id: Optional[EntityId] = None,
         performance_tracker_id: Optional[EntityId] = None,
+        home_loads_profile_id: Optional[EntityId] = None,
         notifier_ids: Optional[List[EntityId]] = None,
     ) -> Optional[EnergyOptimizationUnit]:
         """Create an optimization unit into the system."""
@@ -527,7 +589,6 @@ class ConfigurationServiceInterface(ABC):
         filter_by_miners: Optional[List[EntityId]] = None,
         filter_by_energy_source: Optional[EntityId] = None,
         filter_by_policy: Optional[EntityId] = None,
-        filter_by_home_forecast_provider: Optional[EntityId] = None,
         filter_by_performance_tracker: Optional[EntityId] = None,
         filter_by_notifiers: Optional[List[EntityId]] = None,
     ) -> List[EnergyOptimizationUnit]:
@@ -547,8 +608,8 @@ class ConfigurationServiceInterface(ABC):
         policy_id: Optional[EntityId] = None,
         target_miner_ids: Optional[List[EntityId]] = None,
         energy_source_id: Optional[EntityId] = None,
-        home_forecast_provider_id: Optional[EntityId] = None,
         performance_tracker_id: Optional[EntityId] = None,
+        home_loads_profile_id: Optional[EntityId] = None,
         notifier_ids: Optional[List[EntityId]] = None,
     ) -> EnergyOptimizationUnit:
         """Update an optimization unit in the system."""
@@ -590,16 +651,16 @@ class ConfigurationServiceInterface(ABC):
         """Assign an energy source to an optimization unit."""
 
     @abstractmethod
-    async def assign_home_forecast_provider_to_optimization_unit(
-        self, unit_id: EntityId, home_forecast_provider_id: EntityId
-    ) -> EnergyOptimizationUnit:
-        """Assign a home forecast provider to an optimization unit."""
-
-    @abstractmethod
     async def assign_performance_tracker_to_optimization_unit(
         self, unit_id: EntityId, performance_tracker_id: EntityId
     ) -> EnergyOptimizationUnit:
         """Assign a performance tracker to an optimization unit."""
+
+    @abstractmethod
+    async def assign_home_loads_profile_to_optimization_unit(
+        self, unit_id: EntityId, home_loads_profile_id: Optional[EntityId]
+    ) -> EnergyOptimizationUnit:
+        """Assign a home loads profile to an optimization unit."""
 
     @abstractmethod
     async def assign_notifiers_to_optimization_unit(
@@ -830,6 +891,93 @@ class ConfigurationServiceInterface(ABC):
     @abstractmethod
     def check_forecast_provider(self, provider: ForecastProvider) -> bool:
         """Check if a forecast provider is valid and can be used."""
+
+    # --- Home loads Management ---
+    @abstractmethod
+    def add_home_loads_profile(self, name: str) -> HomeLoadsProfile:
+        """Add a home loads profile to the system."""
+
+    @abstractmethod
+    def get_home_loads_profile(self, profile_id: EntityId) -> Optional[HomeLoadsProfile]:
+        """Get a home loads profile by its ID."""
+
+    @abstractmethod
+    def list_home_loads_profiles(self) -> List[HomeLoadsProfile]:
+        """List all home loads profiles in the system."""
+
+    @abstractmethod
+    def remove_home_loads_profile(self, profile_id: EntityId) -> HomeLoadsProfile:
+        """Remove a home loads profile from the system. Raises HomeLoadsProfileNotFoundError."""
+
+    @abstractmethod
+    def update_home_loads_profile(self, profile_id: EntityId, name: str) -> HomeLoadsProfile:
+        """Update a home loads profile in the system. Raises HomeLoadsProfileNotFoundError."""
+
+    @abstractmethod
+    def add_load_device_to_profile(self, profile_id: EntityId, load_device: LoadDevice) -> LoadDevice:
+        """Add a load device to a home loads profile. Raises HomeLoadsProfileNotFoundError."""
+
+    @abstractmethod
+    def remove_load_device_from_profile(
+        self,
+        profile_id: EntityId,
+        device_id: EntityId,
+    ) -> LoadDevice:
+        """Remove a load device from a home loads profile. Raises on missing profile or device."""
+
+    # --- Energy Load Forecast Provider Management ---
+    @abstractmethod
+    def add_energy_load_forecast_provider(self, provider: EnergyLoadForecastProvider) -> EnergyLoadForecastProvider:
+        """Add a new energy load forecast provider."""
+
+    @abstractmethod
+    def get_energy_load_forecast_provider(self, provider_id: EntityId) -> Optional[EnergyLoadForecastProvider]:
+        """Get an energy load forecast provider by ID."""
+
+    @abstractmethod
+    def list_energy_load_forecast_providers(self) -> List[EnergyLoadForecastProvider]:
+        """List all energy load forecast providers."""
+
+    @abstractmethod
+    def update_energy_load_forecast_provider(self, provider: EnergyLoadForecastProvider) -> EnergyLoadForecastProvider:
+        """Update an existing energy load forecast provider."""
+
+    @abstractmethod
+    def remove_energy_load_forecast_provider(self, provider_id: EntityId) -> EnergyLoadForecastProvider:
+        """Remove an energy load forecast provider."""
+
+    @abstractmethod
+    def get_energy_load_forecast_provider_external_service_adapter(
+        self, adapter_type: EnergyLoadForecastProviderAdapter
+    ) -> Optional[ExternalServiceAdapter]:
+        """Get the external service adapter type for a specific energy load forecast provider adapter type."""
+
+    # --- Energy Load History Provider Management ---
+    @abstractmethod
+    def add_energy_load_history_provider(self, provider: EnergyLoadHistoryProvider) -> EnergyLoadHistoryProvider:
+        """Add a new energy load history provider."""
+
+    @abstractmethod
+    def get_energy_load_history_provider(self, provider_id: EntityId) -> Optional[EnergyLoadHistoryProvider]:
+        """Get an energy load history provider by ID."""
+
+    @abstractmethod
+    def list_energy_load_history_providers(self) -> List[EnergyLoadHistoryProvider]:
+        """List all energy load history providers."""
+
+    @abstractmethod
+    def update_energy_load_history_provider(self, provider: EnergyLoadHistoryProvider) -> EnergyLoadHistoryProvider:
+        """Update an existing energy load history provider."""
+
+    @abstractmethod
+    def remove_energy_load_history_provider(self, provider_id: EntityId) -> EnergyLoadHistoryProvider:
+        """Remove an energy load history provider."""
+
+    @abstractmethod
+    def get_energy_load_history_provider_external_service_adapter(
+        self, adapter_type: EnergyLoadHistoryProviderAdapter
+    ) -> Optional[ExternalServiceAdapter]:
+        """Get the external service adapter type for a specific energy load history provider adapter type."""
 
     @abstractmethod
     def get_forecast_provider_config_by_type(
