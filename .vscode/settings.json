@@ -9,7 +9,7 @@
     "python.testing.pytestEnabled": true,
     "python.testing.unittestEnabled": false,
     "python.testing.pytestArgs": [
-        "tests"
+        "core/tests"
     ],
     "editor.formatOnSave": false,
     "editor.formatOnPaste": false,
