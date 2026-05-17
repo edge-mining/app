@@ -2,7 +2,20 @@
 
 This guide describes the recommended workflow for contributing to the Edge Mining project.
 
-> **Monorepo note:** This project uses a monorepo layout. Backend code lives in `core/`, frontend in `frontend/`. Docker build and orchestration files are at the repo root. You can run backend dev commands from the repo root (`make test`) or from `core/` directly (`cd core && make test`).
+> **Monorepo note:** This project uses a monorepo layout. Backend code lives in `core/`, frontend in `frontend/`. Docker build and orchestration files are at the repository root. You can run backend dev commands from the repo root (`make test`) or from `core/` directly (`cd core && make test`).
+
+## Architecture
+
+The project uses **Hexagonal Architecture (Ports and Adapters)** to clearly separate the business logic (Domain and Application Layer) from infrastructural dependencies (Database, external APIs, Hardware Control, User Interfaces).
+
+-   **`edge_mining/domain`**: Contains the pure business logic, subdomains and  their models (Entities, Value Objects), domain exceptions, and the interfaces (Ports) that define the contracts with the outside world.
+-   **`edge_mining/application`**: Contains the application services that orchestrate the use cases, utilizing the Domain's Ports.
+-   **`edge_mining/adapters`**: Contains the concrete implementations of Ports.
+    -   **`domain`**: Adapters strictly used by domain elements.
+    -   **`infrastructure`**: Infrastructure adapters, used cross-domain (logger, persistence, api).
+-   **`edge_mining/shared`**: Shared elements (and interfaces) used cross-domain.
+-   **`test`**: Contains application tests.
+-   **`edge_mining/__main__.py`**: Main entry point, responsible for "wiring" dependencies (Dependency Injection).
 
 ## Initial Setup
 
@@ -15,23 +28,46 @@ cd app
 
 ### 2. Setup development environment
 
-Create a Python virtual environment inside `core/` (if you have not created it yet).
+Create a Python virtual environment (if you have not created it yet).
 
 ```bash
-cd core
 python -m venv .venv
 ```
 
-and activate it before running the make commands.
+and activate it before running other commands.
 
 #### On Linux/macOS:
 ```bash
-source core/.venv/bin/activate
+source .venv/bin/activate
 ```
 #### On Windows:
 ```cmd
-core\.venv\Scripts\activate
+.venv\Scripts\activate
 ```
+
+Install the required dependencies and development tools:
+
+```bash
+pip install -r core/requirements.txt
+```
+
+```bash
+pip install -r core/requirements-dev.txt
+```
+
+Configure environment variables by copying `.env.example` to `.env` and editing the values as needed.
+
+```bash
+cp .env.example .env
+nano .env # Edit the .env file
+```
+
+Key settings:
+- `TIMEZONE`: Set your local timezone (e.g., `UTC`, `America/New_York`)
+- `LATITUDE` and `LONGITUDE`: Set your location for sunrise/sunset calculations
+- `DB_PATH`: Database URL (e.g., `sqlite:///data/db/edgemining.db` or PostgreSQL URL)
+- `RUN_MIGRATIONS_ON_STARTUP`: Set to `true` to automatically apply database migrations
+- `SCHEDULER_INTERVAL_SECONDS`: Set the interval for the optimization scheduler (default: `60`)
 
 Run the setup command to install the required dependencies.
 
@@ -135,8 +171,8 @@ make lint-fix
 make clean
 
 # Remove virtual environment if necessary
-rm -rf core/.venv
-cd core && python -m venv .venv
+rm -rf .venv
+python -m venv .venv
 make setup
 ```
 
@@ -151,15 +187,13 @@ This will generate an HTML report in `htmlcov/index.html`
 #### Security check
 
 ```bash
-cd core
-bandit -r edge_mining/
+bandit -r core/edge_mining/
 ```
 
 #### Type checking con mypy
 
 ```bash
-cd core
-mypy edge_mining/
+mypy core/edge_mining/
 ```
 
 ## Tools Structure
@@ -184,7 +218,7 @@ pre-commit autoupdate
 ```bash
 # Check virtual environment
 which python
-# Should point to core/.venv/bin/python
+# Should point to .venv/bin/python
 
 # Reinstall dependencies
 make clean
@@ -198,7 +232,7 @@ make install-dev
 # Errors don't block commits but it's good to resolve them
 
 # To run mypy manually:
-mypy edge_mining/
+mypy core/edge_mining/
 ```
 
 ### Formatting conflicts
