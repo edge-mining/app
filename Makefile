@@ -2,7 +2,7 @@
 #
 # Unified entry point for development and Docker operations.
 
-.PHONY: help setup dev-core dev-frontend format lint lint-fix test test-cov \
+.PHONY: help setup venv dev-core dev-frontend format lint lint-fix test test-cov \
         pre-commit pre-commit-install clean build up down logs restart
 
 # ── Variables ────────────────────────────────────────────────────────
@@ -15,6 +15,7 @@ help:
 	@echo ""
 	@echo "Development:"
 	@echo "  setup            - Set up full development environment (core + frontend)"
+	@echo "  venv             - Create .venv and install all Python dependencies"
 	@echo "  dev-core         - Set up core backend development environment only"
 	@echo "  dev-frontend     - Install frontend dependencies only"
 	@echo "  format           - Format core code with ruff"
@@ -35,8 +36,15 @@ help:
 
 # ── Development ──────────────────────────────────────────────────────
 
-setup: dev-core dev-frontend pre-commit-install
+setup: venv dev-core dev-frontend pre-commit-install
 	@echo "✅ Full development environment setup complete!"
+
+venv:
+	@echo "🐍 Creating virtual environment and installing dependencies..."
+	test -d .venv || python3 -m venv .venv
+	$(VENV)/pip install --upgrade pip
+	$(VENV)/pip install -r core/requirements.txt
+	@echo "✅ Virtual environment ready!"
 
 dev-core:
 	@echo "🐍 Setting up core backend..."

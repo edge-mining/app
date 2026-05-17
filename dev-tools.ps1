@@ -17,6 +17,7 @@ function Show-Help {
     Write-Host ""
     Write-Host "Development:" -ForegroundColor Yellow
     Write-Host "  setup              - Set up full development environment (core + frontend)"
+    Write-Host "  venv               - Create .venv and install all Python dependencies"
     Write-Host "  dev-core           - Set up core backend development environment only"
     Write-Host "  dev-frontend       - Install frontend dependencies only"
     Write-Host "  format             - Format core code with ruff"
@@ -39,6 +40,16 @@ function Show-Help {
     Write-Host "Example: .\dev-tools.ps1 setup" -ForegroundColor Cyan
 }
 
+function Setup-Venv {
+    Write-Host "🐍 Creating virtual environment and installing dependencies..." -ForegroundColor Blue
+    if (-not (Test-Path .venv)) {
+        & python -m venv .venv
+    }
+    & $PIP install --upgrade pip
+    & $PIP install -r core\requirements.txt
+    Write-Host "✅ Virtual environment ready!" -ForegroundColor Green
+}
+
 function Setup-DevCore {
     Write-Host "🐍 Setting up core backend..." -ForegroundColor Blue
     & $PIP install -r core\requirements-dev.txt
@@ -54,6 +65,7 @@ function Setup-DevFrontend {
 }
 
 function Setup-Environment {
+    Setup-Venv
     Setup-DevCore
     Setup-DevFrontend
     Install-PreCommitHooks
@@ -183,6 +195,7 @@ function Docker-Logs {
 switch ($Command.ToLower()) {
     "help" { Show-Help }
     "setup" { Setup-Environment }
+    "venv" { Setup-Venv }
     "dev-core" { Setup-DevCore }
     "dev-frontend" { Setup-DevFrontend }
     "format" { Format-Code }

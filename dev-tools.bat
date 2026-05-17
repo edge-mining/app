@@ -16,6 +16,7 @@ if "%COMMAND%"=="" set COMMAND=help
 REM Main command dispatcher
 if /i "%COMMAND%"=="help" goto :help
 if /i "%COMMAND%"=="setup" goto :setup
+if /i "%COMMAND%"=="venv" goto :venv
 if /i "%COMMAND%"=="dev-core" goto :dev-core
 if /i "%COMMAND%"=="dev-frontend" goto :dev-frontend
 if /i "%COMMAND%"=="format" goto :format
@@ -42,6 +43,7 @@ echo ========================================================
 echo.
 echo Development:
 echo   setup              - Set up full development environment (core + frontend)
+echo   venv               - Create .venv and install all Python dependencies
 echo   dev-core           - Set up core backend development environment only
 echo   dev-frontend       - Install frontend dependencies only
 echo   format             - Format core code with ruff
@@ -65,11 +67,26 @@ echo Example: dev-tools.bat setup
 goto :end
 
 :setup
+call :do_venv
 call :do_dev_core
 call :do_dev_frontend
 call :do_pre_commit_install
 echo ✅ Full development environment setup complete!
 goto :end
+
+:venv
+call :do_venv
+goto :end
+
+:do_venv
+echo 🐍 Creating virtual environment and installing dependencies...
+if not exist .venv (
+    python -m venv .venv
+)
+%PIP% install --upgrade pip
+%PIP% install -r core\requirements.txt
+echo ✅ Virtual environment ready!
+exit /b
 
 :dev-core
 call :do_dev_core
