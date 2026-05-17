@@ -5,7 +5,7 @@ This script provides convenient commands for managing database migrations
 while respecting the application's settings and configuration.
 
 Usage:
-    cd /root/edge-mining/core-step1
+    cd app/core
     python -m scripts.migrate status          # Check current revision
     python -m scripts.migrate upgrade         # Apply all pending migrations
     python -m scripts.migrate downgrade [n]   # Rollback n migrations (default: 1)
