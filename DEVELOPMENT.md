@@ -69,7 +69,7 @@ Key settings:
 - `RUN_MIGRATIONS_ON_STARTUP`: Set to `true` to automatically apply database migrations
 - `SCHEDULER_INTERVAL_SECONDS`: Set the interval for the optimization scheduler (default: `60`)
 
-> **Note:** By default, the application uses SQLAlchemy with SQLite for the database. Migrations are managed with Alembic. See [core/docs/ALEMBIC_MIGRATIONS.md](core/docs/ALEMBIC_MIGRATIONS.md) for detailed migration management.
+> **Note:** By default, the application uses SQLAlchemy with SQLite for the database. Migrations are managed with Alembic. See [docs/ALEMBIC_MIGRATIONS.md](docs/ALEMBIC_MIGRATIONS.md) for detailed migration management.
 
 Run the setup command to install the required dependencies.
 
