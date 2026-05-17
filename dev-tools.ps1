@@ -6,10 +6,10 @@ param(
 )
 
 # Variables
-$CORE_VENV = "core\.venv\Scripts"
-$PYTHON = "$CORE_VENV\python.exe"
-$PIP = "$CORE_VENV\pip.exe"
-$PRE_COMMIT = "$CORE_VENV\pre-commit.exe"
+$VENV = ".venv\Scripts"
+$PYTHON = "$VENV\python.exe"
+$PIP = "$VENV\pip.exe"
+$PRE_COMMIT = "$VENV\pre-commit.exe"
 
 function Show-Help {
     Write-Host "Edge Mining App — Development & Docker Commands (PowerShell)" -ForegroundColor Green
@@ -41,10 +41,7 @@ function Show-Help {
 
 function Setup-DevCore {
     Write-Host "🐍 Setting up core backend..." -ForegroundColor Blue
-    Push-Location core
-    & .\.venv\Scripts\pip.exe install -r requirements-dev.txt
-    & .\.venv\Scripts\pre-commit.exe install
-    Pop-Location
+    & $PIP install -r core\requirements-dev.txt
     Write-Host "✅ Core backend setup complete!" -ForegroundColor Green
 }
 
@@ -66,7 +63,7 @@ function Setup-Environment {
 function Format-Code {
     Write-Host "🔧 Formatting code..." -ForegroundColor Blue
     Push-Location core
-    & .\.venv\Scripts\python.exe -m ruff format edge_mining/ tests/
+    & ..\.venv\Scripts\python.exe -m ruff format edge_mining/ tests/
     Pop-Location
     Write-Host "✅ Code formatting complete!" -ForegroundColor Green
 }
@@ -74,9 +71,9 @@ function Format-Code {
 function Run-Lint {
     Write-Host "🔍 Running linting checks..." -ForegroundColor Blue
     Push-Location core
-    & .\.venv\Scripts\python.exe -m ruff check edge_mining/
-    & .\.venv\Scripts\python.exe -m mypy edge_mining/
-    & .\.venv\Scripts\python.exe -m bandit -r edge_mining/ --skip B311,B104
+    & ..\.venv\Scripts\python.exe -m ruff check edge_mining/
+    & ..\.venv\Scripts\python.exe -m mypy edge_mining/
+    & ..\.venv\Scripts\python.exe -m bandit -r edge_mining/ --skip B311,B104
     Pop-Location
     Write-Host "✅ Linting complete!" -ForegroundColor Green
 }
@@ -84,8 +81,8 @@ function Run-Lint {
 function Run-LintFix {
     Write-Host "🔧 Running auto-fixable linting..." -ForegroundColor Blue
     Push-Location core
-    & .\.venv\Scripts\python.exe -m ruff check --fix edge_mining/
-    & .\.venv\Scripts\python.exe -m ruff format edge_mining/
+    & ..\.venv\Scripts\python.exe -m ruff check --fix edge_mining/
+    & ..\.venv\Scripts\python.exe -m ruff format edge_mining/
     Pop-Location
     Write-Host "✅ Auto-fix complete!" -ForegroundColor Green
 }
@@ -93,7 +90,7 @@ function Run-LintFix {
 function Run-Tests {
     Write-Host "🧪 Running tests..." -ForegroundColor Blue
     Push-Location core
-    & .\.venv\Scripts\python.exe -m pytest tests/ -v
+    & ..\.venv\Scripts\python.exe -m pytest tests/ -v
     Pop-Location
     Write-Host "✅ Tests complete!" -ForegroundColor Green
 }
@@ -101,20 +98,20 @@ function Run-Tests {
 function Run-TestsWithCoverage {
     Write-Host "🧪 Running tests with coverage..." -ForegroundColor Blue
     Push-Location core
-    & .\.venv\Scripts\python.exe -m pytest tests/ -v --cov=edge_mining --cov-report=html --cov-report=term
+    & ..\.venv\Scripts\python.exe -m pytest tests/ -v --cov=edge_mining --cov-report=html --cov-report=term
     Pop-Location
     Write-Host "✅ Tests with coverage complete!" -ForegroundColor Green
 }
 
 function Run-PreCommit {
     Write-Host "🔧 Running pre-commit hooks..." -ForegroundColor Blue
-    & pre-commit run --all-files
+    & $PRE_COMMIT run --all-files
     Write-Host "✅ Pre-commit complete!" -ForegroundColor Green
 }
 
 function Install-PreCommitHooks {
     Write-Host "🔧 Installing pre-commit hooks..." -ForegroundColor Blue
-    & pre-commit install
+    & $PRE_COMMIT install
     Write-Host "✅ Pre-commit hooks installed!" -ForegroundColor Green
 }
 

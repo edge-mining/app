@@ -4,10 +4,10 @@ REM Batch script for Edge Mining Development Tools (Windows CMD alternative to M
 setlocal EnableDelayedExpansion
 
 REM Variables
-set CORE_VENV=core\.venv\Scripts
-set PYTHON=%CORE_VENV%\python.exe
-set PIP=%CORE_VENV%\pip.exe
-set PRE_COMMIT=%CORE_VENV%\pre-commit.exe
+set VENV=.venv\Scripts
+set PYTHON=%VENV%\python.exe
+set PIP=%VENV%\pip.exe
+set PRE_COMMIT=%VENV%\pre-commit.exe
 
 REM Get command from first argument
 set COMMAND=%1
@@ -77,10 +77,7 @@ goto :end
 
 :do_dev_core
 echo 🐍 Setting up core backend...
-pushd core
-.venv\Scripts\pip.exe install -r requirements-dev.txt
-.venv\Scripts\pre-commit.exe install
-popd
+%PIP% install -r core\requirements-dev.txt
 exit /b
 
 :dev-frontend
@@ -97,7 +94,7 @@ exit /b
 :format
 echo 🔧 Formatting code...
 pushd core
-.venv\Scripts\python.exe -m ruff format edge_mining/ tests/
+..\%PYTHON% -m ruff format edge_mining/ tests/
 popd
 echo ✅ Code formatting complete!
 goto :end
@@ -105,9 +102,9 @@ goto :end
 :lint
 echo 🔍 Running linting checks...
 pushd core
-.venv\Scripts\python.exe -m ruff check edge_mining/
-.venv\Scripts\python.exe -m mypy edge_mining/
-.venv\Scripts\python.exe -m bandit -r edge_mining/ --skip B311,B104
+..\%PYTHON% -m ruff check edge_mining/
+..\%PYTHON% -m mypy edge_mining/
+..\%PYTHON% -m bandit -r edge_mining/ --skip B311,B104
 popd
 echo ✅ Linting complete!
 goto :end
@@ -115,8 +112,8 @@ goto :end
 :lint-fix
 echo 🔧 Running auto-fixable linting...
 pushd core
-.venv\Scripts\python.exe -m ruff check --fix edge_mining/
-.venv\Scripts\python.exe -m ruff format edge_mining/
+..\%PYTHON% -m ruff check --fix edge_mining/
+..\%PYTHON% -m ruff format edge_mining/
 popd
 echo ✅ Auto-fix complete!
 goto :end
@@ -124,7 +121,7 @@ goto :end
 :test
 echo 🧪 Running tests...
 pushd core
-.venv\Scripts\python.exe -m pytest tests/ -v
+..\%PYTHON% -m pytest tests/ -v
 popd
 echo ✅ Tests complete!
 goto :end
@@ -132,7 +129,7 @@ goto :end
 :test-cov
 echo 🧪 Running tests with coverage...
 pushd core
-.venv\Scripts\python.exe -m pytest tests/ -v --cov=edge_mining --cov-report=html --cov-report=term
+..\%PYTHON% -m pytest tests/ -v --cov=edge_mining --cov-report=html --cov-report=term
 popd
 echo ✅ Tests with coverage complete!
 goto :end
@@ -143,7 +140,7 @@ call :do_pre_commit
 goto :end
 
 :do_pre_commit
-pre-commit run --all-files
+%PRE_COMMIT% run --all-files
 exit /b
 
 :pre-commit-install
@@ -152,7 +149,7 @@ goto :end
 
 :do_pre_commit_install
 echo 🔧 Installing pre-commit hooks...
-pre-commit install
+%PRE_COMMIT% install
 exit /b
 
 :clean
