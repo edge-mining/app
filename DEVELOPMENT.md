@@ -69,6 +69,8 @@ Key settings:
 - `RUN_MIGRATIONS_ON_STARTUP`: Set to `true` to automatically apply database migrations
 - `SCHEDULER_INTERVAL_SECONDS`: Set the interval for the optimization scheduler (default: `60`)
 
+> **Note:** By default, the application uses SQLAlchemy with SQLite for the database. Migrations are managed with Alembic. See [core/docs/ALEMBIC_MIGRATIONS.md](core/docs/ALEMBIC_MIGRATIONS.md) for detailed migration management.
+
 Run the setup command to install the required dependencies.
 
 **NOTE**: Use the `make` command if you are on Linux or you are on WSL. Use `dev-tools.ps1` or `dev-tools.bat` if you are on Windows.
@@ -91,7 +93,19 @@ This command:
 - Installs development dependencies from `requirements-dev.txt`.
 - Configures pre-commit hooks for automatic code quality checking.
 
-### 3. Verify everything works
+### 3. Create required directories
+
+The application stores all user data in the `data/` directory:
+```bash
+mkdir -p data/db/backups data/policies data/examples
+```
+
+**Directory structure:**
+- `data/db/` - Database file and automatic backups
+- `data/policies/` - Your optimization policy YAML files
+- `data/examples/` - Example rules for reference (templates only)
+
+### 4. Verify everything works
 
 Run the following command to check code formatting, linting, and tests before starting development. This ensures your environment is set up correctly and all pre-commit checks pass.
 
