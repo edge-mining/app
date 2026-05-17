@@ -183,6 +183,8 @@ htmlcov/
 
 # User data directory
 data/db/
+user_data/*
+user_data__/
 
 # Track example templates but ignore any custom files added by users
 data/examples/*
