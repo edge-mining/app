@@ -9,7 +9,7 @@
             "module": "edge_mining",
             "args": ["standard"],
             "python": "${workspaceFolder}/.venv/bin/python",
-            "cwd": "${workspaceFolder}"
+            "cwd": "${workspaceFolder}/core"
         },
         {
             "name": "Edge Mining Debugger: CLI Mode",
@@ -19,7 +19,7 @@
             "module": "edge_mining",
             "args": ["cli", "interactive"],
             "python": "${workspaceFolder}/.venv/bin/python",
-            "cwd": "${workspaceFolder}"
+            "cwd": "${workspaceFolder}/core"
         }
     ]
 }
