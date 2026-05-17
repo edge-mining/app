@@ -12,4 +12,19 @@ services:
     volumes:
       - ./user_data/:/app/core/data
 
+  # Development: backend-only (no nginx/frontend)
+  # Usage: docker compose --profile dev up core-dev
+  core-dev:
+    profiles: ["dev"]
+    build:
+      context: .
+      target: backend-dev
+    ports:
+      - "8001:8001"
+    environment:
+      - TIMEZONE=Europe/Rome
+      - SCHEDULER_INTERVAL_SECONDS=5
+    volumes:
+      - ./user_data/:/app/core/data
+
 networks: {}

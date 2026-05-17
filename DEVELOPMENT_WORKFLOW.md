@@ -2,20 +2,23 @@
 
 This guide describes the recommended workflow for contributing to the Edge Mining project.
 
+> **Monorepo note:** This project uses a monorepo layout. Backend code lives in `core/`, frontend in `frontend/`. Docker build and orchestration files are at the repo root. You can run backend dev commands from the repo root (`make test`) or from `core/` directly (`cd core && make test`).
+
 ## Initial Setup
 
 ### 1. Clone the repository and enter the directory
 
 ```bash
-git clone https://github.com/edge-mining/core.git
-cd core
+git clone https://github.com/edge-mining/app.git
+cd app
 ```
 
 ### 2. Setup development environment
 
-Create a Python virtual environment (if you have not created it yet, If the virtual environment is already created, skip to the next command).
+Create a Python virtual environment inside `core/` (if you have not created it yet).
 
 ```bash
+cd core
 python -m venv .venv
 ```
 
@@ -23,11 +26,11 @@ and activate it before running the make commands.
 
 #### On Linux/macOS:
 ```bash
-source .venv/bin/activate
+source core/.venv/bin/activate
 ```
 #### On Windows:
 ```cmd
-.venv\Scripts\activate
+core\.venv\Scripts\activate
 ```
 
 Run the setup command to install the required dependencies.
@@ -35,21 +38,16 @@ Run the setup command to install the required dependencies.
 **NOTE**: Use the `make` command if you are on Linux or you are on WSL. Use `dev-tools.ps1` or `dev-tools.bat` if you are on Windows.
 For more details, see [DEV_TOOLS.md](DEV_TOOLS.md).
 
-#### On Linux/macOS:
+#### From the repo root (recommended):
 ```bash
 make setup
 ```
+This sets up both backend and frontend environments.
 
-#### On Windows:
-PowerShell:
-```powershell
-.\dev-tools.ps1 setup
-```
-or
-
-Command Prompt (Batch):
-```cmd
-.\dev-tools.bat setup
+#### Or from `core/` directly:
+```bash
+cd core
+make setup
 ```
 
 This command:
@@ -137,8 +135,8 @@ make lint-fix
 make clean
 
 # Remove virtual environment if necessary
-rm -rf .venv
-python -m venv .venv
+rm -rf core/.venv
+cd core && python -m venv .venv
 make setup
 ```
 
@@ -153,12 +151,14 @@ This will generate an HTML report in `htmlcov/index.html`
 #### Security check
 
 ```bash
+cd core
 bandit -r edge_mining/
 ```
 
 #### Type checking con mypy
 
 ```bash
+cd core
 mypy edge_mining/
 ```
 
@@ -184,7 +184,7 @@ pre-commit autoupdate
 ```bash
 # Check virtual environment
 which python
-# Should point to .venv/bin/python
+# Should point to core/.venv/bin/python
 
 # Reinstall dependencies
 make clean

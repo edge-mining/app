@@ -10,6 +10,29 @@ COPY frontend/ .
 RUN npm run build
 
 
+# Backend-only stage (for development without frontend/nginx)
+FROM python:3.11-slim AS backend-dev
+
+ENV APP_HOME=/app
+ENV PYTHONPATH="$APP_HOME/core" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR $APP_HOME
+
+COPY core/ ./core/
+WORKDIR $APP_HOME/core
+COPY core/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+RUN mkdir -p /app/core/data/db/backups \
+    && mkdir -p /app/core/data/policies \
+    && mkdir -p /app/core/data/examples
+
+EXPOSE 8001
+CMD ["python", "-m", "edge_mining", "standard"]
+
+
 # Runtime: Python backend + nginx
 FROM python:3.11-slim
 

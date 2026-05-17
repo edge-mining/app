@@ -2,6 +2,12 @@
 
 This project uses various tools to maintain code quality and includes a Makefile for common development tasks. The Makefile is cross-platform compatible and works on both Windows and Linux/macOS.
 
+> **Monorepo note:** This project uses a monorepo layout (`core/` = backend, `frontend/` = web UI). You can run backend dev commands in two ways:
+> - **From the repo root:** `make test`, `make lint`, `make format`, etc. (delegates to `core/Makefile`)
+> - **From `core/` directly:** `cd core && make test`, etc.
+>
+> Pre-commit configuration (`.pre-commit-config.yaml`) lives at the repo root.
+
 ### Prerequisites for Windows users:
 To use the Makefile on Windows, you must run `make` via Windows Subsystem for Linux (WSL).
 - Install [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install)
@@ -11,6 +17,7 @@ To use the Makefile on Windows, you must run `make` via Windows Subsystem for Li
 
 PowerShell:
 ```powershell
+cd core
 .\dev-tools.ps1 help          # Show all available commands
 .\dev-tools.ps1 setup         # Set up development environment
 .\dev-tools.ps1 install       # Install dependencies
@@ -19,6 +26,7 @@ PowerShell:
 
 Command Prompt (Batch):
 ```cmd
+cd core
 .\dev-tools.bat help           # Show all available commands
 .\dev-tools.bat setup          # Set up development environment
 .\dev-tools.bat install        # Install dependencies
@@ -127,12 +135,14 @@ make test-cov
 ### Ruff - Code formatting
 
 ```bash
+cd core
 ruff format edge_mining/
 ```
 
 ### Ruff - Linting
 
 ```bash
+cd core
 ruff check edge_mining/
 ```
 
@@ -144,21 +154,24 @@ ruff check edge_mining/ --ignore=E501
 ### mypy - Type checking
 
 ```bash
+cd core
 mypy edge_mining/
 ```
 
 ### bandit - Security check
 
 ```bash
+cd core
 bandit -r edge_mining/
 ```
 
 ## Configurations
 
-- **`.pre-commit-config.yaml`**: Pre-commit hooks configuration
-- **`pyproject.toml`**: Configuration for mypy, ruff, bandit, pytest and coverage
-- **`requirements-dev.txt`**: Development dependencies
-- **`Makefile`**: Automation commands
+- **`.pre-commit-config.yaml`**: Pre-commit hooks configuration (repo root)
+- **`core/pyproject.toml`**: Configuration for mypy, ruff, bandit, pytest and coverage
+- **`core/requirements-dev.txt`**: Development dependencies
+- **`core/Makefile`**: Backend automation commands (also available via root `Makefile`)
+- **`Makefile`**: Root Makefile — unified entry point delegating to `core/Makefile`
 
 ## Troubleshooting
 
@@ -171,5 +184,5 @@ If pre-commit doesn't work properly:
 If you have dependency issues:
 
 1. Clean the environment: `make clean`
-2. Recreate the virtual environment: `python -m venv .venv`
+2. Recreate the virtual environment: `cd core && python -m venv .venv`
 3. Reinstall dependencies: `make setup`

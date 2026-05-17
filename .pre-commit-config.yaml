@@ -5,7 +5,9 @@ repos:
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix, --ignore=E501]
+        files: ^core/
       - id: ruff-format
+        files: ^core/
 
   # # mypy - Static type checking (commented out for now)
   # - repo: https://github.com/pre-commit/mirrors-mypy
@@ -21,6 +23,7 @@ repos:
     hooks:
       - id: bandit
         args: [--severity-level=high, --confidence-level=high]
+        files: ^core/
         exclude: tests/
 
   # General hooks

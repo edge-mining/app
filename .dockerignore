@@ -1,0 +1,42 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+.venv
+venv
+*.egg-info
+.mypy_cache
+.pytest_cache
+.ruff_cache
+htmlcov
+.coverage
+
+# Node
+frontend/node_modules
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Docker
+core/compose.dev.yaml
+
+# User data (mounted at runtime)
+user_data
+user_data__
+
+# Docs and dev files
+docs/
+core/docs/
+*.md
+LICENSE
+core/Makefile
+core/dev-tools.*
+core/requirements-dev.txt
+core/tests/

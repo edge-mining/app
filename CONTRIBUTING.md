@@ -2,20 +2,24 @@
 
 Thank you for your interest in contributing! Please follow these guidelines to help us maintain a high-quality project.
 
+> **Note:** This project is a monorepo. The `core/` directory contains the backend, `frontend/` contains the web UI. The root directory manages Docker builds and orchestration.
+
 ## Getting Started
 
-Refer to the [README.md](./README.md) for project overview and architecture.
-For environment setup and installation instructions, see [DEVELOPMENT_WORKFLOW.md](./DEVELOPMENT_WORKFLOW.md) and [DEV_TOOLS.md](./DEV_TOOLS.md).
+Refer to the [README.md](./README.md) for project overview and Docker setup.
+For backend environment setup and installation instructions, see [DEVELOPMENT_WORKFLOW.md](./DEVELOPMENT_WORKFLOW.md) and [DEV_TOOLS.md](./DEV_TOOLS.md).
 
 ## Development Workflow
 
 - Use feature branches for your work.
 - Follow the _Hexagonal Architecture_ and _Domain Driven Design_ conventions described in the README.
 - Clean, update, and verify your environment as described in [DEVELOPMENT_WORKFLOW.md](./DEVELOPMENT_WORKFLOW.md).
+- You can use `make` from the repo root for unified commands, or `cd core/ && make` for backend-specific tasks.
 
 ## Code Quality
 
 - Pre-commit hooks and code formatting are required. See [DEV_TOOLS.md](./DEV_TOOLS.md) for details.
+- Pre-commit configuration is at the repo root (`.pre-commit-config.yaml`).
 
 ## Pull Requests
 

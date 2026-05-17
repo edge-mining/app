@@ -1,0 +1,22 @@
+# Development-only compose for running the backend standalone (without frontend/nginx).
+# For production, use the root compose.yaml which builds the full multi-stage image.
+#
+# Usage:
+#   cd core/
+#   docker compose -f compose.dev.yaml up --build
+
+services:
+  edge-mining-core-dev:
+    image: edge-mining-core:dev
+    build:
+      context: .
+      dockerfile: ../Dockerfile
+      target: backend-dev
+    container_name: edge-mining-core-dev
+    environment:
+      - TIMEZONE=Europe/Rome
+      - SCHEDULER_INTERVAL_SECONDS=5
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./data:/app/core/data

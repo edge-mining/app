@@ -199,7 +199,17 @@ This script will:
 - Switch to the selected branch
 - Rebuild and restart the Docker stack
 
-## 7. Updating the Application Version
+---
+
+## 7. Development
+
+For local development setup (without Docker), available `make` commands, linting, testing, and contribution guidelines, see:
+
+- [`DEVELOPMENT_WORKFLOW.md`](DEVELOPMENT_WORKFLOW.md) — step-by-step setup and daily workflow
+- [`DEV_TOOLS.md`](DEV_TOOLS.md) — linting, formatting, testing tools and configuration
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — contribution guidelines and PR rules
+
+## 8. Versioning
 
 After updating the backend or frontend code, update the `VERSION.json` file with the new application version before committing the release change. This file is served statically by Nginx and must stay aligned with the bundled application state.
 

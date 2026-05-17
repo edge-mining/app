@@ -90,11 +90,11 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/edge-mining/core"
+Homepage = "https://github.com/edge-mining/app"
 Documentation = "https://github.com/edge-mining/docs"
-Repository = "https://github.com/edge-mining/core"
-"Bug Tracker" = "https://github.com/edge-mining/core/issues"
-Changelog = "https://github.com/edge-mining/core/blob/main/CHANGELOG.md"
+Repository = "https://github.com/edge-mining/app"
+"Bug Tracker" = "https://github.com/edge-mining/app/issues"
+Changelog = "https://github.com/edge-mining/app/blob/main/core/CHANGELOG.md"
 
 [project.scripts]
 edge-mining = "edge_mining.__main__:main"
