@@ -3,20 +3,12 @@ import { computed, ref, watch } from "vue";
 import router from "../../router";
 import { useLoader } from "../composables/useLoader";
 import type { UserNotification } from "../models/userNotification";
-import type { AppVersion } from "../models/appVersion";
 
 export const useAppStore = defineStore("app", () => {
   // STATE
   const userNotification = ref<UserNotification>();
-  const coreVersion = ref<string>("");
-  const coreName = ref<string>("Edge Mining");
-  const frontendVersion = __APP_VERSION__;
-  const appVersion = ref<AppVersion>({
-    version: "",
-    buildDate: "",
-    commit: "",
-  });
-  const appVersionLoading = ref(true);
+  const version = ref<string>("");
+  const versionLoading = ref(true);
   // The state bound to the loader shown in the App.vue component. Can be used by any component or service that needs to put
   // the user on hold.
   const loader = useLoader();
@@ -56,37 +48,18 @@ export const useAppStore = defineStore("app", () => {
     showToast({ status: "error", message }, reason);
   }
 
-  async function fetchCoreVersion() {
+  async function fetchVersion() {
+    versionLoading.value = true;
     try {
-      const response = await fetch(`${rootUrl.value}/version/core`);
+      const response = await fetch(`${rootUrl.value}/api/version`);
       if (response.ok) {
         const data = await response.json();
-        coreVersion.value = data.version;
-        coreName.value = data.name;
-        updateDocumentTitle();
+        version.value = data.version;
       }
     } catch (error) {
-      console.error("Failed to fetch core version:", error);
-    }
-  }
-
-  async function fetchAppVersion() {
-    appVersionLoading.value = true;
-    try {
-      const response = await fetch(`${rootUrl.value}/version/app`);
-      if (response.ok) {
-        const contentType = response.headers.get("content-type");
-        if (contentType && contentType.indexOf("application/json") !== -1) {
-          const data = await response.json();
-          if (data && data.version) {
-            appVersion.value = data;
-          }
-        }
-      }
-    } catch (error) {
-      console.warn("Failed to fetch app version:", error);
+      console.error("Failed to fetch version:", error);
     } finally {
-      appVersionLoading.value = false;
+      versionLoading.value = false;
     }
   }
 
@@ -108,19 +81,15 @@ export const useAppStore = defineStore("app", () => {
     // STATE
     userNotification,
     loader,
-    coreVersion,
-    coreName,
-    frontendVersion,
-    appVersion,
-    appVersionLoading,
+    version,
+    versionLoading,
 
     // GETTERS
     // rootUrl,
     apiUrl,
 
     // ACTIONS
-    fetchCoreVersion,
-    fetchAppVersion,
+    fetchVersion,
     showSuccessToast,
     showWarningToast,
     showInfoToast,

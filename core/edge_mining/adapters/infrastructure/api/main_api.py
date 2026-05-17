@@ -94,12 +94,12 @@ async def health_check():
     return {"status": "ok"}
 
 
-@app.get("/version/core", tags=["system"])
+@app.get("/api/version", tags=["system"])
 async def get_version():
-    """Get the current version of the Edge Mining Core software."""
+    """Get the current version of the Edge Mining software."""
     return {
         "version": __version__,
-        "name": "Edge Mining Core",
+        "name": "Edge Mining",
     }
 
 
