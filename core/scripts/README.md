@@ -39,8 +39,8 @@ The script automatically loads configuration from `.env` file:
 - `LOG_LEVEL`: Logging verbosity
 
 **See Also:**
-- [Alembic Migrations Guide](../docs/ALEMBIC_MIGRATIONS.md)
-- [Migration Example](../docs/MIGRATION_EXAMPLE.md)
+- [Alembic Migrations Guide](../../docs/ALEMBIC_MIGRATIONS.md)
+- [Migration Example](../../docs/MIGRATION_EXAMPLE.md)
 
 ## Adding New Scripts
 
