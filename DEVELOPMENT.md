@@ -2,7 +2,7 @@
 
 This guide describes the recommended workflow for contributing to the Edge Mining project.
 
-> **Monorepo note:** This project uses a monorepo layout. Backend code lives in `core/`, frontend in `frontend/`. Docker build and orchestration files are at the repository root. You can run backend dev commands from the repo root (`make test`) or from `core/` directly (`cd core && make test`).
+> **Monorepo note:** This project uses a monorepo layout. Backend code lives in `core/`, frontend in `frontend/`. Docker build and orchestration files are at the repository root.
 
 ## Architecture
 
