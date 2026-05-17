@@ -1,0 +1,184 @@
+⚠️ **Disclaimer**: *This project is in a preliminary state and under active development. Features and functionality may change significantly.*
+
+➡️ **Development Note**:
+- This is the **Core repository**, which contains the main engine of the Edge Mining system.
+- The [Add-on repository](https://github.com/edge-mining/addon) contains the Home Assistant integration.
+- The [Docs repository](https://github.com/edge-mining/docs) specifically dedicated to documentation of the Edge Mining application.
+
+
+# Edge Mining ⚡️🌞
+
+Software to optimize the use of excess energy, especially from renewable sources, through Bitcoin mining. This system automates the turning on and off of ASIC miner devices based on energy availability, production forecasts, and user-defined policies.
+
+## Architecture
+
+The project uses **Hexagonal Architecture (Ports and Adapters)** to clearly separate the business logic (Domain and Application Layer) from infrastructural dependencies (Database, external APIs, Hardware Control, User Interfaces).
+
+-   **`edge_mining/domain`**: Contains the pure business logic, subdomains and  their models (Entities, Value Objects), domain exceptions, and the interfaces (Ports) that define the contracts with the outside world.
+-   **`edge_mining/application`**: Contains the application services that orchestrate the use cases, utilizing the Domain's Ports.
+-   **`edge_mining/adapters`**: Contains the concrete implementations of Ports.
+    -   **`domain`**: Adapters strictly used by domain elements.
+    -   **`infrastructure`**: Infrastructure adapters, used cross-domain (logger, persistence, api).
+-   **`edge_mining/shared`**: Shared elements (and interfaces) used cross-domain.
+-   **`test`**: Contains application tests.
+-   **`edge_mining/__main__.py`**: Main entry point, responsible for "wiring" dependencies (Dependency Injection).
+
+## Setup
+
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/edge-mining/core.git
+    cd core
+    ```
+2.  **Create a virtual environment (recommended):**
+
+    #### On Linux/macOS:
+    ```bash
+    python -m venv .venv
+    source .venv/bin/activate
+    ```
+
+    #### On Windows:
+    ```cmd
+    python -m venv .venv
+    .venv\Scripts\activate
+    ```
+3.  **Install dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+4.  **Configure environment variables:**
+    Copy `.env.example` to `.env` and change the values according to your configuration:
+    ```bash
+    cp .env.example .env
+    nano .env # Edit the .env file
+    ```
+
+    Key settings:
+    - `PERSISTENCE_ADAPTER`: Choose between `in_memory`, `sqlite`, or `sqlalchemy` (recommended)
+    - `DB_PATH`: Database URL (e.g., `sqlite:///data/db/edgemining.db` or PostgreSQL URL)
+    - `RUN_MIGRATIONS_ON_STARTUP`: Set to `true` to automatically apply database migrations
+
+5.  **Create data directory structure:**
+
+    The application stores all user data in the `data/` directory:
+    ```bash
+    mkdir -p data/db/backups data/policies data/examples
+    ```
+
+    **Directory structure:**
+    - `data/db/` - Database file and automatic backups
+    - `data/policies/` - Your optimization policy YAML files
+    - `data/examples/` - Example rules for reference (templates only)
+
+6.  **Initialize the database (SQLAlchemy only):**
+    If using SQLAlchemy persistence, migrations **will run automatically on startup**.
+
+    See [docs/ALEMBIC_MIGRATIONS.md](docs/ALEMBIC_MIGRATIONS.md) for detailed migration management.
+
+## Execution
+
+You can run the application in different modes via the main entry point:
+
+1. **Standard Mode (Default):** Starts the main automation loop that checks available energy and controls miners at regular intervals. Starts a REST API (FastAPI) server also to interact with the system programmatically.
+```bash
+python -m edge_mining
+# Or by explicitly specifying
+python -m edge_mining standard
+```
+2. **CLI Mode:** Access the command line interface with an interactive menu to manage miners, energy sources, controller, policies, etc.
+```bash
+python -m edge_mining cli interactive
+
+```
+You can use the `--help` flag to see all available options:
+```bash
+python -m edge_mining cli --help
+```
+
+The API will be available at `http://localhost:8001` (or the configured port). You can access the interactive documentation (Swagger UI) at `http://localhost:8001/docs`.
+
+## Run with Docker Compose
+
+You can run Edge Mining Core using `docker compose` in daemon mode using the provided `compose.yaml`.
+
+**Important:** The `data/` directory is mounted as a volume, ensuring your database, policies, and backups persist even when the container is removed.
+
+Before first run, create the data directory structure:
+```bash
+mkdir -p data/db/backups data/policies data/examples
+```
+
+You can:
+- Place your optimization policy YAML files in `data/policies/`
+- Find rule examples in `data/examples/start/` and `data/examples/stop/`
+- Access the database at `data/db/edgemining.db`
+- Find automatic backups in `data/db/backups/`
+
+### 1. Build the image (first run or when `requirements.txt` changes)
+
+From the project root:
+
+```bash
+docker compose build
+```
+
+This step is required the first time and any time you modify `requirements.txt` (or other dependencies).
+
+### 2. Start Edge Mining Core in background (daemon)
+
+```bash
+docker compose up -d
+```
+
+The API will be exposed on `http://localhost:8001`.
+
+To see logs:
+
+```bash
+docker compose logs -f
+```
+
+To stop the service:
+
+```bash
+docker compose down
+```
+
+### 3. Run Edge Mining Core in interactive CLI mode via Docker
+
+You can start the interactive CLI in two ways:
+
+#### a) Standalone CLI (without standard mode running)
+
+This runs only the CLI and then stops the container when you exit:
+
+```bash
+docker compose run --rm edge-mining-core python -m edge_mining cli interactive
+```
+
+#### b) CLI while standard mode is running
+
+If the core is already running in standard mode via `docker compose up -d`, you can open an interactive CLI session inside the running container:
+
+```bash
+docker compose exec edge-mining-core python -m edge_mining cli interactive
+```
+
+### Available adapters
+
+- **Energy Monitor:** `dummy`, `home_assistant`
+- **Miner Controller:** `dummy`
+- **Forecast Provider:** `dummy`, `home_assistant`
+- **Persistence:** `in_memory`, `sqlite`, `sqlalchemy` (with Alembic migrations), `yaml` (for policies)
+- **Notification:** `dummy`, `telegram`
+- **Interaction:** `cli`, `api`
+
+
+## TODO
+
+- [ ] Implement real adapters for specific scenarios (HomeAssistant MQTT, specific ASIC APIs).
+- [ ] Implement real adapters for external APIs (Solcast, OpenWeatherMap, Mining Pools).
+- [ ] Add unit, integration and acceptance tests.
+- [ ] Implement more sophisticated home load forecasting logic.
+- [ ] Handle authentication and authorization (especially for the API).
