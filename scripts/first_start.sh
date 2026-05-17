@@ -9,8 +9,9 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-# Move to repo root (directory of this script)
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Move to repo root (parent of scripts/)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT_DIR"
 
 echo -e "${CYAN}${BOLD}============================================${NC}"
@@ -20,7 +21,7 @@ echo ""
 
 # Initialize user_data structure and default files
 echo -e "${YELLOW}>> Initializing user data...${NC}"
-./init_user_data.sh
+"$SCRIPT_DIR/init_user_data.sh"
 
 echo ""
 echo -e "${BOLD}This will build the Docker images and start the application.${NC}"

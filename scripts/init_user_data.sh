@@ -8,7 +8,7 @@ YELLOW='\033[1;33m'
 DIM='\033[2m'
 NC='\033[0m' # No Color
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_CORE_DIR="$ROOT_DIR/core"
 APP_CORE_DATA_DIR="$APP_CORE_DIR/data"
 APP_USER_DATA_DIR="$ROOT_DIR/user_data"
