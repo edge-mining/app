@@ -76,11 +76,8 @@ fi
 echo ""
 echo -e "${YELLOW}>> Switching to branch '$TARGET_BRANCH'...${NC}"
 
-# Switch branch with submodule update
-git switch "$TARGET_BRANCH" --recurse-submodules
-
-# Ensure submodules are fully in sync
-git submodule update --init --recursive
+# Switch branch
+git switch "$TARGET_BRANCH"
 
 # Initialize user_data structure and default files
 echo -e "${YELLOW}>> Initializing user data...${NC}"
