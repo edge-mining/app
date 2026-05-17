@@ -99,6 +99,28 @@ Run the following command to check code formatting, linting, and tests before st
 make pre-commit
 ```
 
+## Execution
+
+You can run the application in different modes via the main entry point:
+
+1. **Standard Mode (Default):** Starts the main automation loop that checks available energy and controls miners at regular intervals. Starts a REST API (FastAPI) server also to interact with the system programmatically.
+```bash
+python -m core/edge_mining
+# Or by explicitly specifying
+python -m core/edge_mining standard
+```
+2. **CLI Mode:** Access the command line interface with an interactive menu to manage miners, energy sources, controller, policies, etc.
+```bash
+python -m core/edge_mining cli interactive
+
+```
+You can use the `--help` flag to see all available options:
+```bash
+python -m core/edge_mining cli --help
+```
+
+The API will be available at `http://localhost:8001` (or the configured port). You can access the interactive documentation (Swagger UI) at `http://localhost:8001/docs`.
+
 ## Development Workflow
 
 ### 1. Before starting development
