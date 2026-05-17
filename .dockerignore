@@ -33,7 +33,6 @@ user_data__
 
 # Docs and dev files
 docs/
-core/docs/
 *.md
 LICENSE
 core/Makefile
