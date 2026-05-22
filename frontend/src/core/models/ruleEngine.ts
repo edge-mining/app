@@ -50,7 +50,8 @@ export const OPERATOR_SYMBOLS: Record<OperatorType, string> = {
 export interface RuleCondition {
   field: string;
   operator: OperatorType;
-  value: number | string | boolean | Array<number | string>;
+  value?: number | string | boolean | Array<number | string>;
+  value_ref?: string;
 }
 
 // Logical Group

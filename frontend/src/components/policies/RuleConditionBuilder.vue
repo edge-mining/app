@@ -72,7 +72,7 @@ const fieldSearchQuery = ref('');
 // Get all available fields from decisional context structure
 const availableFields = computed(() => {
   if (!policyStore.decisionalContextStructure) return [];
-  
+
   const flattenFields = (fields: DecisionalContextField[]): DecisionalContextField[] => {
     const result: DecisionalContextField[] = [];
     for (const field of fields) {
@@ -83,16 +83,16 @@ const availableFields = computed(() => {
     }
     return result;
   };
-  
+
   return flattenFields(policyStore.decisionalContextStructure.fields);
 });
 
 // Filter fields by search query
 const filteredFields = computed(() => {
   if (!fieldSearchQuery.value) return availableFields.value;
-  
+
   const query = fieldSearchQuery.value.toLowerCase();
-  return availableFields.value.filter(field => 
+  return availableFields.value.filter(field =>
     field.path.toLowerCase().includes(query) ||
     field.description.toLowerCase().includes(query) ||
     field.type.toLowerCase().includes(query)
@@ -102,7 +102,7 @@ const filteredFields = computed(() => {
 // Group fields by root level (first part of path)
 const groupedFields = computed(() => {
   const groups: Record<string, DecisionalContextField[]> = {};
-  
+
   for (const field of filteredFields.value) {
     const rootPath = field.path.split('.')[0];
     if (!groups[rootPath]) {
@@ -110,7 +110,7 @@ const groupedFields = computed(() => {
     }
     groups[rootPath].push(field);
   }
-  
+
   return groups;
 });
 
@@ -206,7 +206,7 @@ const updateJson = () => {
 // Validate conditions using rule engine
 const validateConditions = async () => {
   if (props.depth !== 0) return; // Only validate at root level
-  
+
   isValidating.value = true;
   try {
     const result = await ruleEngineStore.validate({
@@ -279,7 +279,7 @@ const isGroup = (ruleCondition: RuleConditions): ruleCondition is LogicalGroup =
 
 // Check if ruleCondition is a condition
 const isCondition = (ruleCondition: RuleConditions): ruleCondition is RuleCondition => {
-  return ruleCondition !== null && typeof ruleCondition === 'object' && 'field' in ruleCondition && 'operator' in ruleCondition && 'value' in ruleCondition;
+  return ruleCondition !== null && typeof ruleCondition === 'object' && 'field' in ruleCondition && 'operator' in ruleCondition && ('value' in ruleCondition || 'value_ref' in ruleCondition);
 };
 
 // Check if ruleCondition is empty (no properties)
@@ -383,8 +383,8 @@ const addCondition = () => {
 const addGroup = (type: 'any_of' | 'all_of' | 'not_') => {
   if (isGroup(workingValue.value)) {
     const currentType = groupType.value as 'any_of' | 'all_of' | 'not_';
-    
-    const newGroup = type === 'not_' 
+
+    const newGroup = type === 'not_'
       ? {
           [type]: {
             field: '',
@@ -401,7 +401,7 @@ const addGroup = (type: 'any_of' | 'all_of' | 'not_') => {
             }
           ]
         };
-    
+
     if (currentType === 'not_') {
       // not_ can only contain one item, so replace it
       updateWorkingValue(newGroup);
@@ -438,7 +438,7 @@ const toggleGroupType = (event?: Event) => {
     event.stopPropagation();
     event.stopImmediatePropagation();
   }
-  
+
   if (isGroup(workingValue.value)) {
     const currentType = groupType.value as 'any_of' | 'all_of' | 'not_';
     // Cycle: any_of -> all_of -> not_ -> any_of
@@ -446,7 +446,7 @@ const toggleGroupType = (event?: Event) => {
     if (currentType === 'any_of') newType = 'all_of';
     else if (currentType === 'all_of') newType = 'not_';
     else newType = 'any_of';
-    
+
     // Preserve content but change group type
     if (currentType === 'not_') {
       // Converting from not_ (single item) to any_of/all_of (array)
@@ -493,7 +493,7 @@ const parseValue = (val: string, operator: OperatorType): string | number | bool
       }
     }
   }
-  
+
   // Try to parse as number
   if (!isNaN(Number(val)) && val !== '') {
     return Number(val);
@@ -518,7 +518,7 @@ const handleFieldSelect = (path: string) => {
   if (isCondition(workingValue.value)) {
     updateConditionField('field', path);
   }
-  
+
   // Always close selector after selection
   showFieldSelector.value = null;
   fieldSearchQuery.value = '';
@@ -531,7 +531,7 @@ const toggleFieldSelector = (index: number | null) => {
   } else {
     showFieldSelector.value = index;
     fieldSearchQuery.value = '';
-    
+
     // Calculate dropdown position with smart direction (above/below)
     setTimeout(() => {
       if (dropdownButtonRef.value) {
@@ -539,7 +539,7 @@ const toggleFieldSelector = (index: number | null) => {
         const estimatedDropdownHeight = 560; // max-h-[500px] + header/search
         const spaceBelow = window.innerHeight - rect.bottom - 8;
         const spaceAbove = rect.top - 8;
-        
+
         let top: number;
         if (spaceBelow >= estimatedDropdownHeight) {
           top = rect.bottom + 4;
@@ -548,7 +548,7 @@ const toggleFieldSelector = (index: number | null) => {
         } else {
           top = rect.bottom + 4;
         }
-        
+
         document.documentElement.style.setProperty('--dropdown-top', `${top}px`);
         document.documentElement.style.setProperty('--dropdown-left', `${rect.left}px`);
       }
@@ -567,6 +567,100 @@ const handleValueInput = (event: Event) => {
   updateConditionField('value', parseValue(target.value, workingValue.value.operator));
 };
 
+// Check if a condition uses value_ref mode
+const isValueRefMode = computed(() => {
+  if (!isCondition(workingValue.value)) return false;
+  return 'value_ref' in workingValue.value && workingValue.value.value_ref !== undefined;
+});
+
+// Toggle between static value and field reference
+const toggleValueMode = () => {
+  if (!isCondition(workingValue.value)) return;
+  if (isValueRefMode.value) {
+    // Switch from value_ref to static value
+    const { value_ref, ...rest } = workingValue.value;
+    updateWorkingValue({ ...rest, value: '' });
+  } else {
+    // Switch from static value to value_ref
+    const { value, ...rest } = workingValue.value;
+    updateWorkingValue({ ...rest, value_ref: '' });
+  }
+};
+
+// Handle value_ref input
+const handleValueRefInput = (event: Event) => {
+  if (!isCondition(workingValue.value)) return;
+  const target = event.target as HTMLInputElement;
+  updateConditionField('value_ref', target.value);
+};
+
+// Handle value_ref field selection from dropdown
+const handleValueRefFieldSelect = (path: string) => {
+  if (isCondition(workingValue.value)) {
+    updateConditionField('value_ref', path);
+  }
+  showValueRefSelector.value = null;
+  valueRefSearchQuery.value = '';
+};
+
+// value_ref field selector state
+const showValueRefSelector = ref<number | null>(null);
+const valueRefSearchQuery = ref('');
+const valueRefDropdownRef = ref<HTMLElement | null>(null);
+const valueRefButtonRef = ref<HTMLElement | null>(null);
+
+// Filter fields for value_ref selector
+const filteredValueRefFields = computed(() => {
+  const leafFields = availableFields.value.filter(f => !f.children || f.children.length === 0);
+  if (!valueRefSearchQuery.value) return leafFields;
+  const query = valueRefSearchQuery.value.toLowerCase();
+  return leafFields.filter(field =>
+    field.path.toLowerCase().includes(query) ||
+    field.description.toLowerCase().includes(query)
+  );
+});
+
+// Group value_ref fields by root
+const groupedValueRefFields = computed(() => {
+  const groups: Record<string, DecisionalContextField[]> = {};
+  for (const field of filteredValueRefFields.value) {
+    const rootPath = field.path.split('.')[0];
+    if (!groups[rootPath]) groups[rootPath] = [];
+    groups[rootPath].push(field);
+  }
+  return groups;
+});
+
+const toggleValueRefSelector = () => {
+  if (showValueRefSelector.value !== null) {
+    showValueRefSelector.value = null;
+    valueRefSearchQuery.value = '';
+  } else {
+    showValueRefSelector.value = 0;
+    valueRefSearchQuery.value = '';
+    setTimeout(() => {
+      if (valueRefButtonRef.value) {
+        const rect = valueRefButtonRef.value.getBoundingClientRect();
+        const estimatedDropdownHeight = 400;
+        const spaceBelow = window.innerHeight - rect.bottom - 8;
+        let top: number;
+        if (spaceBelow >= estimatedDropdownHeight) {
+          top = rect.bottom + 4;
+        } else {
+          top = Math.max(4, rect.top - estimatedDropdownHeight);
+        }
+        document.documentElement.style.setProperty('--vref-dropdown-top', `${top}px`);
+        document.documentElement.style.setProperty('--vref-dropdown-left', `${rect.left}px`);
+      }
+    }, 0);
+  }
+};
+
+const closeValueRefSelector = () => {
+  showValueRefSelector.value = null;
+  valueRefSearchQuery.value = '';
+};
+
 // Close field selector when clicking outside
 const closeFieldSelector = () => {
   showFieldSelector.value = null;
@@ -583,7 +677,7 @@ const toggleAddMenu = () => {
     const rect = addMenuBtnRef.value.getBoundingClientRect();
     const menuHeight = 180;
     const spaceBelow = window.innerHeight - rect.bottom - 8;
-    
+
     let top: number;
     if (spaceBelow >= menuHeight) {
       top = rect.bottom + 4;
@@ -591,7 +685,7 @@ const toggleAddMenu = () => {
       top = Math.max(4, rect.top - menuHeight);
     }
     const left = Math.max(4, rect.right - 208);
-    
+
     addMenuPosition.value = { top: `${top}px`, left: `${left}px` };
     showAddMenu.value = true;
   }
@@ -605,30 +699,41 @@ const closeAddMenu = () => {
 onMounted(() => {
   const handleClickOutside = (event: MouseEvent) => {
     const target = event.target as HTMLElement;
-    
+
     // Handle field selector click outside
     if (showFieldSelector.value !== null) {
       const dropdown = fieldDropdownRef.value;
       const button = dropdownButtonRef.value;
-      
-      if ((!dropdown || !dropdown.contains(target)) && 
+
+      if ((!dropdown || !dropdown.contains(target)) &&
           (!button || !button.contains(target))) {
         closeFieldSelector();
       }
     }
-    
+
+    // Handle value_ref selector click outside
+    if (showValueRefSelector.value !== null) {
+      const dropdown = valueRefDropdownRef.value;
+      const button = valueRefButtonRef.value;
+
+      if ((!dropdown || !dropdown.contains(target)) &&
+          (!button || !button.contains(target))) {
+        closeValueRefSelector();
+      }
+    }
+
     // Handle add menu click outside
     if (showAddMenu.value) {
       const menu = document.querySelector('[data-add-menu]');
       const button = addMenuBtnRef.value;
-      
+
       if ((!menu || !menu.contains(target)) &&
           (!button || !button.contains(target))) {
         closeAddMenu();
       }
     }
   };
-  
+
   document.addEventListener('click', handleClickOutside);
 });
 
@@ -649,14 +754,14 @@ defineExpose({
         <div class="text-sm">Field suggestions will be available once the context structure is loaded.</div>
       </div>
     </div>
-    
+
     <!-- Tabs for Builder/JSON view (only show at root level) -->
     <div v-if="depth === 0" class="space-y-4">
       <div class="flex justify-between items-center">
         <h3 class="text-lg font-semibold">Conditions</h3>
         <div role="tablist" class="tabs tabs-boxed">
-          <a 
-            role="tab" 
+          <a
+            role="tab"
             class="tab gap-2"
             :class="{ 'tab-active': viewMode === 'builder' }"
             @click="viewMode = 'builder'; updateJson()"
@@ -664,8 +769,8 @@ defineExpose({
             <PhTree :size="16" />
             Builder
           </a>
-          <a 
-            role="tab" 
+          <a
+            role="tab"
             class="tab gap-2"
             :class="{ 'tab-active': viewMode === 'graph' }"
             @click="viewMode = 'graph'"
@@ -673,8 +778,8 @@ defineExpose({
             <PhGraph :size="16" />
             Graph
           </a>
-          <a 
-            role="tab" 
+          <a
+            role="tab"
             class="tab gap-2"
             :class="{ 'tab-active': viewMode === 'json' }"
             @click="viewMode = 'json'; updateJson()"
@@ -684,12 +789,12 @@ defineExpose({
           </a>
         </div>
       </div>
-      
+
       <!-- Action Buttons -->
       <div class="flex justify-between items-center">
         <!-- Left: God Mode & Validate -->
         <div class="flex gap-2">
-          <button 
+          <button
             @click="godMode = !godMode"
             type="button"
             class="btn btn-sm"
@@ -700,9 +805,9 @@ defineExpose({
             <PhLockOpen v-else :size="16" />
             {{ godMode ? 'Advanced Mode: ON' : 'Advanced Mode: OFF' }}
           </button>
-          
-          <button 
-            @click="validateConditions" 
+
+          <button
+            @click="validateConditions"
             type="button"
             class="btn btn-sm btn-outline"
             :disabled="isValidating"
@@ -715,16 +820,16 @@ defineExpose({
 
         <!-- Right: Save & Cancel -->
         <div v-if="hasChanges" class="flex gap-2">
-          <button 
-            @click="cancelChanges" 
+          <button
+            @click="cancelChanges"
             type="button"
             class="btn btn-sm btn-ghost"
           >
             <PhX :size="16" />
             Cancel
           </button>
-          <button 
-            @click="saveChanges" 
+          <button
+            @click="saveChanges"
             type="button"
             class="btn btn-sm btn-primary"
           >
@@ -776,8 +881,8 @@ defineExpose({
           </div>
         </div>
         <span v-if="isValidating" class="loading loading-spinner loading-sm"></span>
-        <button 
-          @click="validationResult = null" 
+        <button
+          @click="validationResult = null"
           class="btn btn-ghost btn-sm btn-circle"
           aria-label="Close validation results"
         >
@@ -796,9 +901,9 @@ defineExpose({
         v-model="jsonString"
         :readonly="!godMode"
       />
-      <button 
+      <button
         v-if="godMode"
-        @click="updateFromJson" 
+        @click="updateFromJson"
         class="btn btn-sm btn-primary mt-2"
       >
         Apply JSON Changes
@@ -807,7 +912,7 @@ defineExpose({
 
     <!-- Graph View (only at root level) -->
     <div v-if="depth === 0 && viewMode === 'graph'" class="h-[600px] border border-base-300 rounded-lg overflow-hidden">
-      <RuleConditionGraph 
+      <RuleConditionGraph
         :conditions="workingValue"
         :available-fields="availableFields"
       />
@@ -819,21 +924,21 @@ defineExpose({
       <div v-if="isEmpty(workingValue)" class="text-center py-8">
         <p class="text-sm text-base-content/50 mb-4">No conditions defined</p>
         <div class="flex gap-2 justify-center">
-          <button 
+          <button
             @click="updateWorkingValue(defaultAllOfRule)"
             class="btn btn-sm btn-primary"
             type="button"
           >
             Start with ALL OF (AND)
           </button>
-          <button 
+          <button
             @click="updateWorkingValue(defaultAnyOfRule)"
             class="btn btn-sm btn-secondary"
             type="button"
           >
             Start with ANY OF (OR)
           </button>
-          <button 
+          <button
             @click="updateWorkingValue(defaultNotRule)"
             class="btn btn-sm btn-accent"
             type="button"
@@ -842,7 +947,7 @@ defineExpose({
           </button>
         </div>
       </div>
-      
+
       <!-- Condition (leaf node) -->
       <div v-else-if="isCondition(workingValue)" class="space-y-2">
         <div class="flex gap-2 items-start">
@@ -862,7 +967,7 @@ defineExpose({
                 </span>
                 <PhCaretDown :size="16" class="flex-shrink-0" />
               </button>
-              
+
               <!-- Dropdown Menu -->
               <Teleport to="body">
                 <div
@@ -886,7 +991,7 @@ defineExpose({
                       <PhX :size="16" />
                     </button>
                   </div>
-                  
+
                   <!-- Search Box -->
                   <div class="relative">
                     <PhListMagnifyingGlass :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50 pointer-events-none z-10" />
@@ -899,7 +1004,7 @@ defineExpose({
                       @keydown.esc="closeFieldSelector"
                     />
                   </div>
-                  
+
                   <!-- Field List -->
                   <div class="max-h-[500px] overflow-y-auto space-y-1 mt-2">
                     <div v-if="Object.keys(groupedFields).length === 0" class="text-center py-4 text-base-content/50">
@@ -957,7 +1062,7 @@ defineExpose({
                 </div>
               </Teleport>
             </div>
-            
+
             <!-- Read-only field display (in basic mode) -->
             <div v-else class="relative w-full">
               <input
@@ -968,19 +1073,19 @@ defineExpose({
                 readonly
               />
             </div>
-            
+
             <!-- Field Description (below dropdown/display) -->
             <div v-if="isCondition(workingValue) && workingValue.field && getFieldInfo(workingValue.field)" class="px-1 mt-1">
               <div class="text-xs text-base-content/60">
                 {{ getFieldInfo(workingValue.field)?.description }}
               </div>
             </div>
-            
+
             <datalist id="field-suggestions">
               <option v-for="field in fieldSuggestions" :key="field" :value="field" />
             </datalist>
           </div>
-          
+
           <!-- Operator Selector -->
           <select
             :value="workingValue.operator"
@@ -991,10 +1096,33 @@ defineExpose({
               {{ op.label }}
             </option>
           </select>
-          
+
           <!-- Value Input with Type Info -->
           <div class="flex flex-col">
-            <div class="relative">
+            <!-- Mode Toggle (Static / Field Ref) -->
+            <div v-if="isGodModeEnabled" class="flex items-center gap-1 mb-1">
+              <button
+                type="button"
+                class="btn btn-xs"
+                :class="!isValueRefMode ? 'btn-primary' : 'btn-ghost'"
+                @click="isValueRefMode && toggleValueMode()"
+                title="Compare against a static value"
+              >
+                Value
+              </button>
+              <button
+                type="button"
+                class="btn btn-xs"
+                :class="isValueRefMode ? 'btn-primary' : 'btn-ghost'"
+                @click="!isValueRefMode && toggleValueMode()"
+                title="Compare against another context field"
+              >
+                Field Ref
+              </button>
+            </div>
+
+            <!-- Static Value Input -->
+            <div v-if="!isValueRefMode" class="relative">
               <!-- If field has predefined values, show dropdown -->
               <select
                 v-if="getFieldInfo(workingValue.field)?.values && getFieldInfo(workingValue.field)!.values!.length > 0 && (workingValue.operator === 'eq' || workingValue.operator === 'ne')"
@@ -1055,6 +1183,82 @@ defineExpose({
                 class="input input-bordered input-sm w-48"
               />
             </div>
+
+            <!-- Field Reference Input -->
+            <div v-else class="relative">
+              <div v-if="isGodModeEnabled" class="relative w-48">
+                <button
+                  ref="valueRefButtonRef"
+                  type="button"
+                  @click="toggleValueRefSelector()"
+                  class="btn btn-sm w-full justify-between font-mono text-xs"
+                  :class="workingValue.value_ref ? 'btn-outline border-secondary' : 'btn-ghost border-dashed'"
+                >
+                  <span class="truncate" :class="!workingValue.value_ref && 'text-base-content/50'">
+                    {{ workingValue.value_ref || 'Select field...' }}
+                  </span>
+                  <PhCaretDown :size="16" class="flex-shrink-0" />
+                </button>
+
+                <!-- value_ref Dropdown -->
+                <Teleport to="body">
+                  <div
+                    ref="valueRefDropdownRef"
+                    v-if="showValueRefSelector === 0"
+                    class="fixed z-[9999] w-[600px] max-w-[90vw] shadow-2xl bg-base-100 border border-base-300 rounded-lg"
+                    :style="{ top: 'var(--vref-dropdown-top, 0px)', left: 'var(--vref-dropdown-left, 0px)' }"
+                    @click.stop
+                    @keydown.esc="closeValueRefSelector"
+                  >
+                    <div class="p-2">
+                      <div class="flex items-center justify-between mb-2">
+                        <h4 class="text-sm font-semibold text-base-content/70">Select Reference Field</h4>
+                        <button type="button" @click="closeValueRefSelector" class="btn btn-ghost btn-xs btn-circle">
+                          <PhX :size="16" />
+                        </button>
+                      </div>
+                      <input
+                        v-model="valueRefSearchQuery"
+                        type="text"
+                        placeholder="Search fields..."
+                        class="input input-bordered input-sm w-full mb-2"
+                        @click.stop
+                        @keydown.esc="closeValueRefSelector"
+                      />
+                      <div class="max-h-[350px] overflow-y-auto space-y-1">
+                        <div v-for="(groupFields, group) in groupedValueRefFields" :key="group" class="mb-2">
+                          <div class="text-xs font-semibold text-base-content/70 px-2 py-1 bg-base-200 rounded mb-1 sticky top-0 z-10">
+                            {{ group }}
+                          </div>
+                          <button
+                            v-for="field in groupFields"
+                            :key="field.path"
+                            type="button"
+                            @click.stop="handleValueRefFieldSelect(field.path)"
+                            class="w-full text-left px-3 py-1.5 rounded transition-colors hover:bg-base-200 cursor-pointer"
+                            :class="{ 'bg-secondary/10': isCondition(workingValue) && workingValue.value_ref === field.path }"
+                          >
+                            <div class="flex items-center justify-between gap-2">
+                              <span class="font-mono text-xs">{{ field.path }}</span>
+                              <span class="badge badge-xs badge-ghost">{{ field.type }}</span>
+                            </div>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Teleport>
+              </div>
+              <!-- Read-only in basic mode -->
+              <input
+                v-else
+                :value="workingValue.value_ref || ''"
+                type="text"
+                class="input input-bordered input-sm w-48 font-mono text-xs"
+                readonly
+              />
+            </div>
+
             <!-- Type Badge (below value input) -->
             <div v-if="isCondition(workingValue) && workingValue.field && getFieldInfo(workingValue.field)" class="px-1">
               <span class="text-xs text-base-content/60">{{ getFieldInfo(workingValue.field)?.type }}</span>
@@ -1088,7 +1292,7 @@ defineExpose({
                 {{ groupType === 'all_of' ? '(AND logic)' : groupType === 'any_of' ? '(OR logic)' : '(NOT logic)' }}
               </span>
             </div>
-            
+
             <div v-if="isGodModeEnabled" class="flex gap-1">
               <button
                 ref="addMenuBtnRef"
@@ -1131,7 +1335,7 @@ defineExpose({
                   :god-mode="isGodModeEnabled"
                 />
               </div>
-              
+
               <button
                 v-if="isGodModeEnabled"
                 @click="removeItem(index)"
