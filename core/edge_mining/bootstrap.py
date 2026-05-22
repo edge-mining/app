@@ -366,6 +366,7 @@ def configure_dependencies(logger: LoggerPort, settings: AppSettings) -> Service
         logger=logger,
         forecast_mix_alpha=settings.forecast_mix_alpha,
         forecast_mix_beta=settings.forecast_mix_beta,
+        climate_zone_repo=persistence_settings.climate_zone_repo,
     )
 
     miner_action_service = MinerActionService(
