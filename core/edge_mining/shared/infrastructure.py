@@ -13,6 +13,7 @@ from edge_mining.application.interfaces import (
     LoadForecastTrainingServiceInterface,
     OptimizationServiceInterface,
 )
+from edge_mining.domain.climate.ports import ClimateMonitorRepository, ClimateZoneRepository
 from edge_mining.domain.energy.ports import (
     EnergyMonitorRepository,
     EnergySourceRepository,
@@ -61,6 +62,8 @@ class PersistenceSettings:
     notifier_repo: NotifierRepository
     external_service_repo: ExternalServiceRepository
     settings_repo: SettingsRepository
+    climate_zone_repo: ClimateZoneRepository
+    climate_monitor_repo: ClimateMonitorRepository
 
 
 @dataclass(frozen=True)
