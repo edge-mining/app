@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch, toRaw } from "vue";
-import type { ClimateZone } from "../../core/models/climateZone";
+import type { ClimateZone, TemperatureSlot } from "../../core/models/climateZone";
 import type { ClimateMonitor } from "../../core/models/climateMonitor";
 import { useClimateMonitorStore } from "../../core/stores/climateMonitorStore";
+import TemperatureScheduleEditor from "./TemperatureScheduleEditor.vue";
 import {
   PhX,
   PhFloppyDisk,
@@ -29,6 +30,9 @@ const formData = ref<ClimateZone>({
   name: "",
   area_sqm: undefined,
   climate_monitor_id: "",
+  temperature_schedule: [],
+  hysteresis_celsius: 0.5,
+  default_target_temperature: null,
 });
 
 // Watch for changes in the prop to reset form
@@ -40,12 +44,18 @@ watch(
         formData.value = {
           ...props.climateZone,
           climate_monitor_id: props.climateZone.climate_monitor_id || "",
+          temperature_schedule: props.climateZone.temperature_schedule || [],
+          hysteresis_celsius: props.climateZone.hysteresis_celsius ?? 0.5,
+          default_target_temperature: props.climateZone.default_target_temperature ?? null,
         };
       } else {
         formData.value = {
           name: "",
           area_sqm: undefined,
           climate_monitor_id: "",
+          temperature_schedule: [],
+          hysteresis_celsius: 0.5,
+          default_target_temperature: null,
         };
       }
     }
@@ -173,6 +183,55 @@ function handleSave() {
               </span>
             </label>
           </div>
+        </div>
+
+        <!-- Temperature Target Section -->
+        <div class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Default Target Temperature -->
+            <div class="form-control">
+              <label class="label mb-1">
+                <span class="label-text font-medium">Default Target (°C)</span>
+              </label>
+              <input
+                v-model.number="formData.default_target_temperature"
+                type="number"
+                step="0.5"
+                min="5"
+                max="35"
+                placeholder="e.g. 20"
+                class="input input-bordered w-full"
+              />
+              <label class="label">
+                <span class="label-text-alt text-base-content/50">
+                  Used when no schedule slot matches the current time
+                </span>
+              </label>
+            </div>
+
+            <!-- Hysteresis -->
+            <div class="form-control">
+              <label class="label mb-1">
+                <span class="label-text font-medium">Hysteresis (°C)</span>
+              </label>
+              <input
+                v-model.number="formData.hysteresis_celsius"
+                type="number"
+                step="0.1"
+                min="0.1"
+                max="3.0"
+                class="input input-bordered w-full"
+              />
+              <label class="label">
+                <span class="label-text-alt text-base-content/50">
+                  Temperature tolerance to avoid frequent on/off cycles
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Schedule Editor -->
+          <TemperatureScheduleEditor v-model="formData.temperature_schedule" />
         </div>
 
         <!-- Actions -->

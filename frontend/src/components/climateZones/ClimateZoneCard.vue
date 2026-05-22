@@ -108,6 +108,9 @@ function cancelDelete() {
           <span class="text-2xl font-bold text-base-content">
             {{ reading.temperature_celsius.toFixed(1) }}°C
           </span>
+          <span v-if="reading.target_temperature != null" class="text-sm text-base-content/50 ml-1">
+            / {{ reading.target_temperature.toFixed(1) }}°C
+          </span>
           <div v-if="reading.humidity != null" class="flex items-center gap-1 ml-auto">
             <PhDrop :size="16" class="text-sky-400" />
             <span class="text-sm text-base-content/70">{{ reading.humidity.toFixed(0) }}%</span>
