@@ -119,6 +119,7 @@ class AdapterService(AdapterServiceInterface):
         event_bus: EventBusInterface,
         logger: Optional[LoggerPort] = None,
         load_consumption_model_repo: Optional[LoadConsumptionModelRepository] = None,
+        climate_monitor_repo: Optional[ClimateMonitorRepository] = None,
     ):
         self.energy_monitor_repo = energy_monitor_repo
         self.miner_controller_repo = miner_controller_repo
@@ -131,7 +132,7 @@ class AdapterService(AdapterServiceInterface):
         self.home_load_history_repo = home_load_history_repo
         self.external_service_repo = external_service_repo
         self.load_consumption_model_repo = load_consumption_model_repo
-        self.climate_monitor_repo: Optional[ClimateMonitorRepository] = None
+        self.climate_monitor_repo = climate_monitor_repo
         # Cache for already created instances
         self._instance_cache: Dict[
             EntityId,
