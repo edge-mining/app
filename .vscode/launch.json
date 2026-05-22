@@ -8,7 +8,7 @@
             "console": "integratedTerminal",
             "module": "edge_mining",
             "args": ["standard"],
-            "python": "${workspaceFolder}/.venv/bin/python",
+            "python": "${command:python.interpreterPath}",
             "cwd": "${workspaceFolder}/core"
         },
         {
@@ -18,7 +18,7 @@
             "console": "integratedTerminal",
             "module": "edge_mining",
             "args": ["cli", "interactive"],
-            "python": "${workspaceFolder}/.venv/bin/python",
+            "python": "${command:python.interpreterPath}",
             "cwd": "${workspaceFolder}/core"
         }
     ]
