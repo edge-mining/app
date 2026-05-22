@@ -86,6 +86,20 @@ def _restore_climate_monitor_composites(mapper, connection, target: Any) -> None
             except ValueError:
                 pass
 
+    if hasattr(target, "config") and target.config is not None:
+        if isinstance(target.config, str):
+            from edge_mining.shared.adapter_maps.climate import CLIMATE_MONITOR_CONFIG_TYPE_MAP
+
+            try:
+                data = json.loads(target.config)
+                config_class = CLIMATE_MONITOR_CONFIG_TYPE_MAP.get(target.adapter_type, None)
+                if config_class:
+                    target.config = config_class.from_dict(data)
+                else:
+                    target.config = None
+            except (json.JSONDecodeError, ValueError):
+                target.config = None
+
 
 # --- ClimateZone event listeners ---
 
