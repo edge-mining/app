@@ -5,7 +5,7 @@ from typing import Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
-from edge_mining.adapters.infrastructure.persistence.sqlalchemy.repository import BaseSQLAlchemyRepository
+from edge_mining.adapters.infrastructure.persistence.sqlalchemy.base import BaseSQLAlchemyRepository
 from edge_mining.domain.climate.entities import ClimateMonitor, ClimateZone
 from edge_mining.domain.climate.exceptions import (
     ClimateMonitorAlreadyExistsError,
