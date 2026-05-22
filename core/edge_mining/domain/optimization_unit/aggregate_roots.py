@@ -24,6 +24,7 @@ class EnergyOptimizationUnit(AggregateRoot):
     target_miner_ids: List[EntityId] = field(default_factory=list)  # Miners to be controlled
     energy_source_id: Optional[EntityId] = None  # Energy source to be used
     home_loads_profile: Optional[EntityId] = None  # Home loads to manage
+    climate_zone_ids: List[EntityId] = field(default_factory=list)  # Climate zones to be monitored (room heating)
 
     # References to adapters
     performance_tracker_id: Optional[EntityId] = None  # Performance tracker to be used
@@ -69,6 +70,16 @@ class EnergyOptimizationUnit(AggregateRoot):
         """Remove a notifier from the energy optimization unit."""
         if notifier_id in self.notifier_ids:
             self.notifier_ids.remove(notifier_id)
+
+    def add_climate_zone(self, climate_zone_id: EntityId):
+        """Add a climate zone to the energy optimization unit."""
+        if climate_zone_id not in self.climate_zone_ids:
+            self.climate_zone_ids.append(climate_zone_id)
+
+    def remove_climate_zone(self, climate_zone_id: EntityId):
+        """Remove a climate zone from the energy optimization unit."""
+        if climate_zone_id in self.climate_zone_ids:
+            self.climate_zone_ids.remove(climate_zone_id)
 
     def enable(self):
         """Enable the energy optimization unit."""
