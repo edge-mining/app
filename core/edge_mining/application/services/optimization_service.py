@@ -7,7 +7,6 @@ It is responsible for:
 - Executing the decision
 """
 
-import asyncio
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
@@ -684,15 +683,13 @@ class OptimizationService(OptimizationServiceInterface):
                 self.logger.debug("No enabled energy optimization units found.")
             return
 
-        # Limit concurrent units to avoid exhausting the DB connection pool
-        unit_semaphore = asyncio.Semaphore(3)
-
-        async def _limited_process_unit(unit: EnergyOptimizationUnit):
-            async with unit_semaphore:
+        # Process units sequentially to avoid DB connection contention (SQLite serializes access anyway)
+        for unit in enabled_units:
+            try:
                 await self._process_unit(unit)
-
-        unit_tasks = [_limited_process_unit(unit) for unit in enabled_units]
-        await asyncio.gather(*unit_tasks, return_exceptions=False)
+            except Exception as e:
+                if self.logger:
+                    self.logger.error(f"Error processing unit '{unit.name}': {e}")
 
         if self.logger:
             self.logger.debug(f"Optimization run for all units finished. {len(enabled_units)} units processed.")
@@ -989,11 +986,9 @@ class OptimizationService(OptimizationServiceInterface):
                 )
             )
 
-        # Limit concurrent miner processing to avoid exhausting the DB connection pool
-        semaphore = asyncio.Semaphore(3)
-
-        async def _limited_process_miner(miner_id: EntityId):
-            async with semaphore:
+        # Process miners sequentially to avoid DB connection contention with SQLite
+        for miner_id in optimization_unit.target_miner_ids:
+            try:
                 await self._process_single_miner_in_unit(
                     optimization_unit=optimization_unit,
                     policy=policy,
@@ -1001,14 +996,14 @@ class OptimizationService(OptimizationServiceInterface):
                     miner_id=miner_id,
                     notifiers=unit_notifiers,
                 )
-
-        miner_processing_tasks = [_limited_process_miner(miner_id) for miner_id in optimization_unit.target_miner_ids]
-        await asyncio.gather(*miner_processing_tasks, return_exceptions=False)
+            except Exception as e:
+                if self.logger:
+                    self.logger.error(f"Error processing miner {miner_id} in unit '{optimization_unit.name}': {e}")
 
         if self.logger:
             self.logger.debug(
                 f"Finished processing for optimization unit '{optimization_unit.name}'. "
-                f"{len(miner_processing_tasks)} miners controlled."
+                f"{len(optimization_unit.target_miner_ids)} miners controlled."
             )
 
     async def _process_single_miner_in_unit(
