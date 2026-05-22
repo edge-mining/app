@@ -2497,11 +2497,13 @@ class ConfigurationService(ConfigurationServiceInterface):
 
     # --- Climate Zone Management ---
 
-    async def create_climate_zone(self, name: str, area_sqm: float) -> ClimateZone:
+    async def create_climate_zone(
+        self, name: str, area_sqm: float, climate_monitor_id: Optional[EntityId] = None
+    ) -> ClimateZone:
         """Create a new climate zone."""
         self.logger.debug(f"Creating climate zone '{name}' with area {area_sqm} m²")
 
-        climate_zone = ClimateZone(name=name, area_sqm=area_sqm)
+        climate_zone = ClimateZone(name=name, area_sqm=area_sqm, climate_monitor_id=climate_monitor_id)
 
         self.climate_zone_repo.add(climate_zone)
 
