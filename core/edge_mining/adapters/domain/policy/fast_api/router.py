@@ -15,6 +15,7 @@ from edge_mining.adapters.domain.policy.schemas import (
     OptimizationPolicyUpdateSchema,
     PolicyCheckSchema,
 )
+from edge_mining.adapters.domain.policy.utils import FieldStructureSchema
 
 # Import dependency injection setup functions
 from edge_mining.adapters.infrastructure.api.setup import get_config_service
@@ -404,7 +405,9 @@ async def delete_policy_rule(
 
 
 @router.get("/decisional-context/structure", response_model=DecisionalContextStructureSchema)
-async def get_decisional_context_structure_endpoint() -> DecisionalContextStructureSchema:
+async def get_decisional_context_structure_endpoint(
+    config_service: Annotated[ConfigurationServiceInterface, Depends(get_config_service)],
+) -> DecisionalContextStructureSchema:
     """
     Get the complete structure of the DecisionalContext.
 
@@ -415,4 +418,83 @@ async def get_decisional_context_structure_endpoint() -> DecisionalContextStruct
     - Documentation purposes
     - Validating field paths in rule conditions
     """
-    return DecisionalContextSchema.get_structure()
+    structure = DecisionalContextSchema.get_structure()
+
+    # Dynamically inject climate zone fields based on configured zones
+    climate_zones = config_service.list_climate_zones()
+    if climate_zones:
+        zone_children: list[FieldStructureSchema] = []
+        for zone in climate_zones:
+            zone_path = f"climate.zones.{zone.name}"
+            zone_field = FieldStructureSchema(
+                path=zone_path,
+                type="object",
+                description=f"Climate readings for zone '{zone.name}'",
+                is_optional=True,
+                children=[
+                    FieldStructureSchema(
+                        path=f"{zone_path}.temperature_celsius",
+                        type="float",
+                        description="Current temperature in Celsius",
+                    ),
+                    FieldStructureSchema(
+                        path=f"{zone_path}.humidity",
+                        type="float",
+                        description="Current humidity percentage",
+                        is_optional=True,
+                    ),
+                    FieldStructureSchema(
+                        path=f"{zone_path}.target_temperature",
+                        type="float",
+                        description="Resolved target temperature from schedule",
+                        is_optional=True,
+                    ),
+                    FieldStructureSchema(
+                        path=f"{zone_path}.hysteresis_celsius",
+                        type="float",
+                        description="Temperature hysteresis in Celsius",
+                        is_optional=True,
+                    ),
+                ],
+            )
+            zone_children.append(zone_field)
+
+        zones_field = FieldStructureSchema(
+            path="climate.zones",
+            type="object",
+            description="Climate zones indexed by name",
+            children=zone_children,
+        )
+
+        climate_field = FieldStructureSchema(
+            path="climate",
+            type="object",
+            description="Climate state snapshot with per-zone readings",
+            children=[
+                zones_field,
+                FieldStructureSchema(
+                    path="climate.avg_temperature",
+                    type="float",
+                    description="Average temperature across all zones",
+                    is_optional=True,
+                ),
+                FieldStructureSchema(
+                    path="climate.min_temperature",
+                    type="float",
+                    description="Minimum temperature across all zones",
+                    is_optional=True,
+                ),
+                FieldStructureSchema(
+                    path="climate.max_temperature",
+                    type="float",
+                    description="Maximum temperature across all zones",
+                    is_optional=True,
+                ),
+            ],
+        )
+
+        structure.fields.append(climate_field)
+        # Update total count
+        structure.total_fields += 4 + len(climate_zones) * 5  # aggregates + per-zone fields
+
+    return structure
