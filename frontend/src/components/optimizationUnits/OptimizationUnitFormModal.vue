@@ -320,42 +320,6 @@ function handleSave() {
           </div>
         </div>
 
-        <!-- Notifiers -->
-        <div class="divider text-xs text-base-content/50 my-4">
-          NOTIFIERS
-        </div>
-
-        <div class="form-control">
-          <label class="label mb-1">
-            <span class="label-text flex items-center gap-2">
-              <PhBell :size="16" class="text-purple-400" />
-              Select Notifiers
-              <span class="badge badge-sm badge-ghost">{{ selectedNotifierIds.length }} selected</span>
-            </span>
-          </label>
-          <div class="border border-base-300/50 rounded-lg p-3 max-h-48 overflow-y-auto bg-base-200/30">
-            <div v-if="notifierStore.notifiers.length === 0" class="text-base-content/40 text-center py-3 text-sm">
-              No notifiers available
-            </div>
-            <label
-              v-for="notifier in notifierStore.notifiers"
-              :key="notifier.id"
-              class="flex items-center gap-3 py-1.5 px-2 rounded-lg cursor-pointer hover:bg-base-300/30 transition-colors"
-            >
-              <input
-                type="checkbox"
-                class="checkbox checkbox-sm checkbox-primary"
-                :checked="selectedNotifierIds.includes(String(notifier.id))"
-                @change="toggleNotifierSelection(String(notifier.id))"
-              />
-              <div class="flex items-center gap-2 min-w-0">
-                <PhBell :size="14" class="text-base-content/40 flex-shrink-0" />
-                <span class="text-sm truncate">{{ notifier.name }}</span>
-              </div>
-            </label>
-          </div>
-        </div>
-
         <!-- Climate Zones -->
         <div class="divider text-xs text-base-content/50 my-4">
           CLIMATE ZONES
@@ -387,6 +351,42 @@ function handleSave() {
               <div class="flex items-center gap-2 min-w-0">
                 <PhThermometerSimple :size="14" class="text-base-content/40 flex-shrink-0" />
                 <span class="text-sm truncate">{{ zone.name }}</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Notifiers -->
+        <div class="divider text-xs text-base-content/50 my-4">
+          NOTIFIERS
+        </div>
+
+        <div class="form-control">
+          <label class="label mb-1">
+            <span class="label-text flex items-center gap-2">
+              <PhBell :size="16" class="text-purple-400" />
+              Select Notifiers
+              <span class="badge badge-sm badge-ghost">{{ selectedNotifierIds.length }} selected</span>
+            </span>
+          </label>
+          <div class="border border-base-300/50 rounded-lg p-3 max-h-48 overflow-y-auto bg-base-200/30">
+            <div v-if="notifierStore.notifiers.length === 0" class="text-base-content/40 text-center py-3 text-sm">
+              No notifiers available
+            </div>
+            <label
+              v-for="notifier in notifierStore.notifiers"
+              :key="notifier.id"
+              class="flex items-center gap-3 py-1.5 px-2 rounded-lg cursor-pointer hover:bg-base-300/30 transition-colors"
+            >
+              <input
+                type="checkbox"
+                class="checkbox checkbox-sm checkbox-primary"
+                :checked="selectedNotifierIds.includes(String(notifier.id))"
+                @change="toggleNotifierSelection(String(notifier.id))"
+              />
+              <div class="flex items-center gap-2 min-w-0">
+                <PhBell :size="14" class="text-base-content/40 flex-shrink-0" />
+                <span class="text-sm truncate">{{ notifier.name }}</span>
               </div>
             </label>
           </div>
