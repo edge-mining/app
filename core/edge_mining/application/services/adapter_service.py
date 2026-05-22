@@ -998,7 +998,14 @@ class AdapterService(AdapterServiceInterface):
         try:
             climate_monitor_factory: Optional[ClimateMonitorAdapterFactory] = None
 
-            if climate_monitor.adapter_type == ClimateMonitorAdapter.HOME_ASSISTANT_API:
+            if climate_monitor.adapter_type == ClimateMonitorAdapter.DUMMY:
+                from edge_mining.adapters.domain.climate.monitors.dummy import (
+                    DummyClimateMonitorFactory,
+                )
+
+                climate_monitor_factory = DummyClimateMonitorFactory()
+
+            elif climate_monitor.adapter_type == ClimateMonitorAdapter.HOME_ASSISTANT_API:
                 from edge_mining.adapters.domain.climate.monitors.home_assistant_api import (
                     HomeAssistantAPIClimateMonitorFactory,
                 )
