@@ -926,6 +926,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         performance_tracker_id: Optional[EntityId] = None,
         home_loads_profile_id: Optional[EntityId] = None,
         notifier_ids: Optional[List[EntityId]] = None,
+        climate_zone_ids: Optional[List[EntityId]] = None,
     ) -> Optional[EnergyOptimizationUnit]:
         """Create an optimization unit into the system."""
         self.logger.info(f"Adding optimization unit {name} ({description}), Active: {is_enabled}")
@@ -940,6 +941,7 @@ class ConfigurationService(ConfigurationServiceInterface):
             performance_tracker_id=performance_tracker_id,
             home_loads_profile=home_loads_profile_id,
             notifier_ids=notifier_ids or [],
+            climate_zone_ids=climate_zone_ids or [],
         )
 
         self.check_optimization_unit(optimization_unit)
@@ -1010,6 +1012,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         performance_tracker_id: Optional[EntityId] = None,
         home_loads_profile_id: Optional[EntityId] = None,
         notifier_ids: Optional[List[EntityId]] = None,
+        climate_zone_ids: Optional[List[EntityId]] = None,
     ) -> EnergyOptimizationUnit:
         """Update an optimization unit in the system."""
         self.logger.info(f"Updating optimization unit {unit_id} ({name})")
@@ -1036,6 +1039,8 @@ class ConfigurationService(ConfigurationServiceInterface):
             optimization_unit.assign_home_loads_profile(home_loads_profile_id)
         if notifier_ids is not None:
             optimization_unit.notifier_ids = notifier_ids
+        if climate_zone_ids is not None:
+            optimization_unit.climate_zone_ids = climate_zone_ids
 
         # On update, perform a strict checks if the optimization unit is enabled
         try:
