@@ -84,6 +84,10 @@ class BaseSQLAlchemyRepository:
             self.db_path,
             connect_args=connect_args,
             echo=echo,
+            pool_size=10,
+            max_overflow=20,
+            pool_timeout=60,
+            pool_pre_ping=True,
         )
 
         # Create session factory

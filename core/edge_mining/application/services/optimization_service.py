@@ -684,8 +684,14 @@ class OptimizationService(OptimizationServiceInterface):
                 self.logger.debug("No enabled energy optimization units found.")
             return
 
-        unit_tasks = [self._process_unit(unit) for unit in enabled_units]
-        # Don't stop for an error in a unit
+        # Limit concurrent units to avoid exhausting the DB connection pool
+        unit_semaphore = asyncio.Semaphore(3)
+
+        async def _limited_process_unit(unit: EnergyOptimizationUnit):
+            async with unit_semaphore:
+                await self._process_unit(unit)
+
+        unit_tasks = [_limited_process_unit(unit) for unit in enabled_units]
         await asyncio.gather(*unit_tasks, return_exceptions=False)
 
         if self.logger:
@@ -983,21 +989,20 @@ class OptimizationService(OptimizationServiceInterface):
                 )
             )
 
-        # TODO: should we manage miners singularly or together?
-        # TODO: should we serialize the miner process or run them in parallel?
-        # For now, we will run them in parallel, but I imagine that is not the best approach
-        # for tracking the energy used for each miner.
-        miner_processing_tasks = []
-        for miner_id in optimization_unit.target_miner_ids:
-            miner_processing_tasks.append(
-                self._process_single_miner_in_unit(
+        # Limit concurrent miner processing to avoid exhausting the DB connection pool
+        semaphore = asyncio.Semaphore(3)
+
+        async def _limited_process_miner(miner_id: EntityId):
+            async with semaphore:
+                await self._process_single_miner_in_unit(
                     optimization_unit=optimization_unit,
                     policy=policy,
                     context=context,
                     miner_id=miner_id,
                     notifiers=unit_notifiers,
                 )
-            )
+
+        miner_processing_tasks = [_limited_process_miner(miner_id) for miner_id in optimization_unit.target_miner_ids]
         await asyncio.gather(*miner_processing_tasks, return_exceptions=False)
 
         if self.logger:
