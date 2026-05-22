@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
 
+from edge_mining.domain.climate.value_objects import ClimateStateSnapshot
 from edge_mining.domain.common import ValueObject
 from edge_mining.domain.energy.entities import EnergySource
 from edge_mining.domain.energy.value_objects import EnergyStateSnapshot
@@ -32,4 +33,7 @@ class DecisionalContext(ValueObject):
 
     miner: Optional[Miner] = field(default=None)
     miner_state: Optional[MinerStateSnapshot] = field(default=None)
+
+    climate: Optional[ClimateStateSnapshot] = field(default=None)
+
     timestamp: datetime = field(default_factory=datetime.now)
