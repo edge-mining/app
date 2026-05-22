@@ -51,6 +51,9 @@ from edge_mining.adapters.infrastructure.rule_engine.factory import RuleEngineFa
 from edge_mining.application.events.common import ConfigurationUpdatedEventType
 from edge_mining.application.events.configuration_events import ConfigurationUpdatedEvent
 from edge_mining.application.interfaces import AdapterServiceInterface, EventBusInterface
+from edge_mining.domain.climate.common import ClimateMonitorAdapter
+from edge_mining.domain.climate.entities import ClimateMonitor, ClimateZone
+from edge_mining.domain.climate.ports import ClimateMonitorPort, ClimateMonitorRepository
 from edge_mining.domain.common import EntityId
 from edge_mining.domain.energy.common import EnergyMonitorAdapter
 from edge_mining.domain.energy.entities import EnergyMonitor, EnergySource
@@ -85,6 +88,7 @@ from edge_mining.shared.external_services.common import ExternalServiceAdapter
 from edge_mining.shared.external_services.entities import ExternalService
 from edge_mining.shared.external_services.ports import ExternalServicePort, ExternalServiceRepository
 from edge_mining.shared.interfaces.factories import (
+    ClimateMonitorAdapterFactory,
     EnergyLoadForecastAdapterFactory,
     EnergyMonitorAdapterFactory,
     ExternalServiceFactory,
@@ -127,6 +131,7 @@ class AdapterService(AdapterServiceInterface):
         self.home_load_history_repo = home_load_history_repo
         self.external_service_repo = external_service_repo
         self.load_consumption_model_repo = load_consumption_model_repo
+        self.climate_monitor_repo: Optional[ClimateMonitorRepository] = None
         # Cache for already created instances
         self._instance_cache: Dict[
             EntityId,
@@ -947,6 +952,77 @@ class AdapterService(AdapterServiceInterface):
                 )
             return None
         return await self._initialize_mining_performance_tracker_adapter(tracker)
+
+    async def get_climate_monitor(self, climate_zone: ClimateZone) -> Optional[ClimateMonitorPort]:
+        """Get a climate monitor adapter instance for a climate zone."""
+        if not climate_zone.climate_monitor_id:
+            if self.logger:
+                self.logger.error(f"ClimateZone '{climate_zone.name}' does not have an associated ClimateMonitor ID.")
+            return None
+        if not self.climate_monitor_repo:
+            if self.logger:
+                self.logger.error("ClimateMonitorRepository is not configured.")
+            return None
+        climate_monitor = self.climate_monitor_repo.get_by_id(climate_zone.climate_monitor_id)
+        if not climate_monitor:
+            if self.logger:
+                self.logger.error(f"ClimateMonitor ID {climate_zone.climate_monitor_id} not found.")
+            return None
+        return await self._initialize_climate_monitor_adapter(climate_zone, climate_monitor)
+
+    async def _initialize_climate_monitor_adapter(
+        self, climate_zone: ClimateZone, climate_monitor: ClimateMonitor
+    ) -> Optional[ClimateMonitorPort]:
+        """Initialize a climate monitor adapter."""
+        # Check cache first
+        if climate_monitor.id in self._instance_cache:
+            cached_instance = self._instance_cache[climate_monitor.id]
+            if cached_instance and isinstance(cached_instance, ClimateMonitorPort):
+                return cached_instance
+            if self.logger:
+                self.logger.warning(
+                    f"Cached instance for climate monitor ID {climate_monitor.id} is invalid. Reinitializing."
+                )
+
+        # Retrieve the external service if needed
+        external_service: Optional[ExternalServicePort] = None
+        if climate_monitor.external_service_id:
+            external_service = await self.get_external_service(climate_monitor.external_service_id)
+            if not external_service:
+                raise ValueError(
+                    f"Unable to load external service {climate_monitor.external_service_id} "
+                    f"for climate monitor '{climate_monitor.name}'"
+                )
+
+        try:
+            climate_monitor_factory: Optional[ClimateMonitorAdapterFactory] = None
+
+            if climate_monitor.adapter_type == ClimateMonitorAdapter.HOME_ASSISTANT_API:
+                from edge_mining.adapters.domain.climate.monitors.home_assistant_api import (
+                    HomeAssistantAPIClimateMonitorFactory,
+                )
+
+                climate_monitor_factory = HomeAssistantAPIClimateMonitorFactory()
+            else:
+                raise ValueError(f"Unsupported climate monitor adapter type: {climate_monitor.adapter_type}")
+
+            climate_monitor_factory.from_climate_zone(climate_zone)
+
+            instance = climate_monitor_factory.create(
+                config=climate_monitor.config,
+                logger=self.logger,
+                external_service=external_service,
+            )
+
+            self._instance_cache[climate_monitor.id] = instance
+            return instance
+        except Exception as e:
+            if self.logger:
+                self.logger.error(
+                    f"Failed to initialize climate monitor adapter '{climate_monitor.name}' "
+                    f"(Type: {climate_monitor.adapter_type}): {e}"
+                )
+            return None
 
     async def get_external_service(self, external_service_id: EntityId) -> Optional[ExternalServicePort]:
         """Get a specific external service instance by ID."""
