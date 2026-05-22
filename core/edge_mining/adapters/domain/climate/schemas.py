@@ -124,8 +124,11 @@ class ClimateMonitorSchema(BaseModel):
 
     def to_model(self) -> ClimateMonitor:
         configuration: Optional[ClimateMonitorConfig] = None
+        adapter_enum = (
+            ClimateMonitorAdapter(self.adapter_type) if isinstance(self.adapter_type, str) else self.adapter_type
+        )
         if self.config:
-            config_class = CLIMATE_MONITOR_CONFIG_TYPE_MAP.get(self.adapter_type, None)
+            config_class = CLIMATE_MONITOR_CONFIG_TYPE_MAP.get(adapter_enum, None)
             if config_class:
                 configuration = cast(ClimateMonitorConfig, config_class.from_dict(self.config))
         return ClimateMonitor(
@@ -153,13 +156,16 @@ class ClimateMonitorCreateSchema(BaseModel):
 
     def to_model(self) -> ClimateMonitor:
         configuration: Optional[ClimateMonitorConfig] = None
+        adapter_enum = (
+            ClimateMonitorAdapter(self.adapter_type) if isinstance(self.adapter_type, str) else self.adapter_type
+        )
         if self.config:
-            config_class = CLIMATE_MONITOR_CONFIG_TYPE_MAP.get(self.adapter_type, None)
+            config_class = CLIMATE_MONITOR_CONFIG_TYPE_MAP.get(adapter_enum, None)
             if config_class:
                 configuration = cast(ClimateMonitorConfig, config_class.from_dict(self.config))
         else:
             if self.adapter_type:
-                config_class = CLIMATE_MONITOR_CONFIG_TYPE_MAP.get(self.adapter_type, None)
+                config_class = CLIMATE_MONITOR_CONFIG_TYPE_MAP.get(adapter_enum, None)
                 if config_class:
                     configuration = cast(ClimateMonitorConfig, config_class())
         return ClimateMonitor(
