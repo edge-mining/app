@@ -4,6 +4,8 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Type
 
+from edge_mining.domain.climate.entities import ClimateZone
+from edge_mining.domain.climate.ports import ClimateMonitorPort
 from edge_mining.domain.common import DomainEvent, EntityId, Timestamp, Watts
 from edge_mining.domain.energy.common import EnergyMonitorAdapter, EnergySourceType
 from edge_mining.domain.energy.entities import EnergyMonitor, EnergySource
@@ -109,6 +111,10 @@ class AdapterServiceInterface(ABC):
     @abstractmethod
     async def get_mining_performance_tracker(self, tracker_id: EntityId) -> Optional[MiningPerformanceTrackerPort]:
         """Get a mining performance tracker adapter instance."""
+
+    @abstractmethod
+    async def get_climate_monitor(self, climate_zone: ClimateZone) -> Optional[ClimateMonitorPort]:
+        """Get a climate monitor adapter instance."""
 
     @abstractmethod
     async def get_external_service(self, external_service_id: EntityId) -> Optional[ExternalServicePort]:
