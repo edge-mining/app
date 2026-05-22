@@ -33,21 +33,21 @@ export function formatType(type: string): string {
 
 export function formatPower(watts: number | undefined): string {
   if (watts === undefined || watts === null) return "-";
-  if (watts >= 1000000) return `${(watts / 1000000).toFixed(1)} MW`;
-  if (watts >= 1000) return `${(watts / 1000).toFixed(1)} kW`;
-  return `${watts} W`;
+  if (watts >= 1000000) return `${(watts / 1000000).toFixed(2)} MW`;
+  if (watts >= 1000) return `${(watts / 1000).toFixed(2)} kW`;
+  return `${Math.round(watts)} W`;
 }
 
 export function formatCapacity(wh: number | undefined): string {
   if (wh === undefined || wh === null) return "-";
-  if (wh >= 1000000) return `${(wh / 1000000).toFixed(1)} MWh`;
-  if (wh >= 1000) return `${(wh / 1000).toFixed(1)} kWh`;
-  return `${wh} Wh`;
+  if (wh >= 1000000) return `${(wh / 1000000).toFixed(2)} MWh`;
+  if (wh >= 1000) return `${(wh / 1000).toFixed(2)} kWh`;
+  return `${Math.round(wh)} Wh`;
 }
 
 export function formatHashRate(value?: number, unit?: string): string {
   if (!value) return "-";
-  return `${value} ${unit || ""}`;
+  return `${parseFloat(value.toFixed(2))} ${unit || ""}`;
 }
 
 export function normalizeHashRate(value: number, unit: string): number {
@@ -75,4 +75,3 @@ export function formatDate(date?: string): string {
     return date;
   }
 }
-
