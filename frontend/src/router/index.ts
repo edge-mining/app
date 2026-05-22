@@ -14,6 +14,8 @@ import ExternalServicesSettingsView from "../views/settings/ExternalServicesSett
 import OptimizationUnitsSettingsView from "../views/settings/OptimizationUnitsSettingsView.vue";
 import HomeLoadsSettingsView from "../views/settings/HomeLoadsSettingsView.vue";
 import HomeLoadsTrainingView from "../views/settings/HomeLoadsTrainingView.vue";
+import ClimateZonesSettingsView from "../views/settings/ClimateZonesSettingsView.vue";
+import ClimateMonitorsSettingsView from "../views/settings/ClimateMonitorsSettingsView.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -98,6 +100,16 @@ const router = createRouter({
           path: "home-loads-training",
           name: "settings.homeLoadsTraining",
           component: HomeLoadsTrainingView,
+        },
+        {
+          path: "climate-zones",
+          name: "settings.climateZones",
+          component: ClimateZonesSettingsView,
+        },
+        {
+          path: "climate-monitors",
+          name: "settings.climateMonitors",
+          component: ClimateMonitorsSettingsView,
         },
       ],
     },

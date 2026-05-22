@@ -9,6 +9,7 @@ import {
   PhBell,
   PhGraph,
   PhHouse,
+  PhThermometerSimple,
 } from "@phosphor-icons/vue";
 import VectorIcon from "./VectorIcon.vue";
 
@@ -19,6 +20,7 @@ const isEnergyOpen = ref(true);
 const isMiningOpen = ref(true);
 const isAutomationOpen = ref(true);
 const isHomeLoadsOpen = ref(true);
+const isClimateOpen = ref(true);
 
 const isDashboardActive = computed(() =>
   route.path === "/" || route.path.startsWith("/dashboard")
@@ -46,6 +48,12 @@ const isAutomationActive = computed(() =>
 
 const isHomeLoadsActive = computed(() =>
   ["/settings/home-loads"].some((p) => route.path.startsWith(p))
+);
+
+const isClimateActive = computed(() =>
+  ["/settings/climate-zones", "/settings/climate-monitors"].some((p) =>
+    route.path.startsWith(p)
+  )
 );
 </script>
 <template>
@@ -217,6 +225,40 @@ const isHomeLoadsActive = computed(() =>
                     active-class="active text-primary"
                   >
                     Training
+                  </RouterLink>
+                </li>
+              </ul>
+            </details>
+          </li>
+
+          <!-- Climate -->
+          <li class="w-full">
+            <details :open="isClimateOpen">
+              <summary
+                class="text-sm font-medium"
+                :class="{ 'text-primary': isClimateActive }"
+                @click.prevent="isClimateOpen = !isClimateOpen"
+              >
+                <PhThermometerSimple :size="18" />
+                Climate
+              </summary>
+              <ul class="rounded-t-none p-2 w-full">
+                <li class="w-full">
+                  <RouterLink
+                    to="/settings/climate-zones"
+                    class="w-full text-sm"
+                    active-class="active text-primary"
+                  >
+                    Zones
+                  </RouterLink>
+                </li>
+                <li class="w-full">
+                  <RouterLink
+                    to="/settings/climate-monitors"
+                    class="w-full text-sm"
+                    active-class="active text-primary"
+                  >
+                    Monitors
                   </RouterLink>
                 </li>
               </ul>
