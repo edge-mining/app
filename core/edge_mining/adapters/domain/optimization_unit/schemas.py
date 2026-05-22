@@ -233,6 +233,7 @@ class EnergyOptimizationUnitCreateSchema(BaseModel):
     performance_tracker_id: Optional[str] = Field(default=None, description="ID of the performance tracker to be used")
     home_loads_profile_id: Optional[str] = Field(default=None, description="ID of the home loads profile to be used")
     notifier_ids: List[str] = Field(default_factory=list, description="List of notifier IDs to be used")
+    climate_zone_ids: List[str] = Field(default_factory=list, description="List of climate zone IDs to be monitored")
 
     @field_validator("name")
     @classmethod
