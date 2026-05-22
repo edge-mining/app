@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from edge_mining.domain.climate.common import ClimateMonitorAdapter
 from edge_mining.domain.climate.entities import ClimateMonitor, ClimateZone
-from edge_mining.domain.climate.value_objects import EnvironmentStateSnapshot
+from edge_mining.domain.climate.value_objects import ClimateZoneReading
 from edge_mining.domain.common import EntityId
 
 
@@ -17,8 +17,8 @@ class ClimateMonitorPort(ABC):
         self.climate_monitor_type = climate_monitor_type
 
     @abstractmethod
-    async def get_environment_state(self) -> Optional[EnvironmentStateSnapshot]:
-        """Fetches the latest environment readings from the sensor."""
+    async def get_climate_reading(self) -> Optional[ClimateZoneReading]:
+        """Fetches the latest climate reading from the sensor."""
         raise NotImplementedError
 
 
