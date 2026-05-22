@@ -51,6 +51,12 @@ class RuleEvaluator:
             field_value = RuleEvaluator._get_field_value(context, condition.field)
 
             if field_value is None:
+                # Check if the root attribute is an optional field that is simply not configured
+                root_field = condition.field.split(".")[0]
+                root_value = getattr(context, root_field, None)
+                if root_value is None:
+                    # Optional data not available (e.g. no home_load profile configured) — skip silently
+                    return False
                 print(f"Field '{condition.field}' not found in context.")
                 return False
 
