@@ -10,7 +10,10 @@ from edge_mining.domain.climate.common import ClimateMonitorAdapter
 from edge_mining.domain.climate.entities import ClimateMonitor, ClimateZone
 from edge_mining.domain.climate.value_objects import ClimateStateSnapshot, ClimateZoneReading
 from edge_mining.domain.common import EntityId
-from edge_mining.shared.adapter_configs.climate import ClimateMonitorHomeAssistantConfig
+from edge_mining.shared.adapter_configs.climate import (
+    ClimateMonitorDummyConfig,
+    ClimateMonitorHomeAssistantConfig,
+)
 from edge_mining.shared.adapter_maps.climate import CLIMATE_MONITOR_CONFIG_TYPE_MAP
 from edge_mining.shared.interfaces.config import ClimateMonitorConfig
 
@@ -197,6 +200,23 @@ class ClimateMonitorUpdateSchema(BaseModel):
 # --- Config Schemas ---
 
 
+class ClimateMonitorDummyConfigSchema(BaseModel):
+    """Schema for Dummy climate monitor configuration."""
+
+    min_temperature: float = Field(default=18.0, description="Minimum simulated temperature (°C)")
+    max_temperature: float = Field(default=26.0, description="Maximum simulated temperature (°C)")
+    min_humidity: float = Field(default=30.0, description="Minimum simulated humidity (%)")
+    max_humidity: float = Field(default=70.0, description="Maximum simulated humidity (%)")
+
+    def to_model(self) -> ClimateMonitorDummyConfig:
+        return ClimateMonitorDummyConfig(
+            min_temperature=self.min_temperature,
+            max_temperature=self.max_temperature,
+            min_humidity=self.min_humidity,
+            max_humidity=self.max_humidity,
+        )
+
+
 class ClimateMonitorHomeAssistantConfigSchema(BaseModel):
     """Schema for Home Assistant climate monitor configuration."""
 
@@ -214,8 +234,9 @@ class ClimateMonitorHomeAssistantConfigSchema(BaseModel):
 
 CLIMATE_MONITOR_CONFIG_SCHEMA_MAP: Dict[
     type[ClimateMonitorConfig],
-    Union[type[ClimateMonitorHomeAssistantConfigSchema]],
+    Union[type[ClimateMonitorDummyConfigSchema], type[ClimateMonitorHomeAssistantConfigSchema]],
 ] = {
+    ClimateMonitorDummyConfig: ClimateMonitorDummyConfigSchema,
     ClimateMonitorHomeAssistantConfig: ClimateMonitorHomeAssistantConfigSchema,
 }
 
