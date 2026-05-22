@@ -476,6 +476,7 @@ class AdapterService(AdapterServiceInterface):
             return cached_instance
 
         # Retrieve the external service associated to the forecast provider
+        external_service = None
         if forecast_provider.external_service_id:
             external_service = await self.get_external_service(forecast_provider.external_service_id)
             if not external_service:
