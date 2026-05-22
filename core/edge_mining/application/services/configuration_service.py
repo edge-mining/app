@@ -1052,7 +1052,17 @@ class ConfigurationService(ConfigurationServiceInterface):
             raise OptimizationUnitConfigurationError(
                 f"Optimization Unit {unit_id} must have a policy assigned before activation."
             )
-        self.check_policy(optimization_unit.policy_id)
+
+        try:
+            self.check_policy(optimization_unit.policy_id)
+        except (PolicyConfigurationError, PolicyError, PolicyNotFoundError) as e:
+            self.logger.error(
+                f"Policy check failed for Optimization Unit {unit_id} "
+                f"(policy_id={optimization_unit.policy_id}): {e}"
+            )
+            raise OptimizationUnitConfigurationError(
+                f"Policy validation failed for Optimization Unit {unit_id}: {e}"
+            ) from e
 
         optimization_unit.enable()
 
