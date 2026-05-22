@@ -7,6 +7,7 @@ import { useEnergySourceStore } from "../../core/stores/energySourceStore";
 import { useNotifierStore } from "../../core/stores/notifierStore";
 import { useHomeLoadsProfileStore } from "../../core/stores/homeLoadsProfileStore";
 import { usePerformanceTrackerStore } from "../../core/stores/performanceTrackerStore";
+import { useClimateZoneStore } from "../../core/stores/climateZoneStore";
 import {
   PhX,
   PhFloppyDisk,
@@ -17,6 +18,7 @@ import {
   PhChartLineUp,
   PhBell,
   PhShieldCheck,
+  PhThermometerSimple,
 } from "@phosphor-icons/vue";
 
 const props = defineProps<{
@@ -37,6 +39,7 @@ const energySourceStore = useEnergySourceStore();
 const notifierStore = useNotifierStore();
 const homeLoadsProfileStore = useHomeLoadsProfileStore();
 const performanceTrackerStore = usePerformanceTrackerStore();
+const climateZoneStore = useClimateZoneStore();
 
 // Local form state
 const formData = ref({
@@ -50,6 +53,7 @@ const formData = ref({
 
 const selectedMinerIds = ref<string[]>([]);
 const selectedNotifierIds = ref<string[]>([]);
+const selectedClimateZoneIds = ref<string[]>([]);
 
 // Watch for modal open to reset/populate form
 watch(
@@ -67,6 +71,7 @@ watch(
         };
         selectedMinerIds.value = [...props.unit.target_miner_ids];
         selectedNotifierIds.value = [...props.unit.notifier_ids];
+        selectedClimateZoneIds.value = [...(props.unit.climate_zone_ids || [])];
       } else {
         formData.value = {
           name: "",
@@ -78,6 +83,7 @@ watch(
         };
         selectedMinerIds.value = [];
         selectedNotifierIds.value = [];
+        selectedClimateZoneIds.value = [];
       }
     }
   },
@@ -106,6 +112,15 @@ function toggleNotifierSelection(notifierId: string) {
   }
 }
 
+function toggleClimateZoneSelection(zoneId: string) {
+  const index = selectedClimateZoneIds.value.indexOf(zoneId);
+  if (index === -1) {
+    selectedClimateZoneIds.value.push(zoneId);
+  } else {
+    selectedClimateZoneIds.value.splice(index, 1);
+  }
+}
+
 function handleClose() {
   emit("close");
 }
@@ -121,6 +136,7 @@ function handleSave() {
     performance_tracker_id: formData.value.performance_tracker_id,
     target_miner_ids: selectedMinerIds.value,
     notifier_ids: selectedNotifierIds.value,
+    climate_zone_ids: selectedClimateZoneIds.value,
   });
 }
 </script>
@@ -335,6 +351,42 @@ function handleSave() {
               <div class="flex items-center gap-2 min-w-0">
                 <PhBell :size="14" class="text-base-content/40 flex-shrink-0" />
                 <span class="text-sm truncate">{{ notifier.name }}</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Climate Zones -->
+        <div class="divider text-xs text-base-content/50 my-4">
+          CLIMATE ZONES
+        </div>
+
+        <div class="form-control">
+          <label class="label mb-1">
+            <span class="label-text flex items-center gap-2">
+              <PhThermometerSimple :size="16" class="text-rose-400" />
+              Select Climate Zones
+              <span class="badge badge-sm badge-ghost">{{ selectedClimateZoneIds.length }} selected</span>
+            </span>
+          </label>
+          <div class="border border-base-300/50 rounded-lg p-3 max-h-48 overflow-y-auto bg-base-200/30">
+            <div v-if="climateZoneStore.climateZones.length === 0" class="text-base-content/40 text-center py-3 text-sm">
+              No climate zones available
+            </div>
+            <label
+              v-for="zone in climateZoneStore.climateZones"
+              :key="zone.id"
+              class="flex items-center gap-3 py-1.5 px-2 rounded-lg cursor-pointer hover:bg-base-300/30 transition-colors"
+            >
+              <input
+                type="checkbox"
+                class="checkbox checkbox-sm checkbox-primary"
+                :checked="selectedClimateZoneIds.includes(String(zone.id))"
+                @change="toggleClimateZoneSelection(String(zone.id))"
+              />
+              <div class="flex items-center gap-2 min-w-0">
+                <PhThermometerSimple :size="14" class="text-base-content/40 flex-shrink-0" />
+                <span class="text-sm truncate">{{ zone.name }}</span>
               </div>
             </label>
           </div>
