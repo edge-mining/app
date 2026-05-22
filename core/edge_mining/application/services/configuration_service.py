@@ -2681,11 +2681,17 @@ class ConfigurationService(ConfigurationServiceInterface):
                     f"for climate monitor '{climate_monitor.name}'"
                 )
 
-        if climate_monitor.config is not None and not climate_monitor.config.is_valid(climate_monitor.adapter_type):
-            raise ClimateMonitorConfigurationError(
-                f"Invalid configuration for climate monitor '{climate_monitor.name}' "
-                f"with adapter type {climate_monitor.adapter_type}"
+        if climate_monitor.config is not None:
+            adapter_type = (
+                ClimateMonitorAdapter(climate_monitor.adapter_type)
+                if isinstance(climate_monitor.adapter_type, str)
+                else climate_monitor.adapter_type
             )
+            if not climate_monitor.config.is_valid(adapter_type):
+                raise ClimateMonitorConfigurationError(
+                    f"Invalid configuration for climate monitor '{climate_monitor.name}' "
+                    f"with adapter type {climate_monitor.adapter_type}"
+                )
 
         self.logger.debug(f"Climate monitor {climate_monitor.id} ({climate_monitor.name}) is valid.")
         return True
