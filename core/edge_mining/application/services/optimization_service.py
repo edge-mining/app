@@ -295,6 +295,16 @@ class OptimizationService(OptimizationServiceInterface):
 
                 reading = await monitor_port.get_climate_reading()
                 if reading:
+                    # Inject resolved target temperature and hysteresis from zone schedule
+                    from dataclasses import replace
+                    from datetime import datetime as dt
+
+                    resolved_target = zone.resolve_target_temperature(dt.now().time())
+                    reading = replace(
+                        reading,
+                        target_temperature=resolved_target,
+                        hysteresis_celsius=zone.hysteresis_celsius,
+                    )
                     readings.append(reading)
                 else:
                     if self.logger:
