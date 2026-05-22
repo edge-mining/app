@@ -12,7 +12,7 @@ $PIP = "$VENV\pip.exe"
 $PRE_COMMIT = "$VENV\pre-commit.exe"
 
 function Show-Help {
-    Write-Host "Edge Mining App — Development & Docker Commands (PowerShell)" -ForegroundColor Green
+    Write-Host "Edge Mining App - Development and Docker Commands (PowerShell)" -ForegroundColor Green
     Write-Host "============================================================" -ForegroundColor Green
     Write-Host ""
     Write-Host "Development:" -ForegroundColor Yellow
@@ -36,14 +36,14 @@ function Show-Help {
     Write-Host "  restart            - Rebuild and restart the application"
     Write-Host "  logs               - Follow application logs"
     Write-Host ""
-    Write-Host "Usage: .\dev-tools.ps1 <command>" -ForegroundColor Cyan
+    Write-Host "Usage: .\dev-tools.ps1 [command]" -ForegroundColor Cyan
     Write-Host "Example: .\dev-tools.ps1 setup" -ForegroundColor Cyan
 }
 
 function Setup-Venv {
     Write-Host "🐍 Creating virtual environment and installing dependencies..." -ForegroundColor Blue
     if (-not (Test-Path .venv)) {
-        & python -m venv .venv
+        & python3 -m venv .venv
     }
     & $PIP install --upgrade pip
     & $PIP install -r core\requirements.txt
