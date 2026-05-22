@@ -94,7 +94,7 @@ const filteredFields = computed(() => {
   const query = fieldSearchQuery.value.toLowerCase();
   return availableFields.value.filter(field =>
     field.path.toLowerCase().includes(query) ||
-    field.description.toLowerCase().includes(query) ||
+    (field.description ?? '').toLowerCase().includes(query) ||
     field.type.toLowerCase().includes(query)
   );
 });
@@ -616,7 +616,7 @@ const filteredValueRefFields = computed(() => {
   const query = valueRefSearchQuery.value.toLowerCase();
   return leafFields.filter(field =>
     field.path.toLowerCase().includes(query) ||
-    field.description.toLowerCase().includes(query)
+    (field.description ?? '').toLowerCase().includes(query)
   );
 });
 
@@ -950,9 +950,9 @@ defineExpose({
 
       <!-- Condition (leaf node) -->
       <div v-else-if="isCondition(workingValue)" class="space-y-2">
-        <div class="flex gap-2 items-start">
+        <div class="flex flex-wrap gap-2 items-start">
           <!-- Field Selector -->
-          <div class="flex-1 relative">
+          <div class="min-w-0 w-80 relative">
             <!-- Dropdown Selector (only in advanced mode) -->
             <div v-if="isGodModeEnabled" class="relative w-full">
               <button
@@ -1090,37 +1090,37 @@ defineExpose({
           <select
             :value="workingValue.operator"
             @change="handleOperatorChange"
-            class="select select-bordered select-sm w-50"
+            class="select select-bordered select-sm w-44 flex-shrink-0"
           >
             <option v-for="op in operators" :key="op.value" :value="op.value">
               {{ op.label }}
             </option>
           </select>
 
-          <!-- Value Input with Type Info -->
-          <div class="flex flex-col">
-            <!-- Mode Toggle (Static / Field Ref) -->
-            <div v-if="isGodModeEnabled" class="flex items-center gap-1 mb-1">
-              <button
-                type="button"
-                class="btn btn-xs"
-                :class="!isValueRefMode ? 'btn-primary' : 'btn-ghost'"
-                @click="isValueRefMode && toggleValueMode()"
-                title="Compare against a static value"
-              >
-                Value
-              </button>
-              <button
-                type="button"
-                class="btn btn-xs"
-                :class="isValueRefMode ? 'btn-primary' : 'btn-ghost'"
-                @click="!isValueRefMode && toggleValueMode()"
-                title="Compare against another context field"
-              >
-                Field Ref
-              </button>
-            </div>
+          <!-- Mode Toggle (Static / Field Ref) -->
+          <div v-if="isGodModeEnabled" class="flex items-center gap-1 flex-shrink-0">
+            <button
+              type="button"
+              class="btn btn-xs btn-square"
+              :class="!isValueRefMode ? 'btn-primary' : 'btn-ghost'"
+              @click="isValueRefMode && toggleValueMode()"
+              title="Compare against a static value"
+            >
+              =
+            </button>
+            <button
+              type="button"
+              class="btn btn-xs btn-square"
+              :class="isValueRefMode ? 'btn-primary' : 'btn-ghost'"
+              @click="!isValueRefMode && toggleValueMode()"
+              title="Compare against another context field"
+            >
+              ↗
+            </button>
+          </div>
 
+          <!-- Value Input with Type Info -->
+          <div class="flex flex-col flex-1 min-w-0">
             <!-- Static Value Input -->
             <div v-if="!isValueRefMode" class="relative">
               <!-- If field has predefined values, show dropdown -->
@@ -1128,7 +1128,7 @@ defineExpose({
                 v-if="getFieldInfo(workingValue.field)?.values && getFieldInfo(workingValue.field)!.values!.length > 0 && (workingValue.operator === 'eq' || workingValue.operator === 'ne')"
                 :value="workingValue.value"
                 @change="(e) => updateConditionField('value', (e.target as HTMLSelectElement).value)"
-                class="select select-bordered select-sm w-48"
+                class="select select-bordered select-sm w-full"
               >
                 <option value="">Select value...</option>
                 <option v-for="val in getFieldInfo(workingValue.field)?.values" :key="val" :value="val">
@@ -1140,7 +1140,7 @@ defineExpose({
                 v-else-if="getFieldInfo(workingValue.field)?.type === 'bool'"
                 :value="workingValue.value"
                 @change="(e) => updateConditionField('value', (e.target as HTMLSelectElement).value === 'true')"
-                class="select select-bordered select-sm w-48"
+                class="select select-bordered select-sm w-full"
               >
                 <option value="">Select...</option>
                 <option value="true">True</option>
@@ -1154,7 +1154,7 @@ defineExpose({
                 type="number"
                 :step="getFieldInfo(workingValue.field)?.type === 'float' ? 'any' : '1'"
                 placeholder="Enter number"
-                class="input input-bordered input-sm w-48"
+                class="input input-bordered input-sm w-full"
               />
               <!-- Datetime type: show datetime-local input -->
               <input
@@ -1162,7 +1162,7 @@ defineExpose({
                 :value="workingValue.value"
                 @input="handleValueInput"
                 type="datetime-local"
-                class="input input-bordered input-sm w-48"
+                class="input input-bordered input-sm w-full"
               />
               <!-- Array operators: show text input for array -->
               <input
@@ -1171,7 +1171,7 @@ defineExpose({
                 @input="handleValueInput"
                 type="text"
                 placeholder="[1,2,3] or 1,2,3"
-                class="input input-bordered input-sm w-48"
+                class="input input-bordered input-sm w-full"
               />
               <!-- Default: text input for strings and other types -->
               <input
@@ -1180,13 +1180,13 @@ defineExpose({
                 @input="handleValueInput"
                 type="text"
                 placeholder="Enter value"
-                class="input input-bordered input-sm w-48"
+                class="input input-bordered input-sm w-full"
               />
             </div>
 
             <!-- Field Reference Input -->
             <div v-else class="relative">
-              <div v-if="isGodModeEnabled" class="relative w-48">
+              <div v-if="isGodModeEnabled" class="relative w-full">
                 <button
                   ref="valueRefButtonRef"
                   type="button"
@@ -1254,7 +1254,7 @@ defineExpose({
                 v-else
                 :value="workingValue.value_ref || ''"
                 type="text"
-                class="input input-bordered input-sm w-48 font-mono text-xs"
+                class="input input-bordered input-sm w-full font-mono text-xs"
                 readonly
               />
             </div>
