@@ -25,9 +25,21 @@ class RuleConditionSchema(BaseModel):
 
     field: str = Field(..., description="Field path in DecisionalContext (dot notation)")
     operator: OperatorType = Field(..., description="Comparison operator")
-    value: Union[int, float, str, bool, List[Union[int, float, str]]] = Field(
-        ..., description="Value to compare against"
+    value: Optional[Union[int, float, str, bool, List[Union[int, float, str]]]] = Field(
+        default=None, description="Static value to compare against"
     )
+    value_ref: Optional[str] = Field(
+        default=None, description="Field path in DecisionalContext to use as dynamic comparison value"
+    )
+
+    @model_validator(mode="after")
+    def check_value_or_value_ref(self):
+        """Ensure exactly one of value or value_ref is provided."""
+        if self.value is None and self.value_ref is None:
+            raise ValueError("Either 'value' or 'value_ref' must be provided")
+        if self.value is not None and self.value_ref is not None:
+            raise ValueError("'value' and 'value_ref' are mutually exclusive")
+        return self
 
     @field_validator("field")
     @classmethod
@@ -40,6 +52,21 @@ class RuleConditionSchema(BaseModel):
         allowed_chars = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._")
         if not all(c in allowed_chars for c in v):
             raise ValueError("Field path contains invalid characters")
+
+        return v
+
+    @field_validator("value_ref")
+    @classmethod
+    def validate_value_ref_path(cls, v):
+        """Validate that value_ref path contains valid characters (if provided)."""
+        if v is None:
+            return v
+        if not isinstance(v, str) or not v.strip():
+            raise ValueError("value_ref must be a non-empty string")
+
+        allowed_chars = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._")
+        if not all(c in allowed_chars for c in v):
+            raise ValueError("value_ref path contains invalid characters")
 
         return v
 

@@ -115,6 +115,28 @@ def _receive_climate_zone_load(target: ClimateZone, context) -> None:
         if isinstance(target.climate_monitor_id, str):  # type: ignore
             target.climate_monitor_id = EntityId(uuid.UUID(target.climate_monitor_id))  # type: ignore
 
+    # Deserialize temperature_schedule from JSON
+    if hasattr(target, "temperature_schedule") and target.temperature_schedule is not None:
+        if isinstance(target.temperature_schedule, str):
+            from datetime import time as time_type
+
+            from edge_mining.domain.climate.value_objects import TemperatureSlot
+
+            try:
+                data = json.loads(target.temperature_schedule)
+                target.temperature_schedule = [
+                    TemperatureSlot(
+                        start_time=time_type.fromisoformat(s["start_time"]),
+                        end_time=time_type.fromisoformat(s["end_time"]),
+                        target_temperature=s["target_temperature"],
+                    )
+                    for s in data
+                ]
+            except (json.JSONDecodeError, KeyError, ValueError):
+                target.temperature_schedule = []
+    elif hasattr(target, "temperature_schedule"):
+        target.temperature_schedule = []
+
 
 @event.listens_for(ClimateZone, "before_insert")
 @event.listens_for(ClimateZone, "before_update")
@@ -128,6 +150,25 @@ def _flatten_climate_zone_composites(mapper, connection, target: Any) -> None:
         if not isinstance(target.climate_monitor_id, str):
             target.climate_monitor_id = str(target.climate_monitor_id)
 
+    # Serialize temperature_schedule to JSON
+    if hasattr(target, "temperature_schedule") and target.temperature_schedule is not None:
+        if isinstance(target.temperature_schedule, list) and len(target.temperature_schedule) > 0:
+            from edge_mining.domain.climate.value_objects import TemperatureSlot
+
+            if isinstance(target.temperature_schedule[0], TemperatureSlot):
+                target.temperature_schedule = json.dumps(
+                    [
+                        {
+                            "start_time": s.start_time.isoformat(),
+                            "end_time": s.end_time.isoformat(),
+                            "target_temperature": s.target_temperature,
+                        }
+                        for s in target.temperature_schedule
+                    ]
+                )
+        elif isinstance(target.temperature_schedule, list) and len(target.temperature_schedule) == 0:
+            target.temperature_schedule = None
+
 
 @event.listens_for(ClimateZone, "after_insert")
 @event.listens_for(ClimateZone, "after_update")
@@ -140,6 +181,28 @@ def _restore_climate_zone_composites(mapper, connection, target: Any) -> None:
     if hasattr(target, "climate_monitor_id") and target.climate_monitor_id is not None:
         if isinstance(target.climate_monitor_id, str):  # type: ignore
             target.climate_monitor_id = EntityId(uuid.UUID(target.climate_monitor_id))  # type: ignore
+
+    # Restore temperature_schedule from JSON
+    if hasattr(target, "temperature_schedule") and target.temperature_schedule is not None:
+        if isinstance(target.temperature_schedule, str):
+            from datetime import time as time_type
+
+            from edge_mining.domain.climate.value_objects import TemperatureSlot
+
+            try:
+                data = json.loads(target.temperature_schedule)
+                target.temperature_schedule = [
+                    TemperatureSlot(
+                        start_time=time_type.fromisoformat(s["start_time"]),
+                        end_time=time_type.fromisoformat(s["end_time"]),
+                        target_temperature=s["target_temperature"],
+                    )
+                    for s in data
+                ]
+            except (json.JSONDecodeError, KeyError, ValueError):
+                target.temperature_schedule = []
+    elif hasattr(target, "temperature_schedule"):
+        target.temperature_schedule = []
 
 
 # --- Table definitions ---
@@ -161,6 +224,9 @@ climate_zones_table = Table(
     Column("name", String, nullable=False),
     Column("area_sqm", Float, nullable=False),
     Column("climate_monitor_id", String, nullable=True),
+    Column("temperature_schedule", String, nullable=True),
+    Column("hysteresis_celsius", Float, nullable=False, default=0.5),
+    Column("default_target_temperature", Float, nullable=True),
 )
 
 # Map entities to tables
