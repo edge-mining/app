@@ -332,6 +332,7 @@ class AdapterService(AdapterServiceInterface):
                         "Miner power consumption max and hash rate max are required for DummyMinerController."
                     )
                 # --- Dummy Controller ---
+                # power_max and hashrate_max are optional; DummyMinerController uses defaults if None
                 instance = DummyMinerController(
                     power_max=miner.power_consumption_max,
                     hashrate_max=miner.hash_rate_max,
