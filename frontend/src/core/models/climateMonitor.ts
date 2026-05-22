@@ -1,4 +1,5 @@
 export const ClimateMonitorAdapter = {
+  DUMMY: "dummy",
   HOME_ASSISTANT_API: "home_assistant_api",
 } as const;
 

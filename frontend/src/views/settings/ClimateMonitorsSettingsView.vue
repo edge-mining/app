@@ -78,6 +78,7 @@ function formatAdapterType(type: string): string {
 
 function getAdapterIcon(type: string) {
   const icons: Record<string, any> = {
+    dummy: PhThermometerSimple,
     home_assistant_api: PhHouse,
   };
   return icons[type] || PhThermometerSimple;
@@ -85,6 +86,7 @@ function getAdapterIcon(type: string) {
 
 function getAdapterIconColor(type: string): string {
   const colors: Record<string, string> = {
+    dummy: "text-emerald-400",
     home_assistant_api: "text-orange-400",
   };
   return colors[type] || "text-slate-400";

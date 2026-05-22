@@ -44,6 +44,15 @@ const adapterConfig = computed(() => {
   const type = props.climateMonitor.adapter_type;
 
   const configs: Record<ClimateMonitorAdapter, { icon: typeof PhThermometerSimple; styleConfig: CardStyleConfig }> = {
+    dummy: {
+      icon: PhThermometerSimple,
+      styleConfig: {
+        gradient: "hover:from-emerald-500/20 hover:to-teal-500/10",
+        iconColor: "text-emerald-400",
+        badgeClass: "badge-success",
+        accentBorder: "border-l-base-300/50 hover:border-l-emerald-500",
+      },
+    },
     home_assistant_api: {
       icon: PhHouse,
       styleConfig: {
