@@ -1027,7 +1027,15 @@ class ConfigurationServiceInterface(ABC):
         """List all climate zones."""
 
     @abstractmethod
-    async def update_climate_zone(self, zone_id: EntityId, name: str, area_sqm: float) -> ClimateZone:
+    async def update_climate_zone(
+        self,
+        zone_id: EntityId,
+        name: str,
+        area_sqm: float,
+        temperature_schedule: Optional[list] = None,
+        hysteresis_celsius: Optional[float] = None,
+        default_target_temperature: Optional[float] = None,
+    ) -> ClimateZone:
         """Update an existing climate zone."""
 
     @abstractmethod

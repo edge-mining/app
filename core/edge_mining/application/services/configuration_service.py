@@ -2525,7 +2525,15 @@ class ConfigurationService(ConfigurationServiceInterface):
         """List all climate zones."""
         return self.climate_zone_repo.get_all()
 
-    async def update_climate_zone(self, zone_id: EntityId, name: str, area_sqm: float) -> ClimateZone:
+    async def update_climate_zone(
+        self,
+        zone_id: EntityId,
+        name: str,
+        area_sqm: float,
+        temperature_schedule: Optional[list] = None,
+        hysteresis_celsius: Optional[float] = None,
+        default_target_temperature: Optional[float] = None,
+    ) -> ClimateZone:
         """Update an existing climate zone."""
         climate_zone = self.climate_zone_repo.get_by_id(zone_id)
         if not climate_zone:
@@ -2533,6 +2541,13 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         climate_zone.name = name
         climate_zone.area_sqm = area_sqm
+
+        if temperature_schedule is not None:
+            climate_zone.temperature_schedule = temperature_schedule
+        if hysteresis_celsius is not None:
+            climate_zone.hysteresis_celsius = hysteresis_celsius
+        if default_target_temperature is not None:
+            climate_zone.default_target_temperature = default_target_temperature
 
         self.climate_zone_repo.update(climate_zone)
 
