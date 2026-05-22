@@ -1,14 +1,14 @@
 """Validation schemas for climate domain."""
 
 import uuid
-from datetime import datetime
+from datetime import datetime, time
 from typing import Dict, List, Optional, Union, cast
 
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
 from edge_mining.domain.climate.common import ClimateMonitorAdapter
 from edge_mining.domain.climate.entities import ClimateMonitor, ClimateZone
-from edge_mining.domain.climate.value_objects import ClimateStateSnapshot, ClimateZoneReading
+from edge_mining.domain.climate.value_objects import ClimateStateSnapshot, ClimateZoneReading, TemperatureSlot
 from edge_mining.domain.common import EntityId
 from edge_mining.shared.adapter_configs.climate import (
     ClimateMonitorDummyConfig,
@@ -16,6 +16,42 @@ from edge_mining.shared.adapter_configs.climate import (
 )
 from edge_mining.shared.adapter_maps.climate import CLIMATE_MONITOR_CONFIG_TYPE_MAP
 from edge_mining.shared.interfaces.config import ClimateMonitorConfig
+
+
+# --- TemperatureSlot Schema ---
+
+
+class TemperatureSlotSchema(BaseModel):
+    """Schema for a daily temperature schedule slot."""
+
+    start_time: str = Field(..., description="Start time in HH:MM format")
+    end_time: str = Field(..., description="End time in HH:MM format")
+    target_temperature: float = Field(..., ge=5.0, le=35.0, description="Target temperature in °C")
+
+    @field_validator("start_time", "end_time")
+    @classmethod
+    def validate_time_format(cls, v: str) -> str:
+        """Validate HH:MM time format."""
+        try:
+            time.fromisoformat(v)
+        except ValueError as e:
+            raise ValueError(f"Invalid time format (expected HH:MM): {e}") from e
+        return v
+
+    @classmethod
+    def from_model(cls, slot: TemperatureSlot) -> "TemperatureSlotSchema":
+        return cls(
+            start_time=slot.start_time.isoformat(timespec="minutes"),
+            end_time=slot.end_time.isoformat(timespec="minutes"),
+            target_temperature=slot.target_temperature,
+        )
+
+    def to_model(self) -> TemperatureSlot:
+        return TemperatureSlot(
+            start_time=time.fromisoformat(self.start_time),
+            end_time=time.fromisoformat(self.end_time),
+            target_temperature=self.target_temperature,
+        )
 
 
 # --- ClimateZone Schemas ---
@@ -28,6 +64,9 @@ class ClimateZoneSchema(BaseModel):
     name: str = Field(default="")
     area_sqm: Optional[float] = Field(default=None, ge=0)
     climate_monitor_id: Optional[str] = Field(default=None)
+    temperature_schedule: List[TemperatureSlotSchema] = Field(default_factory=list)
+    hysteresis_celsius: float = Field(default=0.5, ge=0.1, le=3.0)
+    default_target_temperature: Optional[float] = Field(default=None, ge=5.0, le=35.0)
 
     @field_validator("id")
     @classmethod
@@ -45,6 +84,9 @@ class ClimateZoneSchema(BaseModel):
             name=climate_zone.name,
             area_sqm=climate_zone.area_sqm,
             climate_monitor_id=str(climate_zone.climate_monitor_id) if climate_zone.climate_monitor_id else None,
+            temperature_schedule=[TemperatureSlotSchema.from_model(s) for s in climate_zone.temperature_schedule],
+            hysteresis_celsius=climate_zone.hysteresis_celsius,
+            default_target_temperature=climate_zone.default_target_temperature,
         )
 
     @field_serializer("id")
@@ -61,6 +103,9 @@ class ClimateZoneSchema(BaseModel):
             name=self.name,
             area_sqm=self.area_sqm,
             climate_monitor_id=EntityId(uuid.UUID(self.climate_monitor_id)) if self.climate_monitor_id else None,
+            temperature_schedule=[s.to_model() for s in self.temperature_schedule],
+            hysteresis_celsius=self.hysteresis_celsius,
+            default_target_temperature=self.default_target_temperature,
         )
 
     class Config:
@@ -76,6 +121,9 @@ class ClimateZoneCreateSchema(BaseModel):
     name: str = Field(default="")
     area_sqm: Optional[float] = Field(default=None, ge=0)
     climate_monitor_id: Optional[str] = Field(default=None)
+    temperature_schedule: List[TemperatureSlotSchema] = Field(default_factory=list)
+    hysteresis_celsius: float = Field(default=0.5, ge=0.1, le=3.0)
+    default_target_temperature: Optional[float] = Field(default=None, ge=5.0, le=35.0)
 
     def to_model(self) -> ClimateZone:
         return ClimateZone(
@@ -83,6 +131,9 @@ class ClimateZoneCreateSchema(BaseModel):
             name=self.name,
             area_sqm=self.area_sqm,
             climate_monitor_id=EntityId(uuid.UUID(self.climate_monitor_id)) if self.climate_monitor_id else None,
+            temperature_schedule=[s.to_model() for s in self.temperature_schedule],
+            hysteresis_celsius=self.hysteresis_celsius,
+            default_target_temperature=self.default_target_temperature,
         )
 
     class Config:
@@ -95,6 +146,9 @@ class ClimateZoneUpdateSchema(BaseModel):
 
     name: Optional[str] = Field(default=None)
     area_sqm: Optional[float] = Field(default=None, ge=0)
+    temperature_schedule: Optional[List[TemperatureSlotSchema]] = Field(default=None)
+    hysteresis_celsius: Optional[float] = Field(default=None, ge=0.1, le=3.0)
+    default_target_temperature: Optional[float] = Field(default=None, ge=5.0, le=35.0)
 
     class Config:
         use_enum_values = True
@@ -251,6 +305,8 @@ class ClimateZoneReadingSchema(BaseModel):
     zone_name: str = Field(default="")
     temperature_celsius: float = Field(...)
     humidity: Optional[float] = Field(default=None, ge=0, le=100)
+    target_temperature: Optional[float] = Field(default=None)
+    hysteresis_celsius: Optional[float] = Field(default=None)
     timestamp: datetime = Field(default_factory=datetime.now)
 
     @classmethod
@@ -260,6 +316,8 @@ class ClimateZoneReadingSchema(BaseModel):
             zone_name=reading.zone_name,
             temperature_celsius=reading.temperature_celsius,
             humidity=reading.humidity,
+            target_temperature=reading.target_temperature,
+            hysteresis_celsius=reading.hysteresis_celsius,
             timestamp=reading.timestamp,
         )
 

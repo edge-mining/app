@@ -108,9 +108,16 @@ async def update_climate_zone(
             raise ClimateZoneNotFoundError(f"Climate zone with ID {zone_id} not found")
 
         updated_zone = await config_service.update_climate_zone(
-            climate_zone_id=zone.id,
+            zone_id=zone.id,
             name=zone_update.name if zone_update.name is not None else zone.name,
             area_sqm=zone_update.area_sqm if zone_update.area_sqm is not None else zone.area_sqm,
+            temperature_schedule=(
+                [s.to_model() for s in zone_update.temperature_schedule]
+                if zone_update.temperature_schedule is not None
+                else None
+            ),
+            hysteresis_celsius=zone_update.hysteresis_celsius,
+            default_target_temperature=zone_update.default_target_temperature,
         )
         return ClimateZoneSchema.from_model(updated_zone)
     except ClimateZoneNotFoundError as e:
