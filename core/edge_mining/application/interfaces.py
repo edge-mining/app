@@ -580,6 +580,7 @@ class ConfigurationServiceInterface(ABC):
         performance_tracker_id: Optional[EntityId] = None,
         home_loads_profile_id: Optional[EntityId] = None,
         notifier_ids: Optional[List[EntityId]] = None,
+        climate_zone_ids: Optional[List[EntityId]] = None,
     ) -> Optional[EnergyOptimizationUnit]:
         """Create an optimization unit into the system."""
 
@@ -619,6 +620,7 @@ class ConfigurationServiceInterface(ABC):
         performance_tracker_id: Optional[EntityId] = None,
         home_loads_profile_id: Optional[EntityId] = None,
         notifier_ids: Optional[List[EntityId]] = None,
+        climate_zone_ids: Optional[List[EntityId]] = None,
     ) -> EnergyOptimizationUnit:
         """Update an optimization unit in the system."""
 
