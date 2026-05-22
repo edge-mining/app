@@ -33,13 +33,15 @@ def _receive_climate_monitor_load(target: ClimateMonitor, context) -> None:
             pass
 
     if target.config and isinstance(target.config, str):
-        from edge_mining.adapters.domain.climate.monitors.home_assistant_api import (
-            HomeAssistantClimateMonitorConfig,
-        )
+        from edge_mining.shared.adapter_maps.climate import CLIMATE_MONITOR_CONFIG_TYPE_MAP
 
         try:
             data = json.loads(target.config)
-            target.config = HomeAssistantClimateMonitorConfig.from_dict(data)
+            config_class = CLIMATE_MONITOR_CONFIG_TYPE_MAP.get(target.adapter_type, None)
+            if config_class:
+                target.config = config_class.from_dict(data)
+            else:
+                target.config = None
         except (json.JSONDecodeError, ValueError):
             target.config = None
 
