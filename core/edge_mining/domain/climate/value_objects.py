@@ -1,10 +1,23 @@
 """Collection of Value Objects for the Climate domain of the Edge Mining application."""
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, time, timezone
 from typing import Dict, List, Optional
 
 from edge_mining.domain.common import EntityId, ValueObject
+
+
+@dataclass(frozen=True)
+class TemperatureSlot(ValueObject):
+    """A daily time slot with a target temperature.
+
+    Supports cross-midnight slots: if ``start_time > end_time``, the slot
+    wraps around midnight (e.g. 22:00 → 06:00).
+    """
+
+    start_time: time = field(default_factory=lambda: time(0, 0))
+    end_time: time = field(default_factory=lambda: time(0, 0))
+    target_temperature: float = 20.0
 
 
 @dataclass(frozen=True)
@@ -15,6 +28,8 @@ class ClimateZoneReading(ValueObject):
     zone_name: str = ""
     temperature_celsius: float = 0.0
     humidity: Optional[float] = None
+    target_temperature: Optional[float] = None
+    hysteresis_celsius: Optional[float] = None
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
