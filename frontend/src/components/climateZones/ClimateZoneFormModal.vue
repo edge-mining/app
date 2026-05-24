@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch, toRaw } from "vue";
-import type { ClimateZone, TemperatureSlot } from "../../core/models/climateZone";
-import type { ClimateMonitor } from "../../core/models/climateMonitor";
+import type { ClimateZone } from "../../core/models/climateZone";
 import { useClimateMonitorStore } from "../../core/stores/climateMonitorStore";
 import TemperatureScheduleEditor from "./TemperatureScheduleEditor.vue";
 import {

@@ -587,13 +587,6 @@ const toggleValueMode = () => {
   }
 };
 
-// Handle value_ref input
-const handleValueRefInput = (event: Event) => {
-  if (!isCondition(workingValue.value)) return;
-  const target = event.target as HTMLInputElement;
-  updateConditionField('value_ref', target.value);
-};
-
 // Handle value_ref field selection from dropdown
 const handleValueRefFieldSelect = (path: string) => {
   if (isCondition(workingValue.value)) {

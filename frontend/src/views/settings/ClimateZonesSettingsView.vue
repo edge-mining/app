@@ -8,7 +8,6 @@ import type { ClimateZone, ClimateZoneReading } from "../../core/models/climateZ
 import {
   PhPlus,
   PhThermometerSimple,
-  PhLink,
 } from "@phosphor-icons/vue";
 
 const climateZoneStore = useClimateZoneStore();

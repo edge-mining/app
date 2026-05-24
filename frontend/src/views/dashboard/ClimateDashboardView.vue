@@ -41,14 +41,12 @@ const {
   energyProductionSeries,
   consumptionSeries,
   minerOnOffEvents,
-  latestDecisionalContexts,
 } = useDashboardPolling(5000);
 
 // ---------- State ----------
 const zoneReadings = ref<Map<string, ClimateZoneReading>>(new Map());
 const temperatureSeries = ref<Map<string, TimeSeriesPoint[]>>(new Map());
 const targetSeries = ref<Map<string, TimeSeriesPoint[]>>(new Map());
-const policyResult = ref<{ satisfied_start: string[]; satisfied_stop: string[] } | null>(null);
 const loading = ref(true);
 
 // ---------- Tick for time-ago ----------
@@ -182,7 +180,7 @@ const surplusPercent = computed(() => {
 });
 
 // ---------- Computed: Policy ----------
-const activePolicies = computed(() => policyStore.policies.filter((p) => p.active));
+const activePolicies = computed(() => policyStore.policies);
 
 // ---------- Computed: Last updated ----------
 const lastUpdateLabel = computed(() => {
