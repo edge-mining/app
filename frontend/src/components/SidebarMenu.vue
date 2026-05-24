@@ -51,7 +51,7 @@ const isHomeLoadsActive = computed(() =>
 );
 
 const isClimateActive = computed(() =>
-  ["/settings/climate-zones", "/settings/climate-monitors"].some((p) =>
+  ["/settings/climate-zones", "/settings/climate-monitors", "/dashboard/climate"].some((p) =>
     route.path.startsWith(p)
   )
 );
@@ -113,6 +113,15 @@ const isClimateActive = computed(() =>
                     active-class="active text-primary"
                   >
                     Home Loads
+                  </RouterLink>
+                </li>
+                <li class="w-full">
+                  <RouterLink
+                    to="/dashboard/climate"
+                    class="w-full text-sm"
+                    active-class="active text-primary"
+                  >
+                    Climate
                   </RouterLink>
                 </li>
               </ul>

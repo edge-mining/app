@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from "vue-router";
 import DashboardView from "../views/DashboardView.vue";
 import HomeLoadsDashboardView from "../views/dashboard/HomeLoadsDashboardView.vue";
 import MiningDashboardView from "../views/dashboard/MiningDashboardView.vue";
+import ClimateDashboardView from "../views/dashboard/ClimateDashboardView.vue";
 import MinersSettingsView from "../views/settings/MinersSettingsView.vue";
 import EnergySourcesSettingsView from "../views/settings/EnergySourcesSettingsView.vue";
 import EnergyMonitorSettingsView from "../views/settings/EnergyMonitorSettingsView.vue";
@@ -35,6 +36,11 @@ const router = createRouter({
       path: "/dashboard/home-loads",
       name: "dashboard.homeLoads",
       component: HomeLoadsDashboardView,
+    },
+    {
+      path: "/dashboard/climate",
+      name: "dashboard.climate",
+      component: ClimateDashboardView,
     },
     {
       path: "/settings/",
