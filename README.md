@@ -183,7 +183,7 @@ This script will:
 
 ### 6.1 Switching Branch
 
-To switch to a different branch (e.g. from `main` to `dev`), use the `switch_branch.sh` script:
+The `main` branch is the active development branch. For regular updates, stay on `main`; to test a feature branch, use the `switch_branch.sh` script:
 
 ```bash
 ./scripts/switch_branch.sh

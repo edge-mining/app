@@ -137,6 +137,8 @@ The API will be available at `http://localhost:8001` (or the configured port). Y
 
 ## Development Workflow
 
+`main` is the active integration and development branch. Start new work from `main`, push changes to a feature branch, and open a pull request back into `main`.
+
 ### 1. Before starting development
 
 ```bash
@@ -186,10 +188,15 @@ If there are errors, fix them and try again.
 ### 4. Commit and Push
 
 ```bash
+git checkout main
+git pull
+git checkout -b feat/feature-description
 git add .
 git commit -m "feat: feature description"
-git push
+git push -u origin feat/feature-description
 ```
+
+Then open a pull request from your feature branch to `main`.
 
 ## Useful Commands
 
