@@ -163,11 +163,6 @@ const layout = computed<LayoutGroup[]>(() => {
 		rows: buckets.get(k)!,
 	}));
 });
-
-const cellClass = (row: LayoutRow, index: number): string => {
-	if (row.cells.length === 1) return "w-full";
-	return index === 0 ? "flex-1 min-w-0" : "sm:shrink-0";
-};
 </script>
 
 <template>
@@ -183,26 +178,32 @@ const cellClass = (row: LayoutRow, index: number): string => {
 				{{ group.label }}
 			</div>
 
-			<div
+			<!-- Paired entity + unit-of-measure row: the unit segmented control
+			     is rendered inline as the entity field's addon, so the row keeps
+			     a single label (the entity's) and stays aligned. -->
+			<ConfigFieldControl
 				v-for="row in group.rows"
 				:key="row.key"
-				class="flex flex-col sm:flex-row sm:items-start gap-3"
+				v-model="config[row.cells[0].name]"
+				:name="row.cells[0].name"
+				:property="row.cells[0].property"
+				:schema="schema"
+				:required="isRequired(row.cells[0].name)"
+				:sensor-prefix="sensorPrefix"
 			>
-				<div
-					v-for="(cell, ci) in row.cells"
-					:key="cell.name"
-					:class="cellClass(row, ci)"
-				>
+				<template v-if="row.cells.length > 1" #addon>
 					<ConfigFieldControl
-						v-model="config[cell.name]"
-						:name="cell.name"
-						:property="cell.property"
+						v-model="config[row.cells[1].name]"
+						:name="row.cells[1].name"
+						:property="row.cells[1].property"
 						:schema="schema"
-						:required="isRequired(cell.name)"
+						:required="isRequired(row.cells[1].name)"
 						:sensor-prefix="sensorPrefix"
+						hide-label
+						hide-description
 					/>
-				</div>
-			</div>
+				</template>
+			</ConfigFieldControl>
 		</div>
 	</div>
 </template>
