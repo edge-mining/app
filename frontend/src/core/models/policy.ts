@@ -1,0 +1,78 @@
+import type { EnergySource, EnergyStateSnapshot } from "./energySource";
+import type { Forecast, Sun } from "./forecast";
+import type { HomeLoadsConsumption } from "./homeLoad";
+import type { Miner, HashRate, MinerStateSnapshot } from "./miner";
+import type { PayoutSchedule, PoolStats } from "./performanceTracker";
+
+export interface MiningPerformanceSnapshot {
+  current_hashrate?: HashRate | null;
+  pool_stats?: PoolStats | null;
+  payout_schedule?: PayoutSchedule | null;
+  timestamp: string; // ISO datetime
+}
+
+export type RuleType = "start" | "stop";
+
+export interface AutomationRule {
+  id: string;
+  name: string;
+  description?: string;
+  priority: number;
+  enabled: boolean;
+  conditions: Record<string, any>;
+}
+
+export interface Metadata {
+  author?: string;
+  version?: number;
+  created?: string;
+  last_modified?: string;
+}
+
+export interface OptimizationPolicy {
+  id: string;
+  name: string;
+  description?: string;
+  start_rules: AutomationRule[];
+  stop_rules: AutomationRule[];
+  metadata?: Metadata;
+}
+
+export interface PolicyCheckResult {
+  valid: boolean;
+  policy_id: string;
+  policy_name?: string;
+  errors: string[];
+  warnings: string[];
+  start_rules_count: number;
+  stop_rules_count: number;
+  enabled_start_rules_count: number;
+  enabled_stop_rules_count: number;
+}
+
+export interface DecisionalContextField {
+  path: string;
+  type: string;
+  description: string;
+  is_optional: boolean;
+  values: string[] | null;
+  children: DecisionalContextField[] | null;
+}
+
+export interface DecisionalContextStructure {
+  fields: DecisionalContextField[];
+  total_fields: number;
+}
+
+// Decisional Context - aggregates all domain data for decision making
+export interface DecisionalContext {
+  energy_source?: EnergySource;
+  energy_state?: EnergyStateSnapshot;
+  forecast?: Forecast;
+  home_load?: HomeLoadsConsumption;
+  mining_performance?: MiningPerformanceSnapshot;
+  sun?: Sun;
+  miner?: Miner;
+  miner_state?: MinerStateSnapshot;
+  timestamp: string; // ISO datetime
+}

@@ -1,0 +1,22 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "npm",
+			"script": "dev",
+			"label": "npm: dev",
+			"detail": "vite",
+			"isBackground": true,
+			"problemMatcher": [
+				{
+					"base": "$tsc-watch",
+					"background": {
+						"activeOnStart": true,
+						"beginsPattern": ".*",
+						"endsPattern": ".*ready in.*ms.*"
+					}
+				}
+			]
+		}
+	]
+}
