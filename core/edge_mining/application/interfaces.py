@@ -155,7 +155,9 @@ class HomeLoadHistoryServiceInterface(ABC):
         """Collect power points from all history providers for all enabled devices."""
 
     @abstractmethod
-    async def collect_devices(self, device_ids: List[EntityId], lookback_hours: int = 24) -> None:
+    async def collect_devices(
+        self, device_ids: List[EntityId], lookback_hours: int = 24, force_full_window: bool = True
+    ) -> None:
         """Collect power points for the specified devices only."""
 
     @abstractmethod
