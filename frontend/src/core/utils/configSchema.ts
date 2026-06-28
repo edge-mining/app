@@ -96,6 +96,96 @@ export const isEntityField = (name: string): boolean =>
 export const isUnitField = (name: string): boolean =>
 	String(name).toLowerCase().includes("unit");
 
+// ── Home Assistant entity-domain prefix ─────────────────────────
+//
+// Entity fields are shown with a fixed, non-editable domain prefix chip
+// (e.g. "sensor.", "switch.") so the user only types the entity object id.
+// The prefix is derived per field from its default value when that value
+// carries a domain (e.g. "switch.miner_socket" -> "switch."), falling back
+// to "sensor." otherwise.
+
+export const DEFAULT_ENTITY_PREFIX = "sensor.";
+
+// Single-token Home Assistant entity domains used to infer a prefix from the
+// field name (e.g. "entity_switch" -> "switch."). The name heuristic matches
+// on individual "_"-separated segments, so only single-token domains apply.
+const HA_ENTITY_DOMAINS = [
+	"sensor",
+	"switch",
+	"light",
+	"number",
+	"climate",
+	"cover",
+	"fan",
+	"lock",
+	"select",
+	"button",
+];
+
+/** Extract the "domain." prefix from a value like "switch.foo", or null. */
+const domainOf = (value: unknown): string | null => {
+	if (typeof value !== "string") return null;
+	const match = value.match(/^([a-z][a-z0-9_]*)\./);
+	return match ? `${match[1]}.` : null;
+};
+
+/**
+ * Returns the fixed Home Assistant entity-domain prefix for an entity field.
+ * Resolution order: the domain carried by the current value, then by the
+ * schema default, then a hint from the field name (e.g. `entity_switch` ->
+ * `switch.`), falling back to `sensor.`.
+ */
+export const getEntityPrefix = (
+	name: string,
+	property: ConfigSchemaProperty,
+	currentValue?: unknown
+): string => {
+	const fromValue = domainOf(currentValue);
+	if (fromValue) return fromValue;
+
+	const fromDefault = domainOf(property?.default);
+	if (fromDefault) return fromDefault;
+
+	const segments = String(name).toLowerCase().split("_");
+	for (const domain of HA_ENTITY_DOMAINS) {
+		if (segments.includes(domain)) return `${domain}.`;
+	}
+
+	return DEFAULT_ENTITY_PREFIX;
+};
+
+/** Remove a known leading prefix from an entity value, if present. */
+export const stripEntityPrefix = (value: unknown, prefix: string): string => {
+	const s = String(value ?? "");
+	return s.startsWith(prefix) ? s.slice(prefix.length) : s;
+};
+
+/** Selectable Home Assistant entity-domain prefixes offered in the dropdown. */
+export const ENTITY_DOMAIN_OPTIONS = [
+	"sensor.",
+	"binary_sensor.",
+	"switch.",
+	"input_boolean.",
+	"input_number.",
+	"number.",
+	"light.",
+	"climate.",
+	"cover.",
+	"fan.",
+	"lock.",
+	"select.",
+	"button.",
+];
+
+/**
+ * The domain options shown in the dropdown, always including the currently
+ * selected/derived domain so no value is lost if it is outside the curated list.
+ */
+export const getEntityDomainOptions = (currentPrefix: string): string[] =>
+	ENTITY_DOMAIN_OPTIONS.includes(currentPrefix)
+		? ENTITY_DOMAIN_OPTIONS
+		: [currentPrefix, ...ENTITY_DOMAIN_OPTIONS];
+
 // ── Measurement unit registry (issue #18) ───────────────────────
 //
 // Unit fields are rendered as a segmented control instead of a free-text
