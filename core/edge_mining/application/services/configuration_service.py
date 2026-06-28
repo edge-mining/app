@@ -1673,7 +1673,8 @@ class ConfigurationService(ConfigurationServiceInterface):
     ) -> Miner:
         """Set the priority of a specific feature on a miner."""
         self.logger.info(
-            f"Setting priority {priority} for feature {feature_type} from controller {controller_id} on miner {miner_id}"
+            f"Setting priority {priority} for feature {feature_type} "
+            f"from controller {controller_id} on miner {miner_id}"
         )
         miner = self.miner_repo.get_by_id(miner_id)
         if not miner:

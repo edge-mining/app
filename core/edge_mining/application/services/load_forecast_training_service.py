@@ -379,7 +379,8 @@ class LoadForecastModelTrainingService(LoadForecastTrainingServiceInterface):
                 backtest_folds = bt_result.get("backtest_folds", 0)
                 if self._logger:
                     self._logger.debug(
-                        f"Backtesting for '{device_name}': MAE={backtest_mae}, RMSE={backtest_rmse}, folds={backtest_folds}"
+                        f"Backtesting for '{device_name}': MAE={backtest_mae}, "
+                        f"RMSE={backtest_rmse}, folds={backtest_folds}"
                     )
             except Exception as bt_exc:
                 if self._logger:

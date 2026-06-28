@@ -849,7 +849,8 @@ class AdapterService(AdapterServiceInterface):
         if not energy_load_forecast_provider:
             if self.logger:
                 self.logger.error(
-                    f"Home Forecast Provider ID {energy_load_forecast_provider_id} not found or not a Home Forecast Provider."
+                    f"Home Forecast Provider ID {energy_load_forecast_provider_id} "
+                    "not found or not a Home Forecast Provider."
                 )
             return None
         return self._initialize_energy_load_forecast_provider_adapter(energy_load_forecast_provider)
