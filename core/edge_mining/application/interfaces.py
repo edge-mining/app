@@ -24,7 +24,7 @@ from edge_mining.domain.home_load.common import (
     EnergyLoadHistoryProviderAdapter,
 )
 from edge_mining.domain.home_load.ports import EnergyLoadForecastProviderPort, EnergyLoadHistoryProviderPort
-from edge_mining.domain.home_load.value_objects import HomeLoadPowerPoint
+from edge_mining.domain.home_load.value_objects import HomeLoadPowerPoint, LoadTrainingResult
 from edge_mining.domain.miner.aggregate_roots import Miner
 from edge_mining.domain.miner.common import MinerControllerAdapter, MinerFeatureType
 from edge_mining.domain.miner.entities import MinerController
@@ -181,8 +181,8 @@ class LoadForecastTrainingServiceInterface(ABC):
         """Train models for every device that has sufficient history."""
 
     @abstractmethod
-    async def train_device(self, device_id: EntityId, weeks_lookback: int = 8) -> None:
-        """Train models for a single device."""
+    async def train_device(self, device_id: EntityId, weeks_lookback: int = 8) -> LoadTrainingResult:
+        """Train models for a single device and return the outcome."""
 
     @abstractmethod
     def get_models(self, device_id: Optional[EntityId] = None) -> List[LoadConsumptionModel]:

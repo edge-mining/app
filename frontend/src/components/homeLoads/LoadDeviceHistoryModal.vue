@@ -39,7 +39,7 @@ const showClearConfirm = ref(false);
 const showCollectDialog = ref(false);
 const showRetrainConfirm = ref(false);
 const retraining = ref(false);
-const retrainError = ref<string | null>(null);
+const retrainOutcome = ref<{ status: string; detail: string } | null>(null);
 const lookbackHours = ref(24);
 const selectedRange = ref<"24h" | "7d" | "30d">("24h");
 
@@ -147,14 +147,20 @@ async function retrainModel() {
   showRetrainConfirm.value = false;
   if (!props.profileId || !props.device?.id) return;
   retraining.value = true;
-  retrainError.value = null;
+  retrainOutcome.value = null;
   try {
-    await profileStore.trainDevice(props.profileId, props.device.id);
-    // Refresh the forecast so the panel reflects the newly trained model.
-    await fetchForecast();
+    const res = await profileStore.trainDevice(props.profileId, props.device.id);
+    retrainOutcome.value = { status: res.status ?? "completed", detail: res.detail ?? "" };
+    // Only a real (re)training changes the active model: refresh the forecast.
+    if (res.status === "trained") {
+      await fetchForecast();
+    }
   } catch (e: any) {
     console.error("Failed to retrain model:", e);
-    retrainError.value = e?.response?.data?.detail || e?.message || "Unknown error";
+    retrainOutcome.value = {
+      status: "failed",
+      detail: e?.response?.data?.detail || e?.message || "Unknown error",
+    };
   } finally {
     retraining.value = false;
   }
@@ -575,16 +581,28 @@ function formatWh(v: number): string {
     @cancel="showRetrainConfirm = false"
   />
 
-  <!-- Retrain status toast -->
-  <div v-if="retraining || retrainError" class="toast toast-end z-50">
-    <div v-if="retraining" class="alert alert-info">
-      <span>Retraining forecast model…</span>
+  <!-- Retrain status toast — teleported to body and given a very high z-index
+       so it renders above the open History & Forecast modal instead of behind it. -->
+  <Teleport to="body">
+    <div v-if="retraining || retrainOutcome" class="toast toast-end z-[9999]">
+      <div v-if="retraining" class="alert alert-info">
+        <span>Retraining forecast model…</span>
+      </div>
+      <div
+        v-else-if="retrainOutcome"
+        class="alert"
+        :class="{
+          'alert-success': retrainOutcome.status === 'trained',
+          'alert-warning': retrainOutcome.status === 'skipped',
+          'alert-error': retrainOutcome.status === 'failed',
+          'alert-info': !['trained', 'skipped', 'failed'].includes(retrainOutcome.status),
+        }"
+      >
+        <span>{{ retrainOutcome.detail }}</span>
+        <button class="btn btn-ghost btn-xs" @click="retrainOutcome = null">Dismiss</button>
+      </div>
     </div>
-    <div v-else-if="retrainError" class="alert alert-error">
-      <span>Retrain failed: {{ retrainError }}</span>
-      <button class="btn btn-ghost btn-xs" @click="retrainError = null">Dismiss</button>
-    </div>
-  </div>
+  </Teleport>
 
   <!-- Collect Dialog -->
   <dialog class="modal" :class="{ 'modal-open': showCollectDialog }">
