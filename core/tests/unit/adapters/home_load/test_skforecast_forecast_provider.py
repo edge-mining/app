@@ -31,6 +31,7 @@ pytestmark = pytest.mark.skipif(not _SKFORECAST_AVAILABLE, reason="skforecast no
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_history(hours: int = 200, base_power: float = 300.0) -> LoadEnergyConsumption:
     """Build a synthetic hourly history.
 
@@ -57,6 +58,7 @@ def _make_history(hours: int = 200, base_power: float = 300.0) -> LoadEnergyCons
 # ---------------------------------------------------------------------------
 # sklearn resolver tests
 # ---------------------------------------------------------------------------
+
 
 class TestSklearnModelResolver:
     """Tests for _resolve_sklearn_model."""
@@ -85,6 +87,7 @@ class TestSklearnModelResolver:
 # ---------------------------------------------------------------------------
 # Factory tests
 # ---------------------------------------------------------------------------
+
 
 class TestSkforecastForecastProviderFactory:
     """Tests for the factory."""
@@ -122,6 +125,7 @@ class TestSkforecastForecastProviderFactory:
 # Provider tests
 # ---------------------------------------------------------------------------
 
+
 class TestSkforecastForecastProvider:
     """Tests for the provider."""
 
@@ -156,18 +160,14 @@ class TestSkforecastForecastProvider:
         assert len(forecast.intervals) == 6
 
     def test_forecast_with_random_forest(self):
-        provider = SkforecastForecastProvider(
-            hours_ahead=12, num_lags=24, sklearn_model="RandomForestRegressor"
-        )
+        provider = SkforecastForecastProvider(hours_ahead=12, num_lags=24, sklearn_model="RandomForestRegressor")
         history = _make_history(200)
         forecast = provider.get_consumption_forecast(history)
         assert forecast is not None
         assert len(forecast.intervals) == 12
 
     def test_forecast_with_ridge(self):
-        provider = SkforecastForecastProvider(
-            hours_ahead=6, num_lags=24, sklearn_model="Ridge"
-        )
+        provider = SkforecastForecastProvider(hours_ahead=6, num_lags=24, sklearn_model="Ridge")
         history = _make_history(200)
         forecast = provider.get_consumption_forecast(history)
         assert forecast is not None
@@ -218,9 +218,7 @@ class TestSkforecastForecastProvider:
         mock_repo = MagicMock()
         mock_repo.get_active_model.return_value = mock_model
 
-        provider = SkforecastForecastProvider(
-            hours_ahead=6, num_lags=24, model_repo=mock_repo
-        )
+        provider = SkforecastForecastProvider(hours_ahead=6, num_lags=24, model_repo=mock_repo)
         forecast = provider.get_consumption_forecast(history)
         assert forecast is not None
         assert len(forecast.intervals) == 6
@@ -230,6 +228,7 @@ class TestSkforecastForecastProvider:
 # ---------------------------------------------------------------------------
 # Config tests
 # ---------------------------------------------------------------------------
+
 
 class TestSkforecastConfig:
     """Tests for the config dataclass."""
@@ -254,9 +253,7 @@ class TestSkforecastConfig:
         assert config.is_valid(EnergyLoadForecastProviderAdapter.DUMMY) is False
 
     def test_to_dict_from_dict_roundtrip(self):
-        config = EnergyLoadForecastProviderSkforecastConfig(
-            hours_ahead=6, sklearn_model="Lasso", num_lags=36
-        )
+        config = EnergyLoadForecastProviderSkforecastConfig(hours_ahead=6, sklearn_model="Lasso", num_lags=36)
         d = config.to_dict()
         restored = EnergyLoadForecastProviderSkforecastConfig.from_dict(d)
         assert restored == config

@@ -189,9 +189,7 @@ def test_print_tracker_details_includes_config() -> None:
 # -- Add ----------------------------------------------------------------------
 
 
-def test_handle_add_invokes_configuration_service(
-    configuration_service: MagicMock, logger: MagicMock
-) -> None:
+def test_handle_add_invokes_configuration_service(configuration_service: MagicMock, logger: MagicMock) -> None:
     """handle_add_mining_performance_tracker calls add on the service when config is valid."""
     added_tracker = _make_tracker(MiningPerformanceTrackerAdapter.DUMMY)
     configuration_service.add_mining_performance_tracker = AsyncMock(return_value=added_tracker)
@@ -209,9 +207,7 @@ def test_handle_add_invokes_configuration_service(
 # -- Update -------------------------------------------------------------------
 
 
-def test_update_single_keeps_configuration_when_declined(
-    configuration_service: MagicMock, logger: MagicMock
-) -> None:
+def test_update_single_keeps_configuration_when_declined(configuration_service: MagicMock, logger: MagicMock) -> None:
     """Declining the configuration change still forwards the existing config."""
     tracker = _make_tracker(MiningPerformanceTrackerAdapter.DUMMY)
     configuration_service.update_mining_performance_tracker = AsyncMock(return_value=tracker)
@@ -236,9 +232,7 @@ def test_update_single_keeps_configuration_when_declined(
 # -- Delete -------------------------------------------------------------------
 
 
-def test_delete_single_cancels_on_negative_confirm(
-    configuration_service: MagicMock, logger: MagicMock
-) -> None:
+def test_delete_single_cancels_on_negative_confirm(configuration_service: MagicMock, logger: MagicMock) -> None:
     """The delete helper cancels when the user declines confirmation."""
     tracker = _make_tracker()
     runner = CliRunner()
@@ -256,9 +250,7 @@ def test_delete_single_cancels_on_negative_confirm(
     configuration_service.remove_mining_performance_tracker.assert_not_called()
 
 
-def test_delete_single_invokes_service_on_confirm(
-    configuration_service: MagicMock, logger: MagicMock
-) -> None:
+def test_delete_single_invokes_service_on_confirm(configuration_service: MagicMock, logger: MagicMock) -> None:
     """Confirming deletion forwards the call to the configuration service."""
     tracker = _make_tracker()
     configuration_service.remove_mining_performance_tracker = AsyncMock(return_value=tracker)

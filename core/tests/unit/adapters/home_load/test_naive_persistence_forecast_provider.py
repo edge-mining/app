@@ -26,6 +26,7 @@ from edge_mining.shared.adapter_configs.home_load import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_history(hours: int = 48, base_power: float = 300.0) -> LoadEnergyConsumption:
     """Build a synthetic hourly history going back ``hours`` hours from now.
 
@@ -53,6 +54,7 @@ def _make_history(hours: int = 48, base_power: float = 300.0) -> LoadEnergyConsu
 # Factory tests
 # ---------------------------------------------------------------------------
 
+
 class TestNaivePersistenceForecastProviderFactory:
     """Tests for the factory."""
 
@@ -79,6 +81,7 @@ class TestNaivePersistenceForecastProviderFactory:
 # ---------------------------------------------------------------------------
 # Provider tests
 # ---------------------------------------------------------------------------
+
 
 class TestNaivePersistenceForecastProvider:
     """Tests for the provider."""
@@ -165,7 +168,8 @@ class TestNaivePersistenceForecastProvider:
             power = Watts(500.0)
             intervals.append(
                 HomeLoadEnergyInterval(
-                    start=start, end=end,
+                    start=start,
+                    end=end,
                     power_points=[HomeLoadPowerPoint(timestamp=start, power=power)],
                     energy=WattHours(500.0),
                 )
@@ -182,6 +186,7 @@ class TestNaivePersistenceForecastProvider:
 # ---------------------------------------------------------------------------
 # Config tests
 # ---------------------------------------------------------------------------
+
 
 class TestNaivePersistenceConfig:
     """Tests for the config dataclass."""

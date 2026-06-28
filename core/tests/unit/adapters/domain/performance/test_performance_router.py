@@ -171,9 +171,7 @@ def test_get_details_missing_returns_404(client: TestClient, config_service: Mag
 # -- Create -------------------------------------------------------------------
 
 
-def test_create_tracker_accepts_dummy_config(
-    client: TestClient, config_service: MagicMock, dummy_tracker
-) -> None:
+def test_create_tracker_accepts_dummy_config(client: TestClient, config_service: MagicMock, dummy_tracker) -> None:
     """POST /mining-performance-trackers creates a tracker and returns its schema."""
     config_service.add_mining_performance_tracker = AsyncMock(return_value=dummy_tracker)
 
@@ -217,9 +215,7 @@ def test_create_tracker_rejects_invalid_adapter_type(client: TestClient) -> None
 # -- Update -------------------------------------------------------------------
 
 
-def test_update_tracker_persists_new_config(
-    client: TestClient, config_service: MagicMock, dummy_tracker
-) -> None:
+def test_update_tracker_persists_new_config(client: TestClient, config_service: MagicMock, dummy_tracker) -> None:
     """PUT /mining-performance-trackers/{id} updates a tracker's configuration."""
     config_service.get_mining_performance_tracker.return_value = dummy_tracker
     config_service.get_mining_performance_tracker_config_by_type.return_value = MiningPerformanceTrackerDummyConfig
@@ -255,9 +251,7 @@ def test_update_missing_tracker_returns_404(client: TestClient, config_service: 
 # -- Remove -------------------------------------------------------------------
 
 
-def test_remove_tracker_returns_deleted_schema(
-    client: TestClient, config_service: MagicMock, dummy_tracker
-) -> None:
+def test_remove_tracker_returns_deleted_schema(client: TestClient, config_service: MagicMock, dummy_tracker) -> None:
     """DELETE /mining-performance-trackers/{id} returns the removed tracker."""
     config_service.remove_mining_performance_tracker = AsyncMock(return_value=dummy_tracker)
 
@@ -380,9 +374,7 @@ def test_stats_endpoint_returns_pool_stats(client: TestClient, adapter_service: 
             )
         ],
     )
-    adapter_service.get_mining_performance_tracker = AsyncMock(
-        return_value=_FakeTrackerPort(stats=stats)
-    )
+    adapter_service.get_mining_performance_tracker = AsyncMock(return_value=_FakeTrackerPort(stats=stats))
 
     response = client.get(f"/api/v1/mining-performance-trackers/{uuid.uuid4()}/stats")
     assert response.status_code == 200
@@ -406,9 +398,7 @@ def test_workers_endpoint_returns_worker_stats(client: TestClient, adapter_servi
         PoolWorkerStats(worker_name="w1", valid_shares=10),
         PoolWorkerStats(worker_name="w2", valid_shares=20),
     ]
-    adapter_service.get_mining_performance_tracker = AsyncMock(
-        return_value=_FakeTrackerPort(workers=workers)
-    )
+    adapter_service.get_mining_performance_tracker = AsyncMock(return_value=_FakeTrackerPort(workers=workers))
     response = client.get(f"/api/v1/mining-performance-trackers/{uuid.uuid4()}/workers")
     assert response.status_code == 200
     body = response.json()
@@ -419,9 +409,7 @@ def test_rewards_endpoint_respects_limit(client: TestClient, adapter_service: Ma
     """GET /{id}/rewards returns rewards honoring the limit query parameter."""
     now = datetime.now(timezone.utc)
     rewards = [MiningReward(amount=Satoshi(i * 1000), timestamp=now) for i in range(1, 6)]
-    adapter_service.get_mining_performance_tracker = AsyncMock(
-        return_value=_FakeTrackerPort(rewards=rewards)
-    )
+    adapter_service.get_mining_performance_tracker = AsyncMock(return_value=_FakeTrackerPort(rewards=rewards))
 
     response = client.get(
         f"/api/v1/mining-performance-trackers/{uuid.uuid4()}/rewards",
@@ -436,9 +424,7 @@ def test_rewards_endpoint_respects_limit(client: TestClient, adapter_service: Ma
 def test_payout_schedule_endpoint_returns_schema(client: TestClient, adapter_service: MagicMock) -> None:
     """GET /{id}/payout-schedule returns the payout schedule schema."""
     schedule = PayoutSchedule(frequency=PayoutFrequency.THRESHOLD, threshold=Satoshi(100_000))
-    adapter_service.get_mining_performance_tracker = AsyncMock(
-        return_value=_FakeTrackerPort(payout_schedule=schedule)
-    )
+    adapter_service.get_mining_performance_tracker = AsyncMock(return_value=_FakeTrackerPort(payout_schedule=schedule))
     response = client.get(f"/api/v1/mining-performance-trackers/{uuid.uuid4()}/payout-schedule")
     assert response.status_code == 200
     body = response.json()

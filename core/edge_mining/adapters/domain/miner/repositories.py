@@ -170,7 +170,9 @@ class SqliteMinerRepository(MinerRepository):
         conn.execute(f"DELETE FROM {self.FEATURES_TABLE_NAME} WHERE miner_id = ?", (str(miner_id),))
         for f in features:
             conn.execute(
-                f"INSERT INTO {self.FEATURES_TABLE_NAME} (miner_id, controller_id, feature_type, priority, enabled) VALUES (?, ?, ?, ?, ?)",
+                f"INSERT INTO {self.FEATURES_TABLE_NAME} "
+                "(miner_id, controller_id, feature_type, priority, enabled) "
+                "VALUES (?, ?, ?, ?, ?)",
                 (str(miner_id), str(f.controller_id), f.feature_type.value, f.priority, int(f.enabled)),
             )
 
