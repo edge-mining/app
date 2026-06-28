@@ -20,6 +20,7 @@ pytestmark = pytest.mark.skipif(not _SKFORECAST_AVAILABLE, reason="skforecast no
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_series(hours: int = 300):
     """Create a pandas Series of synthetic hourly power values."""
     import pandas as pd
@@ -41,6 +42,7 @@ def _fit_forecaster(y, lags: int = 24):
 # ---------------------------------------------------------------------------
 # backtest() static method tests
 # ---------------------------------------------------------------------------
+
 
 class TestSkforecastBacktest:
     """Tests for SkforecastForecastProvider.backtest()."""
@@ -131,6 +133,7 @@ class TestSkforecastBacktest:
 # ---------------------------------------------------------------------------
 # LoadConsumptionModel backtest fields tests
 # ---------------------------------------------------------------------------
+
 
 class TestLoadConsumptionModelBacktestFields:
     """Tests for backtest_mae/rmse/folds fields on the entity."""

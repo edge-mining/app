@@ -62,7 +62,9 @@ def profile_with_device(device_id):
 
 class TestTrainDevice:
     @pytest.mark.asyncio
-    async def test_train_device_calls_train_for_device(self, service, mock_home_loads_repo, device_id, profile_with_device):
+    async def test_train_device_calls_train_for_device(
+        self, service, mock_home_loads_repo, device_id, profile_with_device
+    ):
         mock_home_loads_repo.get_all.return_value = [profile_with_device]
 
         with patch.object(service, "_train_for_device", new_callable=AsyncMock) as mock_train:
@@ -70,7 +72,9 @@ class TestTrainDevice:
             mock_train.assert_awaited_once_with(device_id, "Dishwasher", 8)
 
     @pytest.mark.asyncio
-    async def test_train_device_with_custom_lookback(self, service, mock_home_loads_repo, device_id, profile_with_device):
+    async def test_train_device_with_custom_lookback(
+        self, service, mock_home_loads_repo, device_id, profile_with_device
+    ):
         mock_home_loads_repo.get_all.return_value = [profile_with_device]
 
         with patch.object(service, "_train_for_device", new_callable=AsyncMock) as mock_train:

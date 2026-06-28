@@ -90,7 +90,7 @@ class HomeLoadHistoryService(HomeLoadHistoryServiceInterface):
         except Exception as e:
             if self.logger:
                 self.logger.error(
-                    f"Error fetching power points for device '{device_name}' " f"from provider {provider_id}: {e}"
+                    f"Error fetching power points for device '{device_name}' from provider {provider_id}: {e}"
                 )
             return
 

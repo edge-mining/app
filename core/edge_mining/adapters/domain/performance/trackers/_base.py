@@ -85,7 +85,7 @@ class CachedRateLimitedTrackerBase:
             if cached is not None:
                 if self._cache_logger:
                     self._cache_logger.warning(
-                        f"Rate-limited on '{key}': serving stale cached value " f"({int(now - cached.stored_at)}s old)."
+                        f"Rate-limited on '{key}': serving stale cached value ({int(now - cached.stored_at)}s old)."
                     )
                 return cached.value  # type: ignore[no-any-return]
             raise

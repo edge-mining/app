@@ -553,9 +553,7 @@ class TestRuleEvaluator(unittest.TestCase):
             "boiler": Mock(forecast=Mock(total_energy=1500.0)),
         }
 
-        result = RuleEvaluator._get_field_value(
-            self.mock_context, "home_load.devices.boiler.forecast.total_energy"
-        )
+        result = RuleEvaluator._get_field_value(self.mock_context, "home_load.devices.boiler.forecast.total_energy")
         self.assertEqual(result, 1500.0)
 
     def test_get_field_value_dict_key_missing(self):
@@ -563,18 +561,14 @@ class TestRuleEvaluator(unittest.TestCase):
         self.mock_context.home_load = Mock()
         self.mock_context.home_load.devices = {"boiler": Mock()}
 
-        result = RuleEvaluator._get_field_value(
-            self.mock_context, "home_load.devices.fridge.forecast.total_energy"
-        )
+        result = RuleEvaluator._get_field_value(self.mock_context, "home_load.devices.fridge.forecast.total_energy")
         self.assertIsNone(result)
 
     def test_get_field_value_none_intermediate(self):
         """Test field resolver returns None when intermediate value is None."""
         self.mock_context.home_load = None
 
-        result = RuleEvaluator._get_field_value(
-            self.mock_context, "home_load.devices.boiler"
-        )
+        result = RuleEvaluator._get_field_value(self.mock_context, "home_load.devices.boiler")
         self.assertIsNone(result)
 
     def test_evaluate_condition_with_dict_path(self):

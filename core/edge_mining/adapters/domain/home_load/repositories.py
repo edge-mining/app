@@ -354,8 +354,7 @@ class SqliteEnergyLoadForecastProviderRepository(EnergyLoadForecastProviderRepos
         config_instance = config_class.from_dict(data)
         if not isinstance(config_instance, EnergyLoadForecastProviderConfig):
             raise EnergyLoadForecastProviderConfigurationError(
-                f"Deserialized config is not of type EnergyLoadForecastProviderConfig "
-                f"for adapter type {adapter_type}."
+                f"Deserialized config is not of type EnergyLoadForecastProviderConfig for adapter type {adapter_type}."
             )
         return config_instance
 
@@ -1085,8 +1084,7 @@ class SqliteEnergyLoadHistoryProviderRepository(EnergyLoadHistoryProviderReposit
         config_instance = config_class.from_dict(data)
         if not isinstance(config_instance, EnergyLoadHistoryProviderConfig):
             raise EnergyLoadHistoryProviderConfigurationError(
-                f"Deserialized config is not of type EnergyLoadHistoryProviderConfig "
-                f"for adapter type {adapter_type}."
+                f"Deserialized config is not of type EnergyLoadHistoryProviderConfig for adapter type {adapter_type}."
             )
         return config_instance
 
