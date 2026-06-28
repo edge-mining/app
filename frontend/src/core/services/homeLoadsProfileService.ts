@@ -85,6 +85,17 @@ export class HomeLoadsProfileService extends BaseService {
     ).getData();
   }
 
+  trainDevice(
+    profileId: string,
+    deviceId: string,
+    weeksLookback: number = 8
+  ): Promise<Record<string, string>> {
+    return this.post<Record<string, string>>(
+      `/home-loads-profiles/${profileId}/devices/${deviceId}/training/trigger?weeks_lookback=${weeksLookback}`,
+      {}
+    ).getData();
+  }
+
   getDeviceForecast(
     profileId: string,
     deviceId: string,
