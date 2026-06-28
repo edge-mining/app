@@ -14,3 +14,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Reorganized configuration forms for readability: each entity field is now paired with its unit of measure on the same row, and fields are grouped by domain (Power / Energy) when at least two domains are present, preserving the chronological order within each group. Applied generically to all schema-driven configuration forms (#17).
+- Paired entity/unit fields now use a compact layout: the unit segmented control is rendered inline next to the entity input, so each row keeps a single label and helper text and stays aligned regardless of text length. Configuration modals were widened for more breathing room (#17).
+- Miner controller add/edit form now uses the shared schema-driven configuration form, so Home Assistant controllers (e.g. generic socket) benefit from entity/unit pairing and the unit segmented controls like the other forms (#17, #18).
