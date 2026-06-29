@@ -45,10 +45,12 @@ class TestHomeAssistantAPIClimateMonitor:
 
     @pytest.mark.asyncio
     async def test_get_reading_success(self, mock_ha_service, mock_logger):
-        mock_ha_service.get_entity_state = AsyncMock(side_effect=[
-            ("21.5", "°C"),  # temperature
-            ("55.0", "%"),   # humidity
-        ])
+        mock_ha_service.get_entity_state = AsyncMock(
+            side_effect=[
+                ("21.5", "°C"),  # temperature
+                ("55.0", "%"),  # humidity
+            ]
+        )
 
         monitor = HomeAssistantAPIClimateMonitor(
             home_assistant=mock_ha_service,
@@ -152,10 +154,12 @@ class TestHomeAssistantAPIClimateMonitor:
 
     @pytest.mark.asyncio
     async def test_humidity_out_of_range_ignored(self, mock_ha_service, mock_logger):
-        mock_ha_service.get_entity_state = AsyncMock(side_effect=[
-            ("20.0", "°C"),   # temperature
-            ("150.0", "%"),   # humidity out of range
-        ])
+        mock_ha_service.get_entity_state = AsyncMock(
+            side_effect=[
+                ("20.0", "°C"),  # temperature
+                ("150.0", "%"),  # humidity out of range
+            ]
+        )
 
         monitor = HomeAssistantAPIClimateMonitor(
             home_assistant=mock_ha_service,
@@ -174,28 +178,21 @@ class TestHomeAssistantAPIClimateMonitorBuilder:
     """Tests for the builder."""
 
     def test_build_success(self, mock_ha_service, mock_logger):
-        builder = HomeAssistantAPIClimateMonitorBuilder(
-            home_assistant=mock_ha_service, logger=mock_logger
-        )
+        builder = HomeAssistantAPIClimateMonitorBuilder(home_assistant=mock_ha_service, logger=mock_logger)
         builder.set_temperature_entity("sensor.temp")
         monitor = builder.build()
         assert isinstance(monitor, HomeAssistantAPIClimateMonitor)
 
     def test_build_without_temperature_raises(self, mock_ha_service, mock_logger):
-        builder = HomeAssistantAPIClimateMonitorBuilder(
-            home_assistant=mock_ha_service, logger=mock_logger
-        )
+        builder = HomeAssistantAPIClimateMonitorBuilder(home_assistant=mock_ha_service, logger=mock_logger)
         with pytest.raises(ClimateMonitorConfigurationError):
             builder.build()
 
     def test_builder_fluent_api(self, mock_ha_service, mock_logger):
         zone_id = EntityId(uuid.uuid4())
-        builder = HomeAssistantAPIClimateMonitorBuilder(
-            home_assistant=mock_ha_service, logger=mock_logger
-        )
+        builder = HomeAssistantAPIClimateMonitorBuilder(home_assistant=mock_ha_service, logger=mock_logger)
         result = (
-            builder
-            .set_temperature_entity("sensor.temp", "°C")
+            builder.set_temperature_entity("sensor.temp", "°C")
             .set_humidity_entity("sensor.hum")
             .set_zone_info(zone_id, "Office")
         )

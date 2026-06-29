@@ -54,7 +54,7 @@ class DummyClimateMonitor(ClimateMonitorPort):
         )
 
         if self.logger:
-            self.logger.debug(f"DummyClimateMonitor [{self.zone_name}]: " f"Temp={temperature}°C, Humidity={humidity}%")
+            self.logger.debug(f"DummyClimateMonitor [{self.zone_name}]: Temp={temperature}°C, Humidity={humidity}%")
 
         return reading
 

@@ -148,8 +148,7 @@ class HomeAssistantAPIClimateMonitor(ClimateMonitorPort):
             if state_temp is None or state_temp in ("unavailable", "unknown"):
                 if self.logger:
                     self.logger.warning(
-                        f"Climate monitor: temperature entity '{self.entity_temperature}' "
-                        f"returned state: {state_temp}"
+                        f"Climate monitor: temperature entity '{self.entity_temperature}' returned state: {state_temp}"
                     )
                 return None
 
@@ -189,8 +188,7 @@ class HomeAssistantAPIClimateMonitor(ClimateMonitorPort):
         except (ValueError, TypeError):
             if self.logger:
                 self.logger.error(
-                    f"Climate monitor: unable to parse temperature '{state}' "
-                    f"from entity '{self.entity_temperature}'"
+                    f"Climate monitor: unable to parse temperature '{state}' from entity '{self.entity_temperature}'"
                 )
             return None
 
@@ -206,6 +204,6 @@ class HomeAssistantAPIClimateMonitor(ClimateMonitorPort):
         except (ValueError, TypeError):
             if self.logger:
                 self.logger.error(
-                    f"Climate monitor: unable to parse humidity '{state}' " f"from entity '{self.entity_humidity}'"
+                    f"Climate monitor: unable to parse humidity '{state}' from entity '{self.entity_humidity}'"
                 )
             return None
