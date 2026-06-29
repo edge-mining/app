@@ -175,9 +175,7 @@ class TestTriggerTrainingDevice:
         assert data["status"] == "trained"
         assert "Dishwasher" in data["detail"]
 
-    def test_trigger_device_training_skipped_reports_reason(
-        self, client, mock_training_service, profile_id, device_id
-    ):
+    def test_trigger_device_training_skipped_reports_reason(self, client, mock_training_service, profile_id, device_id):
         mock_training_service.train_device = AsyncMock(
             return_value=LoadTrainingResult(
                 device_name="Dishwasher",
