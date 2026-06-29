@@ -346,6 +346,4 @@ def test_get_config_by_type_for_braiins(service):
 
 def test_external_service_adapter_is_none_for_all_current_trackers(service):
     for adapter_type in MiningPerformanceTrackerAdapter:
-        assert (
-            service.get_mining_performance_tracker_external_service_adapter(adapter_type) is None
-        )
+        assert service.get_mining_performance_tracker_external_service_adapter(adapter_type) is None

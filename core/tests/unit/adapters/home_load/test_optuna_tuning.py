@@ -28,6 +28,7 @@ pytestmark = pytest.mark.skipif(not _SKFORECAST_AVAILABLE, reason="skforecast no
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_series(hours: int = 300):
     """Create a pandas Series of synthetic hourly power values."""
     import pandas as pd
@@ -58,6 +59,7 @@ def _make_history(hours: int = 300, base_power: float = 300.0) -> LoadEnergyCons
 # ---------------------------------------------------------------------------
 # tune() static method tests
 # ---------------------------------------------------------------------------
+
 
 class TestSkforecastTune:
     """Tests for SkforecastForecastProvider.tune()."""
@@ -116,6 +118,7 @@ class TestSkforecastTune:
 # _build_search_space tests
 # ---------------------------------------------------------------------------
 
+
 class TestBuildSearchSpace:
     """Tests for the search space builder."""
 
@@ -147,6 +150,7 @@ class TestBuildSearchSpace:
 # ---------------------------------------------------------------------------
 # LoadConsumptionModel.tuning_params tests
 # ---------------------------------------------------------------------------
+
 
 class TestLoadConsumptionModelTuningParams:
     """Tests for the tuning_params field on the entity."""

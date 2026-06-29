@@ -397,9 +397,7 @@ def test_parse_timestamp_handles_unix_and_iso():
     from edge_mining.adapters.domain.performance.trackers.braiins_pool import _parse_timestamp
 
     assert _parse_timestamp(1_700_000_000) == datetime(2023, 11, 14, 22, 13, 20, tzinfo=timezone.utc)
-    assert _parse_timestamp("2023-11-14T22:13:20+00:00") == datetime(
-        2023, 11, 14, 22, 13, 20, tzinfo=timezone.utc
-    )
+    assert _parse_timestamp("2023-11-14T22:13:20+00:00") == datetime(2023, 11, 14, 22, 13, 20, tzinfo=timezone.utc)
     assert _parse_timestamp(None) is None
 
 

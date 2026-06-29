@@ -32,6 +32,7 @@ def tracker() -> _Tracker:
 @pytest.fixture(autouse=True)
 def _no_sleep():
     """Replace ``asyncio.sleep`` with an immediate no-op for all tests."""
+
     async def _fast_sleep(_delay: float) -> None:
         return None
 
@@ -139,9 +140,7 @@ async def test_with_backoff_applies_scheduled_delays(tracker: _Tracker, _no_slee
 
 @pytest.mark.asyncio
 async def test_with_backoff_succeeds_on_later_attempt(tracker: _Tracker, _no_sleep) -> None:
-    fetch = _counter_fetch(
-        [MiningPoolRateLimitedError(), MiningPoolRateLimitedError(), "ok"]
-    )
+    fetch = _counter_fetch([MiningPoolRateLimitedError(), MiningPoolRateLimitedError(), "ok"])
     result = await tracker._with_backoff(fetch)
     assert result == "ok"
     # Two failed attempts → two sleeps before the success.
@@ -185,18 +184,14 @@ async def test_stale_while_error_serves_cached_value_on_rate_limit(
         t[0] += 10.0
 
         # All retries raise 429 → the stale value should be returned.
-        fetch_429 = _counter_fetch(
-            [MiningPoolRateLimitedError()] * len(_BACKOFF_SCHEDULE_SECONDS)
-        )
+        fetch_429 = _counter_fetch([MiningPoolRateLimitedError()] * len(_BACKOFF_SCHEDULE_SECONDS))
         result = await tracker._cached_call("short", fetch_429)
         assert result == "fresh"
 
 
 @pytest.mark.asyncio
 async def test_rate_limit_reraises_when_no_cached_value(tracker: _Tracker) -> None:
-    fetch = _counter_fetch(
-        [MiningPoolRateLimitedError("hard fail")] * len(_BACKOFF_SCHEDULE_SECONDS)
-    )
+    fetch = _counter_fetch([MiningPoolRateLimitedError("hard fail")] * len(_BACKOFF_SCHEDULE_SECONDS))
     with pytest.raises(MiningPoolRateLimitedError):
         await tracker._cached_call("short", fetch)
 

@@ -27,6 +27,7 @@ from edge_mining.shared.adapter_configs.home_load import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_history(weeks: int = 4, base_power: float = 300.0, ref_time: datetime = None) -> LoadEnergyConsumption:
     """Build a synthetic hourly history going back ``weeks`` weeks.
 
@@ -75,6 +76,7 @@ def _make_sparse_history(hours: int = 48, base_power: float = 400.0) -> LoadEner
 # Factory tests
 # ---------------------------------------------------------------------------
 
+
 class TestTypicalProfileForecastProviderFactory:
     """Tests for the factory."""
 
@@ -101,6 +103,7 @@ class TestTypicalProfileForecastProviderFactory:
 # ---------------------------------------------------------------------------
 # Provider tests
 # ---------------------------------------------------------------------------
+
 
 class TestTypicalProfileForecastProvider:
     """Tests for the provider."""
@@ -193,7 +196,8 @@ class TestTypicalProfileForecastProvider:
             power = Watts(500.0)
             intervals.append(
                 HomeLoadEnergyInterval(
-                    start=start, end=end,
+                    start=start,
+                    end=end,
                     power_points=[HomeLoadPowerPoint(timestamp=start, power=power)],
                     energy=WattHours(500.0),
                 )
@@ -219,7 +223,8 @@ class TestTypicalProfileForecastProvider:
             power = Watts(750.0)
             intervals.append(
                 HomeLoadEnergyInterval(
-                    start=start, end=end,
+                    start=start,
+                    end=end,
                     power_points=[HomeLoadPowerPoint(timestamp=start, power=power)],
                     energy=WattHours(750.0),
                 )
@@ -243,6 +248,7 @@ class TestTypicalProfileForecastProvider:
 # ---------------------------------------------------------------------------
 # Config tests
 # ---------------------------------------------------------------------------
+
 
 class TestTypicalProfileConfig:
     """Tests for the config dataclass."""

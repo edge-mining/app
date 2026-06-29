@@ -529,14 +529,16 @@ class OptimizationService(OptimizationServiceInterface):
                 if not miner.active:
                     if self.logger:
                         self.logger.warning(
-                            f"Miner {miner_id} in optimization unit '{optimization_unit.name}' is not active. Skipping miner."
+                            f"Miner {miner_id} in optimization unit '{optimization_unit.name}' "
+                            "is not active. Skipping miner."
                         )
                     continue  # Try next miner if available
 
                 if not miner.get_controller_ids():
                     if self.logger:
                         self.logger.warning(
-                            f"Miner {miner_id} in optimization unit '{optimization_unit.name}' has no controllers. Skipping miner."
+                            f"Miner {miner_id} in optimization unit '{optimization_unit.name}' "
+                            "has no controllers. Skipping miner."
                         )
                     continue  # Try next miner if available
 
@@ -1244,7 +1246,8 @@ class OptimizationService(OptimizationServiceInterface):
             if not success:
                 if self.logger:
                     self.logger.error(
-                        f"Command {decision.name} for miner {miner_id} failed using controller {type(mining_port).__name__}."
+                        f"Command {decision.name} for miner {miner_id} "
+                        f"failed using controller {type(mining_port).__name__}."
                     )
             else:
                 miner = self.miner_repo.get_by_id(miner_id)
