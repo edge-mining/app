@@ -11,6 +11,9 @@ import {
   PhGear,
   PhPlugs,
   PhCircuitry,
+  PhPlugsConnected,
+  PhCheckCircle,
+  PhWarningCircle,
 } from "@phosphor-icons/vue";
 import { formatType } from "../../core/utils/index";
 
@@ -33,6 +36,15 @@ const minerControllerService = new MinerControllerService();
 const requiredExternalServiceType = ref<string | null>(null);
 const isLoadingExternalServiceType = ref(false);
 
+// Connection test state
+const isTestingConnection = ref(false);
+const testResult = ref<{ success: boolean; message: string } | null>(null);
+
+// The connection test is only available for the PyASIC controller
+const canTestConnection = computed(
+  () => formData.value.adapter_type === MinerControllerAdapter.PYASIC
+);
+
 // Local form state
 const formData = ref<MinerController>({
   name: "",
@@ -46,6 +58,7 @@ watch(
   () => props.open,
   (isOpen) => {
     if (isOpen) {
+      testResult.value = null;
       if (props.minerController) {
         formData.value = {
           ...props.minerController,
@@ -90,11 +103,14 @@ const filteredExternalServices = computed(() => {
 watch(
   () => formData.value.adapter_type,
   async (newType) => {
+    // Reset any previous connection test result when the adapter changes
+    testResult.value = null;
+
     if (!newType) {
       requiredExternalServiceType.value = null;
       return;
     }
-    
+
     isLoadingExternalServiceType.value = true;
     try {
       requiredExternalServiceType.value = await minerControllerService.getExternalServiceType(newType);
@@ -128,6 +144,27 @@ function cleanMinerController(minerController: MinerController): MinerController
     delete cleaned.external_service_id;
   }
   return cleaned;
+}
+
+async function handleTestConnection() {
+  if (!isFormValid.value || isTestingConnection.value) return;
+
+  isTestingConnection.value = true;
+  testResult.value = null;
+  try {
+    // Deep clone to remove Vue reactive proxies
+    const rawData = JSON.parse(JSON.stringify(toRaw(formData.value)));
+    const cleanedData = cleanMinerController(rawData);
+    const result = await minerControllerService.testConnection(cleanedData);
+    testResult.value = { success: result.success, message: result.message };
+  } catch (error) {
+    testResult.value = {
+      success: false,
+      message: error instanceof Error ? error.message : "Connection test failed",
+    };
+  } finally {
+    isTestingConnection.value = false;
+  }
 }
 
 function handleSave() {
@@ -278,19 +315,46 @@ function handleSave() {
           </div>
         </div>
 
+        <!-- Connection test result -->
+        <div
+          v-if="canTestConnection && testResult"
+          class="alert"
+          :class="testResult.success ? 'alert-success' : 'alert-error'"
+        >
+          <PhCheckCircle v-if="testResult.success" :size="20" />
+          <PhWarningCircle v-else :size="20" />
+          <span class="text-sm">{{ testResult.message }}</span>
+        </div>
+
         <!-- Actions -->
-        <div class="flex justify-end gap-3 pt-4 border-t border-base-300/40">
-          <button type="button" class="btn btn-ghost" @click="handleClose">
-            Cancel
-          </button>
+        <div class="flex justify-between items-center gap-3 pt-4 border-t border-base-300/40">
+          <!-- Test connection (PyASIC only) -->
           <button
-            type="submit"
-            class="btn btn-primary gap-2"
-            :disabled="!isFormValid"
+            v-if="canTestConnection"
+            type="button"
+            class="btn btn-outline gap-2"
+            :disabled="!isFormValid || isTestingConnection"
+            @click="handleTestConnection"
           >
-            <PhFloppyDisk :size="18" />
-            {{ isEdit ? "Save Changes" : "Create Controller" }}
+            <span v-if="isTestingConnection" class="loading loading-spinner loading-sm"></span>
+            <PhPlugsConnected v-else :size="18" />
+            {{ isTestingConnection ? "Testing..." : "Test Connection" }}
           </button>
+          <div v-else></div>
+
+          <div class="flex gap-3">
+            <button type="button" class="btn btn-ghost" @click="handleClose">
+              Cancel
+            </button>
+            <button
+              type="submit"
+              class="btn btn-primary gap-2"
+              :disabled="!isFormValid"
+            >
+              <PhFloppyDisk :size="18" />
+              {{ isEdit ? "Save Changes" : "Create Controller" }}
+            </button>
+          </div>
         </div>
       </form>
     </div>

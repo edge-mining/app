@@ -18,6 +18,12 @@ export interface MinerController {
   external_service_id?: string;
 }
 
+export interface MinerControllerTestConnectionResult {
+  success: boolean;
+  message: string;
+  details?: unknown;
+}
+
 export interface ConfigSchemaProperty {
   type?: string;
   title?: string;
