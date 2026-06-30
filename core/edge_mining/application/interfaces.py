@@ -230,6 +230,14 @@ class MinerActionServiceInterface(ABC):
     async def get_miner_details_from_controller(self, controller_id: EntityId) -> Optional[MinerStateSnapshot]:
         """Get details of a miner from its controller as a state snapshot."""
 
+    @abstractmethod
+    async def get_controller_info(self, controller_id: EntityId) -> Optional[MinerInfo]:
+        """Get device information directly from a controller, without a persisted miner."""
+
+    @abstractmethod
+    async def get_controller_limits(self, controller_id: EntityId) -> Optional[MinerLimit]:
+        """Get max power / max hash rate directly from a controller, without a persisted miner."""
+
 
 class ConfigurationServiceInterface(ABC):
     """Base interface for configuration services in the Edge Mining application."""

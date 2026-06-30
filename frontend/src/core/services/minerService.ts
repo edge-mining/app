@@ -69,4 +69,12 @@ export class MinerService extends BaseService {
   getMinerInfo(minerId: string): Promise<MinerInfo | null> {
     return this.get<MinerInfo | null>(`/miners/${minerId}/info`).getData();
   }
+
+  getControllerLimits(controllerId: string): Promise<MinerLimit | null> {
+    return this.get<MinerLimit | null>(`/miner-controllers/${controllerId}/limits`).getData();
+  }
+
+  getControllerInfo(controllerId: string): Promise<MinerInfo | null> {
+    return this.get<MinerInfo | null>(`/miner-controllers/${controllerId}/info`).getData();
+  }
 }
