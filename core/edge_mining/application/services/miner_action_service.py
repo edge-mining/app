@@ -482,3 +482,31 @@ class MinerActionService(MinerActionServiceInterface):
             self.logger.debug(f"Retrieved miner details for controller {controller_id}")
 
         return snapshot
+
+    async def get_controller_supported_features(self, controller_id: EntityId) -> List[MinerFeatureType]:
+        """Get the feature types supported by a controller, without requiring a persisted miner.
+
+        Resolves the controller adapter (via a temporary miner, like
+        ``get_miner_details_from_controller``) and introspects its supported
+        feature types. This allows the UI to preview/configure features before
+        the miner is saved.
+        """
+        if self.logger:
+            self.logger.info(f"Getting supported features for controller {controller_id}")
+
+        # Build a temporary miner so the adapter service can resolve the controller
+        temp_features = [MinerFeature(feature_type=ft, controller_id=controller_id) for ft in MinerFeatureType]
+        temp_miner = Miner(
+            name="Unknown",
+            model="Unknown",
+            hash_rate_max=None,
+            power_consumption_max=None,
+            active=True,
+            features=temp_features,
+        )
+
+        adapter = await self.adapter_service.get_miner_controller_adapter(temp_miner, controller_id)
+        if not adapter:
+            raise MinerControllerConfigurationError(f"Could not initialize adapter for controller {controller_id}.")
+
+        return list(adapter.__class__.get_supported_features())

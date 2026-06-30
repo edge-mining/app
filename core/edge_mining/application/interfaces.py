@@ -230,6 +230,10 @@ class MinerActionServiceInterface(ABC):
     async def get_miner_details_from_controller(self, controller_id: EntityId) -> Optional[MinerStateSnapshot]:
         """Get details of a miner from its controller as a state snapshot."""
 
+    @abstractmethod
+    async def get_controller_supported_features(self, controller_id: EntityId) -> List[MinerFeatureType]:
+        """Get the feature types supported by a controller, without requiring a persisted miner."""
+
 
 class ConfigurationServiceInterface(ABC):
     """Base interface for configuration services in the Edge Mining application."""
