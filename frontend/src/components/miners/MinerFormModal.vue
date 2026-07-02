@@ -328,13 +328,31 @@ const hasDeviceInfoFeature = computed(() => {
 
 async function ensureDeviceInfo(): Promise<MinerInfo | null> {
   if (deviceInfo.value) return deviceInfo.value;
-  if (!formData.value.id) {
-    fetchError.value = "Miner must be saved before fetching info";
+  // Saved miner: resolve via the miner (respects feature priority)
+  if (formData.value.id) {
+    const info = await minerService.getMinerInfo(formData.value.id);
+    if (info) deviceInfo.value = info;
+    return info;
+  }
+  // Creation: query the selected controllers directly, use the first that responds
+  if (selectedControllerIds.value.length === 0) {
+    fetchError.value = "Select a controller before fetching info";
     return null;
   }
-  const info = await minerService.getMinerInfo(formData.value.id);
-  if (info) deviceInfo.value = info;
-  return info;
+  let lastError: any = null;
+  for (const controllerId of selectedControllerIds.value) {
+    try {
+      const info = await minerService.getControllerInfo(controllerId);
+      if (info) {
+        deviceInfo.value = info;
+        return info;
+      }
+    } catch (error: any) {
+      lastError = error;
+    }
+  }
+  if (lastError) throw lastError;
+  return null;
 }
 
 async function fetchInfoField(field: "name" | "model") {
@@ -368,26 +386,52 @@ async function fetchInfoField(field: "name" | "model") {
   }
 }
 
+// Apply a single limit field from a MinerLimit; returns whether it was updated.
+function applyLimitField(field: "hash_rate_max" | "power_consumption_max", limits: MinerLimit | null): boolean {
+  if (!limits) return false;
+  if (field === "hash_rate_max" && limits.max_hash_rate && limits.max_hash_rate.value > 0) {
+    formData.value.hash_rate_max = {
+      value: limits.max_hash_rate.value,
+      unit: limits.max_hash_rate.unit || "TH/s",
+    };
+    return true;
+  }
+  if (field === "power_consumption_max" && limits.max_power && limits.max_power > 0) {
+    formData.value.power_consumption_max = limits.max_power;
+    return true;
+  }
+  return false;
+}
+
 async function fetchLimit(field: "hash_rate_max" | "power_consumption_max") {
-  if (!formData.value.id) {
-    fetchError.value = "Miner must be saved before fetching limits";
+  if (!formData.value.id && selectedControllerIds.value.length === 0) {
+    fetchError.value = "Select a controller before fetching limits";
     return;
   }
   fieldFetching.value = { ...fieldFetching.value, [field]: true };
   fieldFetchSuccess.value = { ...fieldFetchSuccess.value, [field]: false };
   fetchError.value = null;
   try {
-    const limits: MinerLimit = await minerService.getMinerLimits(formData.value.id);
     let updated = false;
-    if (field === "hash_rate_max" && limits.max_hash_rate && limits.max_hash_rate.value > 0) {
-      formData.value.hash_rate_max = {
-        value: limits.max_hash_rate.value,
-        unit: limits.max_hash_rate.unit || "TH/s",
-      };
-      updated = true;
-    } else if (field === "power_consumption_max" && limits.max_power && limits.max_power > 0) {
-      formData.value.power_consumption_max = limits.max_power;
-      updated = true;
+    if (formData.value.id) {
+      // Saved miner: resolve via the miner (respects feature priority)
+      const limits = await minerService.getMinerLimits(formData.value.id);
+      updated = applyLimitField(field, limits);
+    } else {
+      // Creation: try each selected controller until one provides the value
+      let lastError: any = null;
+      for (const controllerId of selectedControllerIds.value) {
+        try {
+          const limits = await minerService.getControllerLimits(controllerId);
+          if (applyLimitField(field, limits)) {
+            updated = true;
+            break;
+          }
+        } catch (error: any) {
+          lastError = error;
+        }
+      }
+      if (!updated && lastError) throw lastError;
     }
     if (updated) {
       highlightedFields.value = new Set([field]);
@@ -460,7 +504,7 @@ function handleSave() {
               />
               <!-- Fetch hostname from device info -->
               <button
-                v-if="isEdit && formData.id && hasDeviceInfoFeature"
+                v-if="(formData.id && hasDeviceInfoFeature) || (!formData.id && selectedControllerIds.length > 0)"
                 type="button"
                 class="btn btn-sm btn-square"
                 :class="fieldFetchSuccess['name'] ? 'btn-success' : 'btn-ghost'"
@@ -489,7 +533,7 @@ function handleSave() {
               />
               <!-- Fetch model from device info -->
               <button
-                v-if="isEdit && formData.id && hasDeviceInfoFeature"
+                v-if="(formData.id && hasDeviceInfoFeature) || (!formData.id && selectedControllerIds.length > 0)"
                 type="button"
                 class="btn btn-sm btn-square"
                 :class="fieldFetchSuccess['model'] ? 'btn-success' : 'btn-ghost'"
@@ -735,7 +779,7 @@ function handleSave() {
               </select>
               <!-- Fetch limits from miner -->
               <button
-                v-if="isEdit && formData.id"
+                v-if="formData.id || selectedControllerIds.length > 0"
                 type="button"
                 class="btn btn-sm btn-square"
                 :class="fieldFetchSuccess['hash_rate_max'] ? 'btn-success' : 'btn-ghost'"
@@ -772,7 +816,7 @@ function handleSave() {
               </label>
               <!-- Fetch max power from miner -->
               <button
-                v-if="isEdit && formData.id"
+                v-if="formData.id || selectedControllerIds.length > 0"
                 type="button"
                 class="btn btn-sm btn-square"
                 :class="fieldFetchSuccess['power_consumption_max'] ? 'btn-success' : 'btn-ghost'"

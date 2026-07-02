@@ -239,6 +239,14 @@ class MinerActionServiceInterface(ABC):
         """Get details of a miner from its controller as a state snapshot."""
 
     @abstractmethod
+    async def get_controller_info(self, controller_id: EntityId) -> Optional[MinerInfo]:
+        """Get device information directly from a controller, without a persisted miner."""
+
+    @abstractmethod
+    async def get_controller_limits(self, controller_id: EntityId) -> Optional[MinerLimit]:
+        """Get max power / max hash rate directly from a controller, without a persisted miner."""
+
+    @abstractmethod
     async def get_controller_supported_features(self, controller_id: EntityId) -> List[MinerFeatureType]:
         """Get the feature types supported by a controller, without requiring a persisted miner."""
 

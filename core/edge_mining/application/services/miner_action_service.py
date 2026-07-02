@@ -52,6 +52,53 @@ class MinerActionService(MinerActionServiceInterface):
         self._event_bus = event_bus
         self.logger = logger
 
+    @staticmethod
+    def _temp_miner_for_controller(controller_id: EntityId) -> Miner:
+        """Build a throwaway miner exposing every feature for a single controller.
+
+        Used to query a controller directly (info, limits, details) before a real
+        miner has been persisted, so the adapter service can resolve its ports.
+        """
+        temp_features = [MinerFeature(feature_type=ft, controller_id=controller_id) for ft in MinerFeatureType]
+        return Miner(
+            name="Unknown",
+            model="Unknown",
+            hash_rate_max=None,
+            power_consumption_max=None,
+            active=True,
+            features=temp_features,
+        )
+
+    async def _read_miner_info(self, miner: Miner) -> Optional[MinerInfo]:
+        """Read device information for a miner via its DeviceInfoPort."""
+        port = await self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.DEVICE_INFO_DETECTION)
+        if not port or not isinstance(port, DeviceInfoPort):
+            raise MinerControllerConfigurationError(f"No device info port available for miner {miner.name}.")
+
+        return await port.get_device_info()
+
+    async def _read_miner_limits(self, miner: Miner) -> Optional[MinerLimit]:
+        """Read max power / max hash rate for a miner via its detection ports."""
+        # --- Retrieve max power limit ---
+        max_power = None
+        power_port = await self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.MAX_POWER_DETECTION)
+        if power_port and isinstance(power_port, MaxPowerDetectionPort):
+            max_power = await power_port.get_max_power()
+        else:
+            if self.logger:
+                self.logger.warning(f"No max power detection port available for miner {miner.name}. Returning None.")
+
+        # --- Retrieve max hash rate limit ---
+        max_hash_rate = None
+        hashrate_port = await self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.HASHRATE_MONITORING)
+        if hashrate_port and isinstance(hashrate_port, MaxHashrateDetectionPort):
+            max_hash_rate = await hashrate_port.get_max_hashrate()
+        else:
+            if self.logger:
+                self.logger.warning(f"No hashrate monitor port available for miner {miner.name}. Returning None.")
+
+        return MinerLimit(max_power=max_power, max_hash_rate=max_hash_rate) if max_power or max_hash_rate else None
+
     async def get_miner_info(self, miner_id: EntityId) -> Optional[MinerInfo]:
         """Gets the information of the specified miner."""
         if self.logger:
@@ -62,11 +109,7 @@ class MinerActionService(MinerActionServiceInterface):
         if not miner:
             raise MinerNotFoundError(f"Miner with ID {miner_id} not found.")
 
-        port = await self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.DEVICE_INFO_DETECTION)
-        if not port or not isinstance(port, DeviceInfoPort):
-            raise MinerControllerConfigurationError(f"No device info port available for miner {miner_id}.")
-
-        return await port.get_device_info()
+        return await self._read_miner_info(miner)
 
     async def get_miner_limits(self, miner_id: EntityId) -> Optional[MinerLimit]:
         """Gets the limits of the specified miner."""
@@ -78,25 +121,21 @@ class MinerActionService(MinerActionServiceInterface):
         if not miner:
             raise MinerNotFoundError(f"Miner with ID {miner_id} not found.")
 
-        # --- Retrieve max power limit ---
-        max_power = None
-        power_port = await self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.MAX_POWER_DETECTION)
-        if power_port and isinstance(power_port, MaxPowerDetectionPort):
-            max_power = await power_port.get_max_power()
-        else:
-            if self.logger:
-                self.logger.warning(f"No max power detection port available for miner {miner_id}. Returning None.")
+        return await self._read_miner_limits(miner)
 
-        # --- Retrieve max hash rate limit ---
-        max_hash_rate = None
-        hashrate_port = await self.adapter_service.get_miner_feature_port(miner, MinerFeatureType.HASHRATE_MONITORING)
-        if hashrate_port and isinstance(hashrate_port, MaxHashrateDetectionPort):
-            max_hash_rate = await hashrate_port.get_max_hashrate()
-        else:
-            if self.logger:
-                self.logger.warning(f"No hashrate monitor port available for miner {miner_id}. Returning None.")
+    async def get_controller_info(self, controller_id: EntityId) -> Optional[MinerInfo]:
+        """Gets device information directly from a controller, without a persisted miner."""
+        if self.logger:
+            self.logger.info(f"Getting info from controller {controller_id}")
 
-        return MinerLimit(max_power=max_power, max_hash_rate=max_hash_rate) if max_power or max_hash_rate else None
+        return await self._read_miner_info(self._temp_miner_for_controller(controller_id))
+
+    async def get_controller_limits(self, controller_id: EntityId) -> Optional[MinerLimit]:
+        """Gets max power / max hash rate directly from a controller, without a persisted miner."""
+        if self.logger:
+            self.logger.info(f"Getting limits from controller {controller_id}")
+
+        return await self._read_miner_limits(self._temp_miner_for_controller(controller_id))
 
     async def _notify(self, notifiers: List[NotificationPort], title: str, message: str):
         """Sends a notification using the configured notifiers."""
@@ -398,16 +437,7 @@ class MinerActionService(MinerActionServiceInterface):
 
         # Create a temporary miner with features for all possible feature types
         # so the adapter service can resolve the controller
-
-        temp_features = [MinerFeature(feature_type=ft, controller_id=controller_id) for ft in MinerFeatureType]
-        temp_miner = Miner(
-            name="Unknown",
-            model="Unknown",
-            hash_rate_max=None,
-            power_consumption_max=None,
-            active=True,
-            features=temp_features,
-        )
+        temp_miner = self._temp_miner_for_controller(controller_id)
 
         # Query via feature ports
         status_port = await self.adapter_service.get_miner_feature_port(temp_miner, MinerFeatureType.STATUS_MONITORING)

@@ -25,17 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `MinerActionService.test_miner_controller_connection()` builds a fresh, uncached adapter from the controller entity and verifies the device responds (status / hashrate / power / device info)
   - `AdapterService.build_miner_controller_adapter()` to instantiate an adapter from a controller entity without using or polluting the adapters cache
   - Frontend: "Test Connection" button in the miner controller form, shown only for the PyASIC adapter type, with inline success/error feedback (#46)
-- Configure and order controller features directly in the miner creation form,
-  before the miner is saved (#48):
-  - New REST endpoint `GET /miner-controllers/{controller_id}/supported-features`
-    returning the feature types a controller supports, without requiring a
-    persisted miner (`MinerActionService.get_controller_supported_features`).
-  - The "Add Miner" form now shows a controller's features as soon as it is
-    selected (with the backend defaults: enabled, priority 50), so priority and
-    enabled/disabled state can be set during creation.
-  - On save, the chosen priority/enabled values are applied after the controllers
-    are linked. This also works for controllers newly added to an existing miner,
-    without requiring a second save.
+- Configure and order controller features directly in the miner creation form, before the miner is saved (#48):
+  - New REST endpoint `GET /miner-controllers/{controller_id}/supported-features` returning the feature types a controller supports, without requiring a persisted miner (`MinerActionService.get_controller_supported_features`).
+  - The "Add Miner" form now shows a controller's features as soon as it is selected (with the backend defaults: enabled, priority 50), so priority and enabled/disabled state can be set during creation.
+  - On save, the chosen priority/enabled values are applied after the controllers are linked. This also works for controllers newly added to an existing miner, without requiring a second save.
+- Fetch device data (max hash rate, max power and model/hostname) from the controller while creating a miner, without saving it first (#49):
+  - New REST endpoints `GET /miner-controllers/{controller_id}/limits` and `GET /miner-controllers/{controller_id}/info`, backed by `MinerActionService.get_controller_limits` / `get_controller_info`, which query a controller directly via a temporary miner.
+  - The "Add Miner" form now enables the "fetch from miner" buttons for Max Hash Rate, Max Power and Model when at least one controller is selected, trying the selected controllers until one provides the value.
   
 ### Changed
 
@@ -43,3 +39,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Paired entity/unit fields now use a compact layout: the unit segmented control is rendered inline next to the entity input, so each row keeps a single label and helper text and stays aligned regardless of text length. Configuration modals were widened for more breathing room (#17).
 - Miner controller add/edit form now uses the shared schema-driven configuration form, so Home Assistant controllers (e.g. generic socket) benefit from entity/unit pairing and the unit segmented controls like the other forms (#17, #18).
 - Cleaned up sidebar header: removed the "Edge Mining" text label and the username placeholder, left-aligned the logo with the sidebar menu items, and refined the green glow to originate from the logo area (#33).
+- `MinerActionService`: extracted shared `_read_miner_info` / `_read_miner_limits`helpers and a `_temp_miner_for_controller` builder, reused by the miner- and controller-level info/limits/details reads.
