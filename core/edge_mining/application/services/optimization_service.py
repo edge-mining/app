@@ -7,7 +7,7 @@ It is responsible for:
 - Executing the decision
 """
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Dict, List, Optional
 
 from edge_mining.application.interfaces import (
