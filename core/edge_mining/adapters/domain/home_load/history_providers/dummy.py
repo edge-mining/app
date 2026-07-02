@@ -27,8 +27,14 @@ class DummyEnergyLoadHistoryProvider(EnergyLoadHistoryProviderPort):
         self._history_repo = history_repo
         self._logger = logger
 
-    async def get_power_points(self, start: Timestamp, end: Timestamp) -> List[HomeLoadPowerPoint]:
-        """Return cached power points for this device in [start, end)."""
+    async def get_power_points(
+        self, start: Timestamp, end: Timestamp, force_refresh: bool = False
+    ) -> List[HomeLoadPowerPoint]:
+        """Return cached power points for this device in [start, end).
+
+        ``force_refresh`` has no effect here: the dummy provider has no upstream
+        source to re-fetch from, it only serves what is already in the repo.
+        """
         if self._logger:
             self._logger.debug(f"DummyEnergyLoadHistoryProvider: get_power_points({self.device_id}, [{start}, {end}))")
         return self._history_repo.get_power_points(self.device_id, start, end)

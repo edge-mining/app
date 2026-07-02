@@ -925,8 +925,17 @@ async def trigger_training_device(
                 f"Load Device with ID {device_id} not found in Home Loads Profile {profile_id}"
             )
 
-        await training_service.train_device(device_id, weeks_lookback=weeks_lookback)
-        return {"status": "completed", "detail": f"Training completed for device '{device.name}'."}
+        result = await training_service.train_device(device_id, weeks_lookback=weeks_lookback)
+        if result.status == "trained" and result.best_adapter is not None:
+            detail = (
+                f"Model retrained for '{result.device_name}': best={result.best_adapter.value} "
+                f"MAE={result.best_mae:.1f} ({result.samples_used} samples)."
+            )
+        elif result.status == "skipped":
+            detail = f"Training skipped for '{result.device_name}': {result.reason}."
+        else:
+            detail = f"Training failed for '{result.device_name}': {result.reason}."
+        return {"status": result.status, "detail": detail}
     except HomeLoadsProfileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except HomeLoadsProfileDeviceNotFoundError as e:

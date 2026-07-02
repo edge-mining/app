@@ -70,8 +70,16 @@ class HomeLoadHistoryService(HomeLoadHistoryServiceInterface):
         device_name: str,
         provider_id: EntityId,
         lookback_hours: int = 24,
+        force_full_window: bool = False,
     ) -> None:
-        """Collect power points for a single device from its history provider."""
+        """Collect power points for a single device from its history provider.
+
+        By default this is incremental: it fetches only what is newer than the
+        latest stored point. When ``force_full_window`` is True it re-fetches the
+        whole ``lookback_hours`` window from the provider (additive backfill),
+        which lets a manual collection fill internal gaps without losing already
+        stored data.
+        """
         history_provider = await self.adapter_service.get_home_load_history_provider(provider_id, device_id)
         if not history_provider:
             if self.logger:
@@ -80,13 +88,13 @@ class HomeLoadHistoryService(HomeLoadHistoryServiceInterface):
 
         now = Timestamp(datetime.now(timezone.utc))
         last_ts = self.home_load_history_repo.get_latest_timestamp(device_id)
-        if last_ts is not None:
-            start = last_ts
-        else:
+        if force_full_window or last_ts is None:
             start = Timestamp(now - timedelta(hours=lookback_hours))
+        else:
+            start = last_ts
 
         try:
-            power_points = await history_provider.get_power_points(start, now)
+            power_points = await history_provider.get_power_points(start, now, force_refresh=force_full_window)
         except Exception as e:
             if self.logger:
                 self.logger.error(
@@ -116,7 +124,7 @@ class HomeLoadHistoryService(HomeLoadHistoryServiceInterface):
         Iterates all profiles and their devices, purging historical data that
         exceeds the retention window.
         """
-        cutoff = Timestamp(datetime.now() - timedelta(days=retention_days))
+        cutoff = Timestamp(datetime.now(timezone.utc) - timedelta(days=retention_days))
         profiles = self.home_loads_repo.get_all()
         if not profiles:
             return
@@ -156,8 +164,16 @@ class HomeLoadHistoryService(HomeLoadHistoryServiceInterface):
             self.logger.info(f"Cleared {removed} power points for device {device_id}.")
         return removed
 
-    async def collect_devices(self, device_ids: List[EntityId], lookback_hours: int = 24) -> None:
-        """Collect power points for the specified devices only."""
+    async def collect_devices(
+        self, device_ids: List[EntityId], lookback_hours: int = 24, force_full_window: bool = True
+    ) -> None:
+        """Collect power points for the specified devices only.
+
+        This is the manual entry point (e.g. the "collect" button): it defaults
+        to an additive backfill of the whole ``lookback_hours`` window so an
+        explicit request honours the requested look-back even when data already
+        exists, filling internal gaps without dropping stored points.
+        """
         profiles = self.home_loads_repo.get_all()
         if not profiles:
             return
@@ -176,4 +192,5 @@ class HomeLoadHistoryService(HomeLoadHistoryServiceInterface):
                     device_name=device.name,
                     provider_id=device.energy_load_history_provider_id,
                     lookback_hours=lookback_hours,
+                    force_full_window=force_full_window,
                 )

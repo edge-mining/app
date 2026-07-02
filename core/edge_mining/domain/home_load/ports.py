@@ -83,8 +83,15 @@ class EnergyLoadHistoryProviderPort(ABC):
         self.provider_type = provider_type
 
     @abstractmethod
-    async def get_power_points(self, start: Timestamp, end: Timestamp) -> List[HomeLoadPowerPoint]:
-        """Retrieve raw power points for this device in the window [start, end)."""
+    async def get_power_points(
+        self, start: Timestamp, end: Timestamp, force_refresh: bool = False
+    ) -> List[HomeLoadPowerPoint]:
+        """Retrieve raw power points for this device in the window [start, end).
+
+        When ``force_refresh`` is True the provider re-fetches the whole window
+        from its source (ignoring any incremental/cache optimisation), so callers
+        can backfill internal gaps. Persisted duplicates are de-duplicated.
+        """
         raise NotImplementedError
 
     @abstractmethod

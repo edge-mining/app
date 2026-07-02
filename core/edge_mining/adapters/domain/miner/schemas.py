@@ -749,6 +749,16 @@ class MinerControllerUpdateSchema(BaseModel):
         }
 
 
+class MinerControllerTestConnectionSchema(BaseModel):
+    """Result of a miner controller connection test."""
+
+    success: bool = Field(..., description="Whether the controller is reachable and properly configured")
+    message: str = Field(default="", description="Human readable result message")
+    details: Optional[MinerStateSnapshotSchema] = Field(
+        default=None, description="State snapshot retrieved from the controller on success"
+    )
+
+
 class MinerControllerDummyConfigSchema(BaseModel):
     """Schema for Dummy MinerControllerConfig."""
 
