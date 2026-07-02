@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import { useRoute } from "vue-router";
 import { useExternalServiceStore } from "../../core/stores/externalServiceStore";
 import ExternalServiceCard from "../../components/externalServices/ExternalServiceCard.vue";
 import ExternalServiceFormModal from "../../components/externalServices/ExternalServiceFormModal.vue";
@@ -16,6 +17,7 @@ import {
 } from "@phosphor-icons/vue";
 
 const externalServiceStore = useExternalServiceStore();
+const route = useRoute();
 
 // Modal state
 const showModal = ref(false);
@@ -79,6 +81,11 @@ const stats = computed(() => {
 });
 
 onMounted(() => {
+  const adapterQuery = route.query.adapter;
+  if (typeof adapterQuery === "string" && adapterQuery) {
+    selectedAdapterFilter.value = adapterQuery;
+  }
+
   externalServiceStore.loadExternalServices().then(() => {
     externalServiceStore.loadServicesStatus();
   });
@@ -347,7 +354,7 @@ function getFilterCount(adapterType: string): number {
   .stat-value {
     font-size: 1.25rem;
   }
-  
+
   .stat-type-count {
     font-size: 0.875rem;
   }
