@@ -5,12 +5,15 @@ import {
 	type ConfigSchema,
 	type ConfigSchemaProperty,
 	formatFieldName,
+	getEntityDomainOptions,
+	getEntityPrefix,
 	getFieldType,
 	getPropertySchema,
 	getUnitOptions,
 	isEntityField,
 	isNullable,
 	isPasswordField,
+	stripEntityPrefix,
 } from "../core/utils/configSchema";
 
 const props = withDefaults(
@@ -19,7 +22,8 @@ const props = withDefaults(
 		property: ConfigSchemaProperty;
 		schema: ConfigSchema;
 		required?: boolean;
-		/** If true, string entity fields get a "sensor." prefix (Home Assistant). */
+		/** If true, string entity fields get a fixed Home Assistant domain prefix
+		 *  chip (e.g. "sensor.", "switch."), derived per field from its default. */
 		sensorPrefix?: boolean;
 		/** Hide the field label (used when rendered inline as another field's addon). */
 		hideLabel?: boolean;
@@ -31,14 +35,33 @@ const props = withDefaults(
 
 const value = defineModel<any>();
 
-const SENSOR_PREFIX = "sensor.";
-
 const fieldType = computed(() => getFieldType(props.property, props.schema));
 const resolved = computed(() => getPropertySchema(props.property, props.schema));
 
 const isSensorEntityField = computed(
 	() => props.sensorPrefix && isEntityField(props.name)
 );
+
+// Home Assistant entity-domain prefix (e.g. "sensor.", "switch.") shown as a
+// selectable dropdown. It defaults to the domain derived from the field's
+// current value / default / name, but the user can override it; the override
+// is sticky even while the entity object id is empty.
+const domainOverride = ref<string | null>(null);
+
+const entityPrefix = computed(
+	() => domainOverride.value ?? getEntityPrefix(props.name, props.property, value.value)
+);
+
+const entityDomain = computed<string>({
+	get: () => entityPrefix.value,
+	set: (newPrefix: string) => {
+		const objectId = stripEntityPrefix(value.value, entityPrefix.value);
+		domainOverride.value = newPrefix;
+		value.value = objectId ? newPrefix + objectId : "";
+	},
+});
+
+const entityDomainOptions = computed(() => getEntityDomainOptions(entityPrefix.value));
 
 // Unit fields (issue #18): render a segmented control instead of free text.
 const unitOptions = computed<string[] | null>(() => {
@@ -54,28 +77,32 @@ const showDescription = computed(
 		fieldType.value !== "object"
 );
 
-// ── Sensor entity (Home Assistant "sensor." prefix) ─────────────
+// ── Entity with fixed Home Assistant domain prefix ──────────────
 
-const entityDisplayValue = computed(() => {
-	const val = String(value.value ?? "");
-	return val.startsWith(SENSOR_PREFIX) ? val.slice(SENSOR_PREFIX.length) : val;
-});
+const entityDisplayValue = computed(() =>
+	stripEntityPrefix(value.value, entityPrefix.value)
+);
 
 const onEntityInput = (event: Event) => {
 	const v = (event.target as HTMLInputElement).value;
-	value.value = v ? SENSOR_PREFIX + v : "";
+	value.value = v ? entityPrefix.value + v : "";
 };
 
 // ── Nested object fields ────────────────────────────────────────
 
-const nestedEntityDisplayValue = (key: string) => {
-	const val = String(value.value?.[key] ?? "");
-	return val.startsWith(SENSOR_PREFIX) ? val.slice(SENSOR_PREFIX.length) : val;
-};
+const nestedEntityPrefix = (key: string, nestedProp: ConfigSchemaProperty) =>
+	getEntityPrefix(key, nestedProp, value.value?.[key]);
 
-const onNestedEntityInput = (key: string, event: Event) => {
+const nestedEntityDisplayValue = (key: string, nestedProp: ConfigSchemaProperty) =>
+	stripEntityPrefix(value.value?.[key], nestedEntityPrefix(key, nestedProp));
+
+const onNestedEntityInput = (
+	key: string,
+	nestedProp: ConfigSchemaProperty,
+	event: Event
+) => {
 	const v = (event.target as HTMLInputElement).value;
-	if (value.value) value.value[key] = v ? SENSOR_PREFIX + v : "";
+	if (value.value) value.value[key] = v ? nestedEntityPrefix(key, nestedProp) + v : "";
 };
 
 // ── Password visibility ─────────────────────────────────────────
@@ -122,15 +149,15 @@ const togglePassword = (key: string) => {
 							{{ nestedProp.title || formatFieldName(String(nestedKey)) }}
 						</div>
 
-						<!-- Nested sensor entity -->
+						<!-- Nested entity with fixed domain prefix -->
 						<div
 							v-if="nestedProp.type === 'string' && sensorPrefix && isEntityField(String(nestedKey))"
 							class="join w-full"
 						>
-							<span class="join-item flex items-center px-2 bg-base-200 border border-base-300 text-xs opacity-70 select-none">sensor.</span>
+							<span class="join-item flex items-center px-2 bg-base-200 border border-base-300 text-xs opacity-70 select-none">{{ nestedEntityPrefix(String(nestedKey), nestedProp) }}</span>
 							<input
-								:value="nestedEntityDisplayValue(String(nestedKey))"
-								@input="onNestedEntityInput(String(nestedKey), $event)"
+								:value="nestedEntityDisplayValue(String(nestedKey), nestedProp)"
+								@input="onNestedEntityInput(String(nestedKey), nestedProp, $event)"
 								type="text"
 								placeholder="entity_id"
 								class="input input-bordered input-xs join-item flex-1"
@@ -189,12 +216,18 @@ const togglePassword = (key: string) => {
 					>{{ option }}</button>
 				</div>
 
-				<!-- String with sensor prefix -->
+				<!-- String entity with selectable Home Assistant domain prefix -->
 				<div
 					v-else-if="fieldType === 'string' && isSensorEntityField"
 					class="join w-full"
 				>
-					<span class="join-item flex items-center px-3 bg-base-200 border border-base-300 text-sm opacity-70 select-none">sensor.</span>
+					<select
+						v-model="entityDomain"
+						class="select select-bordered select-sm join-item w-fit bg-base-200 opacity-80"
+						aria-label="Entity domain"
+					>
+						<option v-for="domain in entityDomainOptions" :key="domain" :value="domain">{{ domain }}</option>
+					</select>
 					<input
 						:value="entityDisplayValue"
 						@input="onEntityInput"

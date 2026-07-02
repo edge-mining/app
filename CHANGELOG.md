@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Unit-of-measure fields in configuration forms are now selected through a segmented control (e.g. `W` / `kW` / `MW`, `Wh` / `kWh` / `MWh`, `GH/s` / `TH/s` / `PH/s`) instead of a free-text input, preventing inconsistent or invalid values. The available options are inferred automatically from each field, so the control applies to every configuration form (#18).
+- Home Assistant entity fields now show a selectable entity-domain prefix (e.g. `sensor.`, `switch.`) as a dropdown next to the input, so the user only types the entity object id. The domain defaults to the one derived from the field's value/default/name and can be overridden, with the prefix now enabled on Forecast Provider and Miner Controller forms too (handling controllers that mix `switch.` and `sensor.` entities) (#39).
 
 ### Changed
 
