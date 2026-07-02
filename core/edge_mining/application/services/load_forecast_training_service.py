@@ -19,7 +19,7 @@ from edge_mining.domain.home_load.ports import (
     HomeLoadsProfileRepository,
     LoadConsumptionModelRepository,
 )
-from edge_mining.domain.home_load.value_objects import LoadEnergyConsumption
+from edge_mining.domain.home_load.value_objects import LoadEnergyConsumption, LoadTrainingResult
 from edge_mining.shared.logging.port import LoggerPort
 
 
@@ -61,7 +61,7 @@ class LoadForecastModelTrainingService(LoadForecastTrainingServiceInterface):
                     if self._logger:
                         self._logger.error(f"Training failed for device '{device.name}': {exc}")
 
-    async def train_device(self, device_id: EntityId, weeks_lookback: int = 8) -> None:
+    async def train_device(self, device_id: EntityId, weeks_lookback: int = 8) -> LoadTrainingResult:
         """Train models for a single device identified by device_id."""
         profiles = self._home_loads_repo.get_all()
         device_name: Optional[str] = None
@@ -76,9 +76,9 @@ class LoadForecastModelTrainingService(LoadForecastTrainingServiceInterface):
         if device_name is None:
             if self._logger:
                 self._logger.warning(f"Device {device_id} not found in any profile. Skipping training.")
-            return
+            return LoadTrainingResult(device_name=str(device_id), status="failed", reason="device not found")
 
-        await self._train_for_device(device_id, device_name, weeks_lookback)
+        return await self._train_for_device(device_id, device_name, weeks_lookback)
 
     def get_models(self, device_id: Optional[EntityId] = None) -> List[LoadConsumptionModel]:
         """Retrieve trained models, optionally filtered by device."""
@@ -93,18 +93,17 @@ class LoadForecastModelTrainingService(LoadForecastTrainingServiceInterface):
         device_id: EntityId,
         device_name: str,
         weeks_lookback: int,
-    ) -> None:
+    ) -> LoadTrainingResult:
         """Train HW + XGBoost models for one device, promote the better one."""
         now = Timestamp(datetime.now(timezone.utc))
         lookback_start = Timestamp(now - timedelta(weeks=weeks_lookback))
 
         power_points = self._history_repo.get_power_points(device_id, lookback_start, now)
         if len(power_points) < 48 * 2:  # at least 48 hours of data for train+holdout
+            reason = f"insufficient history ({len(power_points)} points, need at least 96)"
             if self._logger:
-                self._logger.debug(
-                    f"Insufficient history for device '{device_name}' ({len(power_points)} points). Skipping training."
-                )
-            return
+                self._logger.debug(f"{reason.capitalize()} for device '{device_name}'. Skipping training.")
+            return LoadTrainingResult(device_name=device_name, status="skipped", reason=reason)
 
         # Build LoadEnergyConsumption from power points
         intervals = group_power_points_into_intervals(power_points)
@@ -116,9 +115,10 @@ class LoadForecastModelTrainingService(LoadForecastTrainingServiceInterface):
         holdout_consumption = consumption.in_window(holdout_start, now)
 
         if len(train_consumption.intervals) < 48 or len(holdout_consumption.intervals) < 12:
+            reason = "not enough data after train/holdout split (need 48h train + 12h holdout)"
             if self._logger:
-                self._logger.debug(f"Not enough data after split for device '{device_name}'. Skipping.")
-            return
+                self._logger.debug(f"{reason.capitalize()} for device '{device_name}'. Skipping.")
+            return LoadTrainingResult(device_name=device_name, status="skipped", reason=reason)
 
         hw_model = self._train_hw(train_consumption, holdout_consumption, device_id, device_name)
         xgb_model = self._train_xgb(train_consumption, holdout_consumption, device_id, device_name)
@@ -129,7 +129,7 @@ class LoadForecastModelTrainingService(LoadForecastTrainingServiceInterface):
         if not candidates:
             if self._logger:
                 self._logger.warning(f"No model trained successfully for device '{device_name}'.")
-            return
+            return LoadTrainingResult(device_name=device_name, status="failed", reason="no model trained successfully")
 
         best = min(candidates, key=lambda m: m.mae)  # type: ignore[arg-type]
         best.is_active = True
@@ -153,6 +153,14 @@ class LoadForecastModelTrainingService(LoadForecastTrainingServiceInterface):
             self._logger.info(
                 f"Trained models for device '{device_name}': best={best.adapter_type.value} MAE={best.mae:.2f}"
             )
+
+        return LoadTrainingResult(
+            device_name=device_name,
+            status="trained",
+            best_adapter=best.adapter_type,
+            best_mae=best.mae,
+            samples_used=best.samples_used,
+        )
 
     def _train_hw(
         self,

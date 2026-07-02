@@ -120,13 +120,26 @@ class HomeAssistantAPIEnergyLoadHistoryProvider(EnergyLoadHistoryProviderPort):
         if self._logger:
             self._logger.debug(f"HA history adapter bound to device {device_id} (entity='{entity_power}')")
 
-    async def get_power_points(self, start: Timestamp, end: Timestamp) -> List[HomeLoadPowerPoint]:
+    async def get_power_points(
+        self, start: Timestamp, end: Timestamp, force_refresh: bool = False
+    ) -> List[HomeLoadPowerPoint]:
         """Return power points for the bound device in [start, end).
 
         Hits the cache first; fetches missing or stale tail from Home Assistant.
+        When ``force_refresh`` is True the whole window is re-fetched from Home
+        Assistant (bounded by HA's own recorder retention) and merged with the
+        cache, so internal gaps get backfilled. New points are persisted; the
+        composite primary key on (device_id, timestamp) de-duplicates existing
+        ones.
         """
         if start >= end:
             return []
+
+        if force_refresh:
+            fetched = await self._fetch_from_home_assistant(start, end)
+            if fetched:
+                self._history_repo.add_power_points(self.device_id, fetched)
+            return self._history_repo.get_power_points(self.device_id, start, end)
 
         cached = self._history_repo.get_power_points(self.device_id, start, end)
 

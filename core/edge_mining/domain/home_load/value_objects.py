@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from edge_mining.domain.common import EntityId, Timestamp, ValueObject, WattHours, Watts
-from edge_mining.domain.home_load.common import LoadDeviceCategory
+from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter, LoadDeviceCategory
 
 
 @dataclass(frozen=True)
@@ -14,6 +14,23 @@ class HomeLoadPowerPoint(ValueObject):
 
     timestamp: Timestamp
     power: Watts
+
+
+@dataclass(frozen=True)
+class LoadTrainingResult(ValueObject):
+    """Outcome of a forecast-model (re)training run for a single LoadDevice.
+
+    ``status`` is one of "trained", "skipped" or "failed". On "trained" the best
+    model metadata is filled; on "skipped"/"failed" ``reason`` explains why, so
+    callers can surface it to the user.
+    """
+
+    device_name: str
+    status: str
+    reason: Optional[str] = None
+    best_adapter: Optional[EnergyLoadForecastProviderAdapter] = None
+    best_mae: Optional[float] = None
+    samples_used: Optional[int] = None
 
 
 @dataclass(frozen=True)
