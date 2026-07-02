@@ -20,7 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Additive history backfill on manual collection**: a manual per-device collection now re-fetches the whole requested look-back window from the provider and merges it into the store (de-duplicated by the `(device_id, timestamp)` primary key), filling internal gaps without dropping existing data. Previously it only ingested incrementally from the last stored point, ignoring `lookback_hours`. `EnergyLoadHistoryProviderPort.get_power_points` gains a `force_refresh` flag; the scheduled collection stays incremental (`ports.py`, `home_assistant_api_history.py`, `home_load_history_service.py`).
 - **Forecast retrain after manual collection**: the device history modal prompts the user to retrain the device's forecast model with the freshly collected data, triggering per-device training and refreshing the forecast on success (frontend).
 - **Training outcome reporting** (`LoadTrainingResult` value object in `domain/home_load/value_objects.py`): `train_device` now reports whether a model was actually `trained` (with best adapter, MAE and sample count), `skipped` (with reason, e.g. insufficient history) or `failed`. The `training/trigger` endpoint surfaces the outcome and the UI shows a status toast, instead of always reporting a generic "completed".
-
+- **Miner controller connection test** (`edge_mining/adapters/domain/miner/`):
+  - New `POST /miner-controllers/test-connection` endpoint that tests a (non-persisted) controller configuration and returns a reachability result (`MinerControllerTestConnectionSchema`)
+  - `MinerActionService.test_miner_controller_connection()` builds a fresh, uncached adapter from the controller entity and verifies the device responds (status / hashrate / power / device info)
+  - `AdapterService.build_miner_controller_adapter()` to instantiate an adapter from a controller entity without using or polluting the adapters cache
+  - Frontend: "Test Connection" button in the miner controller form, shown only for the PyASIC adapter type, with inline success/error feedback (#46)
+  
 ### Changed
 
 - Reorganized configuration forms for readability: each entity field is now paired with its unit of measure on the same row, and fields are grouped by domain (Power / Energy) when at least two domains are present, preserving the chronological order within each group. Applied generically to all schema-driven configuration forms (#17).

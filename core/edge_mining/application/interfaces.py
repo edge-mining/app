@@ -68,6 +68,12 @@ class AdapterServiceInterface(ABC):
         """Get a miner controller adapter instance for a specific controller."""
 
     @abstractmethod
+    async def build_miner_controller_adapter(
+        self, miner: Miner, miner_controller: MinerController
+    ) -> Optional[MinerFeaturePort]:
+        """Build a fresh (uncached) miner controller adapter from a controller entity."""
+
+    @abstractmethod
     async def get_miner_feature_port(self, miner: Miner, feature_type: MinerFeatureType) -> Optional[MinerFeaturePort]:
         """Get the adapter implementing the highest-priority active feature port for a miner."""
 
@@ -231,6 +237,10 @@ class MinerActionServiceInterface(ABC):
     @abstractmethod
     async def get_miner_details_from_controller(self, controller_id: EntityId) -> Optional[MinerStateSnapshot]:
         """Get details of a miner from its controller as a state snapshot."""
+
+    @abstractmethod
+    async def test_miner_controller_connection(self, controller: MinerController) -> MinerStateSnapshot:
+        """Test the connection of a (possibly unsaved) miner controller and return a state snapshot."""
 
 
 class ConfigurationServiceInterface(ABC):
