@@ -685,6 +685,22 @@ async def get_miner_details_from_controller(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+@router.get("/miner-controllers/{controller_id}/supported-features", response_model=List[MinerFeatureType])
+async def get_controller_supported_features(
+    controller_id: EntityId,
+    action_service: Annotated[MinerActionServiceInterface, Depends(get_miner_action_service)],
+) -> List[MinerFeatureType]:
+    """Get the feature types a controller supports, without requiring a persisted miner."""
+    try:
+        return await action_service.get_controller_supported_features(controller_id)
+    except MinerControllerNotFoundError as e:
+        raise HTTPException(status_code=404, detail="Miner controller not found") from e
+    except MinerControllerConfigurationError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 @router.put("/miner-controllers/{controller_id}", response_model=MinerControllerSchema)
 async def update_miner_controller(
     controller_id: EntityId,

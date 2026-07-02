@@ -239,6 +239,10 @@ class MinerActionServiceInterface(ABC):
         """Get details of a miner from its controller as a state snapshot."""
 
     @abstractmethod
+    async def get_controller_supported_features(self, controller_id: EntityId) -> List[MinerFeatureType]:
+        """Get the feature types supported by a controller, without requiring a persisted miner."""
+    
+    @abstractmethod
     async def test_miner_controller_connection(self, controller: MinerController) -> MinerStateSnapshot:
         """Test the connection of a (possibly unsaved) miner controller and return a state snapshot."""
 

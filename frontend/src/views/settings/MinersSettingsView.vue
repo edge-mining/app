@@ -161,14 +161,22 @@ async function applyControllerChanges(minerId: string, changes: { add: string[];
   }
 }
 
+// Defaults applied by the backend when a controller is linked (set-controller).
+const DEFAULT_FEATURE_PRIORITY = 50;
+const DEFAULT_FEATURE_ENABLED = true;
+
 async function applyFeatureChanges(minerId: string, features: MinerFeature[], originalMiner?: Miner) {
   const originalFeatures = originalMiner?.features ?? [];
   const promises: Promise<any>[] = [];
   for (const feature of features) {
-    const original = originalFeatures.find(
-      (f) => f.feature_type === feature.feature_type && f.controller_id === feature.controller_id
-    );
-    if (!original) continue; // New features are auto-created by set-controller
+    // Fall back to the backend's auto-create defaults for features that don't
+    // exist on the original miner yet (new miner, or newly linked controller):
+    // set-controller creates them enabled with priority 50, so we only need to
+    // push the user's deviations from that baseline.
+    const original =
+      originalFeatures.find(
+        (f) => f.feature_type === feature.feature_type && f.controller_id === feature.controller_id
+      ) ?? { enabled: DEFAULT_FEATURE_ENABLED, priority: DEFAULT_FEATURE_PRIORITY };
     if (feature.enabled !== original.enabled) {
       if (feature.enabled) {
         promises.push(minerStore.enableFeature(minerId, feature.controller_id, feature.feature_type));
@@ -205,6 +213,9 @@ function handleSave(miner: Miner, controllerChanges: { add: string[]; remove: st
       .then(async (created) => {
         if (created.id) {
           await applyControllerChanges(created.id.toString(), controllerChanges);
+          // Controllers were just linked (features auto-created with defaults);
+          // apply the priority/enabled choices made in the form.
+          await applyFeatureChanges(created.id.toString(), featureUpdates);
         }
         minerStore.loadMiners();
         handleCloseModal();

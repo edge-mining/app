@@ -25,6 +25,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `MinerActionService.test_miner_controller_connection()` builds a fresh, uncached adapter from the controller entity and verifies the device responds (status / hashrate / power / device info)
   - `AdapterService.build_miner_controller_adapter()` to instantiate an adapter from a controller entity without using or polluting the adapters cache
   - Frontend: "Test Connection" button in the miner controller form, shown only for the PyASIC adapter type, with inline success/error feedback (#46)
+- Configure and order controller features directly in the miner creation form,
+  before the miner is saved (#48):
+  - New REST endpoint `GET /miner-controllers/{controller_id}/supported-features`
+    returning the feature types a controller supports, without requiring a
+    persisted miner (`MinerActionService.get_controller_supported_features`).
+  - The "Add Miner" form now shows a controller's features as soon as it is
+    selected (with the backend defaults: enabled, priority 50), so priority and
+    enabled/disabled state can be set during creation.
+  - On save, the chosen priority/enabled values are applied after the controllers
+    are linked. This also works for controllers newly added to an existing miner,
+    without requiring a second save.
   
 ### Changed
 

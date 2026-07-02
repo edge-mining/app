@@ -120,16 +120,50 @@ const availableControllers = computed(() => {
 
 // Controller ID being added from the dropdown
 const controllerToAdd = ref<string | undefined>(undefined);
+const addingController = ref(false);
 
-function addController() {
-  if (controllerToAdd.value && !selectedControllerIds.value.includes(controllerToAdd.value)) {
-    selectedControllerIds.value.push(controllerToAdd.value);
-    controllerToAdd.value = undefined;
-  }
+async function addController() {
+  const controllerId = controllerToAdd.value;
+  if (!controllerId || selectedControllerIds.value.includes(controllerId)) return;
+  selectedControllerIds.value.push(controllerId);
+  controllerToAdd.value = undefined;
+  await ensureFeaturesForController(controllerId);
 }
 
 function removeController(controllerId: string) {
   selectedControllerIds.value = selectedControllerIds.value.filter((id) => id !== controllerId);
+  // Drop the controller's features from both working and baseline copies. The
+  // backend recreates them at default (enabled, priority 50) if it is re-linked.
+  localFeatures.value = localFeatures.value.filter((f) => f.controller_id !== controllerId);
+  originalFeatures.value = originalFeatures.value.filter((f) => f.controller_id !== controllerId);
+}
+
+// Generate placeholder features for a freshly-selected controller so they can be
+// configured/ordered before the miner is saved. The backend auto-creates the
+// same set (enabled, priority 50) when the controller is linked on save.
+async function ensureFeaturesForController(controllerId: string) {
+  // Already have features for this controller (e.g. loaded from an existing miner)
+  if (localFeatures.value.some((f) => f.controller_id === controllerId)) return;
+  addingController.value = true;
+  fetchError.value = null;
+  try {
+    const featureTypes = await minerService.getControllerSupportedFeatures(controllerId);
+    const synthetic: MinerFeature[] = featureTypes.map((ft) => ({
+      feature_type: ft as MinerFeatureType,
+      controller_id: controllerId,
+      priority: 50,
+      enabled: true,
+    }));
+    localFeatures.value.push(...synthetic);
+    // Record the defaults as baseline so the "modified" badge and the save-time
+    // diff only reflect changes the user actually makes.
+    originalFeatures.value.push(...synthetic.map((f) => ({ ...f })));
+  } catch (error: any) {
+    fetchError.value =
+      error?.response?.data?.detail || error?.message || "Failed to load controller features";
+  } finally {
+    addingController.value = false;
+  }
 }
 
 function getControllerName(controllerId: string): string {
@@ -522,11 +556,11 @@ function handleSave() {
             <button
               type="button"
               class="btn btn-outline btn-primary"
-              :disabled="!controllerToAdd"
+              :disabled="!controllerToAdd || addingController"
               @click="addController"
               title="Add Controller"
             >
-              <PhPlus :size="18" />
+              <PhPlus :size="18" :class="{ 'animate-spin': addingController }" />
             </button>
           </div>
           <label class="label mt-1">
@@ -665,10 +699,6 @@ function handleSave() {
             </div>
           </div>
 
-          <!-- Note for newly added controllers -->
-          <p v-if="controllerChanges.add.length > 0" class="text-xs text-base-content/40 mt-2 italic">
-            Features for newly added controllers will appear after saving.
-          </p>
         </template>
 
         <!-- Performance Settings -->
