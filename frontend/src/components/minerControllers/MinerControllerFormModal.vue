@@ -179,7 +179,7 @@ function handleSave() {
 
 <template>
   <dialog class="modal" :class="{ 'modal-open': open }">
-    <div class="modal-box max-w-2xl bg-base-100 border border-base-300/60">
+    <div class="modal-box max-w-3xl bg-base-100 border border-base-300/60">
       <!-- Header -->
       <div class="flex items-center justify-between mb-6">
         <div class="flex items-center gap-3">

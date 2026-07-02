@@ -37,6 +37,9 @@ const collecting = ref(false);
 const clearing = ref(false);
 const showClearConfirm = ref(false);
 const showCollectDialog = ref(false);
+const showRetrainConfirm = ref(false);
+const retraining = ref(false);
+const retrainOutcome = ref<{ status: string; detail: string } | null>(null);
 const lookbackHours = ref(24);
 const selectedRange = ref<"24h" | "7d" | "30d">("24h");
 
@@ -128,10 +131,38 @@ async function collectHistory() {
   try {
     await profileStore.collectDeviceHistory(props.profileId, props.device.id, lookbackHours.value);
     await fetchHistory();
+    // Ask the user whether to retrain the forecast model with the freshly
+    // collected data (only meaningful if the device has a forecast provider).
+    if (props.device.energy_load_forecast_provider_id) {
+      showRetrainConfirm.value = true;
+    }
   } catch (e) {
     console.error("Failed to collect device history:", e);
   } finally {
     collecting.value = false;
+  }
+}
+
+async function retrainModel() {
+  showRetrainConfirm.value = false;
+  if (!props.profileId || !props.device?.id) return;
+  retraining.value = true;
+  retrainOutcome.value = null;
+  try {
+    const res = await profileStore.trainDevice(props.profileId, props.device.id);
+    retrainOutcome.value = { status: res.status ?? "completed", detail: res.detail ?? "" };
+    // Only a real (re)training changes the active model: refresh the forecast.
+    if (res.status === "trained") {
+      await fetchForecast();
+    }
+  } catch (e: any) {
+    console.error("Failed to retrain model:", e);
+    retrainOutcome.value = {
+      status: "failed",
+      detail: e?.response?.data?.detail || e?.message || "Unknown error",
+    };
+  } finally {
+    retraining.value = false;
   }
 }
 
@@ -540,6 +571,38 @@ function formatWh(v: number): string {
     @confirm="clearHistory"
     @cancel="showClearConfirm = false"
   />
+
+  <ConfirmDialog
+    :open="showRetrainConfirm"
+    title="Retrain forecast model"
+    :message="`History updated for '${device?.name ?? 'this device'}'. Retrain the forecast model now with the new data?`"
+    confirm-text="Retrain"
+    @confirm="retrainModel"
+    @cancel="showRetrainConfirm = false"
+  />
+
+  <!-- Retrain status toast — teleported to body and given a very high z-index
+       so it renders above the open History & Forecast modal instead of behind it. -->
+  <Teleport to="body">
+    <div v-if="retraining || retrainOutcome" class="toast toast-end z-[9999]">
+      <div v-if="retraining" class="alert alert-info">
+        <span>Retraining forecast model…</span>
+      </div>
+      <div
+        v-else-if="retrainOutcome"
+        class="alert"
+        :class="{
+          'alert-success': retrainOutcome.status === 'trained',
+          'alert-warning': retrainOutcome.status === 'skipped',
+          'alert-error': retrainOutcome.status === 'failed',
+          'alert-info': !['trained', 'skipped', 'failed'].includes(retrainOutcome.status),
+        }"
+      >
+        <span>{{ retrainOutcome.detail }}</span>
+        <button class="btn btn-ghost btn-xs" @click="retrainOutcome = null">Dismiss</button>
+      </div>
+    </div>
+  </Teleport>
 
   <!-- Collect Dialog -->
   <dialog class="modal" :class="{ 'modal-open': showCollectDialog }">
