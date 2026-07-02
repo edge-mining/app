@@ -724,7 +724,7 @@ async def get_controller_limits(
     except MinerControllerConfigurationError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
 
-        
+
 @router.get("/miner-controllers/{controller_id}/supported-features", response_model=List[MinerFeatureType])
 async def get_controller_supported_features(
     controller_id: EntityId,

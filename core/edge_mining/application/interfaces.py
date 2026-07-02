@@ -245,7 +245,7 @@ class MinerActionServiceInterface(ABC):
     @abstractmethod
     async def get_controller_limits(self, controller_id: EntityId) -> Optional[MinerLimit]:
         """Get max power / max hash rate directly from a controller, without a persisted miner."""
-    
+
     @abstractmethod
     async def get_controller_supported_features(self, controller_id: EntityId) -> List[MinerFeatureType]:
         """Get the feature types supported by a controller, without requiring a persisted miner."""
