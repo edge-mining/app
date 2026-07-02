@@ -66,6 +66,7 @@ optimization_units_table = Table(
     Column("performance_tracker_id", String, ForeignKey("mining_performance_trackers.id"), nullable=True),
     Column("home_loads_profile", String, nullable=True),
     Column("notifier_ids", EntityIdListType, nullable=False),  # JSON list - could be association table
+    Column("climate_zone_ids", EntityIdListType, nullable=False),  # JSON list - could be association table
 )
 
 # Map EnergyOptimizationUnit

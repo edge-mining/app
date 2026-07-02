@@ -90,9 +90,9 @@ function parseEnergy(wh: number): { value: string; unit: string } {
 
 function formatPowerValue(v: number): string {
   if (v <= 0) return "0 W";
-  if (v >= 1000000) return `${(v / 1000000).toFixed(2)} MW`;
-  if (v >= 1000) return `${(v / 1000).toFixed(2)} kW`;
-  return `${v.toFixed(0)} W`;
+  if (v >= 1000000) return `${parseFloat((v / 1000000).toFixed(2))} MW`;
+  if (v >= 1000) return `${parseFloat((v / 1000).toFixed(2))} kW`;
+  return `${Math.round(v)} W`;
 }
 </script>
 

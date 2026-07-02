@@ -51,11 +51,26 @@ class RuleEvaluator:
             field_value = RuleEvaluator._get_field_value(context, condition.field)
 
             if field_value is None:
+                # Check if the root attribute is an optional field that is simply not configured
+                root_field = condition.field.split(".")[0]
+                root_value = getattr(context, root_field, None)
+                if root_value is None:
+                    # Optional data not available (e.g. no home_load profile configured) — skip silently
+                    return False
                 print(f"Field '{condition.field}' not found in context.")
                 return False
 
+            # Resolve comparison value: static value or dynamic value_ref
+            if condition.value_ref is not None:
+                compare_value = RuleEvaluator._get_field_value(context, condition.value_ref)
+                if compare_value is None:
+                    # Referenced field not available — condition cannot be evaluated
+                    return False
+            else:
+                compare_value = condition.value
+
             # Apply operator
-            return RuleEvaluator._apply_operator(field_value, condition.operator, condition.value)
+            return RuleEvaluator._apply_operator(field_value, condition.operator, compare_value)
 
         except Exception as e:
             print(f"Error evaluating condition '{condition.field}': {e}")

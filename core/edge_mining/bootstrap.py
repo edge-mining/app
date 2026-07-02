@@ -72,6 +72,12 @@ from edge_mining.adapters.infrastructure.external_services.repositories import (
     SqlAlchemyExternalServiceRepository,
     SqliteExternalServiceRepository,
 )
+from edge_mining.adapters.domain.climate.repositories import (
+    InMemoryClimateMonitorRepository,
+    InMemoryClimateZoneRepository,
+    SqlAlchemyClimateMonitorRepository,
+    SqlAlchemyClimateZoneRepository,
+)
 from edge_mining.adapters.infrastructure.persistence.sqlalchemy.base import BaseSQLAlchemyRepository
 from edge_mining.adapters.infrastructure.persistence.sqlite import BaseSqliteRepository
 from edge_mining.adapters.infrastructure.event_bus.in_memory_event_bus import InMemoryEventBus
@@ -191,6 +197,8 @@ def configure_persistence(logger: LoggerPort, settings: AppSettings) -> Persiste
         load_consumption_model_repo = InMemoryLoadConsumptionModelRepository()
         optimization_unit_repo = InMemoryOptimizationUnitRepository()
         external_service_repo = InMemoryExternalServiceRepository()
+        climate_zone_repo = InMemoryClimateZoneRepository()
+        climate_monitor_repo = InMemoryClimateMonitorRepository()
 
         logger.debug("Using InMemory persistence adapters.")
     elif persistence_adapter == PersistenceAdapter.SQLITE:
@@ -216,6 +224,8 @@ def configure_persistence(logger: LoggerPort, settings: AppSettings) -> Persiste
         load_consumption_model_repo = SqliteLoadConsumptionModelRepository(db=sqlite_db)
         optimization_unit_repo = SqliteOptimizationUnitRepository(db=sqlite_db)
         external_service_repo = SqliteExternalServiceRepository(db=sqlite_db)
+        climate_zone_repo = InMemoryClimateZoneRepository()
+        climate_monitor_repo = InMemoryClimateMonitorRepository()
 
         # user_repo: UserRepository = SqliteUserRepository(
         #   db_path=db_path, logger=logger
@@ -242,6 +252,8 @@ def configure_persistence(logger: LoggerPort, settings: AppSettings) -> Persiste
         load_consumption_model_repo = SqlAlchemyLoadConsumptionModelRepository(db=sqlalchemy_db)
         optimization_unit_repo = SqlAlchemyOptimizationUnitRepository(db=sqlalchemy_db)
         external_service_repo = SqlAlchemyExternalServiceRepository(db=sqlalchemy_db)
+        climate_zone_repo = SqlAlchemyClimateZoneRepository(db=sqlalchemy_db)
+        climate_monitor_repo = SqlAlchemyClimateMonitorRepository(db=sqlalchemy_db)
 
         # user_repo: UserRepository = SqliteUserRepository(
         #   db_path=db_path, logger=logger
@@ -295,6 +307,8 @@ def configure_persistence(logger: LoggerPort, settings: AppSettings) -> Persiste
         mining_performance_tracker_repo=mining_performance_tracker_repo,
         external_service_repo=external_service_repo,
         settings_repo=settings_repo,
+        climate_zone_repo=climate_zone_repo,
+        climate_monitor_repo=climate_monitor_repo,
     )
 
     return persistence_settings
@@ -337,6 +351,7 @@ def configure_dependencies(logger: LoggerPort, settings: AppSettings) -> Service
         event_bus=event_bus,
         logger=logger,
         load_consumption_model_repo=persistence_settings.load_consumption_model_repo,
+        climate_monitor_repo=persistence_settings.climate_monitor_repo,
     )
 
     optimization_service = OptimizationService(
@@ -351,6 +366,7 @@ def configure_dependencies(logger: LoggerPort, settings: AppSettings) -> Service
         logger=logger,
         forecast_mix_alpha=settings.forecast_mix_alpha,
         forecast_mix_beta=settings.forecast_mix_beta,
+        climate_zone_repo=persistence_settings.climate_zone_repo,
     )
 
     miner_action_service = MinerActionService(

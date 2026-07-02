@@ -1,0 +1,158 @@
+id: 7a1b2c3d-e4f5-6789-abcd-ef0123456789
+name: Solar Surplus Room Heating Policy
+description: >
+  Heats the room using miner waste heat when solar
+  production exceeds consumption. Starts the miner
+  when there is energy surplus and the room is below
+  target temperature. Stops when the room reaches
+  target or solar surplus drops.
+
+start_rules:
+  - id: 7a1b2c3d-e4f5-6789-abcd-ef0123456001
+    name: Heat Room with Solar Surplus
+    description: >
+      Start mining to heat the room when solar production creates surplus energy
+      AND the room temperature is below the configured target.
+    conditions:
+      all_of:
+        - field: climate.zones.bedroom.temperature_celsius
+          operator: lt
+          value_ref: climate.zones.bedroom.target_temperature
+        - field: energy_state.production
+          operator: gt
+          value: 1500
+        - field: energy_state.grid.exporting_power
+          operator: gt
+          value: 500
+        - field: energy_state.battery.state_of_charge
+          operator: gt
+          value: 30
+    priority: 30
+    enabled: true
+
+  - id: 7a1b2c3d-e4f5-6789-abcd-ef0123456002
+    name: Heat Room with Battery Surplus
+    description: >
+      Start mining when the battery is well charged and the room needs heating,
+      even if current solar production is low (e.g., clouds passing).
+    conditions:
+      all_of:
+        - field: climate.zones.bedroom.temperature_celsius
+          operator: lt
+          value_ref: climate.zones.bedroom.target_temperature
+        - field: energy_state.battery.state_of_charge
+          operator: gte
+          value: 85
+        - field: forecast.avg_next_4_hours_power
+          operator: gt
+          value: 1000
+    priority: 15
+    enabled: true
+
+  - id: 7a1b2c3d-e4f5-6789-abcd-ef0123456003
+    name: Aggressive Heating During Peak Solar
+    description: >
+      High priority: force heating when massive solar surplus exists,
+      regardless of whether the room is slightly below target.
+      Uses a lower threshold (target minus hysteresis) to pre-heat.
+    conditions:
+      all_of:
+        - field: climate.zones.bedroom.temperature_celsius
+          operator: lt
+          value_ref: climate.zones.bedroom.target_temperature
+        - field: energy_state.production
+          operator: gt
+          value: 4000
+        - field: energy_state.grid.exporting_power
+          operator: gt
+          value: 2000
+    priority: 40
+    enabled: true
+
+stop_rules:
+  - id: 7a1b2c3d-e4f5-6789-abcd-ef0123456004
+    name: Room Reached Target Temperature
+    description: >
+      Stop mining when the room temperature is at or
+      above the target temperature. The miner has done
+      its job — the room is warm enough.
+    conditions:
+      all_of:
+        - field: climate.zones.bedroom.temperature_celsius
+          operator: gte
+          value_ref: climate.zones.bedroom.target_temperature
+    priority: 50
+    enabled: true
+
+  - id: 7a1b2c3d-e4f5-6789-abcd-ef0123456005
+    name: No More Solar Surplus
+    description: >
+      Stop mining when solar surplus disappears and we're importing from grid.
+      Don't heat the room at the cost of buying electricity.
+    conditions:
+      all_of:
+        - field: energy_state.grid.importing_power
+          operator: gt
+          value: 500
+        - field: energy_state.production
+          operator: lt
+          value: 1000
+        - field: energy_state.battery.state_of_charge
+          operator: lt
+          value: 60
+    priority: 70
+    enabled: true
+
+  - id: 7a1b2c3d-e4f5-6789-abcd-ef0123456006
+    name: Battery Protection
+    description: >
+      Stop mining to protect the battery from depletion,
+      even if the room hasn't reached target yet.
+    conditions:
+      any_of:
+        - field: energy_state.battery.state_of_charge
+          operator: lt
+          value: 20
+        - all_of:
+            - field: energy_state.battery.state_of_charge
+              operator: lt
+              value: 40
+            - field: energy_state.grid.importing_power
+              operator: gt
+              value: 1500
+    priority: 100
+    enabled: true
+
+  - id: 7a1b2c3d-e4f5-6789-abcd-ef0123456007
+    name: Evening Battery Reserve
+    description: >
+      After sunset, stop heating to preserve battery for evening household use.
+      Only applies when battery isn't full enough to cover the night.
+    conditions:
+      all_of:
+        - field: timestamp.hour
+          operator: in
+          value: [17, 18, 19, 20, 21, 22, 23]
+        - field: energy_state.battery.state_of_charge
+          operator: lt
+          value: 70
+        - field: energy_state.production
+          operator: lt
+          value: 500
+    priority: 60
+    enabled: true
+
+metadata:
+  author: Edge Mining User
+  version: 1
+  created: '2026-05-22'
+  last_modified: '2026-05-22'
+  tags:
+    - climate
+    - heating
+    - solar-surplus
+  notes: >
+    This policy uses value_ref to dynamically compare room temperature against
+    the per-zone target_temperature configured in the ClimateZone schedule.
+    The miner's waste heat is used productively to warm the room only when
+    free solar energy is available.

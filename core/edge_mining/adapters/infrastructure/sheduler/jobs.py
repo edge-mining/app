@@ -85,6 +85,7 @@ class AutomationScheduler(SchedulerPort):
             seconds=interval,
             id=self._job_id,
             replace_existing=True,
+            max_instances=1,
         )
 
         if self.home_load_history_service:

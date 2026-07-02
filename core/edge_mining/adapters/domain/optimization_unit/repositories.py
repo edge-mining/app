@@ -389,6 +389,7 @@ class SqlAlchemyOptimizationUnitRepository(EnergyOptimizationUnitRepository):
                 existing_entity.performance_tracker_id = optimization_unit.performance_tracker_id
                 existing_entity.home_loads_profile = optimization_unit.home_loads_profile
                 existing_entity.notifier_ids = optimization_unit.notifier_ids
+                existing_entity.climate_zone_ids = optimization_unit.climate_zone_ids
 
                 session.commit()
         finally:

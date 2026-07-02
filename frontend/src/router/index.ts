@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from "vue-router";
 import DashboardView from "../views/DashboardView.vue";
 import HomeLoadsDashboardView from "../views/dashboard/HomeLoadsDashboardView.vue";
 import MiningDashboardView from "../views/dashboard/MiningDashboardView.vue";
+import ClimateDashboardView from "../views/dashboard/ClimateDashboardView.vue";
 import MinersSettingsView from "../views/settings/MinersSettingsView.vue";
 import EnergySourcesSettingsView from "../views/settings/EnergySourcesSettingsView.vue";
 import EnergyMonitorSettingsView from "../views/settings/EnergyMonitorSettingsView.vue";
@@ -14,6 +15,8 @@ import ExternalServicesSettingsView from "../views/settings/ExternalServicesSett
 import OptimizationUnitsSettingsView from "../views/settings/OptimizationUnitsSettingsView.vue";
 import HomeLoadsSettingsView from "../views/settings/HomeLoadsSettingsView.vue";
 import HomeLoadsTrainingView from "../views/settings/HomeLoadsTrainingView.vue";
+import ClimateZonesSettingsView from "../views/settings/ClimateZonesSettingsView.vue";
+import ClimateMonitorsSettingsView from "../views/settings/ClimateMonitorsSettingsView.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -33,6 +36,11 @@ const router = createRouter({
       path: "/dashboard/home-loads",
       name: "dashboard.homeLoads",
       component: HomeLoadsDashboardView,
+    },
+    {
+      path: "/dashboard/climate",
+      name: "dashboard.climate",
+      component: ClimateDashboardView,
     },
     {
       path: "/settings/",
@@ -98,6 +106,16 @@ const router = createRouter({
           path: "home-loads-training",
           name: "settings.homeLoadsTraining",
           component: HomeLoadsTrainingView,
+        },
+        {
+          path: "climate-zones",
+          name: "settings.climateZones",
+          component: ClimateZonesSettingsView,
+        },
+        {
+          path: "climate-monitors",
+          name: "settings.climateMonitors",
+          component: ClimateMonitorsSettingsView,
         },
       ],
     },

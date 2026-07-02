@@ -66,6 +66,8 @@ def mock_persistence():
         "mining_performance_tracker_repo",
         "notifier_repo",
         "settings_repo",
+        "climate_zone_repo",
+        "climate_monitor_repo",
     ]:
         repo = MagicMock()
         repo.get_all.return_value = []

@@ -24,8 +24,8 @@ const props = withDefaults(
 
 function formatEnergyValue(v: number): string {
   if (v <= 0) return "0 Wh";
-  if (v >= 1000000) return `${(v / 1000000).toFixed(1)} MWh`;
-  if (v >= 1000) return `${(v / 1000).toFixed(1)} kWh`;
+  if (v >= 1000000) return `${parseFloat((v / 1000000).toFixed(2))} MWh`;
+  if (v >= 1000) return `${parseFloat((v / 1000).toFixed(2))} kWh`;
   return `${Math.round(v)} Wh`;
 }
 
@@ -33,8 +33,8 @@ function formatPowerValue(v: number): string {
   if (v === 0) return "0 W";
   const abs = Math.abs(v);
   const sign = v < 0 ? "-" : "";
-  if (abs >= 1000000) return `${sign}${(abs / 1000000).toFixed(1)} MW`;
-  if (abs >= 1000) return `${sign}${(abs / 1000).toFixed(1)} kW`;
+  if (abs >= 1000000) return `${sign}${parseFloat((abs / 1000000).toFixed(2))} MW`;
+  if (abs >= 1000) return `${sign}${parseFloat((abs / 1000).toFixed(2))} kW`;
   return `${sign}${Math.round(abs)} W`;
 }
 
@@ -111,20 +111,22 @@ const chartOptions = computed(() => {
     yaxis: [
       {
         seriesName: "Energy",
+        decimalsInFloat: 0,
         labels: {
           show: true,
           style: { colors: "rgba(129, 140, 248, 0.5)", fontSize: "10px" },
-          formatter: formatEnergyValue,
+          formatter: (v: number) => formatEnergyValue(v),
         },
         title: { text: undefined },
       },
       {
         seriesName: "Max Power",
         opposite: true,
+        decimalsInFloat: 0,
         labels: {
           show: true,
           style: { colors: "rgba(250, 204, 21, 0.5)", fontSize: "10px" },
-          formatter: formatPowerValue,
+          formatter: (v: number) => formatPowerValue(v),
         },
         title: { text: undefined },
       },

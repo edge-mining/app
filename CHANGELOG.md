@@ -32,7 +32,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fetch device data (max hash rate, max power and model/hostname) from the controller while creating a miner, without saving it first (#49):
   - New REST endpoints `GET /miner-controllers/{controller_id}/limits` and `GET /miner-controllers/{controller_id}/info`, backed by `MinerActionService.get_controller_limits` / `get_controller_info`, which query a controller directly via a temporary miner.
   - The "Add Miner" form now enables the "fetch from miner" buttons for Max Hash Rate, Max Power and Model when at least one controller is selected, trying the selected controllers until one provides the value.
-  
+- **Heat Management (Climate domain)** — manage heat as a primary asset, driving mining to keep a space at a target temperature (#44):
+  - `ClimateZone` (room/area to heat) and `ClimateMonitor` (temperature sensor) with daily temperature schedule, hysteresis and default target
+  - Climate monitor adapters: Home Assistant API and Dummy
+  - Climate zones can be attached to an optimization unit; the optimizer collects per-zone readings and exposes the thermal state to the rule engine, so policies can drive mining toward the target temperature
+  - Example "Solar Surplus Room Heating" policy
+  - Frontend: climate zones/monitors management and a climate dashboard
+
 ### Changed
 
 - Reorganized configuration forms for readability: each entity field is now paired with its unit of measure on the same row, and fields are grouped by domain (Power / Energy) when at least two domains are present, preserving the chronological order within each group. Applied generically to all schema-driven configuration forms (#17).

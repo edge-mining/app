@@ -7,7 +7,6 @@ It is responsible for:
 - Executing the decision
 """
 
-import asyncio
 from datetime import timedelta
 from typing import Dict, List, Optional
 
@@ -69,6 +68,8 @@ from edge_mining.domain.policy.exceptions import PolicyError, RuleEngineError, R
 from edge_mining.domain.policy.ports import OptimizationPolicyRepository
 from edge_mining.domain.policy.services import RuleEngine
 from edge_mining.domain.policy.value_objects import DecisionalContext, Sun
+from edge_mining.domain.climate.ports import ClimateMonitorPort, ClimateZoneRepository
+from edge_mining.domain.climate.value_objects import ClimateStateSnapshot, ClimateZoneReading
 from edge_mining.shared.logging.port import LoggerPort
 
 
@@ -88,6 +89,7 @@ class OptimizationService(OptimizationServiceInterface):
         logger: Optional[LoggerPort] = None,
         forecast_mix_alpha: float = 0.5,
         forecast_mix_beta: float = 0.5,
+        climate_zone_repo: Optional[ClimateZoneRepository] = None,
     ):
         # Domains
 
@@ -97,6 +99,7 @@ class OptimizationService(OptimizationServiceInterface):
         self.policy_repo = policy_repo
         self.miner_repo = miner_repo
         self.home_loads_repo = home_loads_repo
+        self._climate_zone_repo = climate_zone_repo
 
         # Infrastructure
         self.sun_factory = sun_factory
@@ -255,6 +258,70 @@ class OptimizationService(OptimizationServiceInterface):
                     f"Error getting mining performance tracker for optimization unit '{optimization_unit_name}': {e}"
                 )
             return None
+
+    async def _build_climate_state_snapshot(
+        self,
+        climate_zone_ids: List[EntityId],
+        optimization_unit_name: str,
+    ) -> Optional[ClimateStateSnapshot]:
+        """Fetch climate readings for all zones and build a composite snapshot."""
+        if not self._climate_zone_repo:
+            if self.logger:
+                self.logger.warning(
+                    f"Climate zone repository not available for optimization unit '{optimization_unit_name}'."
+                )
+            return None
+
+        readings: List[ClimateZoneReading] = []
+        for zone_id in climate_zone_ids:
+            try:
+                zone = self._climate_zone_repo.get_by_id(zone_id)
+                if not zone:
+                    if self.logger:
+                        self.logger.warning(
+                            f"Climate zone {zone_id} not found for optimization unit '{optimization_unit_name}'."
+                        )
+                    continue
+
+                monitor_port: Optional[ClimateMonitorPort] = await self.adapter_service.get_climate_monitor(zone)
+                if not monitor_port:
+                    if self.logger:
+                        self.logger.warning(
+                            f"No climate monitor for zone '{zone.name}' "
+                            f"in optimization unit '{optimization_unit_name}'. Skipping zone."
+                        )
+                    continue
+
+                reading = await monitor_port.get_climate_reading()
+                if reading:
+                    # Inject resolved target temperature and hysteresis from zone schedule
+                    from dataclasses import replace
+                    from datetime import datetime as dt
+
+                    resolved_target = zone.resolve_target_temperature(dt.now().time())
+                    reading = replace(
+                        reading,
+                        target_temperature=resolved_target,
+                        hysteresis_celsius=zone.hysteresis_celsius,
+                    )
+                    readings.append(reading)
+                else:
+                    if self.logger:
+                        self.logger.warning(
+                            f"Climate reading unavailable for zone '{zone.name}' "
+                            f"in optimization unit '{optimization_unit_name}'."
+                        )
+            except Exception as e:
+                if self.logger:
+                    self.logger.warning(
+                        f"Error getting climate data for zone {zone_id} "
+                        f"in optimization unit '{optimization_unit_name}': {e}"
+                    )
+
+        if not readings:
+            return None
+
+        return ClimateStateSnapshot(per_zone=readings)
 
     async def _notify_unit(self, notifiers: List[NotificationPort], title: str, message: str):
         """Notify the unit."""
@@ -569,6 +636,14 @@ class OptimizationService(OptimizationServiceInterface):
         # Creates the Sun object for the current date.
         sun: Sun = self.sun_factory.create_sun_for_date()
 
+        # --- Climate State ---
+        climate_state: Optional[ClimateStateSnapshot] = None
+        if optimization_unit.climate_zone_ids:
+            climate_state = await self._build_climate_state_snapshot(
+                optimization_unit.climate_zone_ids,
+                optimization_unit.name,
+            )
+
         # Create the decisional context without the miner yet,
         # as we will add it later after fetching the miner status.
         # This allows us to have a single context for the unit.
@@ -582,6 +657,7 @@ class OptimizationService(OptimizationServiceInterface):
             sun=sun,
             miner=miner,
             miner_state=miner_state,
+            climate=climate_state,
         )
 
         # Publish decisional context event
@@ -609,9 +685,13 @@ class OptimizationService(OptimizationServiceInterface):
                 self.logger.debug("No enabled energy optimization units found.")
             return
 
-        unit_tasks = [self._process_unit(unit) for unit in enabled_units]
-        # Don't stop for an error in a unit
-        await asyncio.gather(*unit_tasks, return_exceptions=False)
+        # Process units sequentially to avoid DB connection contention (SQLite serializes access anyway)
+        for unit in enabled_units:
+            try:
+                await self._process_unit(unit)
+            except Exception as e:
+                if self.logger:
+                    self.logger.error(f"Error processing unit '{unit.name}': {e}")
 
         if self.logger:
             self.logger.debug(f"Optimization run for all units finished. {len(enabled_units)} units processed.")
@@ -875,6 +955,14 @@ class OptimizationService(OptimizationServiceInterface):
         # Creates the Sun object for the current date.
         sun: Sun = self.sun_factory.create_sun_for_date()
 
+        # --- Climate State ---
+        climate_state: Optional[ClimateStateSnapshot] = None
+        if optimization_unit.climate_zone_ids:
+            climate_state = await self._build_climate_state_snapshot(
+                optimization_unit.climate_zone_ids,
+                optimization_unit.name,
+            )
+
         # Create the decisional context without the miner yet,
         # as we will add it later after fetching the miner status.
         # This allows us to have a single context for the unit.
@@ -886,6 +974,7 @@ class OptimizationService(OptimizationServiceInterface):
             home_load=home_load,
             mining_performance=mining_performance,
             sun=sun,
+            climate=climate_state,
         )
 
         # Publish decisional context event
@@ -899,27 +988,24 @@ class OptimizationService(OptimizationServiceInterface):
                 )
             )
 
-        # TODO: should we manage miners singularly or together?
-        # TODO: should we serialize the miner process or run them in parallel?
-        # For now, we will run them in parallel, but I imagine that is not the best approach
-        # for tracking the energy used for each miner.
-        miner_processing_tasks = []
+        # Process miners sequentially to avoid DB connection contention with SQLite
         for miner_id in optimization_unit.target_miner_ids:
-            miner_processing_tasks.append(
-                self._process_single_miner_in_unit(
+            try:
+                await self._process_single_miner_in_unit(
                     optimization_unit=optimization_unit,
                     policy=policy,
                     context=context,
                     miner_id=miner_id,
                     notifiers=unit_notifiers,
                 )
-            )
-        await asyncio.gather(*miner_processing_tasks, return_exceptions=False)
+            except Exception as e:
+                if self.logger:
+                    self.logger.error(f"Error processing miner {miner_id} in unit '{optimization_unit.name}': {e}")
 
         if self.logger:
             self.logger.debug(
                 f"Finished processing for optimization unit '{optimization_unit.name}'. "
-                f"{len(miner_processing_tasks)} miners controlled."
+                f"{len(optimization_unit.target_miner_ids)} miners controlled."
             )
 
     async def _process_single_miner_in_unit(
@@ -1022,6 +1108,7 @@ class OptimizationService(OptimizationServiceInterface):
                 sun=context.sun,
                 miner=miner,  # Static config
                 miner_state=miner_state,  # Runtime state snapshot
+                climate=context.climate,
             )
 
             # Create the rule engine instance

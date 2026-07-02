@@ -10,6 +10,14 @@ from edge_mining.application.events.common import (
 )
 from edge_mining.application.events.configuration_events import ConfigurationUpdatedEvent
 from edge_mining.application.interfaces import AdapterServiceInterface, ConfigurationServiceInterface, EventBusInterface
+from edge_mining.domain.climate.common import ClimateMonitorAdapter
+from edge_mining.domain.climate.entities import ClimateMonitor, ClimateZone
+from edge_mining.domain.climate.exceptions import (
+    ClimateMonitorConfigurationError,
+    ClimateMonitorNotFoundError,
+    ClimateZoneNotFoundError,
+)
+from edge_mining.domain.climate.ports import ClimateMonitorRepository, ClimateZoneRepository
 from edge_mining.domain.common import EntityId, Watts
 from edge_mining.domain.energy.common import EnergyMonitorAdapter, EnergySourceType
 from edge_mining.domain.energy.entities import EnergyMonitor, EnergySource
@@ -114,6 +122,7 @@ from edge_mining.shared.external_services.ports import ExternalServiceRepository
 from edge_mining.shared.external_services.value_objects import ExternalServiceLinkedEntities
 from edge_mining.shared.infrastructure import PersistenceSettings
 from edge_mining.shared.interfaces.config import (
+    ClimateMonitorConfig,
     EnergyMonitorConfig,
     ExternalServiceConfig,
     ForecastProviderConfig,
@@ -156,6 +165,8 @@ class ConfigurationService(ConfigurationServiceInterface):
         )
         self.notifier_repo: NotifierRepository = persistence_settings.notifier_repo
         self.settings_repo: SettingsRepository = persistence_settings.settings_repo
+        self.climate_zone_repo: ClimateZoneRepository = persistence_settings.climate_zone_repo
+        self.climate_monitor_repo: ClimateMonitorRepository = persistence_settings.climate_monitor_repo
 
         # Infrastructure
         self._event_bus = event_bus
@@ -915,6 +926,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         performance_tracker_id: Optional[EntityId] = None,
         home_loads_profile_id: Optional[EntityId] = None,
         notifier_ids: Optional[List[EntityId]] = None,
+        climate_zone_ids: Optional[List[EntityId]] = None,
     ) -> Optional[EnergyOptimizationUnit]:
         """Create an optimization unit into the system."""
         self.logger.info(f"Adding optimization unit {name} ({description}), Active: {is_enabled}")
@@ -929,6 +941,7 @@ class ConfigurationService(ConfigurationServiceInterface):
             performance_tracker_id=performance_tracker_id,
             home_loads_profile=home_loads_profile_id,
             notifier_ids=notifier_ids or [],
+            climate_zone_ids=climate_zone_ids or [],
         )
 
         self.check_optimization_unit(optimization_unit)
@@ -999,6 +1012,7 @@ class ConfigurationService(ConfigurationServiceInterface):
         performance_tracker_id: Optional[EntityId] = None,
         home_loads_profile_id: Optional[EntityId] = None,
         notifier_ids: Optional[List[EntityId]] = None,
+        climate_zone_ids: Optional[List[EntityId]] = None,
     ) -> EnergyOptimizationUnit:
         """Update an optimization unit in the system."""
         self.logger.info(f"Updating optimization unit {unit_id} ({name})")
@@ -1025,6 +1039,8 @@ class ConfigurationService(ConfigurationServiceInterface):
             optimization_unit.assign_home_loads_profile(home_loads_profile_id)
         if notifier_ids is not None:
             optimization_unit.notifier_ids = notifier_ids
+        if climate_zone_ids is not None:
+            optimization_unit.climate_zone_ids = climate_zone_ids
 
         # On update, perform a strict checks if the optimization unit is enabled
         try:
@@ -1052,7 +1068,16 @@ class ConfigurationService(ConfigurationServiceInterface):
             raise OptimizationUnitConfigurationError(
                 f"Optimization Unit {unit_id} must have a policy assigned before activation."
             )
-        self.check_policy(optimization_unit.policy_id)
+
+        try:
+            self.check_policy(optimization_unit.policy_id)
+        except (PolicyConfigurationError, PolicyError, PolicyNotFoundError) as e:
+            self.logger.error(
+                f"Policy check failed for Optimization Unit {unit_id} (policy_id={optimization_unit.policy_id}): {e}"
+            )
+            raise OptimizationUnitConfigurationError(
+                f"Policy validation failed for Optimization Unit {unit_id}: {e}"
+            ) from e
 
         optimization_unit.enable()
 
@@ -2474,3 +2499,253 @@ class ConfigurationService(ConfigurationServiceInterface):
         settings.set_setting(key, value)
 
         self.settings_repo.save_settings(user_id, settings)
+
+    # --- Climate Zone Management ---
+
+    async def create_climate_zone(
+        self, name: str, area_sqm: float, climate_monitor_id: Optional[EntityId] = None
+    ) -> ClimateZone:
+        """Create a new climate zone."""
+        self.logger.debug(f"Creating climate zone '{name}' with area {area_sqm} m²")
+
+        climate_zone = ClimateZone(name=name, area_sqm=area_sqm, climate_monitor_id=climate_monitor_id)
+
+        self.climate_zone_repo.add(climate_zone)
+
+        return climate_zone
+
+    def get_climate_zone(self, zone_id: EntityId) -> Optional[ClimateZone]:
+        """Get a climate zone by its ID."""
+        climate_zone = self.climate_zone_repo.get_by_id(zone_id)
+        if not climate_zone:
+            return None
+        return climate_zone
+
+    def list_climate_zones(self) -> List[ClimateZone]:
+        """List all climate zones."""
+        return self.climate_zone_repo.get_all()
+
+    async def update_climate_zone(
+        self,
+        zone_id: EntityId,
+        name: str,
+        area_sqm: float,
+        temperature_schedule: Optional[list] = None,
+        hysteresis_celsius: Optional[float] = None,
+        default_target_temperature: Optional[float] = None,
+    ) -> ClimateZone:
+        """Update an existing climate zone."""
+        climate_zone = self.climate_zone_repo.get_by_id(zone_id)
+        if not climate_zone:
+            raise ClimateZoneNotFoundError(f"Climate zone with id {zone_id} not found")
+
+        climate_zone.name = name
+        climate_zone.area_sqm = area_sqm
+
+        if temperature_schedule is not None:
+            climate_zone.temperature_schedule = temperature_schedule
+        if hysteresis_celsius is not None:
+            climate_zone.hysteresis_celsius = hysteresis_celsius
+        if default_target_temperature is not None:
+            climate_zone.default_target_temperature = default_target_temperature
+
+        self.climate_zone_repo.update(climate_zone)
+
+        return climate_zone
+
+    async def delete_climate_zone(self, zone_id: EntityId) -> ClimateZone:
+        """Delete a climate zone."""
+        climate_zone = self.climate_zone_repo.get_by_id(zone_id)
+        if not climate_zone:
+            raise ClimateZoneNotFoundError(f"Climate zone with id {zone_id} not found")
+
+        self.climate_zone_repo.remove(zone_id)
+
+        return climate_zone
+
+    async def set_climate_monitor_to_zone(self, zone_id: EntityId, monitor_id: EntityId) -> ClimateZone:
+        """Assign a climate monitor to a climate zone."""
+        climate_zone = self.climate_zone_repo.get_by_id(zone_id)
+        if not climate_zone:
+            raise ClimateZoneNotFoundError(f"Climate zone with id {zone_id} not found")
+
+        climate_monitor = self.climate_monitor_repo.get_by_id(monitor_id)
+        if not climate_monitor:
+            raise ClimateMonitorNotFoundError(f"Climate monitor with id {monitor_id} not found")
+
+        self.check_climate_monitor(climate_monitor)
+
+        climate_zone.use_climate_monitor(monitor_id)
+        self.climate_zone_repo.update(climate_zone)
+
+        # Publish configuration event
+        await self._event_bus.publish(
+            ConfigurationUpdatedEvent(
+                entity_type=ConfigurationUpdatedEventType.CLIMATE_MONITOR,
+                entity_id=monitor_id,
+                action=ConfigurationAction.UPDATED,
+            )
+        )
+
+        return climate_zone
+
+    async def unlink_climate_monitor_from_zone(self, zone_id: EntityId) -> ClimateZone:
+        """Remove the climate monitor from a climate zone."""
+        climate_zone = self.climate_zone_repo.get_by_id(zone_id)
+        if not climate_zone:
+            raise ClimateZoneNotFoundError(f"Climate zone with id {zone_id} not found")
+
+        climate_zone.unlink_climate_monitor()
+        self.climate_zone_repo.update(climate_zone)
+
+        return climate_zone
+
+    # --- Climate Monitor Management ---
+
+    async def create_climate_monitor(
+        self,
+        name: str,
+        adapter_type: ClimateMonitorAdapter,
+        config: Optional[ClimateMonitorConfig] = None,
+        external_service_id: Optional[EntityId] = None,
+    ) -> ClimateMonitor:
+        """Create a new climate monitor."""
+        self.logger.debug(f"Creating climate monitor '{name}' with adapter {adapter_type}")
+
+        climate_monitor = ClimateMonitor(
+            name=name,
+            adapter_type=adapter_type,
+            config=config,
+            external_service_id=external_service_id,
+        )
+
+        self.check_climate_monitor(climate_monitor)
+
+        self.climate_monitor_repo.add(climate_monitor)
+
+        await self._event_bus.publish(
+            ConfigurationUpdatedEvent(
+                entity_type=ConfigurationUpdatedEventType.CLIMATE_MONITOR,
+                entity_id=climate_monitor.id,
+                action=ConfigurationAction.CREATED,
+            )
+        )
+
+        return climate_monitor
+
+    async def update_climate_monitor(
+        self,
+        monitor_id: EntityId,
+        name: str,
+        config: Optional[ClimateMonitorConfig] = None,
+        external_service_id: Optional[EntityId] = None,
+    ) -> ClimateMonitor:
+        """Update an existing climate monitor."""
+        climate_monitor = self.climate_monitor_repo.get_by_id(monitor_id)
+        if not climate_monitor:
+            raise ClimateMonitorNotFoundError(f"Climate monitor with id {monitor_id} not found")
+
+        climate_monitor.name = name
+        if config is not None:
+            climate_monitor.config = config
+        if external_service_id is not None:
+            climate_monitor.external_service_id = external_service_id
+
+        self.check_climate_monitor(climate_monitor)
+
+        self.climate_monitor_repo.update(climate_monitor)
+
+        await self._event_bus.publish(
+            ConfigurationUpdatedEvent(
+                entity_type=ConfigurationUpdatedEventType.CLIMATE_MONITOR,
+                entity_id=climate_monitor.id,
+                action=ConfigurationAction.UPDATED,
+            )
+        )
+
+        return climate_monitor
+
+    async def delete_climate_monitor(self, monitor_id: EntityId) -> ClimateMonitor:
+        """Delete a climate monitor."""
+        climate_monitor = self.climate_monitor_repo.get_by_id(monitor_id)
+        if not climate_monitor:
+            raise ClimateMonitorNotFoundError(f"Climate monitor with id {monitor_id} not found")
+
+        self.climate_monitor_repo.remove(monitor_id)
+
+        await self._event_bus.publish(
+            ConfigurationUpdatedEvent(
+                entity_type=ConfigurationUpdatedEventType.CLIMATE_MONITOR,
+                entity_id=monitor_id,
+                action=ConfigurationAction.REMOVED,
+            )
+        )
+
+        return climate_monitor
+
+    def get_climate_monitor(self, monitor_id: EntityId) -> Optional[ClimateMonitor]:
+        """Get a climate monitor by its ID."""
+        return self.climate_monitor_repo.get_by_id(monitor_id)
+
+    def list_climate_monitors(self) -> List[ClimateMonitor]:
+        """List all climate monitors."""
+        return self.climate_monitor_repo.get_all()
+
+    def check_climate_monitor(self, climate_monitor: ClimateMonitor) -> bool:
+        """Validate a climate monitor configuration."""
+        self.logger.debug(f"Checking climate monitor {climate_monitor.id} ({climate_monitor.name})")
+
+        if climate_monitor.external_service_id:
+            external_service = self.external_service_repo.get_by_id(climate_monitor.external_service_id)
+            if not external_service:
+                raise ClimateMonitorConfigurationError(
+                    f"External service {climate_monitor.external_service_id} not found "
+                    f"for climate monitor '{climate_monitor.name}'"
+                )
+
+        if climate_monitor.config is not None:
+            adapter_type = (
+                ClimateMonitorAdapter(climate_monitor.adapter_type)
+                if isinstance(climate_monitor.adapter_type, str)
+                else climate_monitor.adapter_type
+            )
+            if not climate_monitor.config.is_valid(adapter_type):
+                raise ClimateMonitorConfigurationError(
+                    f"Invalid configuration for climate monitor '{climate_monitor.name}' "
+                    f"with adapter type {climate_monitor.adapter_type}"
+                )
+
+        self.logger.debug(f"Climate monitor {climate_monitor.id} ({climate_monitor.name}) is valid.")
+        return True
+
+    # --- Climate Zone ↔ Optimization Unit ---
+
+    async def add_climate_zone_to_optimization_unit(
+        self, unit_id: EntityId, zone_id: EntityId
+    ) -> EnergyOptimizationUnit:
+        """Add a climate zone to an optimization unit."""
+        unit = self.optimization_unit_repo.get_by_id(unit_id)
+        if not unit:
+            raise OptimizationUnitNotFoundError(f"Optimization unit with id {unit_id} not found")
+
+        climate_zone = self.climate_zone_repo.get_by_id(zone_id)
+        if not climate_zone:
+            raise ClimateZoneNotFoundError(f"Climate zone with id {zone_id} not found")
+
+        unit.add_climate_zone(zone_id)
+        self.optimization_unit_repo.update(unit)
+
+        return unit
+
+    async def remove_climate_zone_from_optimization_unit(
+        self, unit_id: EntityId, zone_id: EntityId
+    ) -> EnergyOptimizationUnit:
+        """Remove a climate zone from an optimization unit."""
+        unit = self.optimization_unit_repo.get_by_id(unit_id)
+        if not unit:
+            raise OptimizationUnitNotFoundError(f"Optimization unit with id {unit_id} not found")
+
+        unit.remove_climate_zone(zone_id)
+        self.optimization_unit_repo.update(unit)
+
+        return unit

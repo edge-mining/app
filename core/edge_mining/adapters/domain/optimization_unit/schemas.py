@@ -22,6 +22,7 @@ class EnergyOptimizationUnitSchema(BaseModel):
     performance_tracker_id: Optional[str] = Field(default=None, description="ID of the performance tracker to be used")
     home_loads_profile_id: Optional[str] = Field(default=None, description="ID of the home loads profile to be used")
     notifier_ids: List[str] = Field(default_factory=list, description="List of notifier IDs to be used")
+    climate_zone_ids: List[str] = Field(default_factory=list, description="List of climate zone IDs to be monitored")
 
     @field_validator("id")
     @classmethod
@@ -118,6 +119,17 @@ class EnergyOptimizationUnitSchema(BaseModel):
                 raise ValueError(f"notifier_id '{notifier_id}' must be a valid UUID string") from exc
         return v
 
+    @field_validator("climate_zone_ids")
+    @classmethod
+    def validate_climate_zone_ids(cls, v: List[str]) -> List[str]:
+        """Validate that all climate_zone_ids are valid UUID strings."""
+        for zone_id in v:
+            try:
+                uuid.UUID(zone_id)
+            except ValueError as exc:
+                raise ValueError(f"climate_zone_id '{zone_id}' must be a valid UUID string") from exc
+        return v
+
     @classmethod
     def from_model(cls, optimization_unit: EnergyOptimizationUnit) -> "EnergyOptimizationUnitSchema":
         """Create EnergyOptimizationUnitSchema from an EnergyOptimizationUnit domain model instance."""
@@ -136,6 +148,7 @@ class EnergyOptimizationUnitSchema(BaseModel):
                 str(optimization_unit.home_loads_profile) if optimization_unit.home_loads_profile else None
             ),
             notifier_ids=[str(notifier_id) for notifier_id in optimization_unit.notifier_ids],
+            climate_zone_ids=[str(zone_id) for zone_id in optimization_unit.climate_zone_ids],
         )
 
     @field_serializer("id")
@@ -173,6 +186,11 @@ class EnergyOptimizationUnitSchema(BaseModel):
         """Serialize notifier_ids field."""
         return [str(notifier_id) for notifier_id in value]
 
+    @field_serializer("climate_zone_ids")
+    def serialize_climate_zone_ids(self, value: List[str]) -> List[str]:
+        """Serialize climate_zone_ids field."""
+        return [str(zone_id) for zone_id in value]
+
     def to_model(self) -> EnergyOptimizationUnit:
         """Convert EnergyOptimizationUnitSchema back to EnergyOptimizationUnit domain model instance."""
         return EnergyOptimizationUnit(
@@ -190,6 +208,7 @@ class EnergyOptimizationUnitSchema(BaseModel):
                 EntityId(uuid.UUID(self.home_loads_profile_id)) if self.home_loads_profile_id else None
             ),
             notifier_ids=[EntityId(uuid.UUID(notifier_id)) for notifier_id in self.notifier_ids],
+            climate_zone_ids=[EntityId(uuid.UUID(zone_id)) for zone_id in self.climate_zone_ids],
         )
 
     class Config:
@@ -214,6 +233,7 @@ class EnergyOptimizationUnitCreateSchema(BaseModel):
     performance_tracker_id: Optional[str] = Field(default=None, description="ID of the performance tracker to be used")
     home_loads_profile_id: Optional[str] = Field(default=None, description="ID of the home loads profile to be used")
     notifier_ids: List[str] = Field(default_factory=list, description="List of notifier IDs to be used")
+    climate_zone_ids: List[str] = Field(default_factory=list, description="List of climate zone IDs to be monitored")
 
     @field_validator("name")
     @classmethod
@@ -300,6 +320,17 @@ class EnergyOptimizationUnitCreateSchema(BaseModel):
                 raise ValueError(f"notifier_id '{notifier_id}' must be a valid UUID string") from exc
         return v
 
+    @field_validator("climate_zone_ids")
+    @classmethod
+    def validate_climate_zone_ids(cls, v: List[str]) -> List[str]:
+        """Validate that all climate_zone_ids are valid UUID strings."""
+        for zone_id in v:
+            try:
+                uuid.UUID(zone_id)
+            except ValueError as exc:
+                raise ValueError(f"climate_zone_id '{zone_id}' must be a valid UUID string") from exc
+        return v
+
     def to_model(self) -> EnergyOptimizationUnit:
         """Convert EnergyOptimizationUnitCreateSchema to an EnergyOptimizationUnit domain model instance."""
         return EnergyOptimizationUnit(
@@ -317,6 +348,7 @@ class EnergyOptimizationUnitCreateSchema(BaseModel):
                 EntityId(uuid.UUID(self.home_loads_profile_id)) if self.home_loads_profile_id else None
             ),
             notifier_ids=[EntityId(uuid.UUID(notifier_id)) for notifier_id in self.notifier_ids],
+            climate_zone_ids=[EntityId(uuid.UUID(zone_id)) for zone_id in self.climate_zone_ids],
         )
 
     class Config:
@@ -340,6 +372,7 @@ class EnergyOptimizationUnitUpdateSchema(BaseModel):
     performance_tracker_id: Optional[str] = Field(default=None, description="ID of the performance tracker to be used")
     home_loads_profile_id: Optional[str] = Field(default=None, description="ID of the home loads profile to be used")
     notifier_ids: List[str] = Field(default_factory=list, description="List of notifier IDs to be used")
+    climate_zone_ids: List[str] = Field(default_factory=list, description="List of climate zone IDs to be monitored")
 
     @field_validator("name")
     @classmethod
@@ -424,6 +457,17 @@ class EnergyOptimizationUnitUpdateSchema(BaseModel):
                 uuid.UUID(notifier_id)
             except ValueError as exc:
                 raise ValueError(f"notifier_id '{notifier_id}' must be a valid UUID string") from exc
+        return v
+
+    @field_validator("climate_zone_ids")
+    @classmethod
+    def validate_climate_zone_ids(cls, v: List[str]) -> List[str]:
+        """Validate that all climate_zone_ids are valid UUID strings."""
+        for zone_id in v:
+            try:
+                uuid.UUID(zone_id)
+            except ValueError as exc:
+                raise ValueError(f"climate_zone_id '{zone_id}' must be a valid UUID string") from exc
         return v
 
     class Config:

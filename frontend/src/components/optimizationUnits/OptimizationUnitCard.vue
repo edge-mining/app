@@ -6,6 +6,7 @@ import { useEnergySourceStore } from "../../core/stores/energySourceStore";
 import { useHomeLoadsProfileStore } from "../../core/stores/homeLoadsProfileStore";
 import { useNotifierStore } from "../../core/stores/notifierStore";
 import { usePerformanceTrackerStore } from "../../core/stores/performanceTrackerStore";
+import { useClimateZoneStore } from "../../core/stores/climateZoneStore";
 import { computed, ref } from "vue";
 import {
   PhPencil,
@@ -19,6 +20,7 @@ import {
   PhShieldCheck,
   PhToggleLeft,
   PhToggleRight,
+  PhThermometerSimple,
 } from "@phosphor-icons/vue";
 import ConfirmDialog from "../ConfirmDialog.vue";
 import EdgeMiningCard, { type CardStyleConfig } from "../EdgeMiningCard.vue";
@@ -40,6 +42,7 @@ const energySourceStore = useEnergySourceStore();
 const homeLoadsProfileStore = useHomeLoadsProfileStore();
 const notifierStore = useNotifierStore();
 const performanceTrackerStore = usePerformanceTrackerStore();
+const climateZoneStore = useClimateZoneStore();
 const showDeleteConfirm = ref(false);
 
 // Resolved references
@@ -78,6 +81,12 @@ const assignedMiners = computed(() => {
 const assignedNotifiers = computed(() => {
   return notifierStore.notifiers.filter((n) =>
     props.unit.notifier_ids.includes(n.id!.toString())
+  );
+});
+
+const assignedClimateZones = computed(() => {
+  return climateZoneStore.climateZones.filter((z) =>
+    (props.unit.climate_zone_ids || []).includes(z.id!.toString())
   );
 });
 
@@ -213,6 +222,34 @@ function handleToggleEnabled() {
         </div>
         <div v-else class="text-xs text-base-content/30 italic">
           No miners assigned
+        </div>
+      </div>
+
+      <!-- Climate Zones Section -->
+      <div class="metric-box bg-base-100/40 rounded-lg px-3 py-2">
+        <div class="flex items-center justify-between mb-1.5">
+          <div class="flex items-center gap-1.5 text-xs text-base-content/60">
+            <PhThermometerSimple :size="14" />
+            <span>Climate Zones</span>
+          </div>
+          <span class="text-sm font-semibold text-base-content">
+            {{ assignedClimateZones.length }}
+          </span>
+        </div>
+        <div v-if="assignedClimateZones.length > 0" class="flex flex-wrap gap-1">
+          <span
+            v-for="zone in assignedClimateZones.slice(0, 3)"
+            :key="zone.id"
+            class="badge badge-xs badge-ghost"
+          >
+            {{ zone.name }}
+          </span>
+          <span v-if="assignedClimateZones.length > 3" class="badge badge-xs badge-ghost">
+            +{{ assignedClimateZones.length - 3 }} more
+          </span>
+        </div>
+        <div v-else class="text-xs text-base-content/30 italic">
+          No climate zones assigned
         </div>
       </div>
 

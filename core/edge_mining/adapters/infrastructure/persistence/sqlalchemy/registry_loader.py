@@ -12,6 +12,7 @@ all domain tables are properly registered.
 # so we can safely ignore unused import warnings
 
 from edge_mining.adapters.domain.energy import tables as _energy_tables  # noqa: F401
+from edge_mining.adapters.domain.climate import tables as _climate_tables  # noqa: F401
 from edge_mining.adapters.domain.forecast import tables as _forecast_tables  # noqa: F401
 from edge_mining.adapters.domain.home_load import tables as _home_load_tables  # noqa: F401
 from edge_mining.adapters.domain.miner import tables as _miner_tables  # noqa: F401

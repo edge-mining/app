@@ -2,6 +2,7 @@
 
 from abc import ABC, abstractmethod
 
+from edge_mining.domain.climate.common import ClimateMonitorAdapter
 from edge_mining.domain.energy.common import EnergyMonitorAdapter
 from edge_mining.domain.forecast.common import ForecastProviderAdapter
 from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter, EnergyLoadHistoryProviderAdapter
@@ -92,5 +93,14 @@ class ExternalServiceConfig(Configuration):
 
     @abstractmethod
     def is_valid(self, adapter_type: ExternalServiceAdapter) -> bool:
+        """Check if the configuration is valid for the given adapter type."""
+        pass
+
+
+class ClimateMonitorConfig(Configuration):
+    """Base interface for Climate Monitor configurations."""
+
+    @abstractmethod
+    def is_valid(self, adapter_type: ClimateMonitorAdapter) -> bool:
         """Check if the configuration is valid for the given adapter type."""
         pass

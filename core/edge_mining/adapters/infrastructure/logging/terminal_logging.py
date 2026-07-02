@@ -16,6 +16,8 @@ class TerminalLogger(LoggerPort):
     def __init__(self, name="", log_level="INFO"):
         self.name = name
         self.log_level = log_level
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
         self.default_log()
 
     def show_log_level(self, record):

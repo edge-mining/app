@@ -14,6 +14,7 @@ from typing import Generator, Optional
 
 from sqlalchemy import Engine, MetaData, create_engine
 from sqlalchemy.orm import Session, registry, sessionmaker
+from sqlalchemy.pool import NullPool
 
 # Import registry_loader at module level to ensure all table definitions are registered
 # This must happen before any migration or table creation operations
@@ -77,13 +78,25 @@ class BaseSQLAlchemyRepository:
 
         # Create engine with appropriate settings
         connect_args = {}
+        engine_kwargs = {}
         if self.db_path.startswith("sqlite"):
             connect_args = {"check_same_thread": False}
+            # SQLite doesn't benefit from connection pooling — use NullPool
+            # to avoid pool exhaustion under concurrent async access
+            engine_kwargs["poolclass"] = NullPool
+        else:
+            engine_kwargs.update(
+                pool_size=10,
+                max_overflow=20,
+                pool_timeout=60,
+                pool_pre_ping=True,
+            )
 
         BaseSQLAlchemyRepository._engine = create_engine(
             self.db_path,
             connect_args=connect_args,
             echo=echo,
+            **engine_kwargs,
         )
 
         # Create session factory

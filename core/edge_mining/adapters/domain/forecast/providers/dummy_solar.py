@@ -57,7 +57,7 @@ class DummyForecastProviderFactory(ForecastAdapterFactory):
         capacity_kwp = forecast_provider_config.capacity_kwp
         if not capacity_kwp:
             if self._energy_source and self._energy_source.nominal_power_max:
-                capacity_kwp = self._energy_source.nominal_power_max
+                capacity_kwp = self._energy_source.nominal_power_max / 1000  # Convert W to kWp
 
         return DummySolarForecastProvider(
             latitude=forecast_provider_config.latitude,

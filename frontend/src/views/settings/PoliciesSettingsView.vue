@@ -959,7 +959,7 @@ const filteredAvailableRules = computed(() => {
 
   <!-- Rule Add/Edit Modal -->
   <dialog :class="['modal', { 'modal-open': showRuleEditModal }]">
-    <div v-if="activeRule" class="modal-box max-w-5xl bg-base-100 border border-base-300/60 p-0 overflow-hidden flex flex-col max-h-[85vh]">
+    <div v-if="activeRule" class="modal-box max-w-6xl bg-base-100 border border-base-300/60 p-0 overflow-hidden flex flex-col max-h-[85vh]">
       <!-- Header -->
       <div class="px-6 pt-6 pb-4 border-b border-base-300/40 flex-shrink-0">
         <div class="flex items-center justify-between">

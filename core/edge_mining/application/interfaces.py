@@ -4,6 +4,9 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Type
 
+from edge_mining.domain.climate.common import ClimateMonitorAdapter
+from edge_mining.domain.climate.entities import ClimateMonitor, ClimateZone
+from edge_mining.domain.climate.ports import ClimateMonitorPort
 from edge_mining.domain.common import DomainEvent, EntityId, Timestamp, Watts
 from edge_mining.domain.energy.common import EnergyMonitorAdapter, EnergySourceType
 from edge_mining.domain.energy.entities import EnergyMonitor, EnergySource
@@ -46,6 +49,7 @@ from edge_mining.shared.external_services.common import ExternalServiceAdapter
 from edge_mining.shared.external_services.entities import ExternalService
 from edge_mining.shared.external_services.ports import ExternalServicePort
 from edge_mining.shared.external_services.value_objects import ExternalServiceLinkedEntities
+from edge_mining.shared.interfaces.config import ClimateMonitorConfig
 from edge_mining.shared.interfaces.config import (
     EnergyMonitorConfig,
     ExternalServiceConfig,
@@ -115,6 +119,10 @@ class AdapterServiceInterface(ABC):
     @abstractmethod
     async def get_mining_performance_tracker(self, tracker_id: EntityId) -> Optional[MiningPerformanceTrackerPort]:
         """Get a mining performance tracker adapter instance."""
+
+    @abstractmethod
+    async def get_climate_monitor(self, climate_zone: ClimateZone) -> Optional[ClimateMonitorPort]:
+        """Get a climate monitor adapter instance."""
 
     @abstractmethod
     async def get_external_service(self, external_service_id: EntityId) -> Optional[ExternalServicePort]:
@@ -596,6 +604,7 @@ class ConfigurationServiceInterface(ABC):
         performance_tracker_id: Optional[EntityId] = None,
         home_loads_profile_id: Optional[EntityId] = None,
         notifier_ids: Optional[List[EntityId]] = None,
+        climate_zone_ids: Optional[List[EntityId]] = None,
     ) -> Optional[EnergyOptimizationUnit]:
         """Create an optimization unit into the system."""
 
@@ -635,6 +644,7 @@ class ConfigurationServiceInterface(ABC):
         performance_tracker_id: Optional[EntityId] = None,
         home_loads_profile_id: Optional[EntityId] = None,
         notifier_ids: Optional[List[EntityId]] = None,
+        climate_zone_ids: Optional[List[EntityId]] = None,
     ) -> EnergyOptimizationUnit:
         """Update an optimization unit in the system."""
 
@@ -1023,6 +1033,98 @@ class ConfigurationServiceInterface(ABC):
     @abstractmethod
     async def update_setting(self, key: str, value: Any) -> None:
         """Update a setting."""
+
+    # --- Climate Zone Management ---
+
+    @abstractmethod
+    async def create_climate_zone(
+        self, name: str, area_sqm: float, climate_monitor_id: Optional[EntityId] = None
+    ) -> ClimateZone:
+        """Create a new climate zone."""
+
+    @abstractmethod
+    def get_climate_zone(self, zone_id: EntityId) -> Optional[ClimateZone]:
+        """Get a climate zone by its ID."""
+
+    @abstractmethod
+    def list_climate_zones(self) -> List[ClimateZone]:
+        """List all climate zones."""
+
+    @abstractmethod
+    async def update_climate_zone(
+        self,
+        zone_id: EntityId,
+        name: str,
+        area_sqm: float,
+        temperature_schedule: Optional[list] = None,
+        hysteresis_celsius: Optional[float] = None,
+        default_target_temperature: Optional[float] = None,
+    ) -> ClimateZone:
+        """Update an existing climate zone."""
+
+    @abstractmethod
+    async def delete_climate_zone(self, zone_id: EntityId) -> ClimateZone:
+        """Delete a climate zone."""
+
+    @abstractmethod
+    async def set_climate_monitor_to_zone(self, zone_id: EntityId, monitor_id: EntityId) -> ClimateZone:
+        """Assign a climate monitor to a climate zone."""
+
+    @abstractmethod
+    async def unlink_climate_monitor_from_zone(self, zone_id: EntityId) -> ClimateZone:
+        """Remove the climate monitor from a climate zone."""
+
+    # --- Climate Monitor Management ---
+
+    @abstractmethod
+    async def create_climate_monitor(
+        self,
+        name: str,
+        adapter_type: ClimateMonitorAdapter,
+        config: Optional[ClimateMonitorConfig] = None,
+        external_service_id: Optional[EntityId] = None,
+    ) -> ClimateMonitor:
+        """Create a new climate monitor."""
+
+    @abstractmethod
+    async def update_climate_monitor(
+        self,
+        monitor_id: EntityId,
+        name: str,
+        config: Optional[ClimateMonitorConfig] = None,
+        external_service_id: Optional[EntityId] = None,
+    ) -> ClimateMonitor:
+        """Update an existing climate monitor."""
+
+    @abstractmethod
+    async def delete_climate_monitor(self, monitor_id: EntityId) -> ClimateMonitor:
+        """Delete a climate monitor."""
+
+    @abstractmethod
+    def get_climate_monitor(self, monitor_id: EntityId) -> Optional[ClimateMonitor]:
+        """Get a climate monitor by its ID."""
+
+    @abstractmethod
+    def list_climate_monitors(self) -> List[ClimateMonitor]:
+        """List all climate monitors."""
+
+    @abstractmethod
+    def check_climate_monitor(self, climate_monitor: ClimateMonitor) -> bool:
+        """Validate a climate monitor configuration."""
+
+    # --- Climate Zone ↔ Optimization Unit ---
+
+    @abstractmethod
+    async def add_climate_zone_to_optimization_unit(
+        self, unit_id: EntityId, zone_id: EntityId
+    ) -> EnergyOptimizationUnit:
+        """Add a climate zone to an optimization unit."""
+
+    @abstractmethod
+    async def remove_climate_zone_from_optimization_unit(
+        self, unit_id: EntityId, zone_id: EntityId
+    ) -> EnergyOptimizationUnit:
+        """Remove a climate zone from an optimization unit."""
 
 
 class SunFactoryInterface(ABC):

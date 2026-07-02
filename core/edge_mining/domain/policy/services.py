@@ -1,6 +1,7 @@
 """Domain services for the Energy Optimization domain."""
 
 import re
+import sys
 from abc import ABC, abstractmethod
 from typing import Any, List, Tuple, Union
 
@@ -181,6 +182,18 @@ class RuleValidationService:
                 if isinstance(attr, property):
                     if hasattr(attr.fget, "__annotations__") and "return" in attr.fget.__annotations__:
                         field_type = attr.fget.__annotations__["return"]
+                        # Resolve forward-reference string annotations
+                        if isinstance(field_type, str):
+                            field_type = self._resolve_forward_ref(field_type, current_type)
+                            if field_type is None:
+                                if i < len(parts) - 1:
+                                    return (
+                                        False,
+                                        f"Invalid field path at {path}: '{field_path}' - "
+                                        f"cannot resolve forward reference for property '{part}'",
+                                    )
+                                else:
+                                    return True, ""
                         current_type = field_type
                     else:
                         if i < len(parts) - 1:
@@ -210,6 +223,19 @@ class RuleValidationService:
                 )
 
         return True, ""
+
+    def _resolve_forward_ref(self, type_name: str, context_type: type) -> Any:
+        """Resolve a forward-reference string annotation to the actual type.
+
+        Looks up the type name in the module where context_type is defined.
+        """
+        module_name = getattr(context_type, "__module__", None)
+        if module_name and module_name in sys.modules:
+            module_globals = vars(sys.modules[module_name])
+            resolved = module_globals.get(type_name)
+            if resolved is not None:
+                return resolved
+        return None
 
     def _validate_operator(self, path: str, operator: Union[str, OperatorType]) -> Tuple[bool, str]:
         """

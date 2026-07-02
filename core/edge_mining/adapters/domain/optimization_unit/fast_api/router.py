@@ -65,6 +65,7 @@ async def add_optimization_unit(
             performance_tracker_id=optimization_unit_to_add.performance_tracker_id,
             home_loads_profile_id=optimization_unit_to_add.home_loads_profile,
             notifier_ids=optimization_unit_to_add.notifier_ids,
+            climate_zone_ids=optimization_unit_to_add.climate_zone_ids,
         )
 
         if created_unit is None:
@@ -139,6 +140,10 @@ async def update_optimization_unit(
         if optimization_unit_update.home_loads_profile_id:
             home_loads_profile_id = EntityId(uuid.UUID(optimization_unit_update.home_loads_profile_id))
 
+        climate_zone_ids: List[EntityId] = []
+        if optimization_unit_update.climate_zone_ids:
+            climate_zone_ids = [EntityId(uuid.UUID(zone_id)) for zone_id in optimization_unit_update.climate_zone_ids]
+
         # Update the optimization unit
         updated_unit = await config_service.update_optimization_unit(
             unit_id=unit_id,
@@ -150,6 +155,7 @@ async def update_optimization_unit(
             performance_tracker_id=performance_tracker_id,
             home_loads_profile_id=home_loads_profile_id,
             notifier_ids=notifier_ids,
+            climate_zone_ids=climate_zone_ids,
         )
 
         response = EnergyOptimizationUnitSchema.from_model(updated_unit)

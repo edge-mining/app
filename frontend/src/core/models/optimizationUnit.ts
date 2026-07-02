@@ -9,6 +9,7 @@ export interface OptimizationUnit {
   home_loads_profile_id?: string;
   performance_tracker_id?: string;
   notifier_ids: string[];
+  climate_zone_ids: string[];
 }
 
 export interface OptimizationUnitCreate {
@@ -20,6 +21,7 @@ export interface OptimizationUnitCreate {
   home_loads_profile_id?: string;
   performance_tracker_id?: string;
   notifier_ids?: string[];
+  climate_zone_ids?: string[];
 }
 
 export interface OptimizationUnitUpdate {
@@ -31,4 +33,5 @@ export interface OptimizationUnitUpdate {
   home_loads_profile_id?: string;
   performance_tracker_id?: string;
   notifier_ids?: string[];
+  climate_zone_ids?: string[];
 }
