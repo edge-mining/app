@@ -47,7 +47,7 @@ const toastClass = computed(() => {
       </div>
     </div>
 
-    <div class="drawer-content flex flex-col h-screen overflow-hidden bg-base-200">
+    <div class="drawer-content flex flex-col h-screen overflow-hidden bg-base-100">
       <TopBar :show-drawer="showDrawer" @toggle-drawer="showDrawer = !showDrawer" />
       <main class="flex-1 overflow-y-auto p-5">
         <RouterView />

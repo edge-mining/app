@@ -63,15 +63,8 @@ const isClimateActive = computed(() =>
 
     <div class="navbar p-4 h-full relative z-10">
       <div class="flex-none h-full">
-        <div class="flex flex-row items-center py-4 mb-2">
-          <VectorIcon name="logo" class="inline-block size-9" />
-          <div class="flex flex-col ml-3">
-            <span
-              class="text-[10px] uppercase tracking-wider text-base-300 font-medium"
-              >Edge Mining</span
-            >
-            <!-- <span class="text-sm font-medium">Satoshi Nakamoto</span> -->
-          </div>
+        <div class="flex items-center py-4 mb-2 pl-3">
+          <VectorIcon name="logo" class="size-9" />
         </div>
 
         <ul class="menu px-0 w-full gap-0.5">
@@ -356,13 +349,13 @@ const isClimateActive = computed(() =>
   top: 0;
   left: 0;
   width: 100%;
-  height: 12rem;
+  height: 14rem;
   background: radial-gradient(
-    ellipse 120% 100% at 50% -30%,
-    oklch(75% 0.25 130 / 0.3) 0%,
-    oklch(75% 0.2 130 / 0.15) 30%,
-    oklch(75% 0.15 130 / 0.05) 50%,
-    transparent 80%
+    ellipse 90% 70% at 18% 12%,
+    oklch(75% 0.25 130 / 0.28) 0%,
+    oklch(75% 0.2 130 / 0.14) 30%,
+    oklch(75% 0.15 130 / 0.05) 55%,
+    transparent 85%
   );
   pointer-events: none;
   z-index: 0;

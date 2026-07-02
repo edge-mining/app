@@ -287,11 +287,16 @@ class AdapterService(AdapterServiceInterface):
             return None
 
     async def _initialize_miner_controller_adapter(
-        self, miner: Miner, miner_controller: MinerController
+        self, miner: Miner, miner_controller: MinerController, use_cache: bool = True
     ) -> Optional[MinerFeaturePort]:
-        """Initialize a miner controller adapter."""
+        """Initialize a miner controller adapter.
+
+        When ``use_cache`` is False the instance is built fresh and is not stored
+        in (nor read from) the adapters cache. This is used to test the connection
+        of a controller that has not been persisted yet.
+        """
         # If the adapter has already been created, we use it.
-        if miner_controller.id in self._instance_cache:
+        if use_cache and miner_controller.id in self._instance_cache:
             if self.logger:
                 self.logger.debug(
                     f"Returning cached adapter instance "
@@ -369,7 +374,8 @@ class AdapterService(AdapterServiceInterface):
             else:
                 raise ValueError(f"Unsupported miner controller adapter type: {miner_controller.adapter_type}")
 
-            self._instance_cache[miner_controller.id] = instance
+            if use_cache:
+                self._instance_cache[miner_controller.id] = instance
             return instance
         except Exception as e:
             if self.logger:
@@ -705,6 +711,16 @@ class AdapterService(AdapterServiceInterface):
                 self.logger.error(f"Miner Controller ID {controller_id} not found.")
             return None
         return await self._initialize_miner_controller_adapter(miner, miner_controller)
+
+    async def build_miner_controller_adapter(
+        self, miner: Miner, miner_controller: MinerController
+    ) -> Optional[MinerFeaturePort]:
+        """Build a miner controller adapter from a (possibly unsaved) controller entity.
+
+        The instance is created fresh and not cached, so it can be used to test the
+        connection of a controller before it is persisted.
+        """
+        return await self._initialize_miner_controller_adapter(miner, miner_controller, use_cache=False)
 
     async def sync_miner_features(self, miner: Miner) -> bool:
         """Reconcile stored features with what controllers actually support.

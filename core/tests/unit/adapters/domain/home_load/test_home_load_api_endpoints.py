@@ -18,7 +18,7 @@ from edge_mining.domain.common import EntityId, Timestamp, Watts
 from edge_mining.domain.home_load.aggregate_roots import HomeLoadsProfile
 from edge_mining.domain.home_load.common import EnergyLoadForecastProviderAdapter
 from edge_mining.domain.home_load.entities import LoadConsumptionModel, LoadDevice
-from edge_mining.domain.home_load.value_objects import HomeLoadPowerPoint
+from edge_mining.domain.home_load.value_objects import HomeLoadPowerPoint, LoadTrainingResult
 
 
 # --- Fixtures ---
@@ -156,7 +156,15 @@ class TestTriggerTrainingAll:
 
 class TestTriggerTrainingDevice:
     def test_trigger_device_training_success(self, client, mock_training_service, profile_id, device_id):
-        mock_training_service.train_device = AsyncMock()
+        mock_training_service.train_device = AsyncMock(
+            return_value=LoadTrainingResult(
+                device_name="Dishwasher",
+                status="trained",
+                best_adapter=EnergyLoadForecastProviderAdapter.XGBOOST,
+                best_mae=42.0,
+                samples_used=120,
+            )
+        )
 
         response = client.post(
             f"/api/v1/home-loads-profiles/{profile_id}/devices/{device_id}/training/trigger",
@@ -164,8 +172,26 @@ class TestTriggerTrainingDevice:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "completed"
+        assert data["status"] == "trained"
         assert "Dishwasher" in data["detail"]
+
+    def test_trigger_device_training_skipped_reports_reason(self, client, mock_training_service, profile_id, device_id):
+        mock_training_service.train_device = AsyncMock(
+            return_value=LoadTrainingResult(
+                device_name="Dishwasher",
+                status="skipped",
+                reason="insufficient history (10 points, need at least 96)",
+            )
+        )
+
+        response = client.post(
+            f"/api/v1/home-loads-profiles/{profile_id}/devices/{device_id}/training/trigger",
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "skipped"
+        assert "insufficient history" in data["detail"]
 
     def test_trigger_device_training_profile_not_found(self, client, mock_config_service):
         mock_config_service.get_home_loads_profile.return_value = None

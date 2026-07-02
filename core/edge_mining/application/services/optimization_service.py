@@ -16,7 +16,7 @@ from edge_mining.application.interfaces import (
     OptimizationServiceInterface,
     SunFactoryInterface,
 )
-from edge_mining.domain.common import EntityId, Timestamp, WattHours
+from edge_mining.domain.common import EntityId, Timestamp, WattHours, utc_now_timestamp
 from edge_mining.domain.energy.entities import EnergySource
 from edge_mining.domain.energy.events import EnergyStateSnapshotUpdatedEvent
 from edge_mining.domain.energy.ports import EnergyMonitorPort, EnergySourceRepository
@@ -114,7 +114,7 @@ class OptimizationService(OptimizationServiceInterface):
     @staticmethod
     def _sum_consumptions(consumptions: List[LoadEnergyConsumption]) -> LoadEnergyConsumption:
         """Sum a list of LoadEnergyConsumption by matching (start, end) intervals."""
-        now_ts = Timestamp(datetime.now())
+        now_ts = utc_now_timestamp()
         if not consumptions:
             return LoadEnergyConsumption(timestamp=now_ts, intervals=[])
 
@@ -154,7 +154,7 @@ class OptimizationService(OptimizationServiceInterface):
         if home_loads_profile is None:
             return None
 
-        now = Timestamp(datetime.now())
+        now = utc_now_timestamp()
         window_start = Timestamp(now - timedelta(hours=24))
         empty_consumption = LoadEnergyConsumption(timestamp=now, intervals=[])
 
