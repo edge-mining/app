@@ -1,30 +1,14 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { BaseService } from "../core/services/baseService";
-import { PhEye, PhEyeSlash } from "@phosphor-icons/vue";
-
-interface ConfigSchemaProperty {
-	type?: string;
-	title?: string;
-	description?: string;
-	default?: any;
-	$ref?: string;
-	anyOf?: any[];
-	enum?: any[];
-	properties?: Record<string, ConfigSchemaProperty>;
-	minimum?: number;
-	maximum?: number;
-	required?: string[];
-}
-
-interface ConfigSchema {
-	title?: string;
-	description?: string;
-	type?: string;
-	properties: Record<string, ConfigSchemaProperty>;
-	required?: string[];
-	$defs?: Record<string, ConfigSchemaProperty>;
-}
+import ConfigFieldControl from "./ConfigFieldControl.vue";
+import {
+	type ConfigSchema,
+	type ConfigSchemaProperty,
+	formatFieldName,
+	initializeDefaultValue,
+	isEntityField,
+} from "../core/utils/configSchema";
 
 const props = withDefaults(defineProps<{
 	/** Adapter type string — triggers schema reload when changed. */
@@ -44,48 +28,6 @@ const config = defineModel<Record<string, any>>({ required: true });
 const service = new BaseService();
 const schema = ref<ConfigSchema | null>(null);
 const loading = ref(false);
-const passwordVisibility = ref<Record<string, boolean>>({});
-
-// ── Schema helpers ──────────────────────────────────────────────
-
-const resolveRef = (refStr: string, s: ConfigSchema): any => {
-	if (!refStr.startsWith("#/$defs/")) return null;
-	return s.$defs?.[refStr.replace("#/$defs/", "")] || null;
-};
-
-const getPropertySchema = (property: any, s: ConfigSchema): any => {
-	if (property.$ref) return resolveRef(property.$ref, s);
-	if (property.anyOf) {
-		const nonNull = property.anyOf.find((i: any) => i.type !== "null");
-		if (nonNull) {
-			if (nonNull.$ref) return resolveRef(nonNull.$ref, s);
-			return { ...property, ...nonNull, anyOf: undefined };
-		}
-	}
-	return property;
-};
-
-const isNullable = (property: any): boolean =>
-	!!property.anyOf?.some((i: any) => i.type === "null");
-
-const initializeDefaultValue = (property: any, s: ConfigSchema): any => {
-	if (property.default !== undefined) return property.default;
-	const resolved = getPropertySchema(property, s);
-	if (resolved?.default !== undefined) return resolved.default;
-	if (isNullable(property)) return null;
-	if (resolved?.enum) return resolved.enum[0];
-	if (resolved?.type === "object" && resolved?.properties) {
-		const obj: any = {};
-		Object.entries(resolved.properties).forEach(([k, p]: [string, any]) => {
-			obj[k] = initializeDefaultValue(p, s);
-		});
-		return obj;
-	}
-	if (resolved?.type === "string") return "";
-	if (resolved?.type === "number" || resolved?.type === "integer") return 0;
-	if (resolved?.type === "boolean") return false;
-	return null;
-};
 
 // ── Schema fetch ────────────────────────────────────────────────
 
@@ -124,270 +66,144 @@ watch(
 	{ immediate: true }
 );
 
-// ── Display helpers ─────────────────────────────────────────────
+// ── Form layout (issue #17) ─────────────────────────────────────
+//
+// Fields are reorganized for readability:
+//  - each "entity_<x>" field is paired with its "unit_<x>" field on the
+//    same row, so the value and its unit of measure stay together;
+//  - rows are grouped by domain (Power / Energy / Hash Rate) when at least
+//    two domains are present, otherwise rendered as a single flat list;
+//  - the original schema declaration order is preserved within each group.
 
-const formatFieldName = (name: string) =>
-	name
-		.split("_")
-		.map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-		.join(" ");
+interface LayoutCell {
+	name: string;
+	property: ConfigSchemaProperty;
+}
+interface LayoutRow {
+	key: string;
+	cells: LayoutCell[];
+}
+interface LayoutGroup {
+	label: string | null;
+	rows: LayoutRow[];
+}
+
+const DOMAIN_ORDER = ["power", "energy", "hashrate"];
+const DOMAIN_LABELS: Record<string, string> = {
+	power: "Power",
+	energy: "Energy",
+	hashrate: "Hash Rate",
+};
+const OTHER_KEY = "__other__";
+
+const detectDomain = (name: string): string | null => {
+	const n = name.toLowerCase();
+	if (n.includes("hash")) return "hashrate";
+	if (n.includes("power")) return "power";
+	if (n.includes("energy")) return "energy";
+	return null;
+};
 
 const isRequired = (fieldName: string) =>
 	schema.value?.required?.includes(fieldName) || false;
 
-const getFieldType = (property: any, s: ConfigSchema) => {
-	const r = getPropertySchema(property, s);
-	if (r?.enum) return "enum";
-	if (r?.type === "object" && r?.properties) return "object";
-	if (r?.type === "integer" || r?.type === "number") return "number";
-	if (r?.type === "string") return "string";
-	if (r?.type === "boolean") return "boolean";
-	return "unknown";
-};
+const layout = computed<LayoutGroup[]>(() => {
+	const s = schema.value;
+	if (!s?.properties) return [];
 
-const isPasswordField = (name: string) =>
-	String(name).toLowerCase().includes("password");
+	const entries = Object.entries(s.properties);
+	const propMap = new Map(entries);
+	const consumed = new Set<string>();
+	const rows: { row: LayoutRow; domain: string | null }[] = [];
 
-const isEntityField = (name: string) =>
-	String(name).toLowerCase().includes("entity");
+	for (const [name, property] of entries) {
+		if (consumed.has(name)) continue;
+		consumed.add(name);
 
-const togglePasswordVisibility = (key: string) => {
-	passwordVisibility.value[key] = !passwordVisibility.value[key];
-};
+		const cells: LayoutCell[] = [{ name, property }];
 
-// ── Sensor prefix (Home Assistant entity fields) ────────────────
+		// Pair "entity_<x>" with its "unit_<x>" counterpart on the same row.
+		if (isEntityField(name) && name.startsWith("entity_")) {
+			const unitName = `unit_${name.slice("entity_".length)}`;
+			const unitProp = propMap.get(unitName);
+			if (unitProp && !consumed.has(unitName)) {
+				cells.push({ name: unitName, property: unitProp });
+				consumed.add(unitName);
+			}
+		}
 
-const SENSOR_PREFIX = "sensor.";
-
-const isSensorEntityField = (fieldName: string) =>
-	props.sensorPrefix && isEntityField(fieldName);
-
-const getEntityDisplayValue = (fieldName: string): string => {
-	const val = config.value[fieldName] ?? "";
-	return String(val).startsWith(SENSOR_PREFIX)
-		? String(val).slice(SENSOR_PREFIX.length)
-		: String(val);
-};
-
-const setEntityValue = (fieldName: string, displayValue: string) => {
-	config.value[fieldName] = displayValue ? SENSOR_PREFIX + displayValue : "";
-};
-
-const getNestedEntityDisplayValue = (
-	parentKey: string,
-	nestedKey: string
-): string => {
-	const val = config.value[parentKey]?.[nestedKey] ?? "";
-	return String(val).startsWith(SENSOR_PREFIX)
-		? String(val).slice(SENSOR_PREFIX.length)
-		: String(val);
-};
-
-const setNestedEntityValue = (
-	parentKey: string,
-	nestedKey: string,
-	displayValue: string
-) => {
-	if (config.value[parentKey]) {
-		config.value[parentKey][nestedKey] = displayValue
-			? SENSOR_PREFIX + displayValue
-			: "";
+		rows.push({ row: { key: name, cells }, domain: detectDomain(name) });
 	}
-};
 
-const onEntityInput = (fieldName: string, event: Event) => {
-	setEntityValue(fieldName, (event.target as HTMLInputElement).value);
-};
-
-const onNestedEntityInput = (
-	parentKey: string,
-	nestedKey: string,
-	event: Event
-) => {
-	setNestedEntityValue(
-		parentKey,
-		nestedKey,
-		(event.target as HTMLInputElement).value
+	// Group by domain only when there are at least two distinct domains.
+	const domains = new Set(
+		rows.map((r) => r.domain).filter((d): d is string => d !== null)
 	);
-};
+	if (domains.size < 2) {
+		return [{ label: null, rows: rows.map((r) => r.row) }];
+	}
+
+	const buckets = new Map<string, LayoutRow[]>();
+	for (const { row, domain } of rows) {
+		const key = domain ?? OTHER_KEY;
+		if (!buckets.has(key)) buckets.set(key, []);
+		buckets.get(key)!.push(row);
+	}
+
+	const orderedKeys = [
+		...DOMAIN_ORDER.filter((d) => buckets.has(d)),
+		...[...buckets.keys()].filter(
+			(k) => !DOMAIN_ORDER.includes(k) && k !== OTHER_KEY
+		),
+		...(buckets.has(OTHER_KEY) ? [OTHER_KEY] : []),
+	];
+
+	return orderedKeys.map((k) => ({
+		label: k === OTHER_KEY ? "Other" : DOMAIN_LABELS[k] ?? formatFieldName(k),
+		rows: buckets.get(k)!,
+	}));
+});
 </script>
 
 <template>
 	<div v-if="loading" class="flex items-center justify-center p-4">
 		<span class="loading loading-spinner loading-md"></span>
 	</div>
-	<div v-else-if="schema && schema.properties" class="flex flex-col gap-3">
-		<div
-			v-for="(property, fieldName) in schema.properties"
-			:key="fieldName"
-			class="space-y-1"
-		>
-			<!-- Field label -->
-			<div class="font-medium">
-				{{ property.title || formatFieldName(String(fieldName)) }}
-				<span v-if="isRequired(String(fieldName))" class="text-sm text-error opacity-60 ml-1 font-normal">(required)</span>
-				<span v-if="!isRequired(String(fieldName))" class="text-sm opacity-60 ml-1 font-normal">(optional)</span>
+	<div v-else-if="schema && schema.properties" class="flex flex-col gap-4">
+		<div v-for="(group, gi) in layout" :key="gi" class="flex flex-col gap-3">
+			<div
+				v-if="group.label"
+				class="text-xs font-semibold uppercase tracking-wide opacity-60 border-b border-base-300/40 pb-1"
+			>
+				{{ group.label }}
 			</div>
 
-			<!-- Enum -->
-			<select
-				v-if="getFieldType(property, schema) === 'enum'"
-				v-model="config[fieldName]"
-				:required="isRequired(String(fieldName))"
-				class="select select-bordered select-sm w-full"
+			<!-- Paired entity + unit-of-measure row: the unit segmented control
+			     is rendered inline as the entity field's addon, so the row keeps
+			     a single label (the entity's) and stays aligned. -->
+			<ConfigFieldControl
+				v-for="row in group.rows"
+				:key="row.key"
+				v-model="config[row.cells[0].name]"
+				:name="row.cells[0].name"
+				:property="row.cells[0].property"
+				:schema="schema"
+				:required="isRequired(row.cells[0].name)"
+				:sensor-prefix="sensorPrefix"
 			>
-				<option v-if="isNullable(property)" :value="null">-- None --</option>
-				<option
-					v-for="option in getPropertySchema(property, schema).enum"
-					:key="option"
-					:value="option"
-				>{{ option }}</option>
-			</select>
-
-			<!-- Object (nested) -->
-			<div
-				v-else-if="getFieldType(property, schema) === 'object'"
-				class="border border-base-300 rounded-lg p-3 space-y-3"
-			>
-				<div
-					v-for="(nestedProp, nestedKey) in getPropertySchema(property, schema).properties"
-					:key="nestedKey"
-					class="space-y-1"
-				>
-					<div class="font-medium text-sm">
-						{{ nestedProp.title || formatFieldName(String(nestedKey)) }}
-					</div>
-
-					<!-- Nested sensor entity -->
-					<div
-						v-if="nestedProp.type === 'string' && isSensorEntityField(String(nestedKey))"
-						class="join w-full"
-					>
-						<span class="join-item flex items-center px-2 bg-base-200 border border-base-300 text-xs opacity-70 select-none">sensor.</span>
-						<input
-							:value="getNestedEntityDisplayValue(String(fieldName), String(nestedKey))"
-							@input="onNestedEntityInput(String(fieldName), String(nestedKey), $event)"
-							type="text"
-							placeholder="entity_id"
-							class="input input-bordered input-xs join-item flex-1"
-						/>
-					</div>
-
-					<!-- Nested string -->
-					<div v-else-if="nestedProp.type === 'string'" class="relative">
-						<input
-							v-model="config[fieldName][nestedKey]"
-							:type="isPasswordField(String(nestedKey)) && !passwordVisibility[String(fieldName) + '.' + String(nestedKey)] ? 'password' : 'text'"
-							:placeholder="nestedProp.default || ''"
-							class="input input-bordered input-xs w-full"
-							:class="{ 'pr-10': isPasswordField(String(nestedKey)) }"
-						/>
-						<button
-							v-if="isPasswordField(String(nestedKey))"
-							type="button"
-							@click="togglePasswordVisibility(String(fieldName) + '.' + String(nestedKey))"
-							class="absolute right-2 top-1/2 -translate-y-1/2 btn btn-ghost btn-xs"
-							tabindex="-1"
-						>
-							<PhEyeSlash v-if="passwordVisibility[String(fieldName) + '.' + String(nestedKey)]" :size="16" />
-							<PhEye v-else :size="16" />
-						</button>
-					</div>
-
-					<!-- Nested number -->
-					<input
-						v-else-if="nestedProp.type === 'number' || nestedProp.type === 'integer'"
-						v-model.number="config[fieldName][nestedKey]"
-						type="number"
-						:step="nestedProp.type === 'integer' ? '1' : 'any'"
-						:min="nestedProp.minimum"
-						:max="nestedProp.maximum"
-						:placeholder="nestedProp.default || ''"
-						class="input input-bordered input-xs w-full"
+				<template v-if="row.cells.length > 1" #addon>
+					<ConfigFieldControl
+						v-model="config[row.cells[1].name]"
+						:name="row.cells[1].name"
+						:property="row.cells[1].property"
+						:schema="schema"
+						:required="isRequired(row.cells[1].name)"
+						:sensor-prefix="sensorPrefix"
+						hide-label
+						hide-description
 					/>
-
-					<div v-if="nestedProp.description" class="text-xs italic opacity-70">
-						{{ nestedProp.description }}
-					</div>
-				</div>
-			</div>
-
-			<!-- String with sensor prefix -->
-			<div
-				v-else-if="getFieldType(property, schema) === 'string' && isSensorEntityField(String(fieldName))"
-				class="join w-full"
-			>
-				<span class="join-item flex items-center px-3 bg-base-200 border border-base-300 text-sm opacity-70 select-none">sensor.</span>
-				<input
-					:value="getEntityDisplayValue(String(fieldName))"
-					@input="onEntityInput(String(fieldName), $event)"
-					type="text"
-					placeholder="entity_id"
-					:required="isRequired(String(fieldName))"
-					class="input input-bordered input-sm join-item flex-1"
-				/>
-			</div>
-
-			<!-- String -->
-			<div
-				v-else-if="getFieldType(property, schema) === 'string'"
-				class="relative"
-			>
-				<input
-					v-model="config[fieldName]"
-					:type="isPasswordField(String(fieldName)) && !passwordVisibility[String(fieldName)] ? 'password' : 'text'"
-					:placeholder="property.default || ''"
-					:required="isRequired(String(fieldName))"
-					class="input input-bordered input-sm w-full"
-					:class="{ 'pr-10': isPasswordField(String(fieldName)) }"
-				/>
-				<button
-					v-if="isPasswordField(String(fieldName))"
-					type="button"
-					@click="togglePasswordVisibility(String(fieldName))"
-					class="absolute right-2 top-1/2 -translate-y-1/2 btn btn-ghost btn-xs"
-					tabindex="-1"
-				>
-					<PhEyeSlash v-if="passwordVisibility[String(fieldName)]" :size="16" />
-					<PhEye v-else :size="16" />
-				</button>
-			</div>
-
-			<!-- Number -->
-			<input
-				v-else-if="getFieldType(property, schema) === 'number'"
-				v-model.number="config[fieldName]"
-				type="number"
-				:step="getPropertySchema(property, schema).type === 'integer' ? '1' : 'any'"
-				:min="getPropertySchema(property, schema).minimum"
-				:max="getPropertySchema(property, schema).maximum"
-				:placeholder="property.default"
-				:required="isRequired(String(fieldName))"
-				class="input input-bordered input-sm w-full"
-			/>
-
-			<!-- Boolean -->
-			<label
-				v-else-if="getFieldType(property, schema) === 'boolean'"
-				class="flex items-center gap-2 cursor-pointer"
-			>
-				<input
-					v-model="config[fieldName]"
-					type="checkbox"
-					class="checkbox checkbox-sm"
-				/>
-				<span class="text-sm">{{ property.description || "Enable" }}</span>
-			</label>
-
-			<!-- Description -->
-			<div
-				v-if="property.description &&
-					getFieldType(property, schema) !== 'boolean' &&
-					getFieldType(property, schema) !== 'object'"
-				class="text-sm italic opacity-70"
-			>
-				{{ property.description }}
-			</div>
+				</template>
+			</ConfigFieldControl>
 		</div>
 	</div>
 </template>

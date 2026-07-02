@@ -24,7 +24,7 @@ from edge_mining.domain.home_load.common import (
     EnergyLoadHistoryProviderAdapter,
 )
 from edge_mining.domain.home_load.ports import EnergyLoadForecastProviderPort, EnergyLoadHistoryProviderPort
-from edge_mining.domain.home_load.value_objects import HomeLoadPowerPoint
+from edge_mining.domain.home_load.value_objects import HomeLoadPowerPoint, LoadTrainingResult
 from edge_mining.domain.miner.aggregate_roots import Miner
 from edge_mining.domain.miner.common import MinerControllerAdapter, MinerFeatureType
 from edge_mining.domain.miner.entities import MinerController
@@ -66,6 +66,12 @@ class AdapterServiceInterface(ABC):
     @abstractmethod
     async def get_miner_controller_adapter(self, miner: Miner, controller_id: EntityId) -> Optional[MinerFeaturePort]:
         """Get a miner controller adapter instance for a specific controller."""
+
+    @abstractmethod
+    async def build_miner_controller_adapter(
+        self, miner: Miner, miner_controller: MinerController
+    ) -> Optional[MinerFeaturePort]:
+        """Build a fresh (uncached) miner controller adapter from a controller entity."""
 
     @abstractmethod
     async def get_miner_feature_port(self, miner: Miner, feature_type: MinerFeatureType) -> Optional[MinerFeaturePort]:
@@ -155,7 +161,9 @@ class HomeLoadHistoryServiceInterface(ABC):
         """Collect power points from all history providers for all enabled devices."""
 
     @abstractmethod
-    async def collect_devices(self, device_ids: List[EntityId], lookback_hours: int = 24) -> None:
+    async def collect_devices(
+        self, device_ids: List[EntityId], lookback_hours: int = 24, force_full_window: bool = True
+    ) -> None:
         """Collect power points for the specified devices only."""
 
     @abstractmethod
@@ -179,8 +187,8 @@ class LoadForecastTrainingServiceInterface(ABC):
         """Train models for every device that has sufficient history."""
 
     @abstractmethod
-    async def train_device(self, device_id: EntityId, weeks_lookback: int = 8) -> None:
-        """Train models for a single device."""
+    async def train_device(self, device_id: EntityId, weeks_lookback: int = 8) -> LoadTrainingResult:
+        """Train models for a single device and return the outcome."""
 
     @abstractmethod
     def get_models(self, device_id: Optional[EntityId] = None) -> List[LoadConsumptionModel]:
@@ -237,6 +245,14 @@ class MinerActionServiceInterface(ABC):
     @abstractmethod
     async def get_controller_limits(self, controller_id: EntityId) -> Optional[MinerLimit]:
         """Get max power / max hash rate directly from a controller, without a persisted miner."""
+    
+    @abstractmethod
+    async def get_controller_supported_features(self, controller_id: EntityId) -> List[MinerFeatureType]:
+        """Get the feature types supported by a controller, without requiring a persisted miner."""
+
+    @abstractmethod
+    async def test_miner_controller_connection(self, controller: MinerController) -> MinerStateSnapshot:
+        """Test the connection of a (possibly unsaved) miner controller and return a state snapshot."""
 
 
 class ConfigurationServiceInterface(ABC):

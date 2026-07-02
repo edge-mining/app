@@ -79,6 +79,14 @@ export const useHomeLoadsProfileStore = defineStore("homeLoadsProfile", () => {
     return service.getDeviceForecast(profileId, deviceId, hoursAhead, historyHours);
   }
 
+  function trainDevice(
+    profileId: string,
+    deviceId: string,
+    weeksLookback: number = 8
+  ): Promise<Record<string, string>> {
+    return service.trainDevice(profileId, deviceId, weeksLookback);
+  }
+
   return {
     // STATE
     profiles,
@@ -95,5 +103,6 @@ export const useHomeLoadsProfileStore = defineStore("homeLoadsProfile", () => {
     collectDeviceHistory,
     clearDeviceHistory,
     getDeviceForecast,
+    trainDevice,
   };
 });

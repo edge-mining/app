@@ -77,4 +77,8 @@ export class MinerService extends BaseService {
   getControllerInfo(controllerId: string): Promise<MinerInfo | null> {
     return this.get<MinerInfo | null>(`/miner-controllers/${controllerId}/info`).getData();
   }
+  
+  getControllerSupportedFeatures(controllerId: string): Promise<string[]> {
+    return this.get<string[]>(`/miner-controllers/${controllerId}/supported-features`).getData();
+  }
 }

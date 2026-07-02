@@ -6,6 +6,7 @@ from edge_mining.application.interfaces import AdapterServiceInterface, EventBus
 from edge_mining.domain.common import EntityId, Watts
 from edge_mining.domain.miner.aggregate_roots import Miner
 from edge_mining.domain.miner.common import MinerFeatureType, MinerStatus
+from edge_mining.domain.miner.entities import MinerController
 from edge_mining.domain.miner.events import MinerStateChangedEvent
 from edge_mining.domain.miner.exceptions import (
     MinerControllerConfigurationError,
@@ -510,5 +511,109 @@ class MinerActionService(MinerActionServiceInterface):
 
         if self.logger:
             self.logger.debug(f"Retrieved miner details for controller {controller_id}")
+
+        return snapshot
+
+    async def get_controller_supported_features(self, controller_id: EntityId) -> List[MinerFeatureType]:
+        """Get the feature types supported by a controller, without requiring a persisted miner.
+
+        Resolves the controller adapter (via a temporary miner, like
+        ``get_miner_details_from_controller``) and introspects its supported
+        feature types. This allows the UI to preview/configure features before
+        the miner is saved.
+        """
+        if self.logger:
+            self.logger.info(f"Getting supported features for controller {controller_id}")
+
+        # Build a temporary miner so the adapter service can resolve the controller
+        temp_features = [MinerFeature(feature_type=ft, controller_id=controller_id) for ft in MinerFeatureType]
+        temp_miner = Miner(
+            name="Unknown",
+            model="Unknown",
+            hash_rate_max=None,
+            power_consumption_max=None,
+            active=True,
+            features=temp_features,
+        )
+
+        adapter = await self.adapter_service.get_miner_controller_adapter(temp_miner, controller_id)
+        if not adapter:
+            raise MinerControllerConfigurationError(f"Could not initialize adapter for controller {controller_id}.")
+
+        return list(adapter.__class__.get_supported_features())
+
+    async def test_miner_controller_connection(self, controller: MinerController) -> MinerStateSnapshot:
+        """Test the connection of a (possibly unsaved) miner controller.
+
+        Builds a fresh adapter from the given controller entity (without persisting
+        it) and queries it to verify it is reachable and properly configured.
+        Returns a state snapshot on success, raises MinerControllerConfigurationError
+        if the controller can not be reached or returns no usable data.
+        """
+        if self.logger:
+            self.logger.info(f"Testing connection for miner controller '{controller.name}' ({controller.adapter_type})")
+
+        # Build a temporary miner so adapters that need miner attributes can be
+        # instantiated. Defaults are used since no miner exists yet.
+        temp_miner = Miner(
+            name="Connection test",
+            model="Unknown",
+            hash_rate_max=HashRate(1, "TH/s"),
+            power_consumption_max=Watts(1.0),
+            active=True,
+            features=[],
+        )
+
+        adapter = await self.adapter_service.build_miner_controller_adapter(temp_miner, controller)
+
+        if adapter is None:
+            raise MinerControllerConfigurationError(
+                "Unable to initialize the controller. Check the configuration and try again."
+            )
+
+        current_status = MinerStatus.UNKNOWN
+        if isinstance(adapter, StatusMonitorPort):
+            current_status = await adapter.get_status()
+
+        current_hashrate = None
+        if isinstance(adapter, HashrateMonitorPort):
+            current_hashrate = await adapter.get_hashrate()
+
+        current_power = None
+        if isinstance(adapter, PowerMonitorPort):
+            current_power = await adapter.get_power()
+
+        device_info = None
+        if isinstance(adapter, DeviceInfoPort):
+            device_info = await adapter.get_device_info()
+
+        # The controller is considered reachable if it returns a determinate status
+        # or any usable data (hashrate, power or device info).
+        is_reachable = any(
+            (
+                current_status != MinerStatus.UNKNOWN,
+                current_hashrate is not None,
+                current_power is not None,
+                device_info is not None,
+            )
+        )
+
+        if not is_reachable:
+            if self.logger:
+                self.logger.warning(
+                    f"Connection test failed for controller '{controller.name}'. No response from the device."
+                )
+            raise MinerControllerConfigurationError(
+                "No response from the device. Check the address, port and credentials."
+            )
+
+        snapshot = MinerStateSnapshot(
+            status=current_status,
+            hash_rate=current_hashrate,
+            power_consumption=current_power,
+        )
+
+        if self.logger:
+            self.logger.debug(f"Connection test succeeded for controller '{controller.name}'")
 
         return snapshot
