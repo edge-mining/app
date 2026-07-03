@@ -2555,8 +2555,7 @@ class ConfigurationService(ConfigurationServiceInterface):
 
         if configuration.scheduler_interval_seconds < 1:
             raise ConfigurationError(
-                f"Invalid scheduler interval '{configuration.scheduler_interval_seconds}': "
-                "must be at least 1 second."
+                f"Invalid scheduler interval '{configuration.scheduler_interval_seconds}': must be at least 1 second."
             )
 
     # --- Climate Zone Management ---
