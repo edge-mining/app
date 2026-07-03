@@ -82,6 +82,7 @@ from edge_mining.adapters.infrastructure.persistence.sqlalchemy.base import Base
 from edge_mining.adapters.infrastructure.persistence.sqlite import BaseSqliteRepository
 from edge_mining.adapters.infrastructure.event_bus.in_memory_event_bus import InMemoryEventBus
 from edge_mining.adapters.infrastructure.sun.factories import AstralSunFactory
+from edge_mining.adapters.infrastructure.system.handlers import SystemConfigurationHandler
 from edge_mining.application.interfaces import SunFactoryInterface
 from edge_mining.application.services.adapter_service import AdapterService
 from edge_mining.application.services.configuration_service import ConfigurationService
@@ -112,6 +113,7 @@ from edge_mining.shared.logging.port import LoggerPort
 from edge_mining.shared.settings.common import PersistenceAdapter
 from edge_mining.shared.settings.ports import SettingsRepository
 from edge_mining.shared.settings.settings import AppSettings
+from edge_mining.shared.timezone import set_timezone
 
 
 def configure_persistence(logger: LoggerPort, settings: AppSettings) -> PersistenceSettings:
@@ -322,13 +324,6 @@ def configure_dependencies(logger: LoggerPort, settings: AppSettings) -> Service
 
     logger.debug("Configuring dependencies...")
 
-    # --- Factories ---
-    sun_factory: SunFactoryInterface = AstralSunFactory(
-        latitude=settings.latitude,
-        longitude=settings.longitude,
-        timezone=settings.timezone,
-    )
-
     # --- Persistence ---
     persistence_settings: PersistenceSettings = configure_persistence(logger, settings)
 
@@ -354,6 +349,30 @@ def configure_dependencies(logger: LoggerPort, settings: AppSettings) -> Service
         climate_monitor_repo=persistence_settings.climate_monitor_repo,
     )
 
+    config_service = ConfigurationService(
+        persistence_settings=persistence_settings,
+        event_bus=event_bus,
+        logger=logger,
+        adapter_service=adapter_service,
+    )
+
+    # --- System configuration (timezone, location) ---
+    system_configuration = config_service.get_system_configuration()
+
+    # Apply the configured timezone application-wide
+    set_timezone(system_configuration.timezone)
+
+    # --- Factories ---
+    sun_factory: SunFactoryInterface = AstralSunFactory(
+        latitude=system_configuration.latitude,
+        longitude=system_configuration.longitude,
+        timezone=system_configuration.timezone,
+    )
+
+    # Apply system configuration changes to ambient infrastructure at runtime
+    system_configuration_handler = SystemConfigurationHandler(sun_factory=sun_factory, logger=logger)
+    system_configuration_handler.subscribe(event_bus)
+
     optimization_service = OptimizationService(
         optimization_unit_repo=persistence_settings.optimization_unit_repo,
         energy_source_repo=persistence_settings.energy_source_repo,
@@ -374,13 +393,6 @@ def configure_dependencies(logger: LoggerPort, settings: AppSettings) -> Service
         miner_repo=persistence_settings.miner_repo,
         event_bus=event_bus,
         logger=logger,
-    )
-
-    config_service = ConfigurationService(
-        persistence_settings=persistence_settings,
-        event_bus=event_bus,
-        logger=logger,
-        adapter_service=adapter_service,
     )
 
     home_load_history_service = HomeLoadHistoryService(

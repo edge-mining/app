@@ -16,6 +16,7 @@ from edge_mining.adapters.domain.notification.fast_api.router import router as n
 from edge_mining.adapters.domain.optimization_unit.fast_api.router import router as optimization_unit_router
 from edge_mining.adapters.domain.performance.fast_api.router import router as performance_router
 from edge_mining.adapters.domain.policy.fast_api.router import router as policy_router
+from edge_mining.adapters.domain.user.fast_api.router import router as system_router
 
 # Import dependency injection setup functions
 from edge_mining.adapters.infrastructure.api.setup import get_logger, get_optimization_service, get_service_container
@@ -86,6 +87,7 @@ app.include_router(forecast_router, prefix="/api/v1", tags=["forecast"])
 app.include_router(home_load_router, prefix="/api/v1", tags=["home_load"])
 app.include_router(performance_router, prefix="/api/v1", tags=["performance"])
 app.include_router(climate_router, prefix="/api/v1", tags=["climate"])
+app.include_router(system_router, prefix="/api/v1", tags=["system"])
 app.include_router(ws_router, tags=["websocket"])
 # Add more routers here (e.g., for configuration)
 

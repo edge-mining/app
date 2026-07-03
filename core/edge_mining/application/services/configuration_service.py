@@ -3,6 +3,7 @@ Configuration service for managing all domain entities of edge mining applicatio
 """
 
 from typing import Any, Dict, List, Optional
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from edge_mining.application.events.common import (
     ConfigurationAction,
@@ -84,10 +85,13 @@ from edge_mining.domain.policy.exceptions import (
     PolicyNotFoundError,
     RuleNotFoundError,
 )
+from edge_mining.domain.exceptions import ConfigurationError
 from edge_mining.domain.policy.ports import OptimizationPolicyRepository
 from edge_mining.domain.policy.services import RuleValidationService
 from edge_mining.domain.user.common import UserId
 from edge_mining.domain.user.entities import SystemSettings
+from edge_mining.domain.user.events import SystemConfigurationUpdated
+from edge_mining.domain.user.value_objects import SystemConfiguration
 from edge_mining.shared.adapter_maps.energy import (
     ENERGY_MONITOR_CONFIG_TYPE_MAP,
     ENERGY_MONITOR_TYPE_EXTERNAL_SERVICE_MAP,
@@ -2499,6 +2503,61 @@ class ConfigurationService(ConfigurationServiceInterface):
         settings.set_setting(key, value)
 
         self.settings_repo.save_settings(user_id, settings)
+
+    def get_system_configuration(self) -> SystemConfiguration:
+        """Get the current system configuration, falling back to defaults for missing values."""
+        stored = self.get_all_settings()
+        defaults = SystemConfiguration()
+        return SystemConfiguration(
+            timezone=stored.get("timezone", defaults.timezone),
+            latitude=float(stored.get("latitude", defaults.latitude)),
+            longitude=float(stored.get("longitude", defaults.longitude)),
+            scheduler_interval_seconds=int(
+                stored.get("scheduler_interval_seconds", defaults.scheduler_interval_seconds)
+            ),
+        )
+
+    async def update_system_configuration(self, configuration: SystemConfiguration) -> SystemConfiguration:
+        """Validate, persist and broadcast the system configuration."""
+        self._validate_system_configuration(configuration)
+
+        user_id: UserId = UserId("global_settings")
+        settings = self.settings_repo.get_settings(user_id)
+        if not settings:
+            settings = SystemSettings(id=user_id)
+
+        self.logger.info("Updating system configuration.")
+
+        settings.set_setting("timezone", configuration.timezone)
+        settings.set_setting("latitude", configuration.latitude)
+        settings.set_setting("longitude", configuration.longitude)
+        settings.set_setting("scheduler_interval_seconds", configuration.scheduler_interval_seconds)
+
+        self.settings_repo.save_settings(user_id, settings)
+
+        await self._event_bus.publish(SystemConfigurationUpdated(configuration=configuration))
+
+        return configuration
+
+    @staticmethod
+    def _validate_system_configuration(configuration: SystemConfiguration) -> None:
+        """Validate the values of a system configuration, raising ConfigurationError if invalid."""
+        try:
+            ZoneInfo(configuration.timezone)
+        except (ZoneInfoNotFoundError, ValueError) as e:
+            raise ConfigurationError(f"Invalid timezone '{configuration.timezone}'.") from e
+
+        if not -90.0 <= configuration.latitude <= 90.0:
+            raise ConfigurationError(f"Invalid latitude '{configuration.latitude}': must be between -90 and 90.")
+
+        if not -180.0 <= configuration.longitude <= 180.0:
+            raise ConfigurationError(f"Invalid longitude '{configuration.longitude}': must be between -180 and 180.")
+
+        if configuration.scheduler_interval_seconds < 1:
+            raise ConfigurationError(
+                f"Invalid scheduler interval '{configuration.scheduler_interval_seconds}': "
+                "must be at least 1 second."
+            )
 
     # --- Climate Zone Management ---
 

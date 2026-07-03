@@ -45,6 +45,7 @@ from edge_mining.domain.policy.common import RuleType
 from edge_mining.domain.policy.entities import AutomationRule
 from edge_mining.domain.policy.services import RuleEngine
 from edge_mining.domain.policy.value_objects import DecisionalContext, Sun
+from edge_mining.domain.user.value_objects import SystemConfiguration
 from edge_mining.shared.external_services.common import ExternalServiceAdapter
 from edge_mining.shared.external_services.entities import ExternalService
 from edge_mining.shared.external_services.ports import ExternalServicePort
@@ -1034,6 +1035,14 @@ class ConfigurationServiceInterface(ABC):
     async def update_setting(self, key: str, value: Any) -> None:
         """Update a setting."""
 
+    @abstractmethod
+    def get_system_configuration(self) -> SystemConfiguration:
+        """Get the current system configuration."""
+
+    @abstractmethod
+    async def update_system_configuration(self, configuration: SystemConfiguration) -> SystemConfiguration:
+        """Validate, persist and broadcast the system configuration."""
+
     # --- Climate Zone Management ---
 
     @abstractmethod
@@ -1133,6 +1142,10 @@ class SunFactoryInterface(ABC):
     @abstractmethod
     def create_sun_for_date(self, for_date: datetime = datetime.now()) -> Sun:
         """Create a Sun object for a specific date."""
+
+    @abstractmethod
+    def reconfigure(self, latitude: float, longitude: float, timezone: str) -> None:
+        """Update the location used to compute Sun objects."""
 
 
 class EventBusInterface(ABC):
