@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **System settings management** — timezone, location (latitude/longitude) and the optimization scheduler interval are now user-editable from the app instead of environment variables:
+- **System settings management** — timezone, location (latitude/longitude) and the optimization scheduler interval are now user-editable from the app instead of environment variables (#54):
   - `SystemConfiguration` value object and typed `ConfigurationService.get_system_configuration()` / `update_system_configuration()`, persisted through the existing settings store
   - REST endpoints `GET` / `PUT /api/v1/system/settings`
   - New "System" settings page in the frontend, with the timezone list sourced from the browser and an interactive dark map (Leaflet) to pick the location by dragging a marker or clicking, using the Edge Mining logo as the marker
@@ -51,11 +51,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Miner controller add/edit form now uses the shared schema-driven configuration form, so Home Assistant controllers (e.g. generic socket) benefit from entity/unit pairing and the unit segmented controls like the other forms (#17, #18).
 - Cleaned up sidebar header: removed the "Edge Mining" text label and the username placeholder, left-aligned the logo with the sidebar menu items, and refined the green glow to originate from the logo area (#33).
 - `MinerActionService`: extracted shared `_read_miner_info` / `_read_miner_limits`helpers and a `_temp_miner_for_controller` builder, reused by the miner- and controller-level info/limits/details reads.
-- System configuration (timezone, latitude, longitude, scheduler interval) now lives in the database and is managed from the app; the values are seeded from defaults on first run.
+- System configuration (timezone, latitude, longitude, scheduler interval) now lives in the database and is managed from the app; the values are seeded from defaults on first run (#54).
 
 ### Removed
 
-- Environment variables `TIMEZONE`, `LATITUDE`, `LONGITUDE` and `SCHEDULER_INTERVAL_SECONDS` are no longer read; these settings are now managed from the System settings page. Existing values in `.env` are ignored.
+- Environment variables `TIMEZONE`, `LATITUDE`, `LONGITUDE` and `SCHEDULER_INTERVAL_SECONDS` are no longer read; these settings are now managed from the System settings page. Existing values in `.env` are ignored (#54).
 
 ## [Pre-Release Rev3]
 
