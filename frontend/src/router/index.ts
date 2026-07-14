@@ -17,6 +17,7 @@ import HomeLoadsSettingsView from "../views/settings/HomeLoadsSettingsView.vue";
 import HomeLoadsTrainingView from "../views/settings/HomeLoadsTrainingView.vue";
 import ClimateZonesSettingsView from "../views/settings/ClimateZonesSettingsView.vue";
 import ClimateMonitorsSettingsView from "../views/settings/ClimateMonitorsSettingsView.vue";
+import SystemSettingsView from "../views/settings/SystemSettingsView.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -116,6 +117,11 @@ const router = createRouter({
           path: "climate-monitors",
           name: "settings.climateMonitors",
           component: ClimateMonitorsSettingsView,
+        },
+        {
+          path: "system",
+          name: "settings.system",
+          component: SystemSettingsView,
         },
       ],
     },

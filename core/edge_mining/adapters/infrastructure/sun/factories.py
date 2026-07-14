@@ -34,6 +34,16 @@ class AstralSunFactory(SunFactoryInterface):
         )
         self._location = location_info
 
+    def reconfigure(self, latitude: float, longitude: float, timezone: str) -> None:
+        """Update the location used to compute Sun objects, preserving name and region."""
+        self._location = LocationInfo(
+            name=self._location.name,
+            region=self._location.region,
+            timezone=timezone,
+            latitude=latitude,
+            longitude=longitude,
+        )
+
     def create_sun_for_date(self, for_date: datetime = datetime.now()) -> Sun:
         """
         Creates a Sun object for a specific date.

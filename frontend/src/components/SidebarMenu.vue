@@ -10,6 +10,7 @@ import {
   PhGraph,
   PhHouse,
   PhThermometerSimple,
+  PhGearSix,
 } from "@phosphor-icons/vue";
 import VectorIcon from "./VectorIcon.vue";
 
@@ -331,6 +332,18 @@ const isClimateActive = computed(() =>
             >
               <PhBell :size="18" />
               Notifiers
+            </RouterLink>
+          </li>
+
+          <!-- System -->
+          <li class="w-full">
+            <RouterLink
+              to="/settings/system"
+              class="w-full text-sm font-medium"
+              active-class="active text-primary"
+            >
+              <PhGearSix :size="18" />
+              System
             </RouterLink>
           </li>
         </ul>

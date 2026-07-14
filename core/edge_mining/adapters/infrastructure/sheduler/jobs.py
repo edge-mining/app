@@ -4,8 +4,14 @@ from typing import Optional
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from edge_mining.application.interfaces import HomeLoadHistoryServiceInterface, OptimizationServiceInterface
+from edge_mining.application.interfaces import (
+    EventBusInterface,
+    HomeLoadHistoryServiceInterface,
+    OptimizationServiceInterface,
+)
 from edge_mining.application.services.load_forecast_training_service import LoadForecastModelTrainingService
+from edge_mining.domain.user.events import SystemConfigurationUpdated
+from edge_mining.domain.user.value_objects import SystemConfiguration
 from edge_mining.shared.logging.port import LoggerPort
 from edge_mining.shared.scheduler.port import SchedulerPort
 from edge_mining.shared.settings.settings import AppSettings
@@ -19,6 +25,8 @@ class AutomationScheduler(SchedulerPort):
         optimization_service: OptimizationServiceInterface,
         logger: LoggerPort,
         settings: AppSettings,
+        system_configuration: SystemConfiguration,
+        event_bus: EventBusInterface,
         home_load_history_service: Optional[HomeLoadHistoryServiceInterface] = None,
         load_forecast_training_service: Optional[LoadForecastModelTrainingService] = None,
     ):
@@ -27,12 +35,19 @@ class AutomationScheduler(SchedulerPort):
         self.load_forecast_training_service = load_forecast_training_service
         self.logger = logger
         self.settings = settings
-        self.scheduler = AsyncIOScheduler(timezone=self.settings.timezone)
+        self._interval_seconds = system_configuration.scheduler_interval_seconds
+        self.scheduler = AsyncIOScheduler(timezone=system_configuration.timezone)
 
         self._job_id = "evaluate_mining"
         self._history_collect_job_id = "collect_load_history"
         self._history_purge_job_id = "purge_load_history"
         self._model_training_job_id = "train_load_forecast_models"
+
+        event_bus.subscribe(
+            SystemConfigurationUpdated,
+            self.on_system_configuration_updated,
+            blocking=False,
+        )
 
     async def _run_evaluation_job(self):
         """Wrapper to call the optimization service's run method."""
@@ -74,9 +89,22 @@ class AutomationScheduler(SchedulerPort):
         except Exception as e:
             self.logger.error(f"Error during scheduled job: {self._model_training_job_id}. {e}")
 
+    async def on_system_configuration_updated(self, event: SystemConfigurationUpdated) -> None:
+        """Reschedule the evaluation job when the scheduler interval changes."""
+        configuration = event.configuration
+        if configuration is None:
+            return
+
+        interval = configuration.scheduler_interval_seconds
+        self._interval_seconds = interval
+
+        if self.scheduler.get_job(self._job_id):
+            self.scheduler.reschedule_job(self._job_id, trigger="interval", seconds=interval)
+            self.logger.debug(f"Rescheduled job |{self._job_id}| to run every {interval} seconds.")
+
     async def start(self):
         """Adds the job and starts the scheduler."""
-        interval = self.settings.scheduler_interval_seconds
+        interval = self._interval_seconds
         self.logger.debug(f"Starting scheduler. job |{self._job_id}| will run every {interval} seconds.")
 
         self.scheduler.add_job(

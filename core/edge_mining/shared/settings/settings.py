@@ -10,9 +10,6 @@ class AppSettings(BaseSettings):
 
     # Application settings
     log_level: str = "INFO"
-    timezone: str = "Europe/Rome"  # Default timezone
-    latitude: float = 41.9028  # Default latitude for Rome
-    longitude: float = 12.4964  # Default longitude for Rome
 
     # Adapters Configuration (select which ones to use)
     persistence_adapter: str = "sqlalchemy"  # Options: "in_memory", "sqlite", "yaml", "sqlalchemy"
@@ -30,7 +27,6 @@ class AppSettings(BaseSettings):
     api_port: int = 8001
 
     # Scheduler settings
-    scheduler_interval_seconds: int = 5  # Evaluate every 5 seconds
     history_ingestion_interval_seconds: int = 120  # Collect power points every 2 minutes
     history_retention_days: int = 90  # Purge power points older than 90 days
 
