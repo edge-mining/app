@@ -66,8 +66,7 @@ class HomeAssistantForecastProviderFactory(ForecastAdapterFactory):
         forecast_provider_config: ForecastProviderHomeAssistantConfig = config
         service_home_assistant_api = cast(ServiceHomeAssistantAPI, external_service)
 
-        # Use the builder to configure the provider, in this way we can
-        # ensure that all required entities are set.
+        # Use the builder to configure only the entities supplied by the user.
         builder = HomeAssistantForecastProviderBuilder(home_assistant=service_home_assistant_api, logger=logger)
 
         # Configure the builder with the entities and units
@@ -205,11 +204,6 @@ class HomeAssistantForecastProviderBuilder:
 
     def build(self) -> "HomeAssistantForecastProvider":
         """Builds the HomeAssistantForecastProvider instance."""
-        if not self.entity_forecast_power_actual_h:
-            raise ValueError("Entity ID for actual solar power forecast is required.")
-        if not self.entity_forecast_energy_actual_h:
-            raise ValueError("Entity ID for actual solar energy forecast is required.")
-
         forecast_provider = HomeAssistantForecastProvider(
             home_assistant=self.home_assistant,
             entity_forecast_power_actual_h=self.entity_forecast_power_actual_h,
